@@ -607,6 +607,56 @@
 
       // ===== 经营分析会页面 =====
       function renderMeetings() {
+        const meetings = [
+          { id: 1, name: '月度经营分析会', date: '2026-04-15', time: '14:00', location: '会议室 A', host: '张总', status: 'ready', statusLabel: '准备中', color: 'var(--primary)', topics: 4, decisions: 3, materials: 5, reviewed: 3, agenda: ['Q1 复盘', 'Q2 目标对齐', '预警事项讨论', '下月重点工作'] },
+          { id: 2, name: 'Q1 季度战略会', date: '2026-03-15', time: '09:00', location: '已完成', host: '张总', status: 'done', statusLabel: '已完成', color: 'var(--success)', topics: 6, decisions: 8, materials: 6, reviewed: 6, agenda: ['战略回顾', 'KPI 达成分析', '市场洞察', '组织复盘', 'Q2 计划', '资源调配'] },
+          { id: 3, name: 'Q2 季度战略会', date: '2026-06-15', time: '待定', location: '待确认', host: '待定', status: 'plan', statusLabel: '规划中', color: 'var(--text-disabled)', topics: 0, decisions: 0, materials: 0, reviewed: 0, agenda: [] }
+        ];
+        const decisions = [
+          { id: 'D001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', progress: 75, status: 'normal' },
+          { id: 'D002', content: '海外渠道拓展：新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', progress: 40, status: 'warning' },
+          { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', progress: 60, status: 'normal' },
+          { id: 'D004', content: '客户成功团队扩编至 15 人', owner: '赵经理', deadline: '2026-04-20', progress: 90, status: 'success' },
+          { id: 'D005', content: '供应链成本降低 8%', owner: '张总监', deadline: '2026-06-30', progress: 30, status: 'normal' },
+          { id: 'D006', content: '建立月度经营分析标准化流程', owner: '张总', deadline: '2026-04-15', progress: 100, status: 'success' }
+        ];
+        const statusBadgeClass = { 'ready': 'status-warning', 'done': 'status-success', 'plan': 'status-default' };
+        const progressColor = { 'normal': 'var(--primary)', 'warning': 'var(--warning)', 'success': 'var(--success)' };
+
+        const meetingCards = meetings.map(m => `
+          <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${m.color}; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+            <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
+              <div style="font-size: 15px; font-weight: 600;">${m.name}</div>
+              <span class="status-badge ${statusBadgeClass[m.status]}">${m.statusLabel}</span>
+            </div>
+            <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
+              📅 ${m.date} ${m.time} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 主持人：${m.host}
+            </div>
+            <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-tertiary);">
+              <span>📝 议题 ${m.topics}</span>
+              <span>✅ 决议 ${m.decisions}</span>
+              <span>📎 材料 ${m.reviewed}/${m.materials}</span>
+              ${m.materials > m.reviewed ? '<span style="color: var(--danger);">⚠️ 待审核</span>' : '<span style="color: var(--success);">✓ 已审完</span>'}
+            </div>
+            ${m.agenda.length > 0 ? `<div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">${m.agenda.map(a => `<span style="padding: 3px 10px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 12px; color: var(--text-secondary);">${a}</span>`).join('')}</div>` : ''}
+          </div>
+        `).join('');
+
+        const decisionRows = decisions.map(d => `
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
+            <div style="font-size: 11px; color: var(--text-tertiary); width: 50px;">${d.id}</div>
+            <div style="flex: 1; font-size: 13px;">${d.content}</div>
+            <div style="font-size: 12px; color: var(--text-tertiary); width: 70px; text-align: center;">${d.owner}</div>
+            <div style="font-size: 12px; color: var(--text-tertiary); width: 90px; text-align: center;">${d.deadline}</div>
+            <div style="width: 100px;">
+              <div style="height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
+                <div style="width: ${d.progress}%; height: 100%; background: ${progressColor[d.status]}; border-radius: 3px; transition: width 0.5s ease;"></div>
+              </div>
+              <div style="font-size: 11px; color: var(--text-tertiary); text-align: right; margin-top: 2px;">${d.progress}%</div>
+            </div>
+          </div>
+        `).join('');
+
         return `
           ${renderBreadcrumb('经营分析会')}
           <div class="page-header">
@@ -617,57 +667,101 @@
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+          <!-- 顶部筛选栏 -->
+          <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+            <select style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
+              <option>📅 全部季度</option>
+              <option>2026 Q1</option>
+              <option>2026 Q2</option>
+              <option>2026 Q3</option>
+            </select>
+            <select style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
+              <option>📋 全部状态</option>
+              <option>准备中</option>
+              <option>已完成</option>
+              <option>规划中</option>
+            </select>
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-tertiary);">
+              <span>📝 本年议题 <strong style="color: var(--text-primary);">10</strong></span>
+              <span>✅ 决议 <strong style="color: var(--text-primary);">17</strong></span>
+              <span>📎 材料 <strong style="color: var(--text-primary);">11/11</strong></span>
+            </div>
+          </div>
+
+          <!-- 主体：左会议列表 + 右统计 -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="card">
-              <div class="card-header"><div class="card-title">📋 会议列表</div></div>
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="card-title">📋 会议列表</div>
+                <span style="font-size: 12px; color: var(--text-tertiary);">共 ${meetings.length} 场</span>
+              </div>
               <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--primary);">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div style="font-size: 15px; font-weight: 600;">月度经营分析会</div>
-                    <span class="status-badge status-warning">准备中</span>
-                  </div>
-                  <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 6px;">4月15日 14:00 | 会议室 A | 主持人：张总</div>
-                  <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">议题：Q1 复盘、Q2 目标对齐、预警事项讨论</div>
-                </div>
-                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--success);">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div style="font-size: 15px; font-weight: 600;">Q1 季度战略会</div>
-                    <span class="status-badge status-success">已完成</span>
-                  </div>
-                  <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 6px;">3月15日 09:00 | 已完成</div>
-                </div>
-                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--border-color);">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div style="font-size: 15px; font-weight: 600;">Q2 季度战略会</div>
-                    <span class="status-badge status-success">规划中</span>
-                  </div>
-                  <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 6px;">6月15日 | 待确认</div>
-                </div>
+                ${meetingCards}
               </div>
             </div>
-            <div class="card">
-              <div class="card-header"><div class="card-title">📊 会议统计</div></div>
-              <div style="display: flex; flex-direction: column; gap: 16px;">
-                <div style="text-align: center;">
-                  <div style="font-size: 32px; font-weight: 700; color: var(--primary);">12</div>
-                  <div style="font-size: 12px; color: var(--text-tertiary);">本年会议数</div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <div class="card">
+                <div class="card-header"><div class="card-title">📊 会议统计</div></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0;">
+                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--primary);">12</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">本年会议</div>
+                  </div>
+                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--success);">95%</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">决议执行率</div>
+                  </div>
+                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--warning);">3</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待闭环</div>
+                  </div>
+                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--danger);">2</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待审核材料</div>
+                  </div>
                 </div>
-                <div style="text-align: center;">
-                  <div style="font-size: 32px; font-weight: 700; color: var(--success);">95%</div>
-                  <div style="font-size: 12px; color: var(--text-tertiary);">决议执行率</div>
-                </div>
-                <div style="text-align: center;">
-                  <div style="font-size: 32px; font-weight: 700; color: var(--warning);">3</div>
-                  <div style="font-size: 12px; color: var(--text-tertiary);">待闭环事项</div>
-                </div>
-                <div style="text-align: center; padding-top: 12px; border-top: 1px solid var(--border-light);">
-                  <div style="font-size: 32px; font-weight: 700; color: var(--danger);">2</div>
-                  <div style="font-size: 12px; color: var(--text-tertiary);">待审核材料</div>
-                </div>
-                <div style="text-align: center;">
+                <div style="text-align: center; padding-top: 8px;">
                   <a href="reviewer.html" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; text-decoration: none;">📋 审核会议材料</a>
                 </div>
               </div>
+              <div class="card">
+                <div class="card-header"><div class="card-title">📈 趋势</div></div>
+                <div style="padding: 8px 0;">
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
+                    <span>会议决议执行趋势</span>
+                    <span style="color: var(--success);">↑ 同比 +12%</span>
+                  </div>
+                  <div style="display: flex; align-items: flex-end; gap: 6px; height: 60px;">
+                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 40%;"></div>
+                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 55%;"></div>
+                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 50%;"></div>
+                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 70%;"></div>
+                    <div style="flex: 1; background: var(--primary); border-radius: 3px; height: 85%;"></div>
+                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 60%;"></div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+                    <span>1月</span><span>6月</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 决议跟踪 -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="card-title">✅ 决议跟踪</div>
+              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${decisions.length} 项</span>
+            </div>
+            <div style="padding: 0 4px;">
+              <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 12px; font-weight: 600; color: var(--text-tertiary);">
+                <div style="width: 50px;">编号</div>
+                <div style="flex: 1;">决议内容</div>
+                <div style="width: 70px; text-align: center;">负责人</div>
+                <div style="width: 90px; text-align: center;">截止日期</div>
+                <div style="width: 100px;">进度</div>
+              </div>
+              ${decisionRows}
             </div>
           </div>
 
