@@ -369,8 +369,14 @@
 
       // 自动尝试 SSO（如果本地存储了凭据）
       function initFineReportSSO() {
-        // 可以在这里从后端/sessionStorage 读取预存的凭据自动登录
-        // 目前需要用户手动输入
+        // 自动填充 DSTE 登录用户名
+        const dsteUser = sessionStorage.getItem('dste-user') || localStorage.getItem('dste-remember-user');
+        const frUserInput = document.getElementById('fr-username');
+        const frPwdInput = document.getElementById('fr-password');
+        if (dsteUser && frUserInput) {
+          frUserInput.value = dsteUser;
+          if (frPwdInput) frPwdInput.focus();
+        }
       }
 
       window.refreshFineReport = function() {
