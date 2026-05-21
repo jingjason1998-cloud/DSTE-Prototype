@@ -20,15 +20,15 @@
 ```
 docs/
 ├── 00-index.md          ← 从这儿开始看
-├── 01-product/          # PRD、路线图、变更日志
-├── 02-rfc/              # 功能设计文档（开发前写）
-├── 03-adr/              # 架构决策记录
-├── 04-guide/            # 开发指南（How-to）
-├── 05-reference/        # 组件、API、规范参考
-└── 06-explanation/      # 架构、技术栈说明
+├── 01-Product产品/          # PRD、路线图、变更日志
+├── 02-RFC功能设计/              # 功能设计文档（开发前写）
+├── 03-ADR架构决策/              # 架构决策记录
+├── 04-Guide开发指南/            # 开发指南（How-to）
+├── 05-Reference参考手册/        # 组件、API、规范参考
+└── 06-Explanation架构解释/      # 架构、技术栈说明
 ```
 
-**新功能开发前**，先看 `docs/02-rfc/000-template.md` 写设计文档。
+**新功能开发前**，先看 `docs/02-RFC功能设计/000-template.md` 写设计文档。
 
 ---
 
@@ -70,20 +70,20 @@ test: 测试更新
 | 架构 AI | 集成、路由、部署、审查 | 可以改配置文件 |
 | 功能 AI | 独立页面开发 | **不要改** vite.config.js / playwright.config.js / package.json / src/lib/config.js |
 
-给功能 AI 的任务模板见 `docs/04-guide/ai-collaboration.md`
+给功能 AI 的任务模板见 `docs/04-Guide开发指南/ai-collaboration.md`
 
 ---
 
 ## 常见问题
 
 **Q：怎么添加一个新页面？**
-→ `docs/04-guide/new-page.md`
+→ `docs/04-Guide开发指南/new-page.md`
 
 **Q：组件怎么用？**
-→ `docs/05-reference/components.md`
+→ `docs/05-Reference参考手册/components.md`
 
 **Q：测试怎么写？**
-→ `docs/05-reference/testing.md`
+→ `docs/05-Reference参考手册/testing.md`
 
 **Q：为什么要这样设计？**
-→ `docs/06-explanation/architecture.md`
+→ `docs/06-Explanation架构解释/architecture.md`

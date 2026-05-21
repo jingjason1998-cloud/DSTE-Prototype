@@ -14,15 +14,15 @@
 
 | 我想... | 去这里 |
 |---------|--------|
-| 了解产品是什么 | [PRD](01-product/prd.md) |
-| 看路线图和版本计划 | [Roadmap](01-product/roadmap.md) |
-| 搭建开发环境 | [环境搭建](04-guide/setup.md) |
-| 开发一个新页面 | [新页面开发指南](04-guide/new-page.md) |
-| 给 AI 分配任务 | [AI 协作规范](04-guide/ai-collaboration.md) |
-| 了解组件怎么用 | [组件参考](05-reference/components.md) |
-| 写测试 | [测试参考](05-reference/testing.md) |
-| 为什么要选这个技术栈 | [技术栈说明](06-explanation/tech-stack.md) |
-| 了解整体架构 | [架构说明](06-explanation/architecture.md) |
+| 了解产品是什么 | [PRD](01-Product产品/prd.md) |
+| 看路线图和版本计划 | [Roadmap](01-Product产品/roadmap.md) |
+| 搭建开发环境 | [环境搭建](04-Guide开发指南/setup.md) |
+| 开发一个新页面 | [新页面开发指南](04-Guide开发指南/new-page.md) |
+| 给 AI 分配任务 | [AI 协作规范](04-Guide开发指南/ai-collaboration.md) |
+| 了解组件怎么用 | [组件参考](05-Reference参考手册/components.md) |
+| 写测试 | [测试参考](05-Reference参考手册/testing.md) |
+| 为什么要选这个技术栈 | [技术栈说明](06-Explanation架构解释/tech-stack.md) |
+| 了解整体架构 | [架构说明](06-Explanation架构解释/architecture.md) |
 
 ---
 
@@ -31,28 +31,28 @@
 ```
 docs/
 ├── 00-index.md              ← 你在读这个
-├── 01-product/              # 产品文档
+├── 01-Product产品/              # 产品文档
 │   ├── prd.md               # 产品需求文档
 │   ├── roadmap.md           # 开发路线图
 │   └── changelog.md         # 变更日志
-├── 02-rfc/                  # RFC 设计文档
+├── 02-RFC功能设计/                  # RFC 设计文档
 │   ├── README.md            # RFC 流程
 │   ├── 000-template.md      # RFC 模板
 │   └── 001-*.md             # 具体 RFC
-├── 03-adr/                  # ADR 架构决策记录
+├── 03-ADR架构决策/                  # ADR 架构决策记录
 │   ├── README.md            # ADR 流程
 │   ├── 000-template.md      # ADR 模板
 │   └── 001-*.md             # 具体 ADR
-├── 04-guide/                # 开发指南 (How-to)
+├── 04-Guide开发指南/                # 开发指南 (How-to)
 │   ├── setup.md
 │   ├── new-page.md
 │   ├── testing.md
 │   └── ai-collaboration.md
-├── 05-reference/            # 参考文档
+├── 05-Reference参考手册/            # 参考文档
 │   ├── components.md
 │   ├── api.md
 │   └── conventions.md
-└── 06-explanation/          # 解释性文档
+└── 06-Explanation架构解释/          # 解释性文档
     ├── tech-stack.md
     └── architecture.md
 ```

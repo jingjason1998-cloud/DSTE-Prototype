@@ -67,4 +67,4 @@
 
 ## 参考
 
-- docs/06-explanation/tech-stack.md
+- docs/06-Explanation架构解释/tech-stack.md
