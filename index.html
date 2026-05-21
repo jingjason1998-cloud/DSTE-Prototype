@@ -966,6 +966,7 @@
         setTimeout(() => {
           sessionStorage.setItem('dste-logged-in', 'true');
           sessionStorage.setItem('dste-user', username);
+          sessionStorage.setItem('dste-p', password);
           window.location.href = 'cockpit.html';
         }, 900);
       });

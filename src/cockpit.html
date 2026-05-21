@@ -369,8 +369,21 @@
 
       // 自动尝试 SSO（如果本地存储了凭据）
       function initFineReportSSO() {
-        // 自动填充 DSTE 登录用户名
         const dsteUser = sessionStorage.getItem('dste-user') || localStorage.getItem('dste-remember-user');
+        const dsteP = sessionStorage.getItem('dste-p');
+
+        // 如果 DSTE 已登录且保存了密码，自动单点登录
+        if (dsteUser && dsteP) {
+          const frUserInput = document.getElementById('fr-username');
+          const frPwdInput = document.getElementById('fr-password');
+          if (frUserInput) frUserInput.value = dsteUser;
+          if (frPwdInput) frPwdInput.value = dsteP;
+          // 自动执行单点登录
+          doFineReportLogin();
+          return;
+        }
+
+        // 只有用户名，自动填充并聚焦密码框
         const frUserInput = document.getElementById('fr-username');
         const frPwdInput = document.getElementById('fr-password');
         if (dsteUser && frUserInput) {
