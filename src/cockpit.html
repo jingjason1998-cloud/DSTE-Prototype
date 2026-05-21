@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSTE 战略管理平台</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    /* ===== SPA 框架 ===== */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* 顶部导航 */
+    .top-nav {
+      height: 56px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+    .top-nav-brand { display: flex; align-items: center; gap: 10px; }
+    .top-nav-logo {
+      width: 30px; height: 30px; background: var(--primary); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 14px;
+    }
+    .top-nav-title { font-weight: 600; color: var(--text-primary); font-size: 15px; }
+    .top-nav-links { display: flex; gap: 2px; list-style: none; }
+    .top-nav-links a {
+      padding: 6px 14px; border-radius: 6px; color: var(--text-tertiary);
+      text-decoration: none; font-size: 13px; font-weight: 500;
+      transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+      position: relative;
+    }
+    .top-nav-links a:hover { color: var(--text-secondary); background: var(--bg-hover); }
+    .top-nav-links a.active {
+      color: var(--primary); background: var(--bg-active); font-weight: 600;
+    }
+    .top-nav-links a.active::after {
+      content: ""; position: absolute; bottom: -10px; left: 20%; right: 20%;
+      height: 2px; background: var(--primary); border-radius: 2px;
+    }
+    .nav-full-label { font-size: 11px; opacity: 0.7; margin-left: 2px; }
+    .top-nav-actions { display: flex; align-items: center; gap: 10px; }
+
+    /* 主体 */
+    .app-body { display: flex; flex: 1; overflow: hidden; }
+
+    /* 左侧边栏 */
+    .sidebar {
+      width: 220px; background: var(--bg-card); border-right: 1px solid var(--border-color);
+      overflow-y: auto; padding: 12px 0; flex-shrink: 0; transition: width 0.3s;
+    }
+    .sidebar.collapsed { width: 0; padding: 0; overflow: hidden; border: none; }
+    .sidebar-group { margin-bottom: 4px; }
+    .sidebar-group-title {
+      padding: 8px 16px; font-size: 11px; font-weight: 600;
+      color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 16px; margin: 2px 8px; border-radius: 6px;
+      color: var(--text-tertiary); text-decoration: none; font-size: 13px;
+      transition: all 0.2s; cursor: pointer; white-space: nowrap;
+    }
+    .sidebar-item:hover { background: var(--bg-hover); color: var(--text-secondary); }
+    .sidebar-item.active { background: var(--bg-active); color: var(--primary); font-weight: 500; }
+    .sidebar-item .icon { font-size: 15px; width: 20px; text-align: center; }
+    .sidebar-quick {
+      padding: 8px 16px; font-size: 11px; font-weight: 600;
+      color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;
+      margin-top: 8px;
+    }
+    .sidebar-quick + .sidebar-group { margin-top: 0; }
+
+    /* 内容区 */
+    .content-area {
+      flex: 1; overflow-y: auto; padding: 20px 24px;
+      background: var(--bg-page);
+    }
+    .page-content {
+      animation: fadeIn 0.25s ease;
+      max-width: 1200px; margin: 0 auto;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 面包屑 */
+    .breadcrumb {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 16px; font-size: 13px; color: var(--text-tertiary);
+    }
+    .breadcrumb a { color: var(--text-tertiary); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--primary); }
+    .breadcrumb-separator { opacity: 0.4; }
+
+    /* 页面标题 */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .page-title { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+    .page-actions { display: flex; gap: 8px; }
+
+    /* 关联功能快捷入口 */
+    .related-links {
+      margin-top: 32px; padding-top: 20px;
+      border-top: 1px solid var(--border-light);
+    }
+    .related-links-label {
+      font-size: 12px; color: var(--text-tertiary);
+      margin-bottom: 10px; letter-spacing: 0.5px;
+    }
+    .related-links-row {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .related-link {
+      padding: 6px 14px; border: 1px solid var(--border-color); border-radius: 6px;
+      background: var(--bg-card); color: var(--text-secondary);
+      font-size: 13px; text-decoration: none; transition: all 0.2s;
+    }
+    .related-link:hover { border-color: var(--primary); color: var(--primary); background: var(--bg-active); }
+
+    /* 空状态 / 开发中 */
+    .placeholder-page {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 400px; text-align: center;
+    }
+    .placeholder-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; }
+    .placeholder-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+    .placeholder-desc { font-size: 14px; color: var(--text-tertiary); max-width: 400px; }
+
+    /* AI 助手全屏 */
+    .ai-fullscreen {
+      display: flex; flex-direction: column; height: calc(100vh - 56px);
+      background: var(--bg-page);
+    }
+    .ai-chat-area {
+      flex: 1; overflow-y: auto; padding: 24px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .ai-message { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
+    .ai-message.user { align-self: flex-end; background: var(--primary); color: white; }
+    .ai-message.bot { align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary); }
+    .ai-input-bar {
+      padding: 16px 24px; border-top: 1px solid var(--border-color);
+      background: var(--bg-card); display: flex; gap: 12px;
+    }
+    .ai-input-bar input {
+      flex: 1; height: 40px; padding: 0 16px; border: 1px solid var(--border-color);
+      border-radius: 8px; background: var(--bg-page); color: var(--text-primary);
+      font-size: 14px; outline: none;
+    }
+    .ai-input-bar input:focus { border-color: var(--primary); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: -220px; top: 56px; height: calc(100vh - 56px); z-index: 99; transition: left 0.3s; }
+      .sidebar.open { left: 0; }
+      .top-nav-links a { padding: 6px 10px; font-size: 12px; }
+      .nav-full-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- 顶部导航 -->
+    <nav class="top-nav">
+      <div class="top-nav-brand">
+        <div class="top-nav-logo">D</div>
+        <span class="top-nav-title">DSTE 战略管理平台</span>
+      </div>
+      <ul class="top-nav-links" id="top-nav-links"></ul>
+      <div class="top-nav-actions">
+        <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
+        <button class="icon-btn" title="通知">🔔</button>
+        <div class="user-avatar" id="user-avatar">张</div>
+      </div>
+    </nav>
+
+    <div class="app-body">
+      <!-- 左侧边栏 -->
+      <aside class="sidebar" id="sidebar"></aside>
+
+      <!-- 内容区 -->
+      <main class="content-area" id="content-area">
+        <div class="page-content" id="page-content"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../assets/js/main.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      // ===== 配置 =====
+      const TOP_NAV = [
+        { id: 'dashboard', icon: '🎛️', label: '驾驶舱', full: '驾驶舱', defaultPage: 'dashboard' },
+        { id: 'sp', icon: '🎯', label: 'SP', full: '战略制定', defaultPage: 'sp/strategy-map' },
+        { id: 'bp', icon: '🔧', label: 'BP', full: '战略解码', defaultPage: 'bp/kpi' },
+        { id: 'exe', icon: '🚀', label: '执行', full: '战略执行', defaultPage: 'exe/tasks' },
+        { id: 'rev', icon: '📊', label: '评估', full: '战略评估', defaultPage: 'rev/performance' },
+        { id: 'ai', icon: '🤖', label: 'AI', full: 'AI 助手', defaultPage: 'ai' }
+      ];
+
+      const SIDEBAR_CONFIG = {
+        dashboard: [
+          { type: 'item', id: 'dashboard', icon: '🎛️', label: '驾驶舱概览' },
+          { type: 'quick', label: '快捷入口' },
+          { type: 'item', id: 'sp/strategy-map', icon: '🗺️', label: '战略地图' },
+          { type: 'item', id: 'bp/kpi', icon: '📈', label: 'KPI 看板' },
+          { type: 'item', id: 'exe/tasks', icon: '✅', label: '重点工作' },
+          { type: 'item', id: 'exe/meetings', icon: '🎯', label: '经营分析会' },
+          { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议审核' }
+        ],
+        sp: [
+          { type: 'group', title: '战略制定 (SP)', items: [
+            { id: 'sp/strategy-map', icon: '🗺️', label: '战略地图' },
+            { id: 'sp/strategy-topics', icon: '📋', label: '战略专题' },
+            { id: 'sp/market-insight', icon: '🔭', label: '市场洞察' }
+          ]},
+          { type: 'quick', label: '快捷工具' },
+          { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
+        ],
+        bp: [
+          { type: 'group', title: '战略解码 (BP)', items: [
+            { id: 'bp/kpi', icon: '📈', label: 'KPI 指标体系' },
+            { id: 'bp/bem', icon: '🔧', label: 'BEM 战略解码' },
+            { id: 'bp/annual-plan', icon: '📅', label: '年度经营计划' }
+          ]},
+          { type: 'quick', label: '快捷工具' },
+          { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
+        ],
+        exe: [
+          { type: 'group', title: '战略执行', items: [
+            { id: 'exe/tasks', icon: '✅', label: '重点工作管理' },
+            { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
+            { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' }
+          ]},
+          { type: 'quick', label: '快捷工具' },
+          { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
+        ],
+        rev: [
+          { type: 'group', title: '战略评估', items: [
+            { id: 'rev/performance', icon: '🏆', label: '绩效与激励' },
+            { id: 'rev/cadre', icon: '👔', label: '干部管理' },
+            { id: 'rev/review', icon: '🔄', label: '战略复盘' },
+            { id: 'rev/gap-analysis', icon: '📉', label: '差距分析' }
+          ]},
+          { type: 'quick', label: '快捷工具' },
+          { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
+        ],
+        ai: []
+      };
+
+      // ===== 页面内容 =====
+      const PAGES = {
+        'dashboard': renderDashboard,
+        'sp/strategy-map': () => renderPlaceholder('🗺️ 战略地图', '可视化展示企业战略地图，基于平衡计分卡四维度构建战略目标体系。'),
+        'sp/strategy-topics': renderStrategyTopics,
+        'sp/market-insight': () => renderPlaceholder('🔭 市场洞察', '市场趋势分析、竞争情报收集，为战略制定提供数据支撑。'),
+        'bp/kpi': () => renderPlaceholder('📈 KPI 指标体系', '企业级指标库管理，支持多层级 KPI 分解、自动计算、预警提醒。'),
+        'bp/bem': () => renderPlaceholder('🔧 BEM 战略解码', '基于 BEM 六步解码法，将战略转化为可执行的行动计划。'),
+        'bp/annual-plan': () => renderPlaceholder('📅 年度经营计划', '年度经营目标分解、资源配置、预算编制与执行跟踪。'),
+        'exe/tasks': renderTasks,
+        'exe/business-topics': () => { window.location.href = 'business-topics.html'; return ''; },
+        'exe/meetings': renderMeetings,
+        'rev/performance': () => renderPlaceholder('🏆 绩效与激励', '绩效考核体系管理、激励方案设计与执行效果评估。'),
+        'rev/cadre': () => renderPlaceholder('👔 干部管理', '干部梯队建设、能力评估、轮岗培养与继任计划。'),
+        'rev/review': () => renderPlaceholder('🔄 战略复盘', '定期战略复盘会议管理，差距分析、经验萃取与改进措施跟踪。'),
+        'rev/gap-analysis': () => renderPlaceholder('📉 差距分析', '战略目标与实际执行的差距分析，根因定位与改进建议。'),
+        'ai': renderAI
+      };
+
+      // ===== 路由状态 =====
+      let currentPhase = 'dashboard';
+      let currentPage = 'dashboard';
+
+      // ===== 初始化 =====
+      function init() {
+        renderTopNav();
+        const hash = window.location.hash.slice(1) || 'dashboard';
+        navigate(hash, false);
+        window.addEventListener('hashchange', () => navigate(window.location.hash.slice(1), false));
+
+        // 显示用户名
+        const user = sessionStorage.getItem('dste-user') || '张';
+        document.getElementById('user-avatar').textContent = user.charAt(0);
+      }
+
+      // ===== 渲染顶部导航 =====
+      function renderTopNav() {
+        const container = document.getElementById('top-nav-links');
+        container.innerHTML = TOP_NAV.map(item => `
+          <li><a href="#${item.defaultPage}" data-phase="${item.id}" class="top-nav-item">
+            <span>${item.icon}</span>
+            <span>${item.label}</span>
+            <span class="nav-full-label">${item.full}</span>
+          </a></li>
+        `).join('');
+
+        container.querySelectorAll('a').forEach(link => {
+          link.addEventListener('click', (e) => {
+            const phase = link.dataset.phase;
+            const defaultPage = TOP_NAV.find(n => n.id === phase).defaultPage;
+            // 如果已经在该phase，跳转到默认页
+            if (currentPhase === phase) {
+              navigate(defaultPage);
+            }
+          });
+        });
+      }
+
+      // ===== 导航 =====
+      // 外部页面映射
+      const EXTERNAL_PAGES = {
+        'exe/meeting-review': 'reviewer.html',
+        'exe/business-topics': 'business-topics.html'
+      };
+
+      function navigate(pageId, pushState = true) {
+        if (!pageId) pageId = 'dashboard';
+        
+        // 外部链接直接跳转
+        if (EXTERNAL_PAGES[pageId]) {
+          window.location.href = EXTERNAL_PAGES[pageId];
+          return;
+        }
+        
+        if (!PAGES[pageId]) pageId = 'dashboard';
+
+        currentPage = pageId;
+
+        // 确定当前 phase
+        const phase = TOP_NAV.find(n => pageId === n.id || pageId.startsWith(n.id + '/'))?.id || 'dashboard';
+        currentPhase = phase;
+
+        // 更新顶部 active
+        document.querySelectorAll('.top-nav-item').forEach(link => {
+          link.classList.toggle('active', link.dataset.phase === phase);
+        });
+
+        // 更新左侧栏
+        renderSidebar(phase);
+
+        // 更新内容
+        const contentEl = document.getElementById('page-content');
+        contentEl.style.animation = 'none';
+        contentEl.offsetHeight; // trigger reflow
+        contentEl.innerHTML = PAGES[pageId]();
+        contentEl.style.animation = '';
+
+        // 更新左侧 active
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+          item.classList.toggle('active', item.dataset.page === pageId);
+        });
+
+        // 更新标题
+        const pageNames = {
+          'dashboard': '驾驶舱',
+          'sp/strategy-map': '战略地图', 'sp/strategy-topics': '战略专题', 'sp/market-insight': '市场洞察',
+          'bp/kpi': 'KPI 指标体系', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
+          'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meeting-review': '会议材料审核',
+          'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
+          'ai': 'AI 战略助手'
+        };
+        document.title = (pageNames[pageId] || 'DSTE') + ' - DSTE 战略管理平台';
+      }
+
+      // ===== 渲染左侧栏 =====
+      function renderSidebar(phase) {
+        const container = document.getElementById('sidebar');
+        const config = SIDEBAR_CONFIG[phase] || [];
+
+        if (phase === 'ai') {
+          container.classList.add('collapsed');
+          return;
+        }
+        container.classList.remove('collapsed');
+
+        let html = '';
+        config.forEach(item => {
+          if (item.type === 'item') {
+            html += `<a class="sidebar-item" data-page="${item.id}" href="#${item.id}">
+              <span class="icon">${item.icon}</span><span>${item.label}</span>
+            </a>`;
+          } else if (item.type === 'quick') {
+            html += `<div class="sidebar-quick">${item.label}</div>`;
+          } else if (item.type === 'group') {
+            html += `<div class="sidebar-group">
+              <div class="sidebar-group-title">${item.title}</div>
+              ${item.items.map(sub => `
+                <a class="sidebar-item" data-page="${sub.id}" href="#${sub.id}">
+                  <span class="icon">${sub.icon}</span><span>${sub.label}</span>
+                </a>
+              `).join('')}
+            </div>`;
+          }
+        });
+        container.innerHTML = html;
+
+        // 绑定点击
+        container.querySelectorAll('.sidebar-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigate(item.dataset.page);
+          });
+        });
+      }
+
+      // ===== 驾驶舱概览 =====
+      function renderDashboard() {
+        return `
+          <div class="breadcrumb">
+            <span>驾驶舱概览</span>
+          </div>
+          <div class="page-header">
+            <h1 class="page-title">战略驾驶舱</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary">📅 2026 Q1</button>
+              <button class="btn btn-primary">+ 自定义视图</button>
+            </div>
+          </div>
+
+          <!-- 欢迎卡片 -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">欢迎回来，${sessionStorage.getItem('dste-user') || '张总'}</div>
+                <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 4px;">当前战略周期: 2026-2028 | 本季度剩余 45 天</div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <span class="status-badge status-success">经营正常</span>
+                <span class="status-badge status-warning">3 项预警</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">营收增长率</div>
+              <div class="kpi-value" style="color: var(--success);">27.6%</div>
+              <div class="kpi-trend up"><span>↑</span><span>目标 30% | 达成率 92%</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">客户满意度 (NPS)</div>
+              <div class="kpi-value" style="color: var(--danger);">62</div>
+              <div class="kpi-trend down"><span>↓</span><span>目标 70 | 差距 -8</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">新产品收入占比</div>
+              <div class="kpi-value" style="color: var(--warning);">28.4%</div>
+              <div class="kpi-trend warning"><span>→</span><span>目标 35% | 达成率 81%</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">重点工作完成率</div>
+              <div class="kpi-value" style="color: var(--success);">90%</div>
+              <div class="kpi-trend up"><span>↑</span><span>18/20 完成 | 2 项延期</span></div>
+            </div>
+          </div>
+
+          <!-- 战略地图 & 预警 -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">🗺️ 战略地图概览</div>
+                <a href="#sp/strategy-map" style="color: var(--primary); text-decoration: none; font-size: 13px;" onclick="event.preventDefault(); navigate('sp/strategy-map')">查看详情 →</a>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 4px solid var(--success);">
+                  <div style="font-size: 13px; color: var(--text-tertiary);">财务维度</div>
+                  <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">增长 30%</div>
+                  <div style="font-size: 12px; color: var(--success); margin-top: 4px;">✓ 正常</div>
+                </div>
+                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 4px solid var(--danger);">
+                  <div style="font-size: 13px; color: var(--text-tertiary);">客户维度</div>
+                  <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">NPS > 70</div>
+                  <div style="font-size: 12px; color: var(--danger); margin-top: 4px;">⚠ 预警</div>
+                </div>
+                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 4px solid var(--warning);">
+                  <div style="font-size: 13px; color: var(--text-tertiary);">流程维度</div>
+                  <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">效率 +20%</div>
+                  <div style="font-size: 12px; color: var(--warning); margin-top: 4px;">▶ 关注</div>
+                </div>
+                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 4px solid var(--success);">
+                  <div style="font-size: 13px; color: var(--text-tertiary);">学习成长</div>
+                  <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">培训 100%</div>
+                  <div style="font-size: 12px; color: var(--success); margin-top: 4px;">✓ 正常</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">🔔 预警通知</div>
+                <span style="font-size: 12px; color: var(--text-tertiary);">3 条待处理</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="padding: 12px; background: rgba(245, 34, 45, 0.05); border-radius: 8px; border-left: 3px solid var(--danger);">
+                  <div style="font-size: 13px; font-weight: 500; color: var(--danger);">客户满意度下降</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Q3 NPS 下降至 62，低于目标 70</div>
+                </div>
+                <div style="padding: 12px; background: rgba(250, 173, 20, 0.05); border-radius: 8px; border-left: 3px solid var(--warning);">
+                  <div style="font-size: 13px; font-weight: 500; color: var(--warning);">新产品推广滞后</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">收入占比 28.4%，目标 35%</div>
+                </div>
+                <div style="padding: 12px; background: rgba(250, 173, 20, 0.05); border-radius: 8px; border-left: 3px solid var(--warning);">
+                  <div style="font-size: 13px; font-weight: 500; color: var(--warning);">供应链成本上升</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Q3 成本环比 +12%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 重点工作 -->
+          <div class="card" style="margin-top: 16px;">
+            <div class="card-header">
+              <div class="card-title">✅ 重点工作进度</div>
+              <a href="#exe/tasks" style="color: var(--primary); text-decoration: none; font-size: 13px;" onclick="event.preventDefault(); navigate('exe/tasks')">查看全部 →</a>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>工作名称</th><th>负责人</th><th>进度</th><th>状态</th><th>截止日期</th></tr></thead>
+              <tbody>
+                <tr><td><strong>渠道拓展计划</strong></td><td>李经理</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:85%"></div></div><span style="font-size:12px">85%</span></div></td><td><span class="status-badge status-success">正常</span></td><td>2026-06-30</td></tr>
+                <tr><td><strong>产品升级迭代</strong></td><td>王总监</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:65%"></div></div><span style="font-size:12px">65%</span></div></td><td><span class="status-badge status-success">正常</span></td><td>2026-07-15</td></tr>
+                <tr><td><strong>供应链优化</strong></td><td>张总监</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill warning" style="width:45%"></div></div><span style="font-size:12px">45%</span></div></td><td><span class="status-badge status-warning">延期风险</span></td><td>2026-05-30</td></tr>
+                <tr><td><strong>客户成功体系建设</strong></td><td>赵经理</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:30%"></div></div><span style="font-size:12px">30%</span></div></td><td><span class="status-badge status-success">正常</span></td><td>2026-08-30</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 经营分析会 -->
+          <div class="card" style="margin-top: 16px;">
+            <div class="card-header">
+              <div class="card-title">🎯 经营分析会</div>
+              <a href="#exe/meetings" style="color: var(--primary); text-decoration: none; font-size: 13px;" onclick="event.preventDefault(); navigate('exe/meetings')">查看全部 →</a>
+            </div>
+            <div style="display: flex; gap: 16px; overflow-x: auto;">
+              <div style="min-width: 200px; padding: 16px; background: var(--bg-page); border-radius: 8px; border: 2px solid var(--primary);">
+                <div style="font-size: 12px; color: var(--primary); font-weight: 600;">下次会议</div>
+                <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">月度经营会</div>
+                <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 4px;">3 天后 | 4月15日</div>
+                <div style="margin-top: 8px;"><span class="status-badge status-warning">准备中</span></div>
+              </div>
+              <div style="min-width: 200px; padding: 16px; background: var(--bg-page); border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-tertiary);">已完成</div>
+                <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">Q1 季度战略会</div>
+                <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 4px;">3月15日</div>
+                <div style="margin-top: 8px;"><span class="status-badge status-success">已完成</span></div>
+              </div>
+              <div style="min-width: 200px; padding: 16px; background: var(--bg-page); border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-tertiary);">规划中</div>
+                <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">Q2 季度战略会</div>
+                <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 4px;">6月15日</div>
+                <div style="margin-top: 8px;"><span class="status-badge status-success">规划中</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== 重点工作页面 =====
+      function renderTasks() {
+        return `
+          ${renderBreadcrumb('重点工作管理')}
+          <div class="page-header">
+            <h1 class="page-title">重点工作管理</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary">🔍 筛选</button>
+              <button class="btn btn-primary">+ 新建工作</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr><th>工作名称</th><th>负责人</th><th>所属阶段</th><th>进度</th><th>状态</th><th>截止日期</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>渠道拓展计划</strong></td><td>李经理</td><td>执行</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:85%"></div></div><span style="font-size:12px">85%</span></div></td><td><span class="status-badge status-success">正常</span></td><td>2026-06-30</td></tr>
+                <tr><td><strong>产品升级迭代</strong></td><td>王总监</td><td>执行</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:65%"></div></div><span style="font-size:12px">65%</span></div></td><td><span class="status-badge status-success">正常</span></td><td>2026-07-15</td></tr>
+                <tr><td><strong>供应链优化</strong></td><td>张总监</td><td>执行</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill warning" style="width:45%"></div></div><span style="font-size:12px">45%</span></div></td><td><span class="status-badge status-warning">延期风险</span></td><td>2026-05-30</td></tr>
+                <tr><td><strong>客户成功体系建设</strong></td><td>赵经理</td><td>执行</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:30%"></div></div><span style="font-size:12px">30%</span></div></td><td><span class="status-badge status-success">正常</span></td><td>2026-08-30</td></tr>
+                <tr><td><strong>战略地图更新</strong></td><td>陈总监</td><td>制定</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:70%"></div></div><span style="font-size:12px">70%</span></div></td><td><span class="status-badge status-success">正常</span></td><td>2026-06-15</td></tr>
+                <tr><td><strong>KPI 体系重构</strong></td><td>刘经理</td><td>解码</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:120px"><div class="progress-bar-fill" style="width:55%"></div></div><span style="font-size:12px">55%</span></div></td><td><span class="status-badge status-warning">进度滞后</span></td><td>2026-05-20</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="related-links">
+            <div class="related-links-label">关联功能</div>
+            <div class="related-links-row">
+              <a class="related-link" href="#exe/meetings" onclick="event.preventDefault(); navigate('exe/meetings')">🎯 经营分析会</a>
+              <a class="related-link" href="#bp/kpi" onclick="event.preventDefault(); navigate('bp/kpi')">📈 KPI 看板</a>
+              <a class="related-link" href="#sp/strategy-map" onclick="event.preventDefault(); navigate('sp/strategy-map')">🗺️ 战略地图</a>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== 经营分析会页面 =====
+      function renderMeetings() {
+        return `
+          ${renderBreadcrumb('经营分析会')}
+          <div class="page-header">
+            <h1 class="page-title">经营分析会</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary">📅 日历视图</button>
+              <button class="btn btn-primary">+ 新建会议</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+            <div class="card">
+              <div class="card-header"><div class="card-title">📋 会议列表</div></div>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--primary);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-size: 15px; font-weight: 600;">月度经营分析会</div>
+                    <span class="status-badge status-warning">准备中</span>
+                  </div>
+                  <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 6px;">4月15日 14:00 | 会议室 A | 主持人：张总</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">议题：Q1 复盘、Q2 目标对齐、预警事项讨论</div>
+                </div>
+                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--success);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-size: 15px; font-weight: 600;">Q1 季度战略会</div>
+                    <span class="status-badge status-success">已完成</span>
+                  </div>
+                  <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 6px;">3月15日 09:00 | 已完成</div>
+                </div>
+                <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--border-color);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-size: 15px; font-weight: 600;">Q2 季度战略会</div>
+                    <span class="status-badge status-success">规划中</span>
+                  </div>
+                  <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 6px;">6月15日 | 待确认</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">📊 会议统计</div></div>
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="text-align: center;">
+                  <div style="font-size: 32px; font-weight: 700; color: var(--primary);">12</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary);">本年会议数</div>
+                </div>
+                <div style="text-align: center;">
+                  <div style="font-size: 32px; font-weight: 700; color: var(--success);">95%</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary);">决议执行率</div>
+                </div>
+                <div style="text-align: center;">
+                  <div style="font-size: 32px; font-weight: 700; color: var(--warning);">3</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary);">待闭环事项</div>
+                </div>
+                <div style="text-align: center; padding-top: 12px; border-top: 1px solid var(--border-light);">
+                  <div style="font-size: 32px; font-weight: 700; color: var(--danger);">2</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary);">待审核材料</div>
+                </div>
+                <div style="text-align: center;">
+                  <a href="reviewer.html" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; text-decoration: none;">📋 审核会议材料</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="related-links">
+            <div class="related-links-label">关联功能</div>
+            <div class="related-links-row">
+              <a class="related-link" href="#exe/tasks" onclick="event.preventDefault(); navigate('exe/tasks')">✅ 重点工作</a>
+              <a class="related-link" href="#rev/review" onclick="event.preventDefault(); navigate('rev/review')">🔄 战略复盘</a>
+              <a class="related-link" href="#bp/kpi" onclick="event.preventDefault(); navigate('bp/kpi')">📈 KPI 看板</a>
+              <a class="related-link" href="reviewer.html">📋 会议材料审核</a>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== 战略专题页面 =====
+      function renderStrategyTopics() {
+        const topics = [
+          { name: '海外市场拓展战略研究', dimension: '财务', owner: '陈总监', priority: '高', phase: '进行中', progress: 65, status: 'normal', updated: '2026-04-10' },
+          { name: '核心产品技术路线规划', dimension: '流程', owner: '王总监', priority: '高', phase: '进行中', progress: 40, status: 'warning', updated: '2026-04-08' },
+          { name: '客户成功体系重构', dimension: '客户', owner: '赵经理', priority: '中', phase: '未开始', progress: 0, status: 'default', updated: '2026-04-05' },
+          { name: '供应链韧性提升专项', dimension: '流程', owner: '张总监', priority: '高', phase: '进行中', progress: 80, status: 'success', updated: '2026-04-12' },
+          { name: '人才梯队与组织能力升级', dimension: '学习成长', owner: '李HRD', priority: '中', phase: '已完成', progress: 100, status: 'success', updated: '2026-03-28' },
+          { name: '数字化转型顶层规划', dimension: '流程', owner: '刘CTO', priority: '高', phase: '进行中', progress: 55, status: 'normal', updated: '2026-04-11' },
+          { name: '新兴市场渠道模式探索', dimension: '客户', owner: '孙经理', priority: '低', phase: '未开始', progress: 0, status: 'default', updated: '2026-04-01' },
+          { name: 'ESG 战略与可持续发展', dimension: '学习成长', owner: '周总监', priority: '中', phase: '已归档', progress: 100, status: 'archived', updated: '2026-02-15' }
+        ];
+        const priorityIcon = { '高': '🔴', '中': '🟡', '低': '🟢' };
+        const statusClass = { 'normal': 'status-primary', 'success': 'status-success', 'warning': 'status-warning', 'danger': 'status-danger', 'default': 'status-default', 'archived': 'status-archived' };
+        const statusLabel = { 'normal': '进行中', 'success': '已完成', 'warning': '有风险', 'danger': '已延期', 'default': '未开始', 'archived': '已归档' };
+        const phaseColor = { '未开始': 'var(--text-disabled)', '进行中': 'var(--primary)', '已完成': 'var(--success)', '已归档': 'var(--text-tertiary)' };
+
+        const rows = topics.map(t => `
+          <tr>
+            <td><strong>${t.name}</strong></td>
+            <td><span style="padding:2px 8px;border-radius:4px;background:var(--bg-page);font-size:12px;">${t.dimension}</span></td>
+            <td>${t.owner}</td>
+            <td>${priorityIcon[t.priority]} ${t.priority}</td>
+            <td style="color:${phaseColor[t.phase]};font-weight:500;">${t.phase}</td>
+            <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${t.progress < 50 && t.progress > 0 ? 'warning' : ''}" style="width:${t.progress}%"></div></div><span style="font-size:12px">${t.progress}%</span></div></td>
+            <td><span class="status-badge ${statusClass[t.status]}">${statusLabel[t.status]}</span></td>
+            <td style="font-size:12px;color:var(--text-tertiary)">${t.updated}</td>
+          </tr>
+        `).join('');
+
+        return `
+          ${renderBreadcrumb('战略专题')}
+          <div class="page-header">
+            <h1 class="page-title">战略专题</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary">🔍 筛选</button>
+              <button class="btn btn-primary">+ 新建专题</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
+            <div class="kpi-card">
+              <div class="kpi-label">进行中</div>
+              <div class="kpi-value" style="color: var(--primary);">4</div>
+              <div class="kpi-trend up"><span>↑</span><span>较上月 +1</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">已完成</div>
+              <div class="kpi-value" style="color: var(--success);">2</div>
+              <div class="kpi-trend"><span>—</span><span>本季度累计</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">平均进度</div>
+              <div class="kpi-value" style="color: var(--warning);">55%</div>
+              <div class="kpi-trend warning"><span>→</span><span>目标 70%</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">高风险</div>
+              <div class="kpi-value" style="color: var(--danger);">1</div>
+              <div class="kpi-trend down"><span>↓</span><span>需重点关注</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr><th>专题名称</th><th>战略维度</th><th>负责人</th><th>优先级</th><th>阶段</th><th>进度</th><th>状态</th><th>最后更新</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+
+          <div class="related-links">
+            <div class="related-links-label">关联功能</div>
+            <div class="related-links-row">
+              <a class="related-link" href="#sp/strategy-map" onclick="event.preventDefault(); navigate('sp/strategy-map')">🗺️ 战略地图</a>
+              <a class="related-link" href="#exe/business-topics" onclick="event.preventDefault(); navigate('exe/business-topics')">📂 业务专题</a>
+              <a class="related-link" href="#bp/kpi" onclick="event.preventDefault(); navigate('bp/kpi')">📈 KPI 看板</a>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== 业务专题管理页面 =====
+      function renderBusinessTopics() {
+        const topics = [
+          { name: 'Q2 大客户攻坚协同', lead: '销售部', partners: ['产品部','交付部'], milestone: '需求对齐完成', progress: 75, risk: '中', status: 'normal' },
+          { name: '新品上市跨部门联动', lead: '产品部', partners: ['市场部','销售部','供应链'], milestone: '上市方案评审', progress: 60, risk: '高', status: 'warning' },
+          { name: '客户满意度提升专项', lead: '客户成功部', partners: ['产品部','服务部'], milestone: 'NPS调研分析', progress: 45, risk: '低', status: 'normal' },
+          { name: '成本优化联合行动', lead: '供应链部', partners: ['财务部','采购部'], milestone: '供应商谈判', progress: 30, risk: '中', status: 'normal' },
+          { name: '数字化工具推广', lead: 'IT部', partners: ['HR部','各业务部门'], milestone: '培训计划制定', progress: 20, risk: '低', status: 'default' },
+          { name: '海外市场本地化支持', lead: '国际部', partners: ['产品部','法务部'], milestone: '合规审查', progress: 90, risk: '低', status: 'success' }
+        ];
+        const riskColor = { '高': 'var(--danger)', '中': 'var(--warning)', '低': 'var(--success)' };
+        const statusClass = { 'normal': 'status-primary', 'success': 'status-success', 'warning': 'status-warning', 'default': 'status-default' };
+        const statusLabel = { 'normal': '推进中', 'success': '即将完成', 'warning': '有风险', 'default': '启动中' };
+        const deptColors = ['#1677FF','#52C41A','#FAAD14','#F5222D','#722ED1','#13C2C2','#EB2F96'];
+
+        const rows = topics.map((t, i) => {
+          const partnerTags = t.partners.map((p, j) => `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${deptColors[(i+j)%deptColors.length]}15;color:${deptColors[(i+j)%deptColors.length]};font-size:11px;margin-right:4px;">${p}</span>`).join('');
+          return `
+            <tr>
+              <td><strong>${t.name}</strong></td>
+              <td><span style="font-weight:500;color:var(--primary)">${t.lead}</span></td>
+              <td>${partnerTags}</td>
+              <td>${t.milestone}</td>
+              <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${t.progress < 50 && t.progress > 0 ? 'warning' : ''}" style="width:${t.progress}%"></div></div><span style="font-size:12px">${t.progress}%</span></div></td>
+              <td><span style="color:${riskColor[t.risk]};font-weight:600;font-size:12px">● ${t.risk}</span></td>
+              <td><span class="status-badge ${statusClass[t.status]}">${statusLabel[t.status]}</span></td>
+            </tr>
+          `;
+        }).join('');
+
+        return `
+          ${renderBreadcrumb('业务专题管理')}
+          <div class="page-header">
+            <h1 class="page-title">业务专题管理</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary">🔍 筛选</button>
+              <button class="btn btn-primary">+ 新建专题</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
+            <div class="kpi-card">
+              <div class="kpi-label">在推专题</div>
+              <div class="kpi-value" style="color: var(--primary);">6</div>
+              <div class="kpi-trend"><span>—</span><span>本季度</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">跨部门协同</div>
+              <div class="kpi-value" style="color: var(--success);">12</div>
+              <div class="kpi-trend up"><span>↑</span><span>参与部门</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">平均进度</div>
+              <div class="kpi-value" style="color: var(--warning);">53%</div>
+              <div class="kpi-trend warning"><span>→</span><span>目标 70%</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">高风险</div>
+              <div class="kpi-value" style="color: var(--danger);">1</div>
+              <div class="kpi-trend down"><span>↓</span><span>需关注</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr><th>专题名称</th><th>牵头部门</th><th>协作部门</th><th>当前里程碑</th><th>进度</th><th>风险</th><th>状态</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+
+          <div class="card" style="margin-top: 16px;">
+            <div class="card-header"><div class="card-title">📌 里程碑看板</div></div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+              <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--success);">
+                <div style="font-size: 12px; color: var(--text-tertiary);">已完成</div>
+                <div style="font-size: 15px; font-weight: 600; margin-top: 4px;">需求对齐完成</div>
+                <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Q2 大客户攻坚协同</div>
+              </div>
+              <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--primary);">
+                <div style="font-size: 12px; color: var(--text-tertiary);">进行中</div>
+                <div style="font-size: 15px; font-weight: 600; margin-top: 4px;">上市方案评审</div>
+                <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">新品上市跨部门联动</div>
+              </div>
+              <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--warning);">
+                <div style="font-size: 12px; color: var(--text-tertiary);">待启动</div>
+                <div style="font-size: 15px; font-weight: 600; margin-top: 4px;">培训计划制定</div>
+                <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">数字化工具推广</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="related-links">
+            <div class="related-links-label">关联功能</div>
+            <div class="related-links-row">
+              <a class="related-link" href="#exe/tasks" onclick="event.preventDefault(); navigate('exe/tasks')">✅ 重点工作</a>
+              <a class="related-link" href="#exe/meetings" onclick="event.preventDefault(); navigate('exe/meetings')">🎯 经营分析会</a>
+              <a class="related-link" href="#sp/strategy-topics" onclick="event.preventDefault(); navigate('sp/strategy-topics')">📋 战略专题</a>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== AI 助手 =====
+      function renderAI() {
+        return `
+          <div class="ai-fullscreen">
+            <div class="ai-chat-area" id="ai-chat-area">
+              <div class="ai-message bot">
+                <strong>🤖 AI 战略助手</strong><br><br>
+                你好！我是 DSTE 战略助手，可以帮你：<br>
+                • 分析 KPI 达成情况与差距根因<br>
+                • 生成经营分析报告与会议纪要的初稿<br>
+                • 模拟战略调整对财务/客户维度的影响<br>
+                • 识别风险预警与机会洞察<br><br>
+                请直接输入你的问题。
+              </div>
+            </div>
+            <div class="ai-input-bar">
+              <input type="text" id="ai-chat-input" placeholder="输入你的问题，例如：Q1 营收差距的根因是什么？">
+              <button class="btn btn-primary" id="ai-chat-send">发送</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== 面包屑辅助函数 =====
+      const PHASE_MAP = {
+        'dashboard': { name: null, defaultPage: 'dashboard' },
+        'sp': { name: '战略制定', defaultPage: 'sp/strategy-map' },
+        'bp': { name: '战略解码', defaultPage: 'bp/kpi' },
+        'exe': { name: '战略执行', defaultPage: 'exe/tasks' },
+        'rev': { name: '战略评估', defaultPage: 'rev/performance' },
+        'ai': { name: 'AI 助手', defaultPage: 'ai' }
+      };
+      function renderBreadcrumb(pageName) {
+        if (currentPhase === 'dashboard') {
+          return `<div class="breadcrumb"><span>驾驶舱概览</span></div>`;
+        }
+        const phase = PHASE_MAP[currentPhase];
+        return `
+          <div class="breadcrumb">
+            <a href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">驾驶舱</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="#${phase.defaultPage}" onclick="event.preventDefault(); navigate('${phase.defaultPage}')">${phase.name}</a>
+            <span class="breadcrumb-separator">/</span>
+            <span>${pageName}</span>
+          </div>
+        `;
+      }
+
+      // ===== 占位页面 =====
+      function renderPlaceholder(icon, desc) {
+        const pageName = icon.split(' ')[1];
+        return `
+          ${renderBreadcrumb(pageName)}
+          <div class="page-header">
+            <h1 class="page-title">${icon.split(' ')[1]}</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary">📋 导出</button>
+              <button class="btn btn-primary">+ 新建</button>
+            </div>
+          </div>
+          <div class="placeholder-page">
+            <div class="placeholder-icon">${icon.split(' ')[0]}</div>
+            <div class="placeholder-title">${icon.split(' ')[1]}</div>
+            <div class="placeholder-desc">${desc}<br><br>该模块正在开发中，敬请期待。</div>
+          </div>
+        `;
+      }
+
+      // ===== AI 聊天交互 =====
+      document.addEventListener('click', (e) => {
+        if (e.target.id === 'ai-chat-send') sendAIMessage();
+      });
+      document.addEventListener('keypress', (e) => {
+        if (e.target.id === 'ai-chat-input' && e.key === 'Enter') sendAIMessage();
+      });
+
+      function sendAIMessage() {
+        const input = document.getElementById('ai-chat-input');
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text) return;
+
+        const area = document.getElementById('ai-chat-area');
+        area.innerHTML += `<div class="ai-message user">${escapeHtml(text)}</div>`;
+        area.innerHTML += `<div class="ai-message bot" id="ai-thinking"><strong>🤖</strong> 正在分析战略数据...</div>`;
+        area.scrollTop = area.scrollHeight;
+        input.value = '';
+
+        setTimeout(() => {
+          const thinking = document.getElementById('ai-thinking');
+          if (thinking) {
+            thinking.innerHTML = `<strong>🤖 AI 战略助手</strong><br><br>
+              基于当前数据，关于「${escapeHtml(text)}」的分析如下：<br><br>
+              该功能为演示版本，完整 AI 分析能力将接入企业知识库与 BI 数据引擎，支持自然语言查询、多维度钻取和 What-if 模拟。<br><br>
+              你可以尝试问："Q1 营收差距的根因"、"战略地图客户维度预警" 等。`;
+          }
+          area.scrollTop = area.scrollHeight;
+        }, 1200);
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // 暴露全局 navigate
+      window.navigate = navigate;
+
+      // 启动
+      init();
+    })();
+  </script>
+</body>
+</html>

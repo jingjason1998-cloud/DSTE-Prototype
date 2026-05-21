@@ -1,0 +1,3611 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>业务专题管理 - DSTE战略管理平台</title>
+    <link rel="stylesheet" href="../assets/css/main.css?v=2">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('dste-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        :root {
+            /* Linear-inspired Dark Theme */
+            --bg-deep: #08090a;
+            --bg-panel: #0f1011;
+            --bg-surface: #191a1b;
+            --bg-elevated: #28282c;
+            
+            --text-primary: #f7f8f8;
+            --text-secondary: #d0d6e0;
+            --text-tertiary: #8a8f98;
+            --text-muted: #62666d;
+            
+            --border-subtle: rgba(255,255,255,0.05);
+            --border-standard: rgba(255,255,255,0.08);
+            --border-solid: #23252a;
+            
+            --accent-indigo: #5e6ad2;
+            --accent-violet: #7170ff;
+            --accent-hover: #828fff;
+            
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            
+            /* DSTE Brand Colors */
+            --dste-sp: #3b82f6;
+            --dste-bp: #8b5cf6;
+            --dste-exec: #10b981;
+            --dste-review: #f59e0b;
+        }
+        
+        [data-theme="light"] {
+            --text-primary: #1a1a1a;
+            --text-secondary: #4a4a4a;
+            --text-tertiary: #888888;
+            --text-muted: #aaaaaa;
+            --bg-deep: #f0f2f5;
+            --bg-panel: #ffffff;
+            --bg-surface: #f8f9fa;
+            --bg-elevated: #ffffff;
+            --bg-card: #ffffff;
+            --bg-hover: #f5f5f5;
+            --border-subtle: #eeeeee;
+            --border-standard: #e0e0e0;
+            --border-solid: #d0d0d0;
+            --border-color: #e8e8e8;
+            --border-light: #f0f0f0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            margin: 0;
+            padding: 0;
+        }
+        .topic-workspace {
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100%;
+        }
+        /* ===== 顶部导航 (与 cockpit.html 一致) ===== */
+        .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .top-nav {
+            height: 56px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+        .top-nav-brand { display: flex; align-items: center; gap: 10px; }
+        .top-nav-logo {
+            width: 30px; height: 30px; background: var(--primary); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 14px;
+        }
+        .top-nav-title { font-weight: 600; color: var(--text-primary); font-size: 15px; }
+        .top-nav-links { display: flex; gap: 2px; list-style: none; }
+        .top-nav-links a {
+            padding: 6px 14px; border-radius: 6px; color: var(--text-tertiary);
+            text-decoration: none; font-size: 13px; font-weight: 500;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+            position: relative;
+        }
+        .top-nav-links a:hover { color: var(--text-secondary); background: var(--bg-hover); }
+        .top-nav-links a.active {
+            color: var(--primary); background: var(--bg-active); font-weight: 600;
+        }
+        .top-nav-links a.active::after {
+            content: ""; position: absolute; bottom: -10px; left: 20%; right: 20%;
+            height: 2px; background: var(--primary); border-radius: 2px;
+        }
+        .nav-full-label { font-size: 11px; opacity: 0.7; margin-left: 2px; }
+        .top-nav-actions { display: flex; align-items: center; gap: 10px; }
+
+        /* ===== 主体布局 ===== */
+        .app-body { display: flex; flex: 1; overflow: hidden; }
+
+        /* ===== 左侧边栏 ===== */
+        .sidebar {
+            width: 220px; background: var(--bg-card); border-right: 1px solid var(--border-color);
+            overflow-y: auto; padding: 12px 0; flex-shrink: 0; transition: width 0.3s;
+        }
+        .sidebar.collapsed { width: 0; padding: 0; overflow: hidden; border: none; }
+        .sidebar-group { margin-bottom: 4px; }
+        .sidebar-group-title {
+            padding: 8px 16px; font-size: 11px; font-weight: 600;
+            color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .sidebar-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 16px; margin: 2px 8px; border-radius: 6px;
+            color: var(--text-tertiary); text-decoration: none; font-size: 13px;
+            transition: all 0.2s; cursor: pointer; white-space: nowrap;
+        }
+        .sidebar-item:hover { background: var(--bg-hover); color: var(--text-secondary); }
+        .sidebar-item.active { background: var(--bg-active); color: var(--primary); font-weight: 500; }
+        .sidebar-item .icon { font-size: 15px; width: 20px; text-align: center; }
+        .sidebar-quick {
+            padding: 8px 16px; font-size: 11px; font-weight: 600;
+            color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;
+            margin-top: 8px;
+        }
+        .sidebar-quick + .sidebar-group { margin-top: 0; }
+
+        /* ===== 内容区 ===== */
+        .content-area {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+        }
+        .icon-btn {
+            width: 32px; height: 32px; border-radius: 6px; border: none;
+            background: transparent; color: var(--text-tertiary); font-size: 16px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn:hover { background: var(--bg-hover); }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: inherit;
+        }
+        
+        .btn-ghost {
+            background: rgba(255,255,255,0.02);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-solid);
+        }
+        
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .btn-primary {
+            background: var(--accent-indigo);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+        
+        /* Hero Section */
+        .hero {
+            padding: 40px 32px 60px;
+            text-align: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(94, 106, 210, 0.1);
+            border: 1px solid rgba(94, 106, 210, 0.2);
+            border-radius: 9999px;
+            font-size: 13px;
+            color: var(--accent-violet);
+            margin-bottom: 24px;
+        }
+        
+        .hero-badge-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-violet);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 600;
+            line-height: 1.1;
+            letter-spacing: -1.4px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero p {
+            font-size: 18px;
+            color: var(--text-tertiary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+        
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 60px;
+        }
+        
+        .btn-large {
+            padding: 12px 28px;
+            font-size: 15px;
+        }
+        
+        /* DSTE Flow Visualization */
+        .dste-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 80px;
+            flex-wrap: wrap;
+        }
+        
+        .dste-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 28px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-standard);
+            border-radius: 12px;
+            min-width: 140px;
+            transition: all 0.3s;
+        }
+        
+        .dste-step:hover {
+            background: rgba(255,255,255,0.04);
+            transform: translateY(-2px);
+        }
+        
+        .dste-step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .dste-step.sp .dste-step-icon { background: rgba(59, 130, 246, 0.15); }
+        .dste-step.bp .dste-step-icon { background: rgba(139, 92, 246, 0.15); }
+        .dste-step.exec .dste-step-icon { background: rgba(16, 185, 129, 0.15); }
+        .dste-step.review .dste-step-icon { background: rgba(245, 158, 11, 0.15); }
+        
+        .dste-step-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .dste-step-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .dste-arrow {
+            color: var(--text-muted);
+            font-size: 20px;
+        }
+        
+        /* Dashboard Preview */
+        .dashboard-preview {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-standard);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto 80px;
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .dashboard-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .dashboard-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(255,255,255,0.02);
+            padding: 4px;
+            border-radius: 8px;
+        }
+        
+        .dashboard-tab {
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .dashboard-tab.active {
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary);
+        }
+        
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .kpi-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        
+        .kpi-card:hover {
+            border-color: var(--border-standard);
+        }
+        
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .kpi-name {
+            font-size: 13px;
+            color: var(--text-tertiary);
+        }
+        
+        .kpi-trend {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .trend-up {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+        
+        .trend-down {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+        
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .kpi-target {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        /* Progress Bars */
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-fill.green { background: var(--success); }
+        .progress-fill.yellow { background: var(--warning); }
+        .progress-fill.red { background: var(--danger); }
+        
+        /* Chart Area */
+        .chart-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+        }
+        
+        .chart-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .chart-header {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+        
+        /* Simulated Chart */
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 160px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-subtle);
+            position: relative;
+        }
+        
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--accent-indigo), var(--accent-violet));
+            border-radius: 4px 4px 0 0;
+            min-height: 20px;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+        
+        .chart-bar-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        
+        /* Strategy Map Mini */
+        .strategy-map-mini {
+            display: grid;
+            grid-template-rows: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .strategy-layer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+        }
+        
+        .strategy-layer-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .strategy-layer.financial .strategy-layer-dot { background: var(--dste-sp); }
+        .strategy-layer.customer .strategy-layer-dot { background: var(--dste-bp); }
+        .strategy-layer.process .strategy-layer-dot { background: var(--dste-exec); }
+        .strategy-layer.learning .strategy-layer-dot { background: var(--dste-review); }
+        
+        .strategy-layer-name {
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .strategy-layer-count {
+            margin-left: auto;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.04);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 80px 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .section-header h2 {
+            font-size: 36px;
+            font-weight: 600;
+            letter-spacing: -0.8px;
+            margin-bottom: 16px;
+        }
+        
+        .section-header p {
+            font-size: 16px;
+            color: var(--text-tertiary);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        
+        .feature-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 28px;
+            transition: all 0.3s;
+        }
+        
+        .feature-card:hover {
+            background: rgba(255,255,255,0.03);
+            border-color: var(--border-standard);
+            transform: translateY(-2px);
+        }
+        
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .feature-card:nth-child(1) .feature-icon { background: rgba(59, 130, 246, 0.1); }
+        .feature-card:nth-child(2) .feature-icon { background: rgba(139, 92, 246, 0.1); }
+        .feature-card:nth-child(3) .feature-icon { background: rgba(16, 185, 129, 0.1); }
+        .feature-card:nth-child(4) .feature-icon { background: rgba(245, 158, 11, 0.1); }
+        .feature-card:nth-child(5) .feature-icon { background: rgba(94, 106, 210, 0.1); }
+        .feature-card:nth-child(6) .feature-icon { background: rgba(239, 68, 68, 0.1); }
+        
+        .feature-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .feature-card p {
+            font-size: 14px;
+            color: var(--text-tertiary);
+            line-height: 1.6;
+        }
+        
+        /* CTA Section */
+        .cta-section {
+            padding: 80px 32px;
+            text-align: center;
+            background: linear-gradient(180deg, transparent 0%, rgba(94, 106, 210, 0.05) 100%);
+        }
+        
+        .cta-section h2 {
+            font-size: 36px;
+            font-weight: 600;
+            letter-spacing: -0.8px;
+            margin-bottom: 16px;
+        }
+        
+        .cta-section p {
+            font-size: 16px;
+            color: var(--text-tertiary);
+            margin-bottom: 32px;
+        }
+        
+        /* AI Report Cards */
+        .report-card {
+            flex: 1;
+            padding: 16px 20px;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        .report-card-st {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        }
+        .report-card-at {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+        }
+        .report-card-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .report-card-status {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .report-card-meta {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        
+        /* Footer */
+        .footer {
+            padding: 40px 32px;
+            border-top: 1px solid var(--border-subtle);
+            text-align: center;
+        }
+        
+        .footer p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 36px;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .dste-flow {
+                flex-direction: column;
+            }
+            .dste-arrow {
+                transform: rotate(90deg);
+            }
+            .top-nav-links a { padding: 6px 10px; font-size: 12px; }
+            .nav-full-label { display: none; }
+            .sidebar { position: fixed; left: -220px; top: 56px; height: calc(100vh - 56px); z-index: 99; transition: left 0.3s; }
+            .sidebar.open { left: 0; }
+        }
+
+        /* ===== Light 主题覆盖 ===== */
+        [data-theme="light"] .topic-workspace {
+            background: var(--bg-page);
+            color: var(--text-primary);
+        }
+        [data-theme="light"] body {
+            background: var(--bg-page);
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .page-container {
+            background: var(--bg-page);
+            padding-top: 0;
+        }
+        /* page-header light: 扁平化，与 cockpit 一致 */
+        [data-theme="light"] .page-header {
+            background: transparent;
+            border-bottom: none;
+        }
+        [data-theme="light"] .page-title {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .page-subtitle {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .breadcrumb {
+            color: var(--text-disabled);
+        }
+        [data-theme="light"] .breadcrumb a {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .data-table th {
+            color: var(--text-secondary);
+            border-bottom-color: var(--border-color);
+            background: var(--bg-hover);
+            font-weight: 600;
+        }
+        [data-theme="light"] .data-table td {
+            color: var(--text-secondary);
+            border-bottom-color: var(--border-light);
+        }
+        [data-theme="light"] .data-table tr:hover td {
+            background: var(--bg-hover);
+        }
+        [data-theme="light"] .dashboard-tabs {
+            background: var(--bg-hover);
+        }
+        [data-theme="light"] .dashboard-tab.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            box-shadow: none;
+            font-weight: 600;
+        }
+        [data-theme="light"] .dashboard-tab {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .kpi-card,
+        [data-theme="light"] .chart-card,
+        [data-theme="light"] .feature-card,
+        [data-theme="light"] .strategy-layer {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+        [data-theme="light"] .kpi-card:hover,
+        [data-theme="light"] .chart-card:hover,
+        [data-theme="light"] .feature-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-light);
+        }
+        [data-theme="light"] .kpi-name {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .kpi-value {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .kpi-target {
+            color: var(--text-disabled);
+        }
+        [data-theme="light"] .chart-header {
+            color: var(--text-secondary);
+        }
+        [data-theme="light"] .strategy-layer-name {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .strategy-layer-count {
+            background: var(--bg-hover);
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .feature-card h3 {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .feature-card p {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .modal-content {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .modal-overlay {
+            background: rgba(0,0,0,0.5);
+        }
+        [data-theme="light"] .modal-title {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .modal-subtitle {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .modal-close {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .modal-close:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .form-input,
+        [data-theme="light"] .form-select,
+        [data-theme="light"] .form-textarea,
+        [data-theme="light"] .search-input {
+            background: var(--bg-page);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .form-label {
+            color: var(--text-secondary);
+        }
+        [data-theme="light"] .btn-ghost {
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+            border-color: var(--border-color);
+        }
+        [data-theme="light"] .btn-ghost:hover {
+            background: var(--bg-active);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+        [data-theme="light"] .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        [data-theme="light"] .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        [data-theme="light"] .filter-item {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+        [data-theme="light"] .sidebar {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+        }
+        [data-theme="light"] .sidebar-menu a {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .progress-bar {
+            background: var(--bg-hover);
+        }
+        [data-theme="light"] .ai-panel {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+        }
+        [data-theme="light"] .ai-panel-header {
+            border-bottom-color: var(--border-color);
+        }
+        [data-theme="light"] .ai-message.assistant {
+            background: var(--bg-hover);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+        [data-theme="light"] .ai-suggestion {
+            background: var(--bg-hover);
+            border-color: var(--border-color);
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .ai-input {
+            background: var(--bg-page);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .empty-state {
+            color: var(--text-disabled);
+        }
+        [data-theme="light"] .cta-section {
+            background: linear-gradient(180deg, transparent 0%, rgba(22,119,255,0.04) 100%);
+        }
+        [data-theme="light"] .cta-section h2 {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .cta-section p {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .footer {
+            border-top-color: var(--border-color);
+        }
+        [data-theme="light"] .footer p {
+            color: var(--text-disabled);
+        }
+        [data-theme="light"] .hero h1 {
+            background: none;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: unset;
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .hero p {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .detail-kpi {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+        }
+        [data-theme="light"] .detail-kpi-label {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .detail-kpi-value {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .timeline::before {
+            background: var(--border-color);
+        }
+        [data-theme="light"] .timeline-item {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .timeline-item.active {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .section-header h2 {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .section-header p {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .op-btn {
+            color: var(--text-tertiary);
+        }
+        [data-theme="light"] .op-btn:hover {
+            color: var(--primary);
+        }
+        [data-theme="light"] .chart-bar-label {
+            color: var(--text-disabled);
+        }
+        [data-theme="light"] .report-card-st {
+            background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+            color: #4f46e5;
+            border: 1px solid rgba(79,70,229,0.15);
+        }
+        [data-theme="light"] .report-card-at {
+            background: linear-gradient(135deg, #cffafe 0%, #ecfeff 100%);
+            color: #0891b2;
+            border: 1px solid rgba(8,145,178,0.15);
+        }
+        [data-theme="light"] .report-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+        [data-theme="light"] .ai-fab {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            box-shadow: 0 4px 20px rgba(22,119,255,0.3);
+        }
+        [data-theme="light"] .detail-section-title {
+            color: var(--text-secondary);
+        }
+        [data-theme="light"] .milestone-row {
+            background: var(--bg-hover);
+            border-color: var(--border-light);
+        }
+        [data-theme="light"] .milestone-row input {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .form-actions {
+            border-top-color: var(--border-light);
+        }
+        [data-theme="light"] .config-bar {
+            background: var(--bg-hover);
+            border-color: var(--border-color);
+        }
+        [data-theme="light"] .config-section.expanded .config-panel {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+        }
+        [data-theme="light"] .score-board-main {
+            border-bottom-color: var(--border-light);
+        }
+        [data-theme="light"] .analysis-header {
+            background: var(--bg-hover);
+        }
+        [data-theme="light"] .raw-report-bar,
+        [data-theme="light"] .fact-check-bar {
+            background: var(--bg-hover);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+        [data-theme="light"] .conclusion-box {
+            background: linear-gradient(135deg, rgba(245,34,45,0.03), rgba(255,100,50,0.02));
+        }
+    </style>
+    <style>
+        /* 页面布局 */
+        .page-container {
+            padding-top: 0;
+            min-height: 100vh;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .page-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .page-content {
+            padding: 0;
+        }
+        .content-area {
+            padding: 20px 24px;
+        }
+        /* 页面加载动画 (与 cockpit.html 一致) */
+        .content-area {
+            animation: fadeIn 0.25s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Tab 切换过渡 */
+        .dashboard-tab {
+            transition: all 0.2s ease;
+        }
+        /* 卡片 hover 过渡 */
+        .report-card, .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+        .breadcrumb a {
+            color: var(--text-tertiary);
+            text-decoration: none;
+        }
+        .breadcrumb a:hover {
+            color: var(--text-primary);
+        }
+        .breadcrumb-separator {
+            opacity: 0.4;
+            margin: 0 4px;
+        }
+        /* 数据表格 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            border-bottom: 1px solid var(--border-standard);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .data-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+        .data-table tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .tag-green { background: rgba(16,185,129,0.15); color: #10b981; }
+        .tag-yellow { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .tag-red { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .tag-blue { background: rgba(59,130,246,0.15); color: #3b82f6; }
+        .tag-purple { background: rgba(139,92,246,0.15); color: #8b5cf6; }
+        /* 侧边栏 */
+        .sidebar-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 24px;
+        }
+        .sidebar {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 20px;
+            height: fit-content;
+        }
+        .sidebar-menu {
+            list-style: none;
+        }
+        .sidebar-menu li {
+            margin-bottom: 4px;
+        }
+        .sidebar-menu a {
+            display: block;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: var(--text-tertiary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .sidebar-menu a:hover, .sidebar-menu a.active {
+            background: rgba(94,106,210,0.1);
+            color: var(--accent-violet);
+        }
+        .sidebar-menu a.active {
+            font-weight: 500;
+        }
+        /* 筛选栏 */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-item {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-standard);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        
+        /* 弹窗样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-standard);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 900px;
+            max-height: 85vh;
+            overflow: auto;
+            padding: 32px;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            font-size: 24px;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .modal-close:hover {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+        }
+        .modal-header {
+            margin-bottom: 24px;
+            padding-right: 40px;
+        }
+        .modal-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .modal-subtitle {
+            font-size: 14px;
+            color: var(--text-tertiary);
+        }
+        
+        /* AI助手浮窗 */
+        .ai-fab {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(94,106,210,0.4);
+            z-index: 1500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ai-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(94,106,210,0.5);
+        }
+        .ai-panel {
+            position: fixed;
+            bottom: 100px;
+            right: 32px;
+            width: 400px;
+            max-height: 600px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-standard);
+            border-radius: 16px;
+            z-index: 1500;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+        }
+        .ai-panel.active {
+            display: flex;
+        }
+        .ai-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .ai-panel-title {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ai-panel-body {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+        }
+        .ai-message {
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .ai-message.user {
+            background: var(--accent-indigo);
+            margin-left: 20px;
+        }
+        .ai-message.assistant {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            margin-right: 20px;
+        }
+        .ai-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .ai-suggestion {
+            padding: 6px 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-standard);
+            border-radius: 16px;
+            font-size: 12px;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ai-suggestion:hover {
+            border-color: var(--accent-indigo);
+            color: var(--text-primary);
+        }
+        .ai-input-area {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            gap: 8px;
+        }
+        .ai-input {
+            flex: 1;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-standard);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+        }
+        .ai-input:focus {
+            outline: none;
+            border-color: var(--accent-indigo);
+        }
+        .ai-send {
+            background: var(--accent-indigo);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        /* ===== 业务专题管理 - Stage 1 新增样式 ===== */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+        .form-label .required { color: var(--danger); margin-left: 2px; }
+        .form-input, .form-select, .form-textarea {
+            background: var(--bg-surface); border: 1px solid var(--border-standard); border-radius: 8px;
+            padding: 10px 12px; color: var(--text-primary); font-size: 14px; font-family: inherit;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--accent-indigo); }
+        .form-textarea { resize: vertical; min-height: 80px; }
+        .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
+        .milestone-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+        .milestone-row { display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px 12px; }
+        .milestone-row input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 13px; }
+        .milestone-row input:focus { outline: none; }
+        .milestone-row input[type="date"] { flex: 0 0 130px; color: var(--text-secondary); font-family: inherit; }
+        .milestone-status { cursor: pointer; font-size: 12px; padding: 2px 8px; border-radius: 4px; white-space: nowrap; user-select: none; }
+        .milestone-status.completed { background: rgba(16,185,129,0.15); color: #10b981; }
+        .milestone-status.pending { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .milestone-remove { cursor: pointer; color: var(--text-muted); font-size: 18px; background: none; border: none; line-height: 1; }
+        .milestone-remove:hover { color: var(--danger); }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .search-input {
+            background: var(--bg-surface); border: 1px solid var(--border-standard); border-radius: 8px;
+            padding: 8px 14px; color: var(--text-primary); font-size: 13px; font-family: inherit; min-width: 200px;
+        }
+        .search-input:focus { outline: none; border-color: var(--accent-indigo); }
+        .op-group { display: flex; gap: 8px; align-items: center; }
+        .op-btn { color: var(--text-tertiary); font-size: 13px; cursor: pointer; background: none; border: none; font-family: inherit; padding: 2px 4px; }
+        .op-btn:hover { color: var(--accent-violet); }
+        .op-btn.danger:hover { color: var(--danger); }
+        .timeline { position: relative; padding-left: 20px; }
+        .timeline::before { content: ''; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 2px; background: var(--border-standard); border-radius: 1px; }
+        .timeline-item { position: relative; margin-bottom: 12px; font-size: 13px; color: var(--text-tertiary); line-height: 1.5; }
+        .timeline-item::before { content: ''; position: absolute; left: -18px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--border-standard); }
+        .timeline-item.done::before { background: var(--success); }
+        .timeline-item.done { color: var(--text-secondary); text-decoration: line-through; }
+        .timeline-item.active::before { background: var(--warning); box-shadow: 0 0 0 3px rgba(245,158,11,0.2); }
+        .timeline-item.active { color: var(--text-primary); font-weight: 500; }
+        .detail-section { margin-bottom: 20px; }
+        .detail-section-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary); }
+        .detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .detail-kpi { background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px; }
+        .detail-kpi-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; }
+        .detail-kpi-value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+        .tag-list { display: flex; gap: 6px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部导航 (与 cockpit.html 一致) -->
+        <nav class="top-nav">
+            <div class="top-nav-brand">
+                <div class="top-nav-logo">D</div>
+                <span class="top-nav-title">DSTE 战略管理平台</span>
+            </div>
+            <ul class="top-nav-links" id="top-nav-links">
+                <li><a href="cockpit.html#dashboard" data-phase="dashboard"><span>🎛️</span><span>驾驶舱</span><span class="nav-full-label">驾驶舱</span></a></li>
+                <li><a href="cockpit.html#sp/strategy-map" data-phase="sp"><span>🎯</span><span>SP</span><span class="nav-full-label">战略制定</span></a></li>
+                <li><a href="cockpit.html#bp/kpi" data-phase="bp"><span>🔧</span><span>BP</span><span class="nav-full-label">战略解码</span></a></li>
+                <li><a href="cockpit.html#exe/tasks" data-phase="exe" class="active"><span>🚀</span><span>执行</span><span class="nav-full-label">战略执行</span></a></li>
+                <li><a href="cockpit.html#rev/performance" data-phase="rev"><span>📊</span><span>评估</span><span class="nav-full-label">战略评估</span></a></li>
+                <li><a href="cockpit.html#ai" data-phase="ai"><span>🤖</span><span>AI</span><span class="nav-full-label">AI 助手</span></a></li>
+            </ul>
+            <div class="top-nav-actions">
+                <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
+                <button class="icon-btn" title="通知">🔔</button>
+                <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;">张</div>
+            </div>
+        </nav>
+
+        <div class="app-body">
+            <!-- 左侧边栏 (执行阶段) -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-group">
+                    <div class="sidebar-group-title">战略执行</div>
+                    <a class="sidebar-item" href="cockpit.html#exe/tasks"><span class="icon">✅</span><span>重点工作管理</span></a>
+                    <a class="sidebar-item active" href="business-topics.html"><span class="icon">📂</span><span>业务专题管理</span></a>
+                    <a class="sidebar-item" href="cockpit.html#exe/meetings"><span class="icon">🎯</span><span>经营分析会 ⭐</span></a>
+                </div>
+                <div class="sidebar-quick">快捷工具</div>
+                <a class="sidebar-item" href="reviewer.html"><span class="icon">📋</span><span>会议材料审核</span></a>
+            </aside>
+
+            <!-- 内容区 -->
+            <main class="content-area">
+                <div class="topic-workspace">
+
+    <div class="page-container">
+        <div class="breadcrumb"><a href="cockpit.html#dashboard">驾驶舱</a><span class="breadcrumb-separator">/</span><a href="cockpit.html#exe/tasks">战略执行</a><span class="breadcrumb-separator">/</span><span>业务专题管理</span></div>
+        <div class="page-header">
+            <div>
+                <div class="page-title">业务专题管理</div>
+                <div class="page-subtitle" id="pageSubtitle">战略执行层业务攻坚 · 季度-年度业务议题聚合</div>
+            </div>
+            <div class="nav-actions">
+                <button class="btn btn-ghost" onclick="exportTopics()">📥 导出</button>
+                <button class="btn btn-ghost" onclick="openImportModal()">📋 导入议题</button>
+                <button class="btn btn-primary" onclick="openFormModal()">+ 新建业务专题</button>
+            </div>
+        </div>
+
+        <div class="page-content">
+            <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                <div class="report-card report-card-st" onclick="openAiReportModal('ST')">
+                    <div class="report-card-label">🏛️ ST 议题全局分析</div>
+                    <div class="report-card-status" id="stReportStatus">点击生成</div>
+                    <div class="report-card-meta" id="stReportMeta">—</div>
+                </div>
+                <div class="report-card report-card-at" onclick="openAiReportModal('AT')">
+                    <div class="report-card-label">🏢 AT 议题全局分析</div>
+                    <div class="report-card-status" id="atReportStatus">点击生成</div>
+                    <div class="report-card-meta" id="atReportMeta">—</div>
+                </div>
+            </div>
+
+            <div class="dashboard-tabs" style="margin-bottom: 24px;" id="topicTabs">
+                <div class="dashboard-tab active" data-tab="all" onclick="switchTab('all')">全部</div>
+                <div class="dashboard-tab" data-tab="in_progress" onclick="switchTab('in_progress')">进行中</div>
+                <div class="dashboard-tab" data-tab="done" onclick="switchTab('done')">已结束</div>
+                <div class="dashboard-tab" data-tab="archived" onclick="switchTab('archived')">已归档</div>
+                <div class="dashboard-tab" data-tab="mine" onclick="switchTab('mine')">我负责的</div>
+            </div>
+
+            <div class="filter-bar" style="margin-bottom: 20px;">
+                <select id="filterYear" class="form-select" style="min-width: 120px;" onchange="applyFilters()">
+                    <option value="">全部年度</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                </select>
+                <select id="filterDept" class="form-select" style="min-width: 140px;" onchange="applyFilters()">
+                    <option value="">全部部门</option>
+                </select>
+                <select id="filterPriority" class="form-select" style="min-width: 120px;" onchange="applyFilters()">
+                    <option value="">全部优先级</option>
+                    <option value="P0">P0</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                </select>
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜索专题名称、负责人..." oninput="applyFilters()">
+            </div>
+
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); padding: 24px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>专题名称</th>
+                            <th>优先级</th>
+                            <th>负责人</th>
+                            <th>责任部门</th>
+                            <th>时间周期</th>
+                            <th>进度</th>
+                            <th>状态</th>
+                            <th>议题关联</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topicTableBody">
+                        <!-- JS rendered -->
+                    </tbody>
+                </table>
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
+                    <div style="font-size: 14px; margin-bottom: 8px;">暂无业务专题</div>
+                    <div style="font-size: 12px;">点击右上角「新建业务专题」开始创建</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">📊 业务专题统计</div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="statInProgress">0</div>
+                        <div style="font-size: 12px; color: var(--text-tertiary);">进行中</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                        <div style="font-size: 28px; font-weight: 700;" id="statArchived">0</div>
+                        <div style="font-size: 12px; color: var(--text-tertiary);">已归档</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--warning);" id="statP1Urgent">0</div>
+                        <div style="font-size: 12px; color: var(--text-tertiary);">P0 紧急</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--danger);" id="statDelayed">0</div>
+                        <div style="font-size: 12px; color: var(--text-tertiary);">已延期</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>© 2024 帆软软件有限公司 | DSTE战略管理平台 | 让战略从纸上落到地上</p>
+    </footer>
+    </div>
+
+    <!-- 新建/编辑弹窗 -->
+    <div class="modal-overlay" id="formModal">
+        <div class="modal-content" style="max-width: 720px;">
+            <button class="modal-close" onclick="closeModal('formModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title" id="formTitle">新建业务专题</div>
+                <div class="modal-subtitle">填写专题基本信息与里程碑</div>
+            </div>
+            <form id="topicForm" onsubmit="event.preventDefault(); saveTopic();">
+                <input type="hidden" id="formTopicId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">专题名称 <span class="required">*</span></label>
+                        <input type="text" id="fName" class="form-input" required placeholder="如：Q3大客户攻坚">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">一句话描述</label>
+                        <input type="text" id="fDesc" class="form-input" placeholder="简要说明专题核心内容">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">专题目标</label>
+                        <textarea id="fTarget" class="form-textarea" placeholder="列出可量化的专题目标，每行一条"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">优先级 <span class="required">*</span></label>
+                        <select id="fPriority" class="form-select" required>
+                            <option value="P0">P0 - 最高优先级</option>
+                            <option value="P1">P1 - 高优先级</option>
+                            <option value="P2">P2 - 普通优先级</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">状态 <span class="required">*</span></label>
+                        <select id="fStatus" class="form-select" required>
+                            <option value="preparing">准备中</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="done">已结束</option>
+                            <option value="archived">已归档</option>
+                            <option value="delayed">已延期</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">负责人 <span class="required">*</span></label>
+                        <input type="text" id="fOwner" class="form-input" required placeholder="如：销售总监">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">责任部门</label>
+                        <input type="text" id="fDepartment" class="form-input" placeholder="如：财务部">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">开始日期</label>
+                        <input type="date" id="fStartDate" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">结束日期</label>
+                        <input type="date" id="fEndDate" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">预算（万元）</label>
+                        <input type="number" id="fBudget" class="form-input" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">实际成本（万元）</label>
+                        <input type="number" id="fActualCost" class="form-input" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">标签（用逗号分隔）</label>
+                        <input type="text" id="fTags" class="form-input" placeholder="大客户, 营收, Q3">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">📝 结项总结</label>
+                        <textarea id="fSummary" class="form-textarea" placeholder="专题结束后填写复盘总结、经验教训、后续建议..."></textarea>
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">📍 里程碑</label>
+                        <div class="milestone-list" id="formMilestones">
+                            <!-- JS rendered -->
+                        </div>
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 8px;" onclick="addMilestoneRow()">+ 添加里程碑</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal('formModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-content" style="max-width: 420px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">确认删除该业务专题？</div>
+            <div style="font-size: 14px; color: var(--text-tertiary); margin-bottom: 24px;">
+                删除后不可恢复，关联的里程碑数据也将一并清除。
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="btn btn-ghost" onclick="closeModal('deleteModal')">取消</button>
+                <button class="btn btn-primary" style="background: var(--danger);" onclick="confirmDeleteTopic()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div class="modal-overlay" id="bizTopicModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('bizTopicModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title" id="detailTitle">🎯 专题详情</div>
+                <div class="modal-subtitle" id="detailSubtitle">加载中...</div>
+            </div>
+            <div id="detailContent">
+                <!-- JS rendered -->
+            </div>
+            <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('bizTopicModal')">关闭</button>
+                <button type="button" class="btn btn-primary" id="detailEditBtn">编辑</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入议题弹窗 -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-close" onclick="closeModal('importModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title">📋 导入 ST/AT 议题</div>
+                <div class="modal-subtitle">粘贴表格数据、拖拽 Excel/CSV 文件或点击上传</div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 12px;">
+                    <input type="radio" name="importSource" value="ST" checked onchange="updateImportPreview()"> 🏛️ ST 会议系统
+                </label>
+                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 12px;">
+                    <input type="radio" name="importSource" value="AT" onchange="updateImportPreview()"> 🏢 AT 会议系统
+                </label>
+            </div>
+
+            <!-- 拖拽上传区域 -->
+            <div id="importDropZone" style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 32px 24px; text-align: center; margin-bottom: 16px; transition: all 0.2s; cursor: pointer;"
+                 ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)"
+                 onclick="document.getElementById('importFileInput').click()">
+                <div style="font-size: 36px; margin-bottom: 8px;">📁</div>
+                <div style="font-weight: 500; color: var(--text-secondary); margin-bottom: 4px;">拖拽 Excel / CSV 文件到此处</div>
+                <div style="font-size: 13px; color: var(--text-muted);">或点击选择文件 · 支持 .xlsx .xls .csv</div>
+                <input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label">粘贴表格数据（从 Excel 复制，作为备选方式）</label>
+                <textarea id="importPasteArea" class="form-textarea" rows="4" placeholder="会议名称,会议日期,议题编号,议题标题,议题类型,主责部门,提案人,议题内容,决议内容,行动项,关联KPI,状态,优先级&#10;片联ST-2026-Q1,2026-01-20,ST-2026-Q1-001,渠道下沉策略,战略,销售部,销售总监,简要描述...,决定...,项1|负责人|2026-02-15|已完成,KPI-001,已决议,P0" oninput="updateImportPreview()"></textarea>
+            </div>
+            <div id="importPreviewArea" style="margin-top: 16px; display: none;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">预览（前 5 条）</div>
+                <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                    <table class="data-table" id="importPreviewTable">
+                        <thead><tr><th>议题编号</th><th>议题标题</th><th>状态</th><th>验证结果</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="importStats" style="margin-top: 8px; font-size: 13px; color: var(--text-tertiary);"></div>
+            </div>
+            <div id="importErrorArea" style="margin-top: 12px; color: var(--danger); font-size: 13px; display: none;"></div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('importModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="confirmImport()">确认导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 议题详情弹窗 -->
+    <div class="modal-overlay" id="issueDetailModal">
+        <div class="modal-content" style="max-width: 640px;">
+            <button class="modal-close" onclick="closeModal('issueDetailModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title" id="issueDetailTitle">📋 议题详情</div>
+                <div class="modal-subtitle" id="issueDetailSubtitle"></div>
+            </div>
+            <div id="issueDetailContent">
+                <!-- JS rendered -->
+            </div>
+            <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('issueDetailModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关联议题选择弹窗 -->
+    <div class="modal-overlay" id="linkIssuesModal">
+        <div class="modal-content" style="max-width: 640px; max-height: 80vh; display: flex; flex-direction: column;">
+            <button class="modal-close" onclick="closeModal('linkIssuesModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title">🔗 关联议题</div>
+                <div class="modal-subtitle" id="linkIssuesSubtitle">选择要关联的议题</div>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <input type="text" id="linkIssuesSearch" class="form-input" placeholder="搜索议题..." oninput="renderLinkIssuesList()" style="width: 100%;">
+            </div>
+            <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+                <button class="btn btn-ghost" onclick="_linkIssuesFilter = 'all'; renderLinkIssuesList();" id="linkFilterAll">全部</button>
+                <button class="btn btn-ghost" onclick="_linkIssuesFilter = 'ST'; renderLinkIssuesList();">🏛️ ST</button>
+                <button class="btn btn-ghost" onclick="_linkIssuesFilter = 'AT'; renderLinkIssuesList();">🏢 AT</button>
+            </div>
+            <div id="linkIssuesList" style="flex: 1; overflow-y: auto; min-height: 200px;">
+                <!-- JS rendered -->
+            </div>
+            <div class="form-actions" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('linkIssuesModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveTopicLinks()">保存关联</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 全局报告弹窗 -->
+    <div class="modal-overlay" id="aiReportModal">
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-close" onclick="closeModal('aiReportModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title" id="aiReportTitle">🤖 AI 全局分析报告</div>
+                <div class="modal-subtitle" id="aiReportSubtitle"></div>
+            </div>
+            <div id="aiReportContent">
+                <!-- JS rendered -->
+            </div>
+            <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('aiReportModal')">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="regenerateAiReport()">🔄 重新生成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI助手浮窗 -->
+    <button class="ai-fab" onclick="toggleAI()" title="AI战略助手">🤖</button>
+    <div class="ai-panel" id="aiPanel">
+        <div class="ai-panel-header">
+            <div class="ai-panel-title"><span>🤖</span><span>AI战略助手</span></div>
+            <button onclick="toggleAI()" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:18px;">×</button>
+        </div>
+        <div class="ai-panel-body" id="aiMessages">
+            <div class="ai-message assistant">
+                👋 你好！我是你的AI战略助手。我可以帮你：
+                <br>• 分析KPI达成情况
+                <br>• 生成经营分析报告
+                <br>• 模拟战略调整影响
+                <div class="ai-suggestions">
+                    <span class="ai-suggestion" onclick="askAI('Q3营收为什么低于预期？')">Q3营收为什么低于预期？</span>
+                    <span class="ai-suggestion" onclick="askAI('生成月度经营分析报告')">生成月度经营分析报告</span>
+                </div>
+            </div>
+        </div>
+        <div class="ai-input-area">
+            <input type="text" class="ai-input" id="aiInput" placeholder="输入你的问题..." onkeypress="if(event.key==='Enter')sendAI()">
+            <button class="ai-send" onclick="sendAI()">发送</button>
+        </div>
+    </div>
+
+
+    <script>
+        // ===================== Data Layer =====================
+        const STORAGE_KEY = 'dste_business_topics_v2';
+        const CURRENT_USER = '销售总监'; // 演示用：当前登录用户
+        let _cachedTopics = null;
+        let _deleteTargetId = null;
+        let _currentTab = 'all';
+
+        function loadTopics() {
+            if (_cachedTopics) return [..._cachedTopics];
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return [];
+            try {
+                _cachedTopics = JSON.parse(raw);
+                return [..._cachedTopics];
+            } catch {
+                return [];
+            }
+        }
+
+        function saveTopics(topics) {
+            _cachedTopics = topics;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
+        }
+
+        function initDefaultData() {
+            const now = new Date().toISOString();
+            const topics = [
+                {
+                    id: "bt_1716100000001",
+                    name: "滚运预测能力",
+                    description: "建立滚动预测机制，提升经营预测准确性",
+                    target: "1. 预测准确率达到85%\n2. 建立月度滚动预测机制\n3. 风险提前预警能力提升",
+                    priority: "P1",
+                    status: "in_progress",
+                    owner: "财务总监",
+                    department: "财务部",
+                    progress: 50,
+                    startDate: "2024-03-01",
+                    endDate: "2024-12-31",
+                    budget: 120,
+                    actualCost: 80,
+                    milestones: [{id: "ms_1", name: "预测模型搭建", date: "2024-05-31", status: "completed"}, {id: "ms_2", name: "数据源整合", date: "2024-08-31", status: "completed"}, {id: "ms_3", name: "试点运行与调优", date: "2024-10-31", status: "in_progress"}, {id: "ms_4", name: "全面推广", date: "2024-12-31", status: "pending"}],
+                    tags: ["预测", "财务", "风险"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000002",
+                    name: "项目群经营分析",
+                    description: "体系客户（项目群）经营分析方法论建设",
+                    target: "1. 建立项目群经营分析模板\n2. 覆盖TOP20客户群\n3. 月度经营分析会常态化",
+                    priority: "P0",
+                    status: "in_progress",
+                    owner: "战略VP",
+                    department: "战略部",
+                    progress: 50,
+                    startDate: "2024-01-01",
+                    endDate: "2024-12-31",
+                    budget: 200,
+                    actualCost: 150,
+                    milestones: [{id: "ms_1", name: "方法论调研与设计", date: "2024-03-31", status: "completed"}, {id: "ms_2", name: "模板开发与验证", date: "2024-06-30", status: "completed"}, {id: "ms_3", name: "TOP20客户群试点", date: "2024-09-30", status: "in_progress"}, {id: "ms_4", name: "全量推广与固化", date: "2024-12-31", status: "pending"}],
+                    tags: ["项目群", "战略", "客户"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000003",
+                    name: "产品折扣管理",
+                    description: "产品盈利能力和价格管控专项",
+                    target: "1. 折扣审批流程线上化\n2. 低价订单占比控制在10%以内\n3. 产品毛利率提升3%",
+                    priority: "P1",
+                    status: "in_progress",
+                    owner: "产品总监",
+                    department: "产品部",
+                    progress: 50,
+                    startDate: "2024-04-01",
+                    endDate: "2024-11-30",
+                    budget: 150,
+                    actualCost: 90,
+                    milestones: [{id: "ms_1", name: "折扣现状分析", date: "2024-05-15", status: "completed"}, {id: "ms_2", name: "审批流程设计", date: "2024-07-31", status: "completed"}, {id: "ms_3", name: "系统开发与上线", date: "2024-10-15", status: "pending"}, {id: "ms_4", name: "效果评估", date: "2024-11-30", status: "pending"}],
+                    tags: ["折扣", "价格", "盈利"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000004",
+                    name: "合同质量分析",
+                    description: "合同质量评分与签约改进专项",
+                    target: "1. 建立合同质量评分模型\n2. 合同评审周期缩短50%\n3. 风险条款识别率100%",
+                    priority: "P2",
+                    status: "preparing",
+                    owner: "法务经理",
+                    department: "法务部",
+                    progress: 0,
+                    startDate: "2024-09-01",
+                    endDate: "2025-03-31",
+                    budget: 80,
+                    actualCost: 20,
+                    milestones: [{id: "ms_1", name: "评分标准制定", date: "2024-10-15", status: "in_progress"}, {id: "ms_2", name: "历史合同质量盘点", date: "2024-12-15", status: "pending"}, {id: "ms_3", name: "评审流程优化", date: "2025-02-15", status: "pending"}],
+                    tags: ["合同", "法务", "质量"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000005",
+                    name: "临时授权管理",
+                    description: "临时授权期限与机制管理优化",
+                    target: "1. 授权流程标准化\n2. 超期授权自动预警\n3. 授权台账100%覆盖",
+                    priority: "P2",
+                    status: "in_progress",
+                    owner: "运营经理",
+                    department: "运营部",
+                    progress: 50,
+                    startDate: "2024-06-01",
+                    endDate: "2024-12-31",
+                    budget: 60,
+                    actualCost: 35,
+                    milestones: [{id: "ms_1", name: "授权现状梳理", date: "2024-07-15", status: "completed"}, {id: "ms_2", name: "流程标准化设计", date: "2024-09-30", status: "completed"}, {id: "ms_3", name: "预警机制上线", date: "2024-11-15", status: "pending"}, {id: "ms_4", name: "全量推广", date: "2024-12-31", status: "pending"}],
+                    tags: ["授权", "运营", "风控"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000006",
+                    name: "应收账款管理",
+                    description: "超长应收管理，提升应收及时率",
+                    target: "1. 超长应收（>90天）降低30%\n2. DSO控制在60天以内\n3. 回款及时率达到95%",
+                    priority: "P0",
+                    status: "in_progress",
+                    owner: "财务总监",
+                    department: "财务部",
+                    progress: 75,
+                    startDate: "2024-02-01",
+                    endDate: "2024-12-31",
+                    budget: 100,
+                    actualCost: 70,
+                    milestones: [{id: "ms_1", name: "应收账龄分析", date: "2024-04-15", status: "completed"}, {id: "ms_2", name: "催收机制建立", date: "2024-06-30", status: "completed"}, {id: "ms_3", name: "DSO监控看板上线", date: "2024-09-15", status: "completed"}, {id: "ms_4", name: "效果验收", date: "2024-12-31", status: "in_progress"}],
+                    tags: ["应收", "回款", "财务"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000007",
+                    name: "项目四算专项",
+                    description: "低利润分析，提高合同与交付质量",
+                    target: "1. 项目四算覆盖率100%\n2. 低利润项目预警机制\n3. 交付成本降低10%",
+                    priority: "P0",
+                    status: "in_progress",
+                    owner: "项目总监",
+                    department: "项目管理部",
+                    progress: 50,
+                    startDate: "2024-01-01",
+                    endDate: "2025-06-30",
+                    budget: 180,
+                    actualCost: 120,
+                    milestones: [{id: "ms_1", name: "四算方法论设计", date: "2024-04-30", status: "completed"}, {id: "ms_2", name: "系统功能开发", date: "2024-08-31", status: "completed"}, {id: "ms_3", name: "试点项目验证", date: "2024-12-31", status: "in_progress"}, {id: "ms_4", name: "全量推广", date: "2025-06-30", status: "pending"}],
+                    tags: ["四算", "项目", "成本"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000008",
+                    name: "费控专项",
+                    description: "杜绝浪费，异常预警",
+                    target: "1. 费用预算执行偏差控制在5%以内\n2. 异常费用自动预警\n3. 费用分析月度报告",
+                    priority: "P1",
+                    status: "done",
+                    owner: "财务经理",
+                    department: "财务部",
+                    progress: 100,
+                    startDate: "2024-01-01",
+                    endDate: "2024-08-31",
+                    budget: 90,
+                    actualCost: 85,
+                    milestones: [{id: "ms_1", name: "费用现状分析", date: "2024-02-28", status: "completed"}, {id: "ms_2", name: "预警规则配置", date: "2024-04-30", status: "completed"}, {id: "ms_3", name: "系统上线运行", date: "2024-06-30", status: "completed"}, {id: "ms_4", name: "效果评估与优化", date: "2024-08-31", status: "completed"}],
+                    tags: ["费控", "预算", "成本"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000009",
+                    name: "收入确认规则",
+                    description: "销售收入确认原则梳理与标准化",
+                    target: "1. 收入确认规则文档化\n2. 跨部门确认流程标准化\n3. 收入确认差错率降至0",
+                    priority: "P1",
+                    status: "in_progress",
+                    owner: "财务经理",
+                    department: "财务部",
+                    progress: 50,
+                    startDate: "2024-05-01",
+                    endDate: "2024-12-31",
+                    budget: 70,
+                    actualCost: 45,
+                    milestones: [{id: "ms_1", name: "现行规则梳理", date: "2024-06-30", status: "completed"}, {id: "ms_2", name: "规则文档编写", date: "2024-08-31", status: "completed"}, {id: "ms_3", name: "流程标准化", date: "2024-10-31", status: "pending"}, {id: "ms_4", name: "培训与宣贯", date: "2024-12-31", status: "pending"}],
+                    tags: ["收入", "财务", "规则"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+                {
+                    id: "bt_1716100000010",
+                    name: "制衡关系分析",
+                    description: "分析指标间的制衡关系及优化方法",
+                    target: "1. 建立关键指标制衡矩阵\n2. 避免单一指标导向\n3. 指标体系健康度评估",
+                    priority: "P2",
+                    status: "preparing",
+                    owner: "战略经理",
+                    department: "战略部",
+                    progress: 0,
+                    startDate: "2024-10-01",
+                    endDate: "2025-06-30",
+                    budget: 100,
+                    actualCost: 15,
+                    milestones: [{id: "ms_1", name: "指标现状调研", date: "2024-11-30", status: "in_progress"}, {id: "ms_2", name: "制衡矩阵设计", date: "2025-02-28", status: "pending"}, {id: "ms_3", name: "评估模型开发", date: "2025-04-30", status: "pending"}, {id: "ms_4", name: "试点验证", date: "2025-06-30", status: "pending"}],
+                    tags: ["制衡", "指标", "战略"],
+                    summary: '',
+                    createdAt: "2026-05-19T17:24:00.297250",
+                    updatedAt: "2026-05-19T17:24:00.297250",
+                },
+            ];
+            saveTopics(topics);
+            return topics;
+        }
+
+        function computeProgress(milestones) {
+            if (!milestones || milestones.length === 0) return 0;
+            const completed = milestones.filter(m => m.status === 'completed').length;
+            return Math.round((completed / milestones.length) * 100);
+        }
+
+        function computeStats(topics) {
+            return {
+                inProgress: topics.filter(t => t.status === 'in_progress').length,
+                archived: topics.filter(t => t.status === 'archived').length,
+                p1Urgent: topics.filter(t => t.priority === 'P0' && t.status !== 'archived').length,
+                delayed: topics.filter(t => t.status === 'delayed').length,
+            };
+        }
+
+        function generateId() {
+            return 'bt_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        }
+
+        function generateMsId() {
+            return 'ms_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        }
+
+        // ===================== Helpers =====================
+        function getStatusLabel(s) {
+            const map = { preparing: '准备中', in_progress: '进行中', done: '已结束', archived: '已归档', delayed: '已延期' };
+            return map[s] || s;
+        }
+
+        function getStatusTagClass(s) {
+            const map = { preparing: 'tag-yellow', in_progress: 'tag-green', done: 'tag-blue', archived: 'tag-purple', delayed: 'tag-red' };
+            return map[s] || 'tag-yellow';
+        }
+
+        function getPriorityTagClass(p) {
+            const map = { P0: 'tag-red', P1: 'tag-yellow', P2: 'tag-blue' };
+            return map[p] || 'tag-blue';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        function safeId(id) {
+            return /^bt_[a-zA-Z0-9_]+$/.test(id) ? id : '';
+        }
+
+        // ===================== Phase 1: Issue Data Layer (v2.1) =====================
+        const ISSUE_STORAGE_KEY = 'dste_issues_v1';
+
+        function migrateV1ToV2() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return false;
+            try {
+                const topics = JSON.parse(raw);
+                if (!Array.isArray(topics)) return false;
+                let migrated = false;
+                topics.forEach(topic => {
+                    if (topic.dataVersion === undefined) {
+                        topic.linkedIssues = topic.linkedIssues || [];
+                        topic.linkedKpis = topic.linkedKpis || [];
+                        topic.issueStats = {
+                            stCount: 0,
+                            atCount: 0,
+                            totalCount: 0,
+                            lastMeetingDate: null
+                        };
+                        topic.dataVersion = 2;
+                        migrated = true;
+                    }
+                });
+                if (migrated) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
+                    _cachedTopics = topics;
+                }
+                return migrated;
+            } catch (e) {
+                console.error('[Migrate] 数据迁移失败:', e);
+                return false;
+            }
+        }
+
+        function simpleHash(str) {
+            if (typeof str !== 'string') str = String(str);
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return hash.toString(16);
+        }
+
+        function loadIssues(sourceSystem) {
+            const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
+            const raw = localStorage.getItem(key);
+            if (!raw) return [];
+            try {
+                const data = JSON.parse(raw);
+                if (!Array.isArray(data)) return [];
+                return data;
+            } catch {
+                return [];
+            }
+        }
+
+        function saveIssues(issues, sourceSystem) {
+            const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
+            localStorage.setItem(key, JSON.stringify(issues || []));
+        }
+
+        function loadAllIssues() {
+            return [...loadIssues('ST'), ...loadIssues('AT')];
+        }
+
+        function validateIssueRow(row, sourceSystem) {
+            const errors = [];
+            const warnings = [];
+            const cleanedRow = { ...row };
+
+            // 议题编号格式校验（如果有值）
+            if (cleanedRow['议题编号'] && !safeIssueId(cleanedRow['议题编号'])) {
+                errors.push(`议题编号格式错误: ${cleanedRow['议题编号']}`);
+            }
+
+            const textFields = ['议题标题', '议题内容', '决议内容', '行动项'];
+            textFields.forEach(field => {
+                if (cleanedRow[field] && hasCsvFormulaInjection(cleanedRow[field])) {
+                    warnings.push(`字段 "${field}" 可能包含 CSV 公式注入，已自动清理`);
+                    cleanedRow[field] = sanitizeCsvCell(cleanedRow[field]);
+                }
+            });
+
+            return { isValid: errors.length === 0, errors, warnings, cleanedRow };
+        }
+
+        function safeIssueId(id) {
+            return typeof id === 'string' && /^(ST|AT)-[0-9]{4}-Q[1-4]-[0-9]+$/.test(id);
+        }
+
+        function hasCsvFormulaInjection(text) {
+            if (typeof text !== 'string') return false;
+            const trimmed = text.trim();
+            const dangerous = ['=', '+', '-', '@', '\t', '\r'];
+            return dangerous.some(p => trimmed.startsWith(p));
+        }
+
+        function sanitizeCsvCell(text) {
+            if (typeof text !== 'string') return text;
+            const trimmed = text.trim();
+            const dangerous = ['=', '+', '-', '@', '\t', '\r'];
+            if (dangerous.some(p => trimmed.startsWith(p))) {
+                return "'" + trimmed;
+            }
+            return text;
+        }
+
+        function checkStorageCapacity() {
+            const STORAGE_LIMIT = 5 * 1024 * 1024;
+            let used = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    used += (localStorage.getItem(key) || '').length * 2;
+                }
+            }
+            const ratio = used / STORAGE_LIMIT;
+            return {
+                usedBytes: used,
+                limitBytes: STORAGE_LIMIT,
+                ratio,
+                isWarning: ratio > 0.8,
+                isCritical: ratio > 0.95
+            };
+        }
+
+        // ===================== Phase 2: CSV Parser & Issue Import =====================
+
+        function parseCSV(text, delimiter) {
+            delimiter = delimiter || ',';
+            const lines = text.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) return [];
+            const parseLine = (line) => {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    const nextChar = line[i + 1];
+                    if (char === '"') {
+                        if (inQuotes && nextChar === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === delimiter && !inQuotes) {
+                        result.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                result.push(current.trim());
+                return result;
+            };
+            const headers = parseLine(lines[0]).map(h => h.replace(/^["']|["']$/g, ''));
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseLine(lines[i]);
+                const row = {};
+                headers.forEach((h, idx) => {
+                    row[h] = values[idx] !== undefined ? values[idx] : '';
+                });
+                result.push(row);
+            }
+            return result;
+        }
+
+        function buildIssueFromRow(row, sourceSystem, index) {
+            const parseActionItems = (text) => {
+                if (!text) return [];
+                return text.split(';').filter(s => s.trim()).map(item => {
+                    const parts = item.split('|').map(s => s.trim());
+                    return { item: parts[0] || '', owner: parts[1] || '', deadline: parts[2] || '', status: parts[3] || '未开始' };
+                });
+            };
+            const parseRelatedKpis = (text) => {
+                if (!text) return [];
+                return text.split(',').map(s => s.trim()).filter(Boolean);
+            };
+            let issueId = row['议题编号'];
+            if (!issueId || String(issueId).trim() === '') {
+                issueId = sourceSystem + '-AUTO-' + Date.now() + '-' + (index || 0);
+            }
+            return {
+                issueId: issueId,
+                sourceSystem: sourceSystem,
+                meetingName: row['会议名称'] || '未指定',
+                meetingDate: row['会议日期'] || '',
+                issueTitle: row['议题标题'] || '未命名议题',
+                issueType: row['议题类型'] || '经营',
+                department: row['主责部门'] || '未指定',
+                proposer: row['提案人'] || '未指定',
+                content: row['议题内容'] || '',
+                decision: row['决议内容'] || '',
+                actionItems: parseActionItems(row['行动项']),
+                relatedKpis: parseRelatedKpis(row['关联KPI']),
+                status: row['状态'] || '已创建',
+                priority: row['优先级'] || 'P2'
+            };
+        }
+
+        function importIssuesFromPaste(text, sourceSystem) {
+            const rows = parseCSV(text);
+            const results = { success: [], errors: [], warnings: [], total: rows.length };
+            const existing = loadIssues(sourceSystem);
+            rows.forEach(row => {
+                const validated = validateIssueRow(row, sourceSystem);
+                if (!validated.isValid) {
+                    results.errors.push({ row, errors: validated.errors });
+                    return;
+                }
+                const issue = buildIssueFromRow(validated.cleanedRow, sourceSystem);
+                issue.importQuality = { hasWarnings: validated.warnings.length > 0, warnings: validated.warnings, importedAt: new Date().toISOString() };
+                const idx = existing.findIndex(i => i.issueId === issue.issueId);
+                if (idx >= 0) { existing[idx] = issue; }
+                else { existing.push(issue); }
+                results.success.push(issue);
+                results.warnings.push(...validated.warnings);
+            });
+            saveIssues(existing, sourceSystem);
+            return results;
+        }
+
+        // ===================== Phase 2: Issue Import UI =====================
+
+        let _importRows = null;
+        let _importFileName = null;
+
+        function openImportModal() {
+            document.getElementById('importPasteArea').value = '';
+            document.getElementById('importPreviewArea').style.display = 'none';
+            document.getElementById('importErrorArea').style.display = 'none';
+            document.getElementById('importDropZone').style.borderColor = 'var(--border-color)';
+            document.getElementById('importDropZone').style.background = '';
+            document.getElementById('importDropZone').innerHTML =
+                '<div style="font-size: 36px; margin-bottom: 8px;">📁</div>' +
+                '<div style="font-weight: 500; color: var(--text-secondary); margin-bottom: 4px;">拖拽 Excel / CSV 文件到此处</div>' +
+                '<div style="font-size: 13px; color: var(--text-muted);">或点击选择文件 · 支持 .xlsx .xls .csv</div>' +
+                '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">';
+            document.querySelector('input[name="importSource"][value="ST"]').checked = true;
+            _importRows = null;
+            _importFileName = null;
+            openModal('importModal');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const zone = document.getElementById('importDropZone');
+            zone.style.borderColor = 'var(--primary)';
+            zone.style.background = 'rgba(79, 70, 229, 0.05)';
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const zone = document.getElementById('importDropZone');
+            zone.style.borderColor = 'var(--border-color)';
+            zone.style.background = '';
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const zone = document.getElementById('importDropZone');
+            zone.style.borderColor = 'var(--border-color)';
+            zone.style.background = '';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) processImportFile(files[0]);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) processImportFile(files[0]);
+        }
+
+        function processImportFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+                alert('不支持的文件格式，请上传 .xlsx .xls 或 .csv 文件');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let rows = [];
+                    if (ext === 'csv') {
+                        const text = e.target.result;
+                        rows = parseCSV(text);
+                    } else {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                        if (jsonData.length < 2) { alert('文件内容为空或格式不正确'); return; }
+                        const headers = jsonData[0].map(h => String(h || '').trim());
+                        rows = jsonData.slice(1).map(row => {
+                            const obj = {};
+                            headers.forEach((h, i) => { obj[h] = row[i] !== undefined ? String(row[i]).trim() : ''; });
+                            return obj;
+                        });
+                    }
+                    _importRows = rows;
+                    _importFileName = file.name;
+                    document.getElementById('importDropZone').innerHTML =
+                        '<div style="font-size: 36px; margin-bottom: 8px;">✅</div>' +
+                        '<div style="font-weight: 500; color: var(--success);">' + escapeHtml(file.name) + '</div>' +
+                        '<div style="font-size: 13px; color: var(--text-muted);">共 ' + _importRows.length + ' 行数据 · 点击可重新选择</div>' +
+                        '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">';
+                    updateImportPreview();
+                } catch (err) {
+                    alert('解析文件失败: ' + err.message);
+                }
+            };
+            if (ext === 'csv') reader.readAsText(file);
+            else reader.readAsArrayBuffer(file);
+        }
+
+        function isIssueClosed(row) {
+            const status = String(row['状态'] || '').trim();
+            return status === '已关闭' || status === '关闭';
+        }
+
+        function importIssuesFromRows(rows, sourceSystem) {
+            const filteredRows = rows.filter(row => !isIssueClosed(row));
+            const skippedCount = rows.length - filteredRows.length;
+            const results = { success: [], errors: [], warnings: [], total: rows.length, skipped: skippedCount };
+            const existing = loadIssues(sourceSystem);
+            filteredRows.forEach((row, rowIdx) => {
+                const validated = validateIssueRow(row, sourceSystem);
+                if (!validated.isValid) { results.errors.push({ row, errors: validated.errors }); return; }
+                const issue = buildIssueFromRow(validated.cleanedRow, sourceSystem, rowIdx);
+                issue.importQuality = { hasWarnings: validated.warnings.length > 0, warnings: validated.warnings, importedAt: new Date().toISOString() };
+                const existingIdx = existing.findIndex(i => i.issueId === issue.issueId);
+                if (existingIdx >= 0) existing[existingIdx] = issue; else existing.push(issue);
+                results.success.push(issue);
+                results.warnings.push(...validated.warnings);
+            });
+            saveIssues(existing, sourceSystem);
+            return results;
+        }
+
+        function updateImportPreview() {
+            const text = document.getElementById('importPasteArea').value.trim();
+            const previewArea = document.getElementById('importPreviewArea');
+            const errorArea = document.getElementById('importErrorArea');
+
+            let rows = [];
+            if (_importRows && _importRows.length > 0) {
+                rows = _importRows;
+            } else if (text) {
+                rows = parseCSV(text);
+            } else {
+                previewArea.style.display = 'none';
+                errorArea.style.display = 'none';
+                return;
+            }
+
+            const sourceSystem = document.querySelector('input[name="importSource"]:checked').value;
+            const filteredRows = rows.filter(row => !isIssueClosed(row));
+            const skippedCount = rows.length - filteredRows.length;
+            const tbody = document.querySelector('#importPreviewTable tbody');
+            tbody.innerHTML = '';
+
+            let validCount = 0, errorCount = 0;
+            filteredRows.slice(0, 5).forEach(row => {
+                const validated = validateIssueRow(row, sourceSystem);
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td>' + escapeHtml(row['议题编号'] || '-') + '</td>' +
+                    '<td>' + escapeHtml(row['议题标题'] || '-') + '</td>' +
+                    '<td>' + escapeHtml(row['状态'] || '-') + '</td>' +
+                    '<td>' + (validated.isValid ? '<span style="color:var(--success)">✅ 有效</span>' : '<span style="color:var(--danger)">❌ ' + escapeHtml(validated.errors[0]) + '</span>') + '</td>';
+                tbody.appendChild(tr);
+                if (validated.isValid) validCount++; else errorCount++;
+            });
+
+            let statsText = '共 ' + rows.length + ' 条';
+            if (skippedCount > 0) statsText += ' · 自动过滤已关闭 ' + skippedCount + ' 条';
+            statsText += ' · 待导入 ' + filteredRows.length + ' 条 · 有效 ' + validCount + ' · 错误 ' + errorCount;
+            if (filteredRows.length > 5) statsText += '（仅预览前5条）';
+            document.getElementById('importStats').textContent = statsText;
+            previewArea.style.display = 'block';
+            errorArea.style.display = 'none';
+        }
+
+        function confirmImport() {
+            const text = document.getElementById('importPasteArea').value.trim();
+            const errorArea = document.getElementById('importErrorArea');
+
+            let rows = [];
+            if (_importRows && _importRows.length > 0) {
+                rows = _importRows;
+            } else if (text) {
+                rows = parseCSV(text);
+            } else {
+                errorArea.textContent = '请输入要导入的数据或上传文件';
+                errorArea.style.display = 'block';
+                return;
+            }
+
+            const sourceSystem = document.querySelector('input[name="importSource"]:checked').value;
+            const result = importIssuesFromRows(rows, sourceSystem);
+
+            if (result.success.length === 0) {
+                errorArea.innerHTML = '导入失败：<br>' + result.errors.map(e => '• ' + escapeHtml(e.errors.join(', '))).join('<br>');
+                errorArea.style.display = 'block';
+                return;
+            }
+
+            let msg = '导入成功！';
+            if (result.skipped > 0) msg += '自动过滤已关闭 ' + result.skipped + ' 条，';
+            msg += '实际导入 ' + result.success.length + ' 条议题';
+            if (result.errors.length > 0) msg += '，' + result.errors.length + ' 条失败';
+            if (result.warnings.length > 0) msg += '，' + result.warnings.length + ' 条警告';
+            alert(msg);
+            closeModal('importModal');
+        }
+
+        let _currentLinkTopicId = null;
+        let _linkIssuesFilter = 'all';
+
+        function linkIssueToTopic(topicId, issueId, relationType) {
+            const topics = loadTopics();
+            const topic = topics.find(t => t.id === topicId);
+            if (!topic) return;
+            topic.linkedIssues = topic.linkedIssues || [];
+            const existing = topic.linkedIssues.find(li => li.issueId === issueId);
+            const allIssues = loadAllIssues();
+            const issue = allIssues.find(i => i.issueId === issueId);
+            if (!issue) return;
+            if (existing) {
+                existing.relationType = relationType || 'support';
+            } else {
+                topic.linkedIssues.push({
+                    issueId: issue.issueId,
+                    sourceSystem: issue.sourceSystem,
+                    meetingName: issue.meetingName,
+                    meetingDate: issue.meetingDate,
+                    issueTitle: issue.issueTitle,
+                    relationType: relationType || 'support',
+                    linkStrength: 0.8,
+                    linkedAt: new Date().toISOString(),
+                    linkedBy: '用户:' + CURRENT_USER
+                });
+            }
+            updateTopicIssueStats(topic);
+            saveTopics(topics);
+            renderTable();
+            renderStats();
+        }
+
+        function unlinkIssueFromTopic(topicId, issueId) {
+            const topics = loadTopics();
+            const topic = topics.find(t => t.id === topicId);
+            if (!topic || !topic.linkedIssues) return;
+            topic.linkedIssues = topic.linkedIssues.filter(li => li.issueId !== issueId);
+            updateTopicIssueStats(topic);
+            saveTopics(topics);
+            renderTable();
+            renderStats();
+        }
+
+        function updateTopicIssueStats(topic) {
+            const linked = topic.linkedIssues || [];
+            topic.issueStats = {
+                stCount: linked.filter(i => i.sourceSystem === 'ST').length,
+                atCount: linked.filter(i => i.sourceSystem === 'AT').length,
+                totalCount: linked.length,
+                lastMeetingDate: linked.length > 0 ? linked.map(i => i.meetingDate).sort().pop() : null
+            };
+        }
+
+        function openLinkIssuesModal(topicId) {
+            _currentLinkTopicId = topicId;
+            const topic = loadTopics().find(t => t.id === topicId);
+            document.getElementById('linkIssuesSubtitle').textContent = topic ? '「' + topic.name + '」' : '';
+            document.getElementById('linkIssuesSearch').value = '';
+            _linkIssuesFilter = 'all';
+            renderLinkIssuesList();
+            openModal('linkIssuesModal');
+        }
+
+        function renderLinkIssuesList() {
+            const container = document.getElementById('linkIssuesList');
+            const search = document.getElementById('linkIssuesSearch').value.trim().toLowerCase();
+            const allIssues = loadAllIssues();
+            const topic = loadTopics().find(t => t.id === _currentLinkTopicId);
+            const linkedIds = new Set((topic?.linkedIssues || []).map(li => li.issueId));
+
+            let filtered = allIssues;
+            if (_linkIssuesFilter !== 'all') {
+                filtered = filtered.filter(i => i.sourceSystem === _linkIssuesFilter);
+            }
+            if (search) {
+                filtered = filtered.filter(i =>
+                    (i.issueTitle || '').toLowerCase().includes(search) ||
+                    (i.issueId || '').toLowerCase().includes(search) ||
+                    (i.department || '').toLowerCase().includes(search)
+                );
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding: 40px; color: var(--text-muted);">暂无议题数据<br>请先导入议题</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(issue => {
+                const isLinked = linkedIds.has(issue.issueId);
+                const existing = topic?.linkedIssues?.find(li => li.issueId === issue.issueId);
+                const relationType = existing?.relationType || 'support';
+                const icon = issue.sourceSystem === 'ST' ? '🏛️' : '🏢';
+                return `<div style="padding: 10px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="link_cb_${issue.issueId}" ${isLinked ? 'checked' : ''} style="cursor:pointer;" onchange="document.getElementById('link_rel_${issue.issueId}').style.display = this.checked ? 'inline' : 'none'">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500; font-size: 13px;">${icon} ${escapeHtml(issue.issueId)} ${escapeHtml(issue.issueTitle)}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(issue.meetingName)} · ${escapeHtml(issue.department)} · ${escapeHtml(issue.status)}</div>
+                    </div>
+                    <select id="link_rel_${issue.issueId}" style="font-size: 12px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); display: ${isLinked ? 'inline' : 'none'};">
+                        <option value="direct" ${relationType === 'direct' ? 'selected' : ''}>直接驱动</option>
+                        <option value="support" ${relationType === 'support' ? 'selected' : ''}>相关支撑</option>
+                        <option value="reference" ${relationType === 'reference' ? 'selected' : ''}>参考关联</option>
+                    </select>
+                </div>`;
+            }).join('');
+        }
+
+        function saveTopicLinks() {
+            if (!_currentLinkTopicId) return;
+            const allIssues = loadAllIssues();
+            const topic = loadTopics().find(t => t.id === _currentLinkTopicId);
+            if (!topic) return;
+
+            const previouslyLinked = new Set((topic.linkedIssues || []).map(li => li.issueId));
+            const currentlyLinked = new Set();
+
+            allIssues.forEach(issue => {
+                const cb = document.getElementById('link_cb_' + issue.issueId);
+                if (cb && cb.checked) {
+                    currentlyLinked.add(issue.issueId);
+                    const relSelect = document.getElementById('link_rel_' + issue.issueId);
+                    const relationType = relSelect ? relSelect.value : 'support';
+                    linkIssueToTopic(_currentLinkTopicId, issue.issueId, relationType);
+                }
+            });
+
+            // Remove unchecked
+            previouslyLinked.forEach(issueId => {
+                if (!currentlyLinked.has(issueId)) {
+                    unlinkIssueFromTopic(_currentLinkTopicId, issueId);
+                }
+            });
+
+            closeModal('linkIssuesModal');
+        }
+
+        // ===================== Phase 4: AI Global Report =====================
+
+        function extractTitleKeywords(title) {
+            if (!title || title.length < 4) return [];
+            const stopWords = new Set(['的','了','在','是','和','就','不','都','一','上','也','很','到','说','要','去','会','着','看','好','这','那','个','为','与','及','等','对','可','能','由','从','被','将','于','中','而','或','但','如','若','给','以']);
+            const words = [];
+            for (let i = 0; i < title.length - 1; i++) {
+                for (let len = 2; len <= 4 && i + len <= title.length; len++) {
+                    const word = title.slice(i, i + len);
+                    if (![...word].some(c => stopWords.has(c))) words.push(word);
+                }
+            }
+            return [...new Set(words)].slice(0, 10);
+        }
+
+        function findClusters(issues) {
+            const issueKeywords = new Map();
+            issues.forEach(issue => {
+                issueKeywords.set(issue.issueId, extractTitleKeywords(issue.issueTitle || ''));
+            });
+            const clusters = [];
+            const deptMap = new Map();
+            issues.forEach(issue => {
+                const dept = issue.department || '未指定';
+                if (!deptMap.has(dept)) deptMap.set(dept, []);
+                deptMap.get(dept).push(issue);
+            });
+            const checked = new Set();
+            deptMap.forEach((deptIssues) => {
+                let pairCount = 0;
+                const maxPairs = 3000;
+                outer: for (let i = 0; i < deptIssues.length; i++) {
+                    for (let j = i + 1; j < deptIssues.length; j++) {
+                        if (++pairCount > maxPairs) break outer;
+                        const issue1 = deptIssues[i];
+                        const issue2 = deptIssues[j];
+                        const key = [issue1.issueId, issue2.issueId].sort().join('|');
+                        if (checked.has(key)) continue;
+                        let score = 0;
+                        const evidence = [];
+                        const kpis1 = issue1.relatedKpis || [];
+                        const kpis2 = issue2.relatedKpis || [];
+                        const sharedKpis = kpis1.filter(k => kpis2.includes(k));
+                        if (sharedKpis.length > 0) {
+                            score += sharedKpis.length * 0.35;
+                            evidence.push({ type: 'SHARED_KPI', desc: `共享 ${sharedKpis.length} 个KPI`, strength: Math.min(0.95, sharedKpis.length * 0.35 + 0.3) });
+                        }
+                        if (issue1.meetingDate && issue2.meetingDate && issue1.meetingDate.slice(0, 7) === issue2.meetingDate.slice(0, 7)) {
+                            score += 0.25;
+                            evidence.push({ type: 'TIME_OVERLAP', desc: `同月召开`, strength: 0.6 });
+                        }
+                        const words1 = issueKeywords.get(issue1.issueId);
+                        const words2 = issueKeywords.get(issue2.issueId);
+                        let sharedCount = 0;
+                        for (const w of words1) { if (words2.includes(w)) sharedCount++; }
+                        if (sharedCount > 0) {
+                            score += Math.min(0.2, sharedCount * 0.05);
+                            evidence.push({ type: 'SEMANTIC_SIMILARITY', desc: `标题关键词重叠`, strength: 0.5 });
+                        }
+                        if (issue1.meetingName && issue2.meetingName && issue1.meetingName === issue2.meetingName) {
+                            score += 0.2;
+                            evidence.push({ type: 'SAME_MEETING', desc: `同一次会议`, strength: 0.6 });
+                        }
+                        if (score >= 0.5) {
+                            clusters.push({ issues: [issue1, issue2], evidence, confidence: Math.min(0.95, score) });
+                            checked.add(key);
+                            if (clusters.length >= 20) break outer;
+                        }
+                    }
+                }
+            });
+            return clusters;
+        }
+
+        function checkUpgradePotential(issue) {
+            let score = 0.1;
+            if ((issue.actionItems || []).length > 3) score += 0.25;
+            if ((issue.relatedKpis || []).length >= 3) score += 0.25;
+            if (issue.status === '审议中' || issue.status === '进行中') score += 0.15;
+            if ((issue.issueTitle || '').length > 20) score += 0.1;
+            return Math.min(1, score);
+        }
+
+        function findExecutionRisks(issues) {
+            const now = new Date();
+            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            return issues.filter(issue => {
+                if (issue.status === '已关闭' || issue.status === '关闭' || issue.status === 'closed') return false;
+                const items = issue.actionItems || [];
+                if (items.length === 0) {
+                    // 无行动项：如果已决议或长期未决也算风险
+                    if (issue.status === '已决议') return true;
+                    if (issue.meetingDate && new Date(issue.meetingDate) < thirtyDaysAgo) return true;
+                    return false;
+                }
+                const completed = items.filter(a => a.status === '已完成').length;
+                return completed / items.length < 0.5;
+            });
+        }
+
+        function findLongPendingIssues(issues) {
+            const now = new Date();
+            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            return issues.filter(issue => {
+                if (!issue.meetingDate) return false;
+                const d = new Date(issue.meetingDate);
+                const isClosed = issue.status === '已关闭' || issue.status === '关闭' || issue.status === 'closed';
+                return d < thirtyDaysAgo && !isClosed;
+            });
+        }
+
+        function findDeptConcentration(issues) {
+            const dist = {};
+            issues.forEach(issue => {
+                const dept = issue.department || '未指定';
+                dist[dept] = (dist[dept] || 0) + 1;
+            });
+            const sorted = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+            return sorted.length > 0 ? { topDept: sorted[0][0], topCount: sorted[0][1], distribution: dist } : null;
+        }
+
+        function findHighPriorityIssues(issues) {
+            return issues.filter(i => i.priority === 'P0' || i.priority === '高' || i.priority === 'High');
+        }
+
+        function findIssuesWithoutActionItems(issues) {
+            return issues.filter(i => !(i.actionItems && i.actionItems.length > 0));
+        }
+
+        function analyzeDistribution(issues) {
+            const dist = {};
+            issues.forEach(issue => {
+                const type = issue.issueType || '未知';
+                dist[type] = (dist[type] || 0) + 1;
+            });
+            return dist;
+        }
+
+        function generateGlobalReport(issues, reportType) {
+            const checksum = simpleHash(JSON.stringify(issues.map(i => i.issueId).sort()));
+            const cached = loadCachedReport(reportType, checksum);
+            if (cached) return { ...cached, isCached: true };
+
+            const findings = [];
+            const clusters = findClusters(issues);
+            if (clusters.length > 0) {
+                findings.push({
+                    findingId: 'F001', title: '议题聚合机会', confidence: 0.85, type: 'CLUSTER',
+                    description: `发现 ${clusters.length} 组高度相关的议题（共享KPI/同部门同月/标题相似/同会议），建议聚合成专题管理`,
+                    evidence: clusters.slice(0, 5).map(c => ({
+                        type: c.evidence[0]?.type || 'SHARED_KPI',
+                        desc: `${c.issues[0].issueId} ↔ ${c.issues[1].issueId} (${c.evidence.map(e => e.desc).join(', ')})`,
+                        strength: c.confidence
+                    })),
+                    relatedIssues: [...new Set(clusters.slice(0, 10).flatMap(c => c.issues.map(i => i.issueId)))],
+                    suggestedAction: '查看关联议题并考虑创建业务专题进行统一管理'
+                });
+            }
+            const longPending = findLongPendingIssues(issues);
+            if (longPending.length > 0) {
+                findings.push({
+                    findingId: 'F002', title: '长期未决议题预警', confidence: 0.82, type: 'RISK',
+                    description: `${longPending.length} 个议题超过 30 天仍未关闭（占 ${(longPending.length / issues.length * 100).toFixed(1)}%），存在推进滞后的风险`,
+                    evidence: longPending.slice(0, 5).map(i => ({
+                        type: 'TIME_OVERLAP',
+                        desc: `${i.issueId} (${i.meetingDate}, ${i.department || '无部门'})`,
+                        strength: 0.7
+                    })),
+                    relatedIssues: longPending.map(i => i.issueId),
+                    suggestedAction: 'review 长期未决议题，明确责任人并设定关闭 deadline'
+                });
+            }
+            const highPriority = findHighPriorityIssues(issues);
+            if (highPriority.length > 0) {
+                findings.push({
+                    findingId: 'F003', title: '高优先级议题关注', confidence: 0.78, type: 'RISK',
+                    description: `当前有 ${highPriority.length} 个高优先级（P0/高）议题，需重点跟踪`,
+                    evidence: [{
+                        type: 'DISTRIBUTION',
+                        desc: `P0/高级议题占 ${(highPriority.length / issues.length * 100).toFixed(1)}%`,
+                        strength: Math.min(0.9, highPriority.length / issues.length + 0.3)
+                    }],
+                    relatedIssues: highPriority.map(i => i.issueId),
+                    suggestedAction: '确保高优先级议题有明确行动项和负责人，定期 review 进展'
+                });
+            }
+            const deptConc = findDeptConcentration(issues);
+            if (deptConc && deptConc.topCount / issues.length > 0.25) {
+                findings.push({
+                    findingId: 'F004', title: '部门议题集中度偏高', confidence: 0.72, type: 'DISTRIBUTION',
+                    description: `${deptConc.topDept} 承担了 ${(deptConc.topCount / issues.length * 100).toFixed(1)}% 的议题，可能存在资源瓶颈或跨部门协同不足`,
+                    evidence: [{
+                        type: 'DEPT_RELATED',
+                        desc: `${deptConc.topDept}: ${deptConc.topCount} 个议题`,
+                        strength: Math.min(0.85, deptConc.topCount / issues.length)
+                    }],
+                    relatedIssues: issues.filter(i => i.department === deptConc.topDept).map(i => i.issueId),
+                    suggestedAction: '评估部门资源负载，考虑议题拆解或跨部门协同'
+                });
+            }
+            const typeDist = analyzeDistribution(issues);
+            const topType = Object.entries(typeDist).sort((a, b) => b[1] - a[1])[0];
+            if (topType && topType[1] / issues.length > 0.5 && Object.keys(typeDist).length > 1) {
+                findings.push({
+                    findingId: 'F005', title: '议题类型分布失衡', confidence: 0.68, type: 'DISTRIBUTION',
+                    description: `${topType[0]} 类议题占 ${(topType[1] / issues.length * 100).toFixed(1)}%，议题结构可能不够多元`,
+                    evidence: Object.entries(typeDist).map(([k, v]) => ({
+                        type: 'DISTRIBUTION',
+                        desc: `${k}: ${v} 个 (${(v / issues.length * 100).toFixed(0)}%)`,
+                        strength: v / issues.length
+                    })),
+                    relatedIssues: [],
+                    suggestedAction: 'review 议题组合，确保战略/经营/资源/管理类议题均衡'
+                });
+            }
+            const noActionItems = findIssuesWithoutActionItems(issues);
+            if (noActionItems.length > 0) {
+                findings.push({
+                    findingId: 'F006', title: '大量议题缺少行动项', confidence: 0.7, type: 'GAP',
+                    description: `${noActionItems.length} 个议题（${(noActionItems.length / issues.length * 100).toFixed(1)}%）未设定行动项，难以跟踪落地`,
+                    evidence: [{
+                        type: 'DEPT_RELATED',
+                        desc: `涉及 ${[...new Set(noActionItems.map(i => i.department || '未指定'))].length} 个部门`,
+                        strength: Math.min(0.8, noActionItems.length / issues.length)
+                    }],
+                    relatedIssues: noActionItems.slice(0, 20).map(i => i.issueId),
+                    suggestedAction: '为缺少行动项的议题补充具体任务、负责人和 deadline'
+                });
+            }
+            const resolvedNoAction = issues.filter(i => i.status === '已决议' && !(i.actionItems && i.actionItems.length > 0));
+            if (resolvedNoAction.length > 0) {
+                findings.push({
+                    findingId: 'F007', title: '已决议议题缺少行动项', confidence: 0.88, type: 'RISK',
+                    description: `${resolvedNoAction.length} 个已决议议题未设定行动项，决议可能无法落地`,
+                    evidence: resolvedNoAction.slice(0, 5).map(i => ({
+                        type: 'DEPT_RELATED',
+                        desc: `${i.issueId} (${i.department || '无部门'})`,
+                        strength: 0.8
+                    })),
+                    relatedIssues: resolvedNoAction.map(i => i.issueId),
+                    suggestedAction: '立即为已决议议题补充行动项，确保决议落地'
+                });
+            }
+
+            const resolvedCount = issues.filter(i => i.status === '已决议').length;
+            const inProgressCount = issues.filter(i => i.status === '审议中' || i.status === '进行中').length;
+            const closedCount = issues.filter(i => i.status === '已关闭' || i.status === '关闭' || i.status === 'closed').length;
+            const pendingCount = issues.filter(i => i.status === '待审议' || i.status === '待处理').length;
+
+            const summary = `本期共分析 ${issues.length} 个议题：${resolvedCount} 个已决议，${inProgressCount} 个进行中，${pendingCount} 个待审议，${closedCount} 个已关闭；${longPending.length} 个长期未决（>30天），${highPriority.length} 个高优先级，${noActionItems.length} 个缺少行动项`;
+
+            const recommendations = [
+                longPending.length > 0 ? `优先推动 ${longPending.length} 个长期未决议题闭环` : '议题推进节奏正常',
+                highPriority.length > 5 ? `review ${highPriority.length} 个高优先级议题避免资源过度分散` : '关注高优先级议题执行进展',
+                noActionItems.length > issues.length * 0.3 ? `补充行动项：${noActionItems.length} 个议题缺少可执行任务` : '保持行动项更新',
+                clusters.length > 0 ? `考虑将 ${clusters.length} 组相关议题聚合成专题管理` : '持续关注议题关联性',
+                deptConc && deptConc.topCount / issues.length > 0.4 ? `${deptConc.topDept} 议题集中度过高，建议评估资源负载` : '部门议题分布较为均衡'
+            ].filter(Boolean);
+
+            const report = {
+                reportId: 'RPT_' + Date.now(), reportType, analysisPeriod: '2026-Q1', issueCount: issues.length,
+                dataChecksum: checksum, isCached: false, summary, findings, recommendations,
+                stats: {
+                    totalIssues: issues.length, resolvedCount, inProgressCount, pendingCount, closedCount,
+                    longPendingCount: longPending.length, highPriorityCount: highPriority.length, noActionItemCount: noActionItems.length,
+                    avgActionItems: issues.reduce((sum, i) => sum + (i.actionItems || []).length, 0) / Math.max(1, issues.length),
+                    crossDeptRatio: 0
+                }
+            };
+            saveCachedReport(reportType, checksum, report);
+            return report;
+        }
+
+        function loadCachedReport(reportType, checksum) {
+            try {
+                const raw = localStorage.getItem('dste_ai_reports_v1_' + reportType);
+                if (!raw) return null;
+                const cache = JSON.parse(raw);
+                return cache.checksum === checksum ? cache.report : null;
+            } catch { return null; }
+        }
+
+        function saveCachedReport(reportType, checksum, report) {
+            try {
+                localStorage.setItem('dste_ai_reports_v1_' + reportType, JSON.stringify({ checksum, report, cachedAt: new Date().toISOString() }));
+            } catch (e) { console.warn('[ReportCache] 缓存保存失败:', e.message); }
+        }
+
+        let _currentReportType = null;
+
+        function openAiReportModal(reportType) {
+            _currentReportType = reportType;
+            const issues = loadIssues(reportType);
+            const report = generateGlobalReport(issues, reportType + '_GLOBAL');
+
+            document.getElementById('aiReportTitle').textContent = (reportType === 'ST' ? '🏛️ ST' : '🏢 AT') + ' 议题全局分析报告';
+            document.getElementById('aiReportSubtitle').textContent = '分析周期: ' + report.analysisPeriod + ' | 议题总数: ' + report.issueCount + (report.isCached ? ' | 来自缓存' : ' | 刚刚生成');
+
+            let findingsHtml = '';
+            if (report.findings && report.findings.length > 0) {
+                findingsHtml = report.findings.map(f => {
+                    const typeColor = f.type === 'CLUSTER' ? '#4f46e5' : f.type === 'RISK' ? '#dc2626' : '#0891b2';
+                    return `<div style="margin-bottom: 16px; padding: 14px 16px; background: var(--bg-surface); border-radius: 8px; border-left: 3px solid ${typeColor};">
+                        <div style="font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between;">
+                            <span>${escapeHtml(f.title)}</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">置信度: ${Math.round(f.confidence * 100)}%</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-tertiary); line-height: 1.6;">${escapeHtml(f.description)}</div>
+                        ${f.evidence && f.evidence.length > 0 ? '<div style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">证据: ' + f.evidence.map(e => escapeHtml(e.desc)).join(' · ') + '</div>' : ''}
+                        <div style="margin-top: 8px;"><span style="font-size: 12px; color: var(--text-muted);">建议:</span> <span style="font-size: 12px; color: var(--primary);">${escapeHtml(f.suggestedAction)}</span></div>
+                    </div>`;
+                }).join('');
+            } else {
+                findingsHtml = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">暂无显著发现<br>建议导入更多议题数据后重新分析</div>';
+            }
+
+            let statsHtml = '';
+            if (report.stats) {
+                statsHtml = `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+                    <div style="text-align: center; padding: 12px; background: var(--bg-surface); border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700; color: var(--primary);">${report.stats.totalIssues}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">议题总数</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: var(--bg-surface); border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700; color: var(--success);">${report.stats.resolvedCount}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">已决议</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: var(--bg-surface); border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700; color: var(--warning);">${report.stats.avgActionItems ? report.stats.avgActionItems.toFixed(1) : '0'}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">平均行动项</div>
+                    </div>
+                </div>`;
+            }
+
+            document.getElementById('aiReportContent').innerHTML = statsHtml +
+                '<div style="margin-bottom: 12px; font-weight: 600; color: var(--text-secondary);">📊 执行摘要</div>' +
+                '<div style="padding: 12px 16px; background: var(--bg-surface); border-radius: 8px; font-size: 13px; color: var(--text-tertiary); line-height: 1.6; margin-bottom: 20px;">' + escapeHtml(report.summary) + '</div>' +
+                '<div style="margin-bottom: 12px; font-weight: 600; color: var(--text-secondary);">🔍 核心发现</div>' + findingsHtml +
+                (report.recommendations && report.recommendations.length > 0 ?
+                    '<div style="margin-top: 20px;"><div style="margin-bottom: 12px; font-weight: 600; color: var(--text-secondary);">💡 综合建议</div>' +
+                    '<div style="padding: 12px 16px; background: var(--bg-surface); border-radius: 8px; font-size: 13px; color: var(--text-tertiary); line-height: 1.6;">' + report.recommendations.map(r => '• ' + escapeHtml(r)).join('<br>') + '</div></div>' : '');
+
+            openModal('aiReportModal');
+        }
+
+        function regenerateAiReport() {
+            if (!_currentReportType) return;
+            localStorage.removeItem('dste_ai_reports_v1_' + _currentReportType + '_GLOBAL');
+            document.getElementById('aiReportContent').innerHTML = '<div style="text-align:center; padding:60px;"><div style="font-size:32px; margin-bottom:12px;">🔄</div><div style="color:var(--text-secondary);">正在重新分析...</div></div>';
+            setTimeout(() => {
+                openAiReportModal(_currentReportType);
+            }, 300);
+        }
+
+        function updateAiReportCards() {
+            ['ST', 'AT'].forEach(type => {
+                const issues = loadIssues(type);
+                const statusEl = document.getElementById(type.toLowerCase() + 'ReportStatus');
+                const metaEl = document.getElementById(type.toLowerCase() + 'ReportMeta');
+                if (statusEl && metaEl) {
+                    if (issues.length === 0) {
+                        statusEl.textContent = '暂无数据';
+                        metaEl.textContent = '请先导入' + type + '议题';
+                    } else {
+                        statusEl.textContent = '基于 ' + issues.length + ' 条数据';
+                        metaEl.textContent = '点击查看分析报告';
+                    }
+                }
+            });
+        }
+
+        function openIssueDetailModal(issueId) {
+            const allIssues = loadAllIssues();
+            const issue = allIssues.find(i => i.issueId === issueId);
+            if (!issue) return;
+
+            document.getElementById('issueDetailTitle').textContent = (issue.sourceSystem === 'ST' ? '🏛️ ' : '🏢 ') + escapeHtml(issue.issueId);
+            document.getElementById('issueDetailSubtitle').textContent = escapeHtml(issue.meetingName) + ' · ' + escapeHtml(issue.meetingDate);
+
+            let actionItemsHtml = '';
+            if (issue.actionItems && issue.actionItems.length > 0) {
+                actionItemsHtml = '<div style="margin-top: 12px;"><div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">📋 行动项</div>' +
+                    issue.actionItems.map(a => '<div style="padding: 8px 12px; background: var(--bg-surface); border-radius: 6px; margin-bottom: 6px; font-size: 13px;">' +
+                        '<div>' + escapeHtml(a.item) + '</div>' +
+                        '<div style="color: var(--text-tertiary); margin-top: 4px;">负责人: ' + escapeHtml(a.owner) + ' | 截止: ' + escapeHtml(a.deadline) + ' | 状态: ' + escapeHtml(a.status) + '</div>' +
+                    '</div>').join('') + '</div>';
+            }
+
+            let kpisHtml = '';
+            if (issue.relatedKpis && issue.relatedKpis.length > 0) {
+                kpisHtml = '<div style="margin-top: 12px;"><div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">📈 关联 KPI</div>' +
+                    '<div style="display: flex; gap: 8px; flex-wrap: wrap;">' + issue.relatedKpis.map(k => '<span style="padding: 4px 10px; background: var(--bg-surface); border-radius: 4px; font-size: 12px;">' + escapeHtml(k) + '</span>').join('') + '</div></div>';
+            }
+
+            let qualityHtml = '';
+            if (issue.importQuality && issue.importQuality.hasWarnings) {
+                qualityHtml = '<div style="margin-top: 12px; padding: 10px 12px; background: #fef3c7; border-radius: 6px; font-size: 12px; color: #92400e;">' +
+                    '⚠️ 导入警告：<br>' + issue.importQuality.warnings.map(w => '• ' + escapeHtml(w)).join('<br>') + '</div>';
+            }
+
+            document.getElementById('issueDetailContent').innerHTML =
+                '<div style="display: grid; gap: 12px;">' +
+                '<div class="detail-row"><span class="detail-label">议题标题</span><span class="detail-value">' + escapeHtml(issue.issueTitle) + '</span></div>' +
+                '<div class="detail-row"><span class="detail-label">议题类型</span><span class="detail-value"><span class="tag ' + getPriorityTagClass(issue.priority) + '">' + escapeHtml(issue.issueType) + '</span></span></div>' +
+                '<div class="detail-row"><span class="detail-label">主责部门</span><span class="detail-value">' + escapeHtml(issue.department) + '</span></div>' +
+                '<div class="detail-row"><span class="detail-label">提案人</span><span class="detail-value">' + escapeHtml(issue.proposer) + '</span></div>' +
+                '<div class="detail-row"><span class="detail-label">状态</span><span class="detail-value">' + escapeHtml(issue.status) + '</span></div>' +
+                '<div class="detail-row"><span class="detail-label">优先级</span><span class="detail-value">' + escapeHtml(issue.priority) + '</span></div>' +
+                (issue.content ? '<div class="detail-row" style="align-items: flex-start;"><span class="detail-label">议题内容</span><span class="detail-value">' + escapeHtml(issue.content).replace(/\n/g, '<br>') + '</span></div>' : '') +
+                (issue.decision ? '<div class="detail-row" style="align-items: flex-start;"><span class="detail-label">决议内容</span><span class="detail-value">' + escapeHtml(issue.decision).replace(/\n/g, '<br>') + '</span></div>' : '') +
+                actionItemsHtml + kpisHtml + qualityHtml +
+                '</div>';
+
+            openModal('issueDetailModal');
+        }
+
+        function formatPeriod(start, end) {
+            if (!start && !end) return '-';
+            const s = start ? start.slice(0, 7) : '';
+            const e = end ? end.slice(0, 7) : '';
+            if (s === e) return s;
+            return (s || '?') + ' ~ ' + (e || '?');
+        }
+
+        // ===================== Filter =====================
+        function getFilteredTopics() {
+            let topics = loadTopics();
+            const search = document.getElementById('searchInput').value.trim().toLowerCase();
+            const dept = document.getElementById('filterDept').value;
+            const priority = document.getElementById('filterPriority').value;
+            const year = document.getElementById('filterYear').value;
+
+            // Tab filter
+            if (_currentTab === 'in_progress') topics = topics.filter(t => t.status === 'in_progress');
+            else if (_currentTab === 'done') topics = topics.filter(t => t.status === 'done');
+            else if (_currentTab === 'archived') topics = topics.filter(t => t.status === 'archived');
+            else if (_currentTab === 'mine') topics = topics.filter(t => t.owner === CURRENT_USER);
+
+            // Dropdown filters
+            if (dept) topics = topics.filter(t => t.department === dept);
+            if (priority) topics = topics.filter(t => t.priority === priority);
+            if (year) {
+                topics = topics.filter(t => {
+                    const y = (t.startDate || '').slice(0, 4);
+                    return y === year;
+                });
+            }
+
+            // Search
+            if (search) {
+                topics = topics.filter(t => {
+                    const fields = [t.name, t.description, t.owner, t.department].filter(Boolean).join(' ').toLowerCase();
+                    return fields.includes(search);
+                });
+            }
+
+            // Sort: priority desc, then updatedAt desc
+            const pOrder = { P0: 3, P1: 2, P2: 1 };
+            topics.sort((a, b) => {
+                const pa = pOrder[a.priority] || 0;
+                const pb = pOrder[b.priority] || 0;
+                if (pb !== pa) return pb - pa;
+                return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+            });
+
+            return topics;
+        }
+
+        // ===================== Render =====================
+        function renderDeptFilter() {
+            const topics = loadTopics();
+            const depts = [...new Set(topics.map(t => t.department).filter(Boolean))].sort();
+            const select = document.getElementById('filterDept');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">全部部门</option>' + depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+            select.value = depts.includes(currentVal) ? currentVal : '';
+        }
+
+        function renderTable() {
+            const topics = getFilteredTopics();
+            const tbody = document.getElementById('topicTableBody');
+            const empty = document.getElementById('emptyState');
+
+            if (topics.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            tbody.innerHTML = topics.map(t => {
+                const sid = safeId(t.id);
+                if (!sid) return '';
+                const progressColor = t.progress >= 80 ? 'green' : t.progress >= 50 ? 'yellow' : 'red';
+                return `<tr style="cursor:pointer;" onclick="openDetailModal('${sid}')">
+                    <td>
+                        <div style="font-weight:500; color:var(--text-primary);">${escapeHtml(t.name)}</div>
+                        <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(t.description || '')}</div>
+                    </td>
+                    <td><span class="tag ${getPriorityTagClass(t.priority)}">${t.priority}</span></td>
+                    <td>${escapeHtml(t.owner || '-')}</td>
+                    <td>${escapeHtml(t.department || '-')}</td>
+                    <td>${formatPeriod(t.startDate, t.endDate)}</td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="progress-bar" style="width:80px;"><div class="progress-fill ${progressColor}" style="width:${t.progress}%"></div></div>
+                            <span style="font-size:12px;">${t.progress}%</span>
+                        </div>
+                    </td>
+                    <td><span class="tag ${getStatusTagClass(t.status)}">${getStatusLabel(t.status)}</span></td>
+                    <td style="font-size:12px;">${(t.linkedIssues || []).length > 0 ? '🏛️' + (t.linkedIssues || []).filter(i => i.sourceSystem === 'ST').length + ' 🏢' + (t.linkedIssues || []).filter(i => i.sourceSystem === 'AT').length : '<span style="color:var(--text-muted);">-</span>'}</td>
+                    <td>
+                        <div class="op-group" onclick="event.stopPropagation();">
+                            <button class="op-btn" onclick="openDetailModal('${sid}')">详情</button>
+                            <button class="op-btn" onclick="openFormModal('${sid}')">编辑</button>
+                            <button class="op-btn danger" onclick="openDeleteModal('${sid}')">删除</button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderStats() {
+            const topics = loadTopics();
+            const s = computeStats(topics);
+            document.getElementById('statInProgress').textContent = s.inProgress;
+            document.getElementById('statArchived').textContent = s.archived;
+            document.getElementById('statP1Urgent').textContent = s.p1Urgent;
+            document.getElementById('statDelayed').textContent = s.delayed;
+
+            // Update subtitle count
+            const total = topics.length;
+            const active = topics.filter(t => t.status === 'in_progress').length;
+            document.getElementById('pageSubtitle').textContent = `战略执行层业务攻坚 · 共${total}个专题 · ${active}个进行中`;
+        }
+
+        function switchTab(tab) {
+            _currentTab = tab;
+            document.querySelectorAll('#topicTabs .dashboard-tab').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === tab);
+            });
+            renderTable();
+        }
+
+        function applyFilters() {
+            renderTable();
+        }
+
+        // ===================== Form Modal =====================
+        function openFormModal(id) {
+            const isEdit = !!id;
+            document.getElementById('formTitle').textContent = isEdit ? '编辑业务专题' : '新建业务专题';
+            document.getElementById('formTopicId').value = id || '';
+
+            if (isEdit) {
+                const topic = loadTopics().find(t => t.id === id);
+                if (!topic) return;
+                document.getElementById('fName').value = topic.name || '';
+                document.getElementById('fDesc').value = topic.description || '';
+                document.getElementById('fTarget').value = topic.target || '';
+                document.getElementById('fPriority').value = topic.priority || 'P1';
+                document.getElementById('fStatus').value = topic.status || 'preparing';
+                document.getElementById('fOwner').value = topic.owner || '';
+                document.getElementById('fDepartment').value = topic.department || '';
+                document.getElementById('fStartDate').value = topic.startDate || '';
+                document.getElementById('fEndDate').value = topic.endDate || '';
+                document.getElementById('fBudget').value = topic.budget || '';
+                document.getElementById('fActualCost').value = topic.actualCost || '';
+                document.getElementById('fTags').value = (topic.tags || []).join(', ');
+                document.getElementById('fSummary').value = topic.summary || '';
+                renderFormMilestones(topic.milestones || []);
+            } else {
+                document.getElementById('topicForm').reset();
+                document.getElementById('fPriority').value = 'P1';
+                document.getElementById('fStatus').value = 'preparing';
+                renderFormMilestones([]);
+            }
+
+            openModal('formModal');
+        }
+
+        function renderFormMilestones(milestones) {
+            const container = document.getElementById('formMilestones');
+            if (!milestones.length) {
+                container.innerHTML = '<div class="milestone-placeholder" style="font-size:12px; color:var(--text-muted); padding:8px 0;">暂无里程碑，点击下方按钮添加</div>';
+                return;
+            }
+            container.innerHTML = milestones.map((m, idx) => `
+                <div class="milestone-row" data-msid="${m.id || generateMsId()}">
+                    <input type="text" class="ms-name" value="${escapeHtml(m.name)}" placeholder="里程碑名称" required>
+                    <input type="date" class="ms-date" value="${m.date || ''}">
+                    <span class="milestone-status ${m.status}" onclick="toggleMsStatus(this)">${m.status === 'completed' ? '✓ 已完成' : '○ 未完成'}</span>
+                    <button type="button" class="milestone-remove" onclick="removeMilestoneRow(this)">×</button>
+                </div>
+            `).join('');
+        }
+
+        function addMilestoneRow() {
+            const container = document.getElementById('formMilestones');
+            // Remove placeholder if present
+            const placeholder = container.querySelector('.milestone-placeholder');
+            if (placeholder) placeholder.remove();
+            const row = document.createElement('div');
+            row.className = 'milestone-row';
+            row.dataset.msid = generateMsId();
+            row.innerHTML = `
+                <input type="text" class="ms-name" placeholder="里程碑名称" required>
+                <input type="date" class="ms-date">
+                <span class="milestone-status pending" onclick="toggleMsStatus(this)">○ 未完成</span>
+                <button type="button" class="milestone-remove" onclick="removeMilestoneRow(this)">×</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeMilestoneRow(btn) {
+            btn.closest('.milestone-row').remove();
+            const container = document.getElementById('formMilestones');
+            if (!container.querySelector('.milestone-row')) {
+                container.innerHTML = '<div class="milestone-placeholder" style="font-size:12px; color:var(--text-muted); padding:8px 0;">暂无里程碑，点击下方按钮添加</div>';
+            }
+        }
+
+        function toggleMsStatus(el) {
+            const isCompleted = el.classList.contains('completed');
+            el.classList.remove('completed', 'pending');
+            if (isCompleted) {
+                el.classList.add('pending');
+                el.textContent = '○ 未完成';
+            } else {
+                el.classList.add('completed');
+                el.textContent = '✓ 已完成';
+            }
+        }
+
+        function collectFormMilestones() {
+            const rows = document.querySelectorAll('#formMilestones .milestone-row');
+            return Array.from(rows).map(row => ({
+                id: row.dataset.msid || generateMsId(),
+                name: row.querySelector('.ms-name').value.trim(),
+                date: row.querySelector('.ms-date').value,
+                status: row.querySelector('.milestone-status').classList.contains('completed') ? 'completed' : 'pending',
+            })).filter(m => m.name);
+        }
+
+        function saveTopic() {
+            const id = document.getElementById('formTopicId').value;
+            const name = document.getElementById('fName').value.trim();
+            const owner = document.getElementById('fOwner').value.trim();
+            if (!name || !owner) {
+                alert('请填写必填字段：专题名称、负责人');
+                return;
+            }
+
+            const milestones = collectFormMilestones();
+            const progress = computeProgress(milestones);
+            const now = new Date().toISOString();
+            const tagsRaw = document.getElementById('fTags').value;
+            const tags = tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+
+            const topicData = {
+                id: id || generateId(),
+                name,
+                description: document.getElementById('fDesc').value.trim(),
+                target: document.getElementById('fTarget').value.trim(),
+                priority: document.getElementById('fPriority').value,
+                status: document.getElementById('fStatus').value,
+                owner,
+                department: document.getElementById('fDepartment').value.trim(),
+                summary: document.getElementById('fSummary').value.trim(),
+                startDate: document.getElementById('fStartDate').value,
+                endDate: document.getElementById('fEndDate').value,
+                budget: parseFloat(document.getElementById('fBudget').value) || 0,
+                actualCost: parseFloat(document.getElementById('fActualCost').value) || 0,
+                progress,
+                milestones,
+                tags,
+                createdAt: id ? (loadTopics().find(t => t.id === id)?.createdAt || now) : now,
+                updatedAt: now,
+            };
+
+            let topics = loadTopics();
+            if (id) {
+                const idx = topics.findIndex(t => t.id === id);
+                if (idx >= 0) topics[idx] = topicData;
+            } else {
+                topics.push(topicData);
+            }
+            saveTopics(topics);
+
+            closeModal('formModal');
+            renderTable();
+            renderStats();
+            renderDeptFilter();
+        }
+
+        // ===================== Detail Modal =====================
+        function openDetailModal(id) {
+            const topic = loadTopics().find(t => t.id === id);
+            if (!topic) return;
+
+            document.getElementById('detailTitle').textContent = '🎯 ' + topic.name;
+            const subtitleParts = [getStatusLabel(topic.status), topic.priority, topic.owner, topic.department].filter(Boolean);
+            document.getElementById('detailSubtitle').textContent = subtitleParts.join(' · ');
+
+            const progressColor = topic.progress >= 80 ? 'var(--success)' : topic.progress >= 50 ? 'var(--warning)' : 'var(--danger)';
+            const daysLeft = topic.endDate ? Math.ceil((new Date(topic.endDate) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+
+            let milestonesHtml = '';
+            if (topic.milestones && topic.milestones.length) {
+                const sorted = [...topic.milestones].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+                const firstPendingIdx = sorted.findIndex(x => x.status !== 'completed');
+                milestonesHtml = `<div class="timeline">` + sorted.map((m, i) => {
+                    const cls = m.status === 'completed' ? 'done' : (i === firstPendingIdx) ? 'active' : '';
+                    return `<div class="timeline-item ${cls}">${escapeHtml(m.name)} <span style="color:var(--text-muted); font-size:11px;">${m.date || ''}</span></div>`;
+                }).join('') + `</div>`;
+            } else {
+                milestonesHtml = '<div style="font-size:13px; color:var(--text-muted);">暂无里程碑</div>';
+            }
+
+            const tagsHtml = topic.tags && topic.tags.length
+                ? `<div class="tag-list">${topic.tags.map(t => `<span class="tag tag-blue">${escapeHtml(t)}</span>`).join('')}</div>`
+                : '<div style="font-size:13px; color:var(--text-muted);">无标签</div>';
+
+            const linkedIssues = topic.linkedIssues || [];
+            let linkedIssuesHtml = '';
+            if (linkedIssues.length > 0) {
+                linkedIssuesHtml = `<div style="display: grid; gap: 8px;">` + linkedIssues.map(li => {
+                    const icon = li.sourceSystem === 'ST' ? '🏛️' : '🏢';
+                    return `<div style="padding: 10px 12px; background: var(--bg-surface); border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 500; font-size: 13px;">${icon} ${escapeHtml(li.issueId)} ${escapeHtml(li.issueTitle)}</div>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(li.meetingName)} · ${escapeHtml(li.meetingDate)} · 关系: ${escapeHtml(li.relationType)}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="op-btn" onclick="event.stopPropagation(); openIssueDetailModal('${escapeHtml(li.issueId)}')">查看</button>
+                            <button class="op-btn danger" onclick="event.stopPropagation(); unlinkIssueFromTopic('${topic.id}', '${escapeHtml(li.issueId)}'); openDetailModal('${topic.id}');">解除</button>
+                        </div>
+                    </div>`;
+                }).join('') + `</div>`;
+            } else {
+                linkedIssuesHtml = '<div style="font-size:13px; color:var(--text-muted);">暂无关联议题 <button class="op-btn" onclick="closeModal(\'bizTopicModal\'); setTimeout(() => openLinkIssuesModal(\'' + topic.id + '\'), 200);">+ 关联议题</button></div>';
+            }
+
+            const linkedKpis = topic.linkedKpis || [];
+            let linkedKpisHtml = '';
+            if (linkedKpis.length > 0) {
+                linkedKpisHtml = `<div style="display: grid; gap: 8px;">` + linkedKpis.map(k => `<div style="padding: 8px 12px; background: var(--bg-surface); border-radius: 6px; font-size: 13px;">
+                    <div style="font-weight: 500;">${escapeHtml(k.kpiName)}</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">当前: ${k.currentValue}${escapeHtml(k.unit)} / 目标: ${k.targetValue}${escapeHtml(k.unit)}</div>
+                </div>`).join('') + `</div>`;
+            } else {
+                linkedKpisHtml = '<div style="font-size:13px; color:var(--text-muted);">暂无关联KPI（KPI模块接入后显示）</div>';
+            }
+
+            let knowledgeMapHtml = '';
+            if (linkedIssues.length > 0) {
+                const width = 560, height = 200, cx = width / 2, cy = height / 2;
+                const issueNodes = linkedIssues.map((li, i) => {
+                    const angle = (2 * Math.PI * i) / linkedIssues.length - Math.PI / 2;
+                    const r = 70;
+                    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), ...li };
+                });
+                let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%;height:auto;max-height:200px;">`;
+                issueNodes.forEach(node => {
+                    const isDirect = node.relationType === 'direct';
+                    svg += `<line x1="${cx}" y1="${cy}" x2="${node.x}" y2="${node.y}" stroke="#6366f1" stroke-width="${isDirect ? 2 : 1}" stroke-dasharray="${isDirect ? 'none' : '5,5'}" opacity="0.6"/>`;
+                });
+                issueNodes.forEach(node => {
+                    const color = node.sourceSystem === 'ST' ? '#8b5cf6' : '#06b6d4';
+                    svg += `<circle cx="${node.x}" cy="${node.y}" r="16" fill="${color}" opacity="0.9"/><text x="${node.x}" y="${node.y + 3}" text-anchor="middle" fill="white" font-size="8">${node.sourceSystem}</text><text x="${node.x}" y="${node.y + 28}" text-anchor="middle" fill="#374151" font-size="9">${escapeHtml(node.issueId)}</text>`;
+                });
+                svg += `<rect x="${cx - 50}" y="${cy - 20}" width="100" height="40" rx="6" fill="#4f46e5"/><text x="${cx}" y="${cy + 4}" text-anchor="middle" fill="white" font-size="11">${escapeHtml(topic.name.slice(0, 8))}</text></svg>`;
+                knowledgeMapHtml = `<div style="margin-top: 8px;">${svg}</div>`;
+            }
+
+            const summarySection = topic.summary
+                ? `<div class="detail-section">
+                    <div class="detail-section-title">📝 结项总结</div>
+                    <div style="font-size:13px; color:var(--text-tertiary); line-height:1.8; white-space:pre-wrap;">${escapeHtml(topic.summary)}</div>
+                   </div>`
+                : '';
+
+            document.getElementById('detailContent').innerHTML = `
+                <div class="detail-grid">
+                    <div class="detail-kpi">
+                        <div class="detail-kpi-label">整体进度</div>
+                        <div class="detail-kpi-value" style="color:${progressColor};">${topic.progress}%</div>
+                    </div>
+                    <div class="detail-kpi">
+                        <div class="detail-kpi-label">预算</div>
+                        <div class="detail-kpi-value">¥${topic.budget || 0}万</div>
+                    </div>
+                    <div class="detail-kpi">
+                        <div class="detail-kpi-label">实际成本</div>
+                        <div class="detail-kpi-value">¥${topic.actualCost || 0}万</div>
+                    </div>
+                    <div class="detail-kpi">
+                        <div class="detail-kpi-label">剩余天数</div>
+                        <div class="detail-kpi-value" style="color:${daysLeft !== null && daysLeft < 0 ? 'var(--danger)' : 'var(--text-primary)'};">${daysLeft !== null ? (daysLeft < 0 ? '已逾期 ' + Math.abs(daysLeft) + ' 天' : daysLeft + ' 天') : '-'}</div>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-section-title">📌 专题目标</div>
+                    <div style="font-size:13px; color:var(--text-tertiary); line-height:1.8; white-space:pre-wrap;">${escapeHtml(topic.target || '暂无目标描述')}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-section-title">📍 里程碑时间线</div>
+                    ${milestonesHtml}
+                </div>
+                <div class="detail-section">
+                    <div class="detail-section-title">🏷️ 标签</div>
+                    ${tagsHtml}
+                </div>
+                <div class="detail-section">
+                    <div class="detail-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>🔗 关联议题</span>
+                        <button class="op-btn" onclick="closeModal('bizTopicModal'); setTimeout(() => openLinkIssuesModal('${topic.id}'), 200);">+ 关联议题</button>
+                    </div>
+                    ${linkedIssuesHtml}
+                </div>
+                <div class="detail-section">
+                    <div class="detail-section-title">📈 关联KPI</div>
+                    ${linkedKpisHtml}
+                </div>
+                ${knowledgeMapHtml ? `<div class="detail-section">
+                    <div class="detail-section-title">🗺️ 知识地图</div>
+                    ${knowledgeMapHtml}
+                </div>` : ''}
+                ${summarySection}
+            `;
+
+            document.getElementById('detailEditBtn').onclick = () => {
+                closeModal('bizTopicModal');
+                setTimeout(() => openFormModal(id), 200);
+            };
+
+            openModal('bizTopicModal');
+        }
+
+        // ===================== Delete =====================
+        function openDeleteModal(id) {
+            _deleteTargetId = id;
+            openModal('deleteModal');
+        }
+
+        function confirmDeleteTopic() {
+            if (!_deleteTargetId) return;
+            let topics = loadTopics().filter(t => t.id !== _deleteTargetId);
+            saveTopics(topics);
+            _deleteTargetId = null;
+            closeModal('deleteModal');
+            renderTable();
+            renderStats();
+        }
+
+        // ===================== Export =====================
+        function exportTopics() {
+            const topics = loadTopics();
+            const data = { exportTime: new Date().toISOString(), version: 1, topics };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `business_topics_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+
+        // ===================== Modal / UI Utilities =====================
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', e => {
+                if (e.target === overlay) overlay.classList.remove('active');
+            });
+        });
+
+        // ===================== AI Assistant (retained) =====================
+        function toggleAI() {
+            document.getElementById('aiPanel').classList.toggle('active');
+        }
+        function askAI(text) {
+            document.getElementById('aiInput').value = text;
+            sendAI();
+        }
+        function sendAI() {
+            const input = document.getElementById('aiInput');
+            const text = input.value.trim();
+            if (!text) return;
+            const messages = document.getElementById('aiMessages');
+            messages.innerHTML += `<div class="ai-message user">${escapeHtml(text)}</div>`;
+            setTimeout(() => {
+                let response = '💡 收到你的问题。我正在查询相关数据并分析，请稍候...\n\n（这是一个演示回复，实际产品将连接AI模型提供智能分析）';
+                if (text.includes('营收')) response = '📊 Q3营收分析：\n• 目标：¥3.75亿\n• 实际：¥3.46亿（达成率92.3%）\n• 主要原因：华东区增速放缓、新产品推广滞后\n• 建议：加大华东区资源投入';
+                else if (text.includes('报告')) response = '📋 月度经营分析报告已生成！\n\n【执行摘要】\nQ3整体达成率87%，3个KPI预警\n\n【关键发现】\n1. 营收增长12.5%\n2. 客户满意度提升5.2分\n3. 新产品收入占比偏低';
+                messages.innerHTML += `<div class="ai-message assistant">${response}</div>`;
+                messages.scrollTop = messages.scrollHeight;
+            }, 800);
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // ===================== Init =====================
+        function init() {
+            migrateV1ToV2(); // v2.1: auto-migrate v1.2 data on load
+            if (loadTopics().length === 0) {
+                initDefaultData();
+            }
+            renderTable();
+            renderStats();
+            renderDeptFilter();
+            updateAiReportCards(); // v2.1: update AI report entry cards
+
+            // Nav active state removed (integrated into DSTE nav)
+        }
+
+        // DSTE 主题切换
+        (function() {
+            const btn = document.getElementById('theme-toggle');
+            if (btn) {
+                const updateIcon = function() {
+                    var t = document.documentElement.getAttribute('data-theme');
+                    btn.textContent = t === 'dark' ? '☀️' : '🌙';
+                };
+                updateIcon();
+                btn.addEventListener('click', function() {
+                    var current = document.documentElement.getAttribute('data-theme');
+                    var next = current === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', next);
+                    localStorage.setItem('dste-theme', next);
+                    updateIcon();
+                });
+            }
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'dste-theme') {
+                    document.documentElement.setAttribute('data-theme', e.newValue);
+                    var b = document.getElementById('theme-toggle');
+                    if (b) b.textContent = e.newValue === 'dark' ? '☀️' : '🌙';
+                }
+            });
+        })();
+
+        init();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
