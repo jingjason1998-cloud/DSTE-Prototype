@@ -212,13 +212,15 @@
       const SIDEBAR_CONFIG = {
         dashboard: [
           { type: 'item', id: 'dashboard', icon: '🎛️', label: '驾驶舱概览' },
-          { type: 'item', id: 'dashboard/roadmap', icon: '📊', label: '开发路线图' },
           { type: 'quick', label: '快捷入口' },
           { type: 'item', id: 'sp/strategy-map', icon: '🗺️', label: '战略地图' },
           { type: 'item', id: 'bp/kpi', icon: '📈', label: 'KPI 看板' },
           { type: 'item', id: 'exe/tasks', icon: '✅', label: '重点工作' },
           { type: 'item', id: 'exe/meetings', icon: '🎯', label: '经营分析会' },
-          { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议审核' }
+          { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议审核' },
+          { type: 'group', title: '系统管理', items: [
+            { id: 'dashboard/roadmap', icon: '📊', label: '开发路线图 Road Map' }
+          ]}
         ],
         sp: [
           { type: 'group', title: '战略制定 (SP)', items: [
@@ -371,7 +373,7 @@
           'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meeting-review': '会议材料审核',
           'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
           'ai': 'AI 战略助手',
-          'dashboard/roadmap': '开发路线图'
+          'dashboard/roadmap': '开发路线图 Road Map'
         };
         document.title = (pageNames[pageId] || 'DSTE') + ' - DSTE 战略管理平台';
       }
@@ -1082,14 +1084,26 @@
         const roadmapData = {
           versions: [
             {
+              version: 'v0.3.0',
+              date: '2026-05-21',
+              status: 'released',
+              changes: [
+                { type: 'Added', desc: '新增开发路线图 Road Map 页面' },
+                { type: 'Added', desc: '系统管理侧边栏分组' },
+                { type: 'Added', desc: '版本时间线轴 + 甘特图 + 统计面板' },
+                { type: 'Added', desc: '模块进度筛选功能' }
+              ]
+            },
+            {
               version: 'v0.2.0',
               date: '2026-05-21',
               status: 'released',
               changes: [
                 { type: 'Added', desc: '经营分析会页面全面升级' },
-                { type: 'Added', desc: '新增决议跟踪面板' },
-                { type: 'Added', desc: '新增开发路线图页面' },
-                { type: 'Fixed', desc: '修复 Light 模式 CSS 变量失效' }
+                { type: 'Added', desc: '新增决议跟踪面板（6条决议+进度条）' },
+                { type: 'Added', desc: '会议列表增强（议题标签+材料状态）' },
+                { type: 'Added', desc: '顶部筛选栏（季度/状态）' },
+                { type: 'Fixed', desc: '修复 Light 模式 CSS 变量被 @media 错误嵌套' }
               ]
             },
             {
@@ -1097,62 +1111,76 @@
               date: '2026-05-21',
               status: 'released',
               changes: [
-                { type: 'Added', desc: '驾驶舱首页（6阶段导航+SPA路由）' },
-                { type: 'Added', desc: '会议材料审核助手' },
-                { type: 'Added', desc: '业务专题管理（CRUD+议题导入）' },
-                { type: 'Added', desc: '统一主题系统（Light/Dark）' },
-                { type: 'Added', desc: '登录页' },
-                { type: 'Security', desc: 'XSS 防护与空矩阵守卫' }
+                { type: 'Added', desc: '驾驶舱首页（6阶段导航+侧边栏+SPA路由）' },
+                { type: 'Added', desc: '会议材料审核助手（智能审核+雷达图+批量）' },
+                { type: 'Added', desc: '业务专题管理（CRUD+ST/AT议题导入）' },
+                { type: 'Added', desc: '统一主题系统（Light/Dark跨页面同步）' },
+                { type: 'Added', desc: '登录页（科技感网格背景）' },
+                { type: 'Added', desc: 'pytest 回归测试 30 个用例' },
+                { type: 'Security', desc: '会议审核 XSS 防护（sanitizeUrl协议白名单）' },
+                { type: 'Security', desc: '空矩阵守卫（Array.isArray校验）' }
               ]
             }
           ],
           modules: [
-            { name: '驾驶舱首页', progress: 80, status: 'doing', targetVersion: 'v0.3.0' },
-            { name: '会议审核助手', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
-            { name: '业务专题管理', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
-            { name: '经营分析会', progress: 100, status: 'done', targetVersion: 'v0.2.0' },
+            { name: '驾驶舱首页', progress: 60, status: 'doing', targetVersion: 'v0.5.0' },
+            { name: '会议审核助手', progress: 95, status: 'done', targetVersion: 'v0.1.0' },
+            { name: '业务专题管理', progress: 90, status: 'done', targetVersion: 'v0.1.0' },
+            { name: '经营分析会', progress: 85, status: 'doing', targetVersion: 'v0.4.0' },
             { name: '开发路线图', progress: 100, status: 'done', targetVersion: 'v0.3.0' },
-            { name: '战略地图', progress: 0, status: 'todo', targetVersion: 'v0.3.0' },
-            { name: 'KPI 看板', progress: 30, status: 'doing', targetVersion: 'v0.3.0' },
-            { name: 'BEM 战略解码', progress: 0, status: 'todo', targetVersion: 'v0.4.0' },
+            { name: '战略地图', progress: 0, status: 'todo', targetVersion: 'v0.5.0' },
+            { name: 'KPI 看板', progress: 5, status: 'todo', targetVersion: 'v0.5.0' },
+            { name: 'BEM 战略解码', progress: 0, status: 'todo', targetVersion: 'v0.6.0' },
             { name: '用户权限系统', progress: 0, status: 'todo', targetVersion: 'v1.0.0' }
           ],
           upcoming: [
-            { name: '战略地图可视化（BSC 四维度）', priority: '高', eta: 'v0.3.0' },
-            { name: 'KPI 详情下钻', priority: '高', eta: 'v0.3.0' },
-            { name: '年度经营计划模块', priority: '中', eta: 'v0.4.0' },
-            { name: 'ST/AT 议题 Excel 模板下载', priority: '低', eta: 'v0.4.0' },
+            { name: '经营分析会深化（会议效果评估+纪要生成）', priority: '高', eta: 'v0.4.0' },
+            { name: '战略地图可视化（BSC 四维度）', priority: '高', eta: 'v0.5.0' },
+            { name: '市场洞察数据看板', priority: '高', eta: 'v0.5.0' },
+            { name: '2026 年度经营计划编制', priority: '高', eta: 'v0.6.0' },
+            { name: 'BEM 战略解码工具', priority: '中', eta: 'v0.6.0' },
+            { name: '战略复盘与差距分析', priority: '中', eta: 'v0.7.0' },
+            { name: '干部管理与继任计划', priority: '中', eta: 'v0.7.0' },
             { name: '用户权限与角色管理', priority: '中', eta: 'v1.0.0' },
-            { name: 'AI 战略助手增强', priority: '低', eta: 'v1.1.0' }
+            { name: '数据导出与报表中心', priority: '低', eta: 'v1.0.0' }
           ]
         };
 
         const typeColors = { 'Added': 'var(--success)', 'Fixed': 'var(--primary)', 'Changed': 'var(--warning)', 'Security': 'var(--danger)' };
         const typeLabels = { 'Added': '新增', 'Fixed': '修复', 'Changed': '变更', 'Security': '安全' };
         const moduleStatusColor = { 'done': 'var(--success)', 'doing': 'var(--primary)', 'todo': 'var(--border-color)' };
-        const moduleStatusLabel = { 'done': '已完成', 'doing': '开发中', 'todo': '计划中' };
+        const moduleStatusLabel = { 'done': '已达成', 'doing': '攻坚中', 'todo': '战略必争' };
 
         // ① 时间线轴
-        const timelineNodes = roadmapData.versions.map(v => {
+        const timelineItems = roadmapData.versions.map((v, i) => {
           const color = v.status === 'released' ? 'var(--success)' : 'var(--warning)';
           const pulse = v.status === 'released' ? '' : 'animation: pulse 2s infinite;';
+          const keyChanges = v.changes.slice(0, 2).map(c => `<span style="padding: 1px 6px; border-radius: 3px; font-size: 10px; background: ${typeColors[c.type]}18; color: ${typeColors[c.type]};">${c.desc.substring(0, 8)}${c.desc.length > 8 ? '...' : ''}</span>`).join('');
           return `
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 100px;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 120px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" onclick="document.getElementById('version-${v.version}').scrollIntoView({behavior:'smooth', block:'center'})" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
               <div style="width: 14px; height: 14px; border-radius: 50%; background: ${color}; box-shadow: 0 0 0 4px ${color}33; ${pulse}"></div>
               <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${v.version}</div>
               <div style="font-size: 11px; color: var(--text-tertiary);">${v.date}</div>
               <div style="font-size: 11px; color: ${color}; font-weight: 500;">${v.status === 'released' ? '已发布' : '开发中'}</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 2px;">${keyChanges}</div>
             </div>
           `;
-        }).join('<div style="flex: 1; height: 2px; background: var(--border-color); margin-top: 6px; min-width: 40px;"></div>');
+        });
+
+        const timelineNodes = timelineItems.map((item, i) => {
+          if (i === timelineItems.length - 1) return item;
+          const connectorColor = roadmapData.versions[i].status === 'released' ? 'var(--success)' : 'var(--border-color)';
+          const connectorStyle = roadmapData.versions[i].status === 'released' ? 'solid' : 'dashed';
+          return item + `<div style="flex: 1; height: 2px; background: ${connectorColor}; margin-top: 6px; min-width: 40px; border-top: 2px ${connectorStyle} ${connectorColor};"></div>`;
+        }).join('');
 
         // 里程碑节点
         const milestoneNode = `
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 100px;">
-            <div style="width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--primary); background: transparent;"></div>
+            <div style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--primary); background: transparent;"></div>
             <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">v1.0.0</div>
             <div style="font-size: 11px; color: var(--text-tertiary);">待定</div>
-            <div style="font-size: 11px; color: var(--primary); font-weight: 500;">里程碑</div>
+            <div style="font-size: 11px; color: var(--primary); font-weight: 500;">战略目标</div>
           </div>
         `;
 
@@ -1167,7 +1195,7 @@
               <span style="font-size: 12px; color: var(--text-tertiary); width: 36px; text-align: right;">${m.progress}%</span>
             </div>
             <div style="width: 70px; text-align: center;">
-              <span style="padding: 2px 8px; border-radius: 4px; font-size: 11px; background: ${moduleStatusColor[m.status]}22; color: ${moduleStatusColor[m.status]};">${moduleStatusLabel[m.status]}</span>
+              <span style="padding: 2px 8px; border-radius: 4px; font-size: 11px; background: ${moduleStatusColor[m.status]}22; color: ${moduleStatusColor[m.status]}; font-weight: 500;">${moduleStatusLabel[m.status]}</span>
             </div>
             <div style="width: 70px; font-size: 11px; color: var(--text-tertiary); text-align: center;">${m.targetVersion}</div>
           </div>
@@ -1181,7 +1209,7 @@
 
         // ④ 版本详情
         const versionCards = roadmapData.versions.map(v => `
-          <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${v.status === 'released' ? 'var(--success)' : 'var(--warning)'};">
+          <div id="version-${v.version}" style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${v.status === 'released' ? 'var(--success)' : 'var(--warning)'};">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">${v.version}</div>
               <div style="font-size: 12px; color: var(--text-tertiary);">${v.date}</div>
@@ -1197,13 +1225,13 @@
           </div>
         `).join('');
 
-        // 计划中
+        // 战略必争
         const upcomingCard = `
           <div style="padding: 16px; border-radius: 8px; border: 1px dashed var(--border-color); background: var(--bg-page);">
-            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 计划中</div>
+            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">🎯 战略必争</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
               ${roadmapData.upcoming.map(u => `
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-secondary);">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-secondary); padding-left: 8px; border-left: 3px solid ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'};">
                   <span>${u.name}</span>
                   <div style="display: flex; gap: 8px; align-items: center;">
                     <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: var(--bg-page); color: var(--text-tertiary);">${u.eta}</span>
@@ -1216,14 +1244,32 @@
         `;
 
         return `
-          ${renderBreadcrumb('开发路线图')}
+          ${renderBreadcrumb('开发路线图 Road Map')}
           <div class="page-header">
-            <h1 class="page-title">开发路线图</h1>
+            <h1 class="page-title">开发路线图 Road Map</h1>
             <div class="page-actions">
               <button class="btn btn-secondary" onclick="filterRoadmap('all')">全部</button>
-              <button class="btn btn-secondary" onclick="filterRoadmap('done')">已完成</button>
-              <button class="btn btn-secondary" onclick="filterRoadmap('doing')">开发中</button>
-              <button class="btn btn-secondary" onclick="filterRoadmap('todo')">计划中</button>
+              <button class="btn btn-secondary" onclick="filterRoadmap('done')">已达成</button>
+              <button class="btn btn-secondary" onclick="filterRoadmap('doing')">攻坚中</button>
+              <button class="btn btn-secondary" onclick="filterRoadmap('todo')">战略必争</button>
+            </div>
+          </div>
+
+          <!-- 战略态势横幅 -->
+          <div class="card" style="margin-bottom: 16px; padding: 16px 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 20px;">🎯</span>
+                <div>
+                  <div style="font-size: 15px; font-weight: 600; color: var(--text-primary);">战略执行，分秒必争</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">距 v1.0 战略目标发布还有 45 天</div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 20px; font-size: 13px;">
+                <span style="color: var(--text-secondary);">已达成 <strong style="color: var(--success);">${releasedCount}</strong> 个版本</span>
+                <span style="color: var(--text-secondary);">攻坚中 <strong style="color: var(--primary);">2</strong> 个模块</span>
+                <span style="color: var(--text-secondary);">战略必争 <strong style="color: var(--danger);">${todoCount}</strong> 项</span>
+              </div>
             </div>
           </div>
 
@@ -1231,7 +1277,7 @@
           <div class="card" style="margin-bottom: 16px; padding: 24px;">
             <div style="display: flex; align-items: flex-start; justify-content: center; gap: 0;">
               ${timelineNodes}
-              <div style="flex: 1; height: 2px; background: var(--border-color); margin-top: 6px; min-width: 40px;"></div>
+              <div style="flex: 1; height: 2px; border-top: 2px dashed var(--border-color); margin-top: 6px; min-width: 40px;"></div>
               ${milestoneNode}
             </div>
           </div>
@@ -1277,12 +1323,12 @@
                 </div>
               </div>
               <div class="card">
-                <div class="card-header"><div class="card-title">📅 版本日历</div></div>
+                <div class="card-header"><div class="card-title">📅 战略目标</div></div>
                 <div style="padding: 8px 0; text-align: center; color: var(--text-tertiary); font-size: 13px;">
                   <div style="font-size: 32px; margin-bottom: 8px;">🚀</div>
-                  <div>下个里程碑</div>
-                  <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">v0.3.0</div>
-                  <div style="font-size: 12px; margin-top: 4px;">预计 2026-06-30</div>
+                  <div>下一个战略目标</div>
+                  <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">v0.4.0</div>
+                  <div style="font-size: 12px; margin-top: 4px;">经营分析会深化版</div>
                 </div>
               </div>
             </div>
