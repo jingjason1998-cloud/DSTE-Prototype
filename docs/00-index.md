@@ -14,15 +14,17 @@
 
 | 我想... | 去这里 |
 |---------|--------|
-| 了解产品是什么 | [PRD](01-Product产品/prd.md) |
-| 看路线图和版本计划 | [Roadmap](01-Product产品/roadmap.md) |
+| **了解产品完整设计** | [PRD (完整版)](01-Product产品/prd.md) |
+| **看经营分析会设计** | [经营分析会-材料智能审核助手-产品设计](01-Product产品/经营分析会-材料智能审核助手-产品设计.md) |
+| **看业务专题设计** | [业务专题管理-完整设计方案](01-Product产品/业务专题管理-完整设计方案.md) |
+| 看精简路线图 | [Roadmap](01-Product产品/roadmap.md) |
+| 看页面框架设计 | [页面框架设计](06-Explanation架构解释/页面框架设计.md) |
+| 看技术架构方案 | [技术架构方案](06-Explanation架构解释/技术架构方案.md) |
 | 搭建开发环境 | [环境搭建](04-Guide开发指南/setup.md) |
 | 开发一个新页面 | [新页面开发指南](04-Guide开发指南/new-page.md) |
 | 给 AI 分配任务 | [AI 协作规范](04-Guide开发指南/ai-collaboration.md) |
 | 了解组件怎么用 | [组件参考](05-Reference参考手册/components.md) |
 | 写测试 | [测试参考](05-Reference参考手册/testing.md) |
-| 为什么要选这个技术栈 | [技术栈说明](06-Explanation架构解释/tech-stack.md) |
-| 了解整体架构 | [架构说明](06-Explanation架构解释/architecture.md) |
 
 ---
 
@@ -31,30 +33,35 @@
 ```
 docs/
 ├── 00-index.md              ← 你在读这个
-├── 01-Product产品/              # 产品文档
-│   ├── prd.md               # 产品需求文档
-│   ├── roadmap.md           # 开发路线图
+├── 01-Product产品/              # 产品文档（详细设计）
+│   ├── prd.md               # 产品需求文档（1769行，完整版）
+│   ├── 经营分析会-材料智能审核助手-产品设计.md
+│   ├── 业务专题管理-完整设计方案.md
+│   ├── 开发路线图.md
+│   ├── roadmap.md           # 精简路线图
 │   └── changelog.md         # 变更日志
-├── 02-RFC功能设计/                  # RFC 设计文档
+├── 02-RFC功能设计/                  # RFC 功能设计
 │   ├── README.md            # RFC 流程
 │   ├── 000-template.md      # RFC 模板
 │   └── 001-*.md             # 具体 RFC
-├── 03-ADR架构决策/                  # ADR 架构决策记录
+├── 03-ADR架构决策/                  # ADR 架构决策
 │   ├── README.md            # ADR 流程
 │   ├── 000-template.md      # ADR 模板
 │   └── 001-*.md             # 具体 ADR
-├── 04-Guide开发指南/                # 开发指南 (How-to)
+├── 04-Guide开发指南/                # 开发指南
 │   ├── setup.md
 │   ├── new-page.md
 │   ├── testing.md
 │   └── ai-collaboration.md
 ├── 05-Reference参考手册/            # 参考文档
 │   ├── components.md
-│   ├── api.md
+│   ├── testing.md
 │   └── conventions.md
-└── 06-Explanation架构解释/          # 解释性文档
+└── 06-Explanation架构解释/          # 架构说明
     ├── tech-stack.md
-    └── architecture.md
+    ├── architecture.md
+    ├── 页面框架设计.md
+    └── 技术架构方案.md
 ```
 
 ---
