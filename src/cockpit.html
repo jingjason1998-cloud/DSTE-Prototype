@@ -452,53 +452,172 @@
 
       // ===== 经营分析会页面 =====
       function renderMeetings() {
+        // ---- 数据模型 ----
         const meetings = [
-          { id: 1, name: '月度经营分析会', date: '2026-04-15', time: '14:00', location: '会议室 A', host: '张总', status: 'ready', statusLabel: '准备中', color: 'var(--primary)', topics: 4, decisions: 3, materials: 5, reviewed: 3, agenda: ['Q1 复盘', 'Q2 目标对齐', '预警事项讨论', '下月重点工作'] },
-          { id: 2, name: 'Q1 季度战略会', date: '2026-03-15', time: '09:00', location: '已完成', host: '张总', status: 'done', statusLabel: '已完成', color: 'var(--success)', topics: 6, decisions: 8, materials: 6, reviewed: 6, agenda: ['战略回顾', 'KPI 达成分析', '市场洞察', '组织复盘', 'Q2 计划', '资源调配'] },
-          { id: 3, name: 'Q2 季度战略会', date: '2026-06-15', time: '待定', location: '待确认', host: '待定', status: 'plan', statusLabel: '规划中', color: 'var(--text-disabled)', topics: 0, decisions: 0, materials: 0, reviewed: 0, agenda: [] }
+          { id: 1, name: '月度经营分析会', date: '2026-04-15', time: '14:00', location: '会议室 A', host: '张总', type: '月度', status: 'ready', statusLabel: '准备中', color: 'var(--primary)', topics: 4, decisions: 3, materials: 5, reviewed: 3, hasMinutes: false, effectivenessScore: 0, agenda: ['Q1 复盘', 'Q2 目标对齐', '预警事项讨论', '下月重点工作'], participants: ['张总', '李经理', '王总监', '赵经理', '陈总监'] },
+          { id: 2, name: 'Q1 季度战略会', date: '2026-03-15', time: '09:00', location: '大会议室', host: '张总', type: '季度', status: 'done', statusLabel: '已完成', color: 'var(--success)', topics: 6, decisions: 8, materials: 6, reviewed: 6, hasMinutes: true, effectivenessScore: 88, agenda: ['战略回顾', 'KPI 达成分析', '市场洞察', '组织复盘', 'Q2 计划', '资源调配'], participants: ['张总', '李经理', '王总监', '赵经理', '陈总监', '张总监', '刘CTO'] },
+          { id: 3, name: 'Q2 季度战略会', date: '2026-06-15', time: '待定', location: '待确认', host: '待定', type: '季度', status: 'plan', statusLabel: '规划中', color: 'var(--text-disabled)', topics: 0, decisions: 0, materials: 0, reviewed: 0, hasMinutes: false, effectivenessScore: 0, agenda: [], participants: [] },
+          { id: 4, name: '供应链成本专项分析会', date: '2026-04-22', time: '10:00', location: '会议室 B', host: '张总监', type: '专项', status: 'ready', statusLabel: '准备中', color: 'var(--warning)', topics: 3, decisions: 2, materials: 4, reviewed: 4, hasMinutes: false, effectivenessScore: 0, agenda: ['成本结构分析', '供应商谈判策略', '降本目标分解'], participants: ['张总监', '李经理', '王总监'] },
+          { id: 5, name: '客户满意度提升专题会', date: '2026-03-28', time: '14:00', location: '会议室 A', host: '赵经理', type: '专项', status: 'done', statusLabel: '已完成', color: 'var(--success)', topics: 5, decisions: 6, materials: 5, reviewed: 5, hasMinutes: true, effectivenessScore: 92, agenda: ['NPS 调研结果', '客户流失分析', '服务流程优化', '客户成功体系', '下阶段行动计划'], participants: ['赵经理', '张总', '王总监', '陈总监'] }
         ];
+
         const decisions = [
-          { id: 'D001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', progress: 75, status: 'normal' },
-          { id: 'D002', content: '海外渠道拓展：新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', progress: 40, status: 'warning' },
-          { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', progress: 60, status: 'normal' },
-          { id: 'D004', content: '客户成功团队扩编至 15 人', owner: '赵经理', deadline: '2026-04-20', progress: 90, status: 'success' },
-          { id: 'D005', content: '供应链成本降低 8%', owner: '张总监', deadline: '2026-06-30', progress: 30, status: 'normal' },
-          { id: 'D006', content: '建立月度经营分析标准化流程', owner: '张总', deadline: '2026-04-15', progress: 100, status: 'success' }
+          { id: 'D001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', progress: 75, status: 'normal', category: '财务', isOverdue: false },
+          { id: 'D002', content: '海外渠道拓展：新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', progress: 40, status: 'warning', category: '客户', isOverdue: false },
+          { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', progress: 60, status: 'normal', category: '流程', isOverdue: false },
+          { id: 'D004', content: '客户成功团队扩编至 15 人', owner: '赵经理', deadline: '2026-04-20', progress: 90, status: 'success', category: '学习成长', isOverdue: false },
+          { id: 'D005', content: '供应链成本降低 8%', owner: '张总监', deadline: '2026-06-30', progress: 30, status: 'normal', category: '财务', isOverdue: false },
+          { id: 'D006', content: '建立月度经营分析标准化流程', owner: '张总', deadline: '2026-04-15', progress: 100, status: 'success', category: '流程', isOverdue: false },
+          { id: 'D007', content: 'NPS 提升专项：目标从 62 提升至 70', owner: '赵经理', deadline: '2026-05-30', progress: 55, status: 'warning', category: '客户', isOverdue: false },
+          { id: 'D008', content: 'Q2 大客户攻坚：签约 3 家头部客户', owner: '陈总监', deadline: '2026-06-15', progress: 20, status: 'normal', category: '客户', isOverdue: false }
         ];
+
+        const minutesList = [
+          { id: 'M001', meetingId: 2, meetingName: 'Q1 季度战略会', generatedAt: '2026-03-15 12:00', summary: '会议全面回顾了 Q1 战略执行情况，财务维度达成率 92%，客户维度 NPS 下滑需重点关注。决议 8 项，已全部录入系统并分配责任人。', keyPoints: ['营收达成率 92%，距目标差 8%', 'NPS 降至 62，低于目标 70', '新产品收入占比 28.4%，需加速推广', '供应链成本环比上升 12%', '客户成功团队建设滞后', 'Q2 目标：营收 3.2 亿、NPS 回升至 65'], actionItems: 8, status: 'final' },
+          { id: 'M002', meetingId: 5, meetingName: '客户满意度提升专题会', generatedAt: '2026-03-28 16:30', summary: '针对 NPS 下降问题召开专项分析会，识别出 3 个核心根因：服务响应慢、产品稳定性不足、客户分层运营缺失。制定 6 项改进决议。', keyPoints: ['服务响应时长平均 4.2 小时，目标 2 小时', '产品故障率 0.8%，目标 0.5%', '大客户专属服务覆盖率为 60%', '客户分层运营体系尚未建立'], actionItems: 6, status: 'final' }
+        ];
+
+        const effectivenessData = [
+          { meetingId: 2, meetingName: 'Q1 季度战略会', overallScore: 88, dimensions: { preparation: 90, discussion: 85, decision: 92, execution: 85 }, feedback: ['议程安排合理，时间控制良好', '数据准备充分，支撑决策', '决议责任明确，落地路径清晰'] },
+          { meetingId: 5, meetingName: '客户满意度提升专题会', overallScore: 92, dimensions: { preparation: 95, discussion: 90, decision: 95, execution: 88 }, feedback: ['根因分析深入，数据详实', '跨部门协作充分', '行动计划可衡量、可追踪'] }
+        ];
+
         const statusBadgeClass = { 'ready': 'status-warning', 'done': 'status-success', 'plan': 'status-default' };
         const progressColor = { 'normal': 'var(--primary)', 'warning': 'var(--warning)', 'success': 'var(--success)' };
+        const categoryColor = { '财务': 'var(--success)', '客户': 'var(--primary)', '流程': 'var(--warning)', '学习成长': 'var(--danger)' };
+        const typeBadgeStyle = { '月度': 'background: var(--primary-light); color: var(--primary);', '季度': 'background: rgba(82,196,26,0.1); color: var(--success);', '年度': 'background: rgba(250,173,20,0.1); color: var(--warning);', '专项': 'background: rgba(245,34,45,0.08); color: var(--danger);' };
 
-        const meetingCards = meetings.map(m => `
-          <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${m.color}; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
-            <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
-              <div style="font-size: 15px; font-weight: 600;">${m.name}</div>
-              <span class="status-badge ${statusBadgeClass[m.status]}">${m.statusLabel}</span>
+        // ---- 计算汇总数据 ----
+        const totalMeetings = meetings.length;
+        const doneMeetings = meetings.filter(m => m.status === 'done').length;
+        const totalDecisions = decisions.length;
+        const doneDecisions = decisions.filter(d => d.progress === 100).length;
+        const avgEffectiveness = effectivenessData.length > 0 ? Math.round(effectivenessData.reduce((s, e) => s + e.overallScore, 0) / effectivenessData.length) : 0;
+        const totalMinutes = minutesList.length;
+        const overdueDecisions = decisions.filter(d => d.progress < 100 && d.isOverdue).length;
+
+        // ---- 会议列表卡片 ----
+        const meetingCards = meetings.map(m => {
+          const typeStyle = typeBadgeStyle[m.type] || typeBadgeStyle['月度'];
+          const minutesBtn = m.status === 'done'
+            ? (m.hasMinutes
+              ? `<button class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="alert('查看会议纪要：${m.name}')">📄 查看纪要</button>`
+              : `<button class="btn btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="alert('AI 生成会议纪要：${m.name}')">🤖 生成纪要</button>`)
+            : '';
+          const evalBtn = m.status === 'done' && m.hasMinutes
+            ? `<button class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="alert('查看效果评估：${m.name}')">⭐ 效果评估 ${m.effectivenessScore > 0 ? m.effectivenessScore : ''}</button>`
+            : '';
+          const actionArea = (minutesBtn || evalBtn) ? `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">${minutesBtn}${evalBtn}</div>` : '';
+          const participantStr = m.participants.length > 0 ? `👥 ${m.participants.slice(0, 3).join('、')}${m.participants.length > 3 ? ' 等' + m.participants.length + '人' : ''}` : '';
+          return `
+            <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${m.color}; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+              <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="font-size: 15px; font-weight: 600;">${m.name}</div>
+                  <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; ${typeStyle}">${m.type}</span>
+                </div>
+                <span class="status-badge ${statusBadgeClass[m.status]}">${m.statusLabel}</span>
+              </div>
+              <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
+                📅 ${m.date} ${m.time} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 主持人：${m.host}
+              </div>
+              <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap;">
+                <span>📝 议题 ${m.topics}</span>
+                <span>✅ 决议 ${m.decisions}</span>
+                <span>📎 材料 ${m.reviewed}/${m.materials}</span>
+                ${m.materials > m.reviewed ? '<span style="color: var(--danger);">⚠️ 待审核</span>' : m.materials > 0 ? '<span style="color: var(--success);">✓ 已审完</span>' : ''}
+                ${participantStr}
+              </div>
+              ${m.agenda.length > 0 ? `<div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">${m.agenda.map(a => `<span style="padding: 3px 10px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 12px; color: var(--text-secondary);">${a}</span>`).join('')}</div>` : ''}
+              ${actionArea}
             </div>
-            <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
-              📅 ${m.date} ${m.time} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 主持人：${m.host}
+          `;
+        }).join('');
+
+        // ---- 决议跟踪行 ----
+        const decisionRows = decisions.map(d => {
+          const overdueTag = d.isOverdue ? '<span style="color: var(--danger); font-size: 11px; margin-left: 6px;">🔴 已逾期</span>' : '';
+          return `
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
+              <div style="font-size: 11px; color: var(--text-tertiary); width: 50px;">${d.id}</div>
+              <div style="flex: 1; font-size: 13px;">${d.content}${overdueTag}</div>
+              <div style="font-size: 11px; padding: 1px 8px; border-radius: 4px; background: ${categoryColor[d.category]}18; color: ${categoryColor[d.category]}; width: 60px; text-align: center;">${d.category}</div>
+              <div style="font-size: 12px; color: var(--text-tertiary); width: 60px; text-align: center;">${d.owner}</div>
+              <div style="font-size: 12px; color: var(--text-tertiary); width: 90px; text-align: center;">${d.deadline}</div>
+              <div style="width: 100px;">
+                <div style="height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
+                  <div style="width: ${d.progress}%; height: 100%; background: ${progressColor[d.status]}; border-radius: 3px; transition: width 0.5s ease;"></div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-tertiary); text-align: right; margin-top: 2px;">${d.progress}%</div>
+              </div>
             </div>
-            <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-tertiary);">
-              <span>📝 议题 ${m.topics}</span>
-              <span>✅ 决议 ${m.decisions}</span>
-              <span>📎 材料 ${m.reviewed}/${m.materials}</span>
-              ${m.materials > m.reviewed ? '<span style="color: var(--danger);">⚠️ 待审核</span>' : '<span style="color: var(--success);">✓ 已审完</span>'}
+          `;
+        }).join('');
+
+        // ---- 纪要卡片 ----
+        const minutesCards = minutesList.map(m => {
+          const statusLabel = m.status === 'final' ? '已定稿' : '审核中';
+          const statusClass = m.status === 'final' ? 'status-success' : 'status-warning';
+          return `
+            <div style="padding: 14px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--primary); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="font-size: 14px; font-weight: 600;">📄 ${m.meetingName}纪要</div>
+                <span class="status-badge ${statusClass}">${statusLabel}</span>
+              </div>
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">生成时间：${m.generatedAt} &nbsp;|&nbsp; 行动项 ${m.actionItems} 项</div>
+              <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">${m.summary}</div>
+              <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
+                ${m.keyPoints.map(kp => `<span style="padding: 2px 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">• ${kp}</span>`).join('')}
+              </div>
             </div>
-            ${m.agenda.length > 0 ? `<div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">${m.agenda.map(a => `<span style="padding: 3px 10px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 12px; color: var(--text-secondary);">${a}</span>`).join('')}</div>` : ''}
+          `;
+        }).join('');
+
+        // ---- 效果评估维度条 ----
+        const evalBars = (dimensions, maxWidth = 80) => {
+          const labels = { preparation: '准备度', discussion: '讨论度', decision: '决议质量', execution: '执行落地' };
+          return Object.entries(dimensions).map(([key, val]) => `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <div style="font-size: 11px; color: var(--text-tertiary); width: 56px; text-align: right;">${labels[key]}</div>
+              <div style="flex: 1; height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
+                <div style="width: ${val}%; height: 100%; background: ${val >= 90 ? 'var(--success)' : val >= 80 ? 'var(--primary)' : val >= 70 ? 'var(--warning)' : 'var(--danger)'}; border-radius: 3px;"></div>
+              </div>
+              <div style="font-size: 11px; color: var(--text-secondary); width: 28px; text-align: right; font-weight: 600;">${val}</div>
+            </div>
+          `).join('');
+        };
+
+        const effectivenessCards = effectivenessData.map(e => `
+          <div style="padding: 14px; background: var(--bg-page); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="font-size: 14px; font-weight: 600;">${e.meetingName}</div>
+              <div style="font-size: 20px; font-weight: 700; color: ${e.overallScore >= 90 ? 'var(--success)' : e.overallScore >= 80 ? 'var(--primary)' : 'var(--warning)'};">${e.overallScore}</div>
+            </div>
+            ${evalBars(e.dimensions)}
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-light);">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">💬 参会反馈</div>
+              ${e.feedback.map(fb => `<div style="font-size: 12px; color: var(--text-secondary); padding-left: 8px; border-left: 2px solid var(--primary-light); margin-bottom: 3px;">${fb}</div>`).join('')}
+            </div>
           </div>
         `).join('');
 
-        const decisionRows = decisions.map(d => `
-          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
-            <div style="font-size: 11px; color: var(--text-tertiary); width: 50px;">${d.id}</div>
-            <div style="flex: 1; font-size: 13px;">${d.content}</div>
-            <div style="font-size: 12px; color: var(--text-tertiary); width: 70px; text-align: center;">${d.owner}</div>
-            <div style="font-size: 12px; color: var(--text-tertiary); width: 90px; text-align: center;">${d.deadline}</div>
-            <div style="width: 100px;">
-              <div style="height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
-                <div style="width: ${d.progress}%; height: 100%; background: ${progressColor[d.status]}; border-radius: 3px; transition: width 0.5s ease;"></div>
-              </div>
-              <div style="font-size: 11px; color: var(--text-tertiary); text-align: right; margin-top: 2px;">${d.progress}%</div>
-            </div>
+        // ---- 待办提醒 ----
+        const todoItems = [];
+        meetings.filter(m => m.status === 'ready').forEach(m => {
+          if (m.materials > m.reviewed) todoItems.push({ icon: '📎', text: `${m.name} 有 ${m.materials - m.reviewed} 份材料待审核`, color: 'var(--danger)', link: 'reviewer.html' });
+          if (!m.hasMinutes && m.status === 'done') todoItems.push({ icon: '📄', text: `${m.name} 待生成纪要`, color: 'var(--warning)' });
+        });
+        decisions.filter(d => d.progress < 100).forEach(d => {
+          const daysLeft = Math.ceil((new Date(d.deadline) - new Date('2026-04-15')) / (1000 * 60 * 60 * 24));
+          if (daysLeft <= 7 && daysLeft > 0) todoItems.push({ icon: '⏰', text: `${d.content} 即将到期（${daysLeft} 天）`, color: 'var(--warning)' });
+        });
+        if (todoItems.length === 0) todoItems.push({ icon: '✅', text: '当前暂无待办事项', color: 'var(--success)' });
+
+        const todoListHtml = todoItems.map(t => `
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 12px; color: var(--text-secondary);">
+            <span style="color: ${t.color};">${t.icon}</span>
+            <span style="flex: 1;">${t.text}</span>
+            ${t.link ? `<a href="${t.link}" style="color: var(--primary); font-size: 11px; text-decoration: none;">去处理 →</a>` : ''}
           </div>
         `).join('');
 
@@ -507,12 +626,36 @@
           <div class="page-header">
             <h1 class="page-title">经营分析会</h1>
             <div class="page-actions">
-              <button class="btn btn-secondary">📅 日历视图</button>
-              <button class="btn btn-primary">+ 新建会议</button>
+              <button class="btn btn-secondary" onclick="alert('切换至日历视图')">📅 日历视图</button>
+              <button class="btn btn-primary" onclick="alert('新建经营分析会')">+ 新建会议</button>
             </div>
           </div>
 
-          <!-- 顶部筛选栏 -->
+          <!-- KPI 摘要 -->
+          <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
+            <div class="kpi-card">
+              <div class="kpi-label">本年会议</div>
+              <div class="kpi-value" style="color: var(--primary);">${totalMeetings}</div>
+              <div class="kpi-trend up"><span>↑</span><span>已完成 ${doneMeetings} 场</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">决议总数</div>
+              <div class="kpi-value" style="color: var(--success);">${totalDecisions}</div>
+              <div class="kpi-trend up"><span>↑</span><span>已闭环 ${doneDecisions} 项</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">会议纪要</div>
+              <div class="kpi-value" style="color: var(--warning);">${totalMinutes}</div>
+              <div class="kpi-trend"><span>—</span><span>AI 辅助生成</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">平均效果评分</div>
+              <div class="kpi-value" style="color: ${avgEffectiveness >= 90 ? 'var(--success)' : avgEffectiveness >= 80 ? 'var(--primary)' : 'var(--warning)'};">${avgEffectiveness || '-'}</div>
+              <div class="kpi-trend up"><span>↑</span><span>基于 ${effectivenessData.length} 场评估</span></div>
+            </div>
+          </div>
+
+          <!-- 筛选栏 -->
           <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
             <select style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
               <option>📅 全部季度</option>
@@ -526,19 +669,26 @@
               <option>已完成</option>
               <option>规划中</option>
             </select>
+            <select style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
+              <option>🏷️ 全部类型</option>
+              <option>月度</option>
+              <option>季度</option>
+              <option>年度</option>
+              <option>专项</option>
+            </select>
             <div style="margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-tertiary);">
-              <span>📝 本年议题 <strong style="color: var(--text-primary);">10</strong></span>
-              <span>✅ 决议 <strong style="color: var(--text-primary);">17</strong></span>
-              <span>📎 材料 <strong style="color: var(--text-primary);">11/11</strong></span>
+              <span>📝 议题 <strong style="color: var(--text-primary);">18</strong></span>
+              <span>✅ 决议 <strong style="color: var(--text-primary);">${totalDecisions}</strong></span>
+              <span>📎 材料 <strong style="color: var(--text-primary);">20/20</strong></span>
             </div>
           </div>
 
-          <!-- 主体：左会议列表 + 右统计 -->
+          <!-- 主体：左会议列表 + 右统计面板 -->
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="card">
               <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <div class="card-title">📋 会议列表</div>
-                <span style="font-size: 12px; color: var(--text-tertiary);">共 ${meetings.length} 场</span>
+                <span style="font-size: 12px; color: var(--text-tertiary);">共 ${totalMeetings} 场</span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 12px;">
                 ${meetingCards}
@@ -549,19 +699,19 @@
                 <div class="card-header"><div class="card-title">📊 会议统计</div></div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0;">
                   <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--primary);">12</div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--primary);">${totalMeetings}</div>
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">本年会议</div>
                   </div>
                   <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--success);">95%</div>
-                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">决议执行率</div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--success);">${Math.round((doneDecisions / totalDecisions) * 100)}%</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">决议闭环率</div>
                   </div>
                   <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--warning);">3</div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--warning);">${decisions.filter(d => d.progress < 100).length}</div>
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待闭环</div>
                   </div>
                   <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--danger);">2</div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--danger);">${meetings.filter(m => m.materials > m.reviewed).reduce((s, m) => s + (m.materials - m.reviewed), 0)}</div>
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待审核材料</div>
                   </div>
                 </div>
@@ -570,10 +720,10 @@
                 </div>
               </div>
               <div class="card">
-                <div class="card-header"><div class="card-title">📈 趋势</div></div>
+                <div class="card-header"><div class="card-title">📈 决议执行趋势</div></div>
                 <div style="padding: 8px 0;">
                   <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
-                    <span>会议决议执行趋势</span>
+                    <span>月度闭环率</span>
                     <span style="color: var(--success);">↑ 同比 +12%</span>
                   </div>
                   <div style="display: flex; align-items: flex-end; gap: 6px; height: 60px;">
@@ -589,6 +739,32 @@
                   </div>
                 </div>
               </div>
+              <div class="card">
+                <div class="card-header"><div class="card-title">🔔 待办提醒</div></div>
+                <div>${todoListHtml}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 会议纪要 -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="card-title">📄 会议纪要</div>
+              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${minutesList.length} 份</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              ${minutesCards}
+            </div>
+          </div>
+
+          <!-- 会议效果评估 -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="card-title">⭐ 会议效果评估</div>
+              <span style="font-size: 12px; color: var(--text-tertiary);">基于参会人反馈与决议落地追踪</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+              ${effectivenessCards}
             </div>
           </div>
 
@@ -596,13 +772,14 @@
           <div class="card" style="margin-bottom: 16px;">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
               <div class="card-title">✅ 决议跟踪</div>
-              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${decisions.length} 项</span>
+              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${decisions.length} 项 &nbsp;|&nbsp; 已闭环 ${doneDecisions} 项 &nbsp;|&nbsp; 待闭环 ${decisions.length - doneDecisions} 项</span>
             </div>
             <div style="padding: 0 4px;">
               <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 12px; font-weight: 600; color: var(--text-tertiary);">
                 <div style="width: 50px;">编号</div>
                 <div style="flex: 1;">决议内容</div>
-                <div style="width: 70px; text-align: center;">负责人</div>
+                <div style="width: 60px; text-align: center;">维度</div>
+                <div style="width: 60px; text-align: center;">负责人</div>
                 <div style="width: 90px; text-align: center;">截止日期</div>
                 <div style="width: 100px;">进度</div>
               </div>
