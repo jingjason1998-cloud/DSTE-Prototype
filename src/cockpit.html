@@ -212,6 +212,7 @@
       const SIDEBAR_CONFIG = {
         dashboard: [
           { type: 'item', id: 'dashboard', icon: '🎛️', label: '驾驶舱概览' },
+          { type: 'item', id: 'dashboard/roadmap', icon: '📊', label: '开发路线图' },
           { type: 'quick', label: '快捷入口' },
           { type: 'item', id: 'sp/strategy-map', icon: '🗺️', label: '战略地图' },
           { type: 'item', id: 'bp/kpi', icon: '📈', label: 'KPI 看板' },
@@ -262,6 +263,7 @@
       // ===== 页面内容 =====
       const PAGES = {
         'dashboard': renderDashboard,
+        'dashboard/roadmap': renderDevTimeline,
         'sp/strategy-map': () => renderPlaceholder('🗺️ 战略地图', '可视化展示企业战略地图，基于平衡计分卡四维度构建战略目标体系。'),
         'sp/strategy-topics': renderStrategyTopics,
         'sp/market-insight': () => renderPlaceholder('🔭 市场洞察', '市场趋势分析、竞争情报收集，为战略制定提供数据支撑。'),
@@ -368,7 +370,8 @@
           'bp/kpi': 'KPI 指标体系', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
           'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meeting-review': '会议材料审核',
           'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
-          'ai': 'AI 战略助手'
+          'ai': 'AI 战略助手',
+          'dashboard/roadmap': '开发路线图'
         };
         document.title = (pageNames[pageId] || 'DSTE') + ' - DSTE 战略管理平台';
       }
@@ -997,10 +1000,20 @@
         'ai': { name: 'AI 助手', defaultPage: 'ai' }
       };
       function renderBreadcrumb(pageName) {
+        const phase = PHASE_MAP[currentPhase];
+        // dashboard 子页面特殊处理
+        if (currentPhase === 'dashboard' && currentPage !== 'dashboard') {
+          return `
+            <div class="breadcrumb">
+              <a href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">驾驶舱</a>
+              <span class="breadcrumb-separator">/</span>
+              <span>${pageName}</span>
+            </div>
+          `;
+        }
         if (currentPhase === 'dashboard') {
           return `<div class="breadcrumb"><span>驾驶舱概览</span></div>`;
         }
-        const phase = PHASE_MAP[currentPhase];
         return `
           <div class="breadcrumb">
             <a href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">驾驶舱</a>
@@ -1064,10 +1077,264 @@
         }, 1200);
       }
 
+      // ===== 开发路线图页面 =====
+      function renderDevTimeline() {
+        const roadmapData = {
+          versions: [
+            {
+              version: 'v0.2.0',
+              date: '2026-05-21',
+              status: 'released',
+              changes: [
+                { type: 'Added', desc: '经营分析会页面全面升级' },
+                { type: 'Added', desc: '新增决议跟踪面板' },
+                { type: 'Added', desc: '新增开发路线图页面' },
+                { type: 'Fixed', desc: '修复 Light 模式 CSS 变量失效' }
+              ]
+            },
+            {
+              version: 'v0.1.0',
+              date: '2026-05-21',
+              status: 'released',
+              changes: [
+                { type: 'Added', desc: '驾驶舱首页（6阶段导航+SPA路由）' },
+                { type: 'Added', desc: '会议材料审核助手' },
+                { type: 'Added', desc: '业务专题管理（CRUD+议题导入）' },
+                { type: 'Added', desc: '统一主题系统（Light/Dark）' },
+                { type: 'Added', desc: '登录页' },
+                { type: 'Security', desc: 'XSS 防护与空矩阵守卫' }
+              ]
+            }
+          ],
+          modules: [
+            { name: '驾驶舱首页', progress: 80, status: 'doing', targetVersion: 'v0.3.0' },
+            { name: '会议审核助手', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
+            { name: '业务专题管理', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
+            { name: '经营分析会', progress: 100, status: 'done', targetVersion: 'v0.2.0' },
+            { name: '开发路线图', progress: 100, status: 'done', targetVersion: 'v0.3.0' },
+            { name: '战略地图', progress: 0, status: 'todo', targetVersion: 'v0.3.0' },
+            { name: 'KPI 看板', progress: 30, status: 'doing', targetVersion: 'v0.3.0' },
+            { name: 'BEM 战略解码', progress: 0, status: 'todo', targetVersion: 'v0.4.0' },
+            { name: '用户权限系统', progress: 0, status: 'todo', targetVersion: 'v1.0.0' }
+          ],
+          upcoming: [
+            { name: '战略地图可视化（BSC 四维度）', priority: '高', eta: 'v0.3.0' },
+            { name: 'KPI 详情下钻', priority: '高', eta: 'v0.3.0' },
+            { name: '年度经营计划模块', priority: '中', eta: 'v0.4.0' },
+            { name: 'ST/AT 议题 Excel 模板下载', priority: '低', eta: 'v0.4.0' },
+            { name: '用户权限与角色管理', priority: '中', eta: 'v1.0.0' },
+            { name: 'AI 战略助手增强', priority: '低', eta: 'v1.1.0' }
+          ]
+        };
+
+        const typeColors = { 'Added': 'var(--success)', 'Fixed': 'var(--primary)', 'Changed': 'var(--warning)', 'Security': 'var(--danger)' };
+        const typeLabels = { 'Added': '新增', 'Fixed': '修复', 'Changed': '变更', 'Security': '安全' };
+        const moduleStatusColor = { 'done': 'var(--success)', 'doing': 'var(--primary)', 'todo': 'var(--border-color)' };
+        const moduleStatusLabel = { 'done': '已完成', 'doing': '开发中', 'todo': '计划中' };
+
+        // ① 时间线轴
+        const timelineNodes = roadmapData.versions.map(v => {
+          const color = v.status === 'released' ? 'var(--success)' : 'var(--warning)';
+          const pulse = v.status === 'released' ? '' : 'animation: pulse 2s infinite;';
+          return `
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 100px;">
+              <div style="width: 14px; height: 14px; border-radius: 50%; background: ${color}; box-shadow: 0 0 0 4px ${color}33; ${pulse}"></div>
+              <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${v.version}</div>
+              <div style="font-size: 11px; color: var(--text-tertiary);">${v.date}</div>
+              <div style="font-size: 11px; color: ${color}; font-weight: 500;">${v.status === 'released' ? '已发布' : '开发中'}</div>
+            </div>
+          `;
+        }).join('<div style="flex: 1; height: 2px; background: var(--border-color); margin-top: 6px; min-width: 40px;"></div>');
+
+        // 里程碑节点
+        const milestoneNode = `
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 100px;">
+            <div style="width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--primary); background: transparent;"></div>
+            <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">v1.0.0</div>
+            <div style="font-size: 11px; color: var(--text-tertiary);">待定</div>
+            <div style="font-size: 11px; color: var(--primary); font-weight: 500;">里程碑</div>
+          </div>
+        `;
+
+        // ② 甘特图
+        const ganttRows = roadmapData.modules.map(m => `
+          <div data-module-status="${m.status}" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
+            <div style="width: 120px; font-size: 13px; color: var(--text-secondary); font-weight: 500;">${m.name}</div>
+            <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+              <div style="flex: 1; height: 8px; background: var(--bg-page); border-radius: 4px; overflow: hidden;">
+                <div style="width: ${m.progress}%; height: 100%; background: ${moduleStatusColor[m.status]}; border-radius: 4px; transition: width 0.8s ease-out;"></div>
+              </div>
+              <span style="font-size: 12px; color: var(--text-tertiary); width: 36px; text-align: right;">${m.progress}%</span>
+            </div>
+            <div style="width: 70px; text-align: center;">
+              <span style="padding: 2px 8px; border-radius: 4px; font-size: 11px; background: ${moduleStatusColor[m.status]}22; color: ${moduleStatusColor[m.status]};">${moduleStatusLabel[m.status]}</span>
+            </div>
+            <div style="width: 70px; font-size: 11px; color: var(--text-tertiary); text-align: center;">${m.targetVersion}</div>
+          </div>
+        `).join('');
+
+        // ③ 统计
+        const releasedCount = roadmapData.versions.filter(v => v.status === 'released').length;
+        const featureCount = roadmapData.versions.reduce((sum, v) => sum + v.changes.filter(c => c.type === 'Added').length, 0);
+        const fixCount = roadmapData.versions.reduce((sum, v) => sum + v.changes.filter(c => c.type === 'Fixed').length, 0);
+        const todoCount = roadmapData.upcoming.length;
+
+        // ④ 版本详情
+        const versionCards = roadmapData.versions.map(v => `
+          <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${v.status === 'released' ? 'var(--success)' : 'var(--warning)'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">${v.version}</div>
+              <div style="font-size: 12px; color: var(--text-tertiary);">${v.date}</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              ${v.changes.map(c => `
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);">
+                  <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: ${typeColors[c.type]}22; color: ${typeColors[c.type]}; font-weight: 500;">${typeLabels[c.type]}</span>
+                  <span>${c.desc}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('');
+
+        // 计划中
+        const upcomingCard = `
+          <div style="padding: 16px; border-radius: 8px; border: 1px dashed var(--border-color); background: var(--bg-page);">
+            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 计划中</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${roadmapData.upcoming.map(u => `
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-secondary);">
+                  <span>${u.name}</span>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: var(--bg-page); color: var(--text-tertiary);">${u.eta}</span>
+                    <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'}22; color: ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'};">${u.priority}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+
+        return `
+          ${renderBreadcrumb('开发路线图')}
+          <div class="page-header">
+            <h1 class="page-title">开发路线图</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary" onclick="filterRoadmap('all')">全部</button>
+              <button class="btn btn-secondary" onclick="filterRoadmap('done')">已完成</button>
+              <button class="btn btn-secondary" onclick="filterRoadmap('doing')">开发中</button>
+              <button class="btn btn-secondary" onclick="filterRoadmap('todo')">计划中</button>
+            </div>
+          </div>
+
+          <!-- ① 时间线轴 -->
+          <div class="card" style="margin-bottom: 16px; padding: 24px;">
+            <div style="display: flex; align-items: flex-start; justify-content: center; gap: 0;">
+              ${timelineNodes}
+              <div style="flex: 1; height: 2px; background: var(--border-color); margin-top: 6px; min-width: 40px;"></div>
+              ${milestoneNode}
+            </div>
+          </div>
+
+          <!-- ② 甘特图 + ③ 统计 -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="card">
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="card-title">📊 模块开发进度</div>
+                <span style="font-size: 12px; color: var(--text-tertiary);">共 ${roadmapData.modules.length} 个模块</span>
+              </div>
+              <div style="padding: 4px 0;">
+                <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 12px; font-weight: 600; color: var(--text-tertiary);">
+                  <div style="width: 120px;">模块</div>
+                  <div style="flex: 1;">进度</div>
+                  <div style="width: 36px;"></div>
+                  <div style="width: 70px; text-align: center;">状态</div>
+                  <div style="width: 70px; text-align: center;">目标版本</div>
+                </div>
+                ${ganttRows}
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <div class="card">
+                <div class="card-header"><div class="card-title">📈 版本统计</div></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 0;">
+                  <div style="text-align: center; padding: 14px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--success);">${releasedCount}</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">已发布版本</div>
+                  </div>
+                  <div style="text-align: center; padding: 14px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--primary);">${featureCount}</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">功能数</div>
+                  </div>
+                  <div style="text-align: center; padding: 14px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--warning);">${fixCount}</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Bug 修复</div>
+                  </div>
+                  <div style="text-align: center; padding: 14px; background: var(--bg-page); border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--danger);">${todoCount}</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">计划中</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header"><div class="card-title">📅 版本日历</div></div>
+                <div style="padding: 8px 0; text-align: center; color: var(--text-tertiary); font-size: 13px;">
+                  <div style="font-size: 32px; margin-bottom: 8px;">🚀</div>
+                  <div>下个里程碑</div>
+                  <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-top: 4px;">v0.3.0</div>
+                  <div style="font-size: 12px; margin-top: 4px;">预计 2026-06-30</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ④ 版本详情 -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="card-title">📝 版本详情</div>
+              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${roadmapData.versions.length} 个版本</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; padding: 4px 0;">
+              ${versionCards}
+              ${upcomingCard}
+            </div>
+          </div>
+
+          <div class="related-links">
+            <div class="related-links-label">关联功能</div>
+            <div class="related-links-row">
+              <a class="related-link" href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">🎛️ 驾驶舱概览</a>
+              <a class="related-link" href="reviewer.html">📋 会议材料审核</a>
+              <a class="related-link" href="business-topics.html">📂 业务专题管理</a>
+            </div>
+          </div>
+
+          <style>
+            @keyframes pulse {
+              0%, 100% { box-shadow: 0 0 0 4px rgba(250,173,20,0.2); }
+              50% { box-shadow: 0 0 0 8px rgba(250,173,20,0.05); }
+            }
+          </style>
+        `;
+      }
+
       function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+      }
+
+      // 开发路线图筛选
+      function filterRoadmap(filter) {
+        const rows = document.querySelectorAll('[data-module-status]');
+        rows.forEach(row => {
+          const status = row.dataset.moduleStatus;
+          if (filter === 'all' || status === filter) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
       }
 
       // 暴露全局 navigate
