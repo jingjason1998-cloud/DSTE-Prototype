@@ -47,7 +47,8 @@ export const SIDEBAR_CONFIG = {
     { type: 'group', title: '战略执行', items: [
       { id: 'exe/tasks', icon: '✅', label: '重点工作管理' },
       { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
-      { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' }
+      { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' },
+      { id: 'exe/finereport', icon: '📊', label: 'FineReport 报表' }
     ]},
     { type: 'quick', label: '快捷工具' },
     { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
@@ -87,5 +88,6 @@ export const PAGE_NAMES = {
   'rev/review': '战略复盘',
   'rev/gap-analysis': '差距分析',
   'ai': 'AI 战略助手',
-  'dashboard/roadmap': '开发路线图 Road Map'
+  'dashboard/roadmap': '开发路线图 Road Map',
+  'exe/finereport': 'FineReport 报表'
 };
