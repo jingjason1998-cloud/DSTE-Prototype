@@ -3,6 +3,10 @@
 .vscode/
 .idea/
 
+# Node.js
+node_modules/
+dist/
+
 # Python
 __pycache__/
 *.pyc
@@ -18,3 +22,11 @@ venv/
 
 # 环境变量
 .env
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Vite
+.vite/
