@@ -21,6 +21,7 @@ export default defineConfig({
   preview: {
     port: 3456,
   },
-  // Don't try to process assets/ as modules - they're static files
-  assetsInclude: ['assets/**/*'],
+  // Static assets that should NOT be processed as modules (images, fonts, etc.)
+  // CSS/JS files in assets/ should still be processed by Vite
+  assetsInclude: ['assets/**/*.{png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot,mp4,webm}'],
 });
