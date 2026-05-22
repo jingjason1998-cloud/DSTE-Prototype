@@ -2,9 +2,6 @@ name = "dste-api"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# KV namespace for data storage
-# 首次部署前需运行: wrangler kv:namespace create "DSTE_KV"
-# 然后将返回的 id 填入下方 [[kv_namespaces]]
 [[kv_namespaces]]
 binding = "DSTE_KV"
-id = ""
+id = "69ed6153435d4ba5b3b17c9077ce74c9"
