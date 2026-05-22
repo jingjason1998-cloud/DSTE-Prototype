@@ -19,7 +19,7 @@ def test_project_structure_exists():
 
 def test_main_html_exists():
     """验证主入口文件存在"""
-    main_file = PROJECT_ROOT / "src" / "index.html"
+    main_file = PROJECT_ROOT / "index.html"
     assert main_file.exists(), "主入口 index.html 不存在"
     content = main_file.read_text(encoding="utf-8")
     assert "<!DOCTYPE html>" in content, "HTML 声明缺失"

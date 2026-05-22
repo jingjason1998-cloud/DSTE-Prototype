@@ -73,8 +73,8 @@ def test_cockpit_meetings_has_review_link():
 
 
 def test_navigation_arch_document_updated():
-    """设计文档已更新"""
-    doc = PROJECT_ROOT / "design" / "navigation-arch-v2.md"
+    """设计文档已整合到 docs"""
+    doc = PROJECT_ROOT / "docs" / "02-RFC功能设计" / "001-navigation-arch.md"
     assert doc.exists(), "导航架构文档不存在"
     content = doc.read_text(encoding="utf-8")
     assert "reviewer.html" in content, "文档未记录 reviewer.html"
