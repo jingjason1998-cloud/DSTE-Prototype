@@ -40,6 +40,39 @@
       'use strict';
 
       // ===== 配置 =====
+      const API_BASE = (() => {
+        const host = window.location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1') {
+          return localStorage.getItem('dste_api_base') || '';
+        }
+        return 'https://dste-api.your-subdomain.workers.dev';
+      })();
+
+      async function apiSave(endpoint, data) {
+        if (!API_BASE) return;
+        try {
+          await fetch(API_BASE + endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+        } catch (e) {
+          console.warn('API save failed:', e.message);
+        }
+      }
+
+      async function apiLoad(endpoint) {
+        if (!API_BASE) return null;
+        try {
+          const resp = await fetch(API_BASE + endpoint);
+          const json = await resp.json();
+          return json.success ? json.data : null;
+        } catch (e) {
+          console.warn('API load failed:', e.message);
+          return null;
+        }
+      }
+
       const TOP_NAV = [
         { id: 'dashboard', icon: '🎛️', label: '驾驶舱', full: '驾驶舱', defaultPage: 'dashboard' },
         { id: 'sp', icon: '🎯', label: 'SP', full: '战略制定', defaultPage: 'sp/strategy-map' },
@@ -129,8 +162,15 @@
       let currentPage = 'dashboard';
 
       // ===== 初始化 =====
-      function init() {
+      async function init() {
         renderTopNav();
+
+        // 从云端加载会议数据
+        const remoteMeetings = await apiLoad('/api/meetings');
+        if (remoteMeetings && remoteMeetings.length > 0) {
+          meetings = remoteMeetings;
+        }
+
         const hash = window.location.hash.slice(1) || 'dashboard';
         navigate(hash, false);
         window.addEventListener('hashchange', () => navigate(window.location.hash.slice(1), false));
@@ -202,6 +242,9 @@
         contentEl.innerHTML = PAGES[pageId]();
         contentEl.style.animation = '';
 
+        // 绑定事件委托（替代内联 onclick）
+        bindPageEvents(contentEl);
+
         // 更新左侧 active
         document.querySelectorAll('.sidebar-item').forEach(item => {
           item.classList.toggle('active', item.dataset.page === pageId);
@@ -218,6 +261,32 @@
           'dashboard/roadmap': '开发路线图 Road Map'
         };
         document.title = (pageNames[pageId] || 'DSTE') + ' - DSTE 战略管理平台';
+      }
+
+      // ===== 事件委托（替代内联 onclick）=====
+      function bindPageEvents(container) {
+        container.addEventListener('click', (e) => {
+          // data-navigate: 面包屑/相关链接导航
+          const navLink = e.target.closest('[data-navigate]');
+          if (navLink) {
+            e.preventDefault();
+            navigate(navLink.dataset.navigate);
+            return;
+          }
+          // data-filter-roadmap: 路线图筛选
+          const filterBtn = e.target.closest('[data-filter-roadmap]');
+          if (filterBtn) {
+            filterRoadmap(filterBtn.dataset.filterRoadmap);
+            return;
+          }
+          // data-scroll-to: 平滑滚动到元素
+          const scrollTrigger = e.target.closest('[data-scroll-to]');
+          if (scrollTrigger) {
+            const target = document.getElementById(scrollTrigger.dataset.scrollTo);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+        });
       }
 
       // ===== 渲染左侧栏 =====
@@ -268,9 +337,9 @@
 
         return `
           <div class="breadcrumb">
-            <a href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">驾驶舱</a>
+            <a href="#dashboard" data-navigate="dashboard">驾驶舱</a>
             <span class="breadcrumb-separator">/</span>
-            <a href="#exe/tasks" onclick="event.preventDefault(); navigate('exe/tasks')">战略执行</a>
+            <a href="#exe/tasks" data-navigate="exe/tasks">战略执行</a>
             <span class="breadcrumb-separator">/</span>
             <span>FineReport 报表</span>
           </div>
@@ -454,7 +523,7 @@
             <div class="card">
               <div class="card-header">
                 <div class="card-title">🗺️ 战略地图概览</div>
-                <a href="#sp/strategy-map" style="color: var(--primary); text-decoration: none; font-size: 13px;" onclick="event.preventDefault(); navigate('sp/strategy-map')">查看详情 →</a>
+                <a href="#sp/strategy-map" style="color: var(--primary); text-decoration: none; font-size: 13px;" data-navigate="sp/strategy-map">查看详情 →</a>
               </div>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 4px solid var(--success);">
@@ -506,7 +575,7 @@
           <div class="card" style="margin-top: 16px;">
             <div class="card-header">
               <div class="card-title">✅ 重点工作进度</div>
-              <a href="#exe/tasks" style="color: var(--primary); text-decoration: none; font-size: 13px;" onclick="event.preventDefault(); navigate('exe/tasks')">查看全部 →</a>
+              <a href="#exe/tasks" style="color: var(--primary); text-decoration: none; font-size: 13px;" data-navigate="exe/tasks">查看全部 →</a>
             </div>
             <table class="data-table">
               <thead><tr><th>工作名称</th><th>负责人</th><th>进度</th><th>状态</th><th>截止日期</th></tr></thead>
@@ -523,7 +592,7 @@
           <div class="card" style="margin-top: 16px;">
             <div class="card-header">
               <div class="card-title">🎯 经营分析会</div>
-              <a href="#exe/meetings" style="color: var(--primary); text-decoration: none; font-size: 13px;" onclick="event.preventDefault(); navigate('exe/meetings')">查看全部 →</a>
+              <a href="#exe/meetings" style="color: var(--primary); text-decoration: none; font-size: 13px;" data-navigate="exe/meetings">查看全部 →</a>
             </div>
             <div style="display: flex; gap: 16px; overflow-x: auto;">
               <div style="min-width: 200px; padding: 16px; background: var(--bg-page); border-radius: 8px; border: 2px solid var(--primary);">
@@ -580,159 +649,389 @@
           <div class="related-links">
             <div class="related-links-label">关联功能</div>
             <div class="related-links-row">
-              <a class="related-link" href="#exe/meetings" onclick="event.preventDefault(); navigate('exe/meetings')">🎯 经营分析会</a>
-              <a class="related-link" href="#bp/kpi" onclick="event.preventDefault(); navigate('bp/kpi')">📈 KPI 看板</a>
-              <a class="related-link" href="#sp/strategy-map" onclick="event.preventDefault(); navigate('sp/strategy-map')">🗺️ 战略地图</a>
+              <a class="related-link" href="#exe/meetings" data-navigate="exe/meetings">🎯 经营分析会</a>
+              <a class="related-link" href="#bp/kpi" data-navigate="bp/kpi">📈 KPI 看板</a>
+              <a class="related-link" href="#sp/strategy-map" data-navigate="sp/strategy-map">🗺️ 战略地图</a>
             </div>
           </div>
         `;
       }
 
       // ===== 经营分析会页面 =====
+
       function renderMeetings() {
+        // ---- 场景配置 ----
+        const SCENARIO_CONFIG = {
+          union_quarterly: { label: '片联季度会议', color: '#8b5cf6', icon: '🏛️', pipelineEnabled: false },
+          hq_routine:      { label: '营销本部月/双周会', color: '#3b82f6', icon: '📅', pipelineEnabled: false },
+          region_routine:  { label: '战区月度经营分析会', color: '#0ea5e9', icon: '🗺️', pipelineEnabled: true },
+          lagging_region:  { label: '落后战区业绩承诺会暨经分会', color: '#dc2626', icon: '🚨', pipelineEnabled: true },
+          lagging_vertical:{ label: '落后垂直客群经分会', color: '#ef4444', icon: '⚠️', pipelineEnabled: true }
+        };
+        const STATUS_CONFIG = {
+          completed:   { label: '已完成', badgeClass: 'status-success', color: 'var(--success)' },
+          planned:     { label: '规划中', badgeClass: 'status-default', color: 'var(--text-disabled)' },
+          in_progress: { label: '准备中', badgeClass: 'status-warning', color: 'var(--warning)' },
+          cancelled:   { label: '已取消', badgeClass: 'status-archived', color: 'var(--text-tertiary)' }
+        };
+        const AGENDA_TYPE_LABELS = {
+          financial_review: '财务复盘', kpi_tracking: 'KPI 追踪', market_insight: '市场洞察',
+          risk_warning: '风险预警', org_review: '组织复盘', resource_allocation: '资源调配',
+          action_review: '行动复盘', customer_success: '客户成功', product_roadmap: '产品路线',
+          cost_optimization: '成本优化', talent_development: '人才发展', digital_transform: '数字化',
+          esg_sustainability: 'ESG'
+        };
+        const PIPELINE_STEPS = [
+          { key: 'reportGenerated', label: '报告生成', icon: '📝' },
+          { key: 'preReviewDone',   label: '会前评审', icon: '👀' },
+          { key: 'meetingHeld',     label: '会议召开', icon: '🎯' },
+          { key: 'minutesDrafted',  label: '纪要起草', icon: '📄' },
+          { key: 'minutesApproved', label: '纪要定稿', icon: '✅' },
+          { key: 'actionsTracked',  label: '行动追踪', icon: '📊' }
+        ];
+
         // ---- 数据模型 ----
-        const meetings = [
-          { id: 1, name: '月度经营分析会', date: '2026-04-15', time: '14:00', location: '会议室 A', host: '张总', type: '月度', status: 'ready', statusLabel: '准备中', color: 'var(--primary)', topics: 4, decisions: 3, materials: 5, reviewed: 3, hasMinutes: false, effectivenessScore: 0, agenda: ['Q1 复盘', 'Q2 目标对齐', '预警事项讨论', '下月重点工作'], participants: ['张总', '李经理', '王总监', '赵经理', '陈总监'] },
-          { id: 2, name: 'Q1 季度战略会', date: '2026-03-15', time: '09:00', location: '大会议室', host: '张总', type: '季度', status: 'done', statusLabel: '已完成', color: 'var(--success)', topics: 6, decisions: 8, materials: 6, reviewed: 6, hasMinutes: true, effectivenessScore: 88, agenda: ['战略回顾', 'KPI 达成分析', '市场洞察', '组织复盘', 'Q2 计划', '资源调配'], participants: ['张总', '李经理', '王总监', '赵经理', '陈总监', '张总监', '刘CTO'] },
-          { id: 3, name: 'Q2 季度战略会', date: '2026-06-15', time: '待定', location: '待确认', host: '待定', type: '季度', status: 'plan', statusLabel: '规划中', color: 'var(--text-disabled)', topics: 0, decisions: 0, materials: 0, reviewed: 0, hasMinutes: false, effectivenessScore: 0, agenda: [], participants: [] },
-          { id: 4, name: '供应链成本专项分析会', date: '2026-04-22', time: '10:00', location: '会议室 B', host: '张总监', type: '专项', status: 'ready', statusLabel: '准备中', color: 'var(--warning)', topics: 3, decisions: 2, materials: 4, reviewed: 4, hasMinutes: false, effectivenessScore: 0, agenda: ['成本结构分析', '供应商谈判策略', '降本目标分解'], participants: ['张总监', '李经理', '王总监'] },
-          { id: 5, name: '客户满意度提升专题会', date: '2026-03-28', time: '14:00', location: '会议室 A', host: '赵经理', type: '专项', status: 'done', statusLabel: '已完成', color: 'var(--success)', topics: 5, decisions: 6, materials: 5, reviewed: 5, hasMinutes: true, effectivenessScore: 92, agenda: ['NPS 调研结果', '客户流失分析', '服务流程优化', '客户成功体系', '下阶段行动计划'], participants: ['赵经理', '张总', '王总监', '陈总监'] }
+        let meetings = [
+          {
+            id: '20260415', title: '片联一季度经营分析会', date: '2026-04-15', month: '2026-04',
+            level: 'L1', scope: 'union', scenario: 'union_quarterly',
+            status: 'completed', location: '总部大会议室', host: '陈总裁', recorder: 'Jason.Jing',
+            pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: true },
+            upstreamMeeting: null, downstreamMeeting: '20260515',
+            agenda_items: [
+              { type: 'financial_review', title: 'Q1 财务整体复盘', duration: 45, owner: 'CFO' },
+              { type: 'kpi_tracking', title: 'KPI 达成追踪', duration: 30, owner: '运营部' },
+              { type: 'market_insight', title: '市场洞察与竞争分析', duration: 30, owner: '市场部' },
+              { type: 'risk_warning', title: '风险预警与应对', duration: 20, owner: '风控部' }
+            ],
+            actions: [
+              { id: 'A001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'in_progress' },
+              { id: 'A002', content: '海外渠道新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
+            ],
+            decisions: [
+              { id: 'D001', content: 'Q2 营收目标 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'approved' },
+              { id: 'D002', content: '海外渠道扩张计划', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
+            ],
+            hasMinutes: true, minutesStatus: 'final',
+            metrics: { materialTimeliness: 98, resolutionTimeliness: 92, actionClosure: 85, satisfaction: 4.5 },
+            effectiveness: { overallScore: 92, dimensions: { preparation: 95, discussion: 90, decision: 95, execution: 88 }, feedback: ['议程安排合理', '数据准备充分', '决议责任明确'] }
+          },
+          {
+            id: '20260315', title: '4月营销本部经营分析会', date: '2026-03-15', month: '2026-03',
+            level: 'L2', scope: 'hq', scenario: 'hq_routine',
+            status: 'completed', location: '会议室 A', host: '张总', recorder: 'Jason.Jing',
+            pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: false },
+            upstreamMeeting: '20260215', downstreamMeeting: '20260415',
+            agenda_items: [
+              { type: 'financial_review', title: '3月财务复盘', duration: 30, owner: '财务部' },
+              { type: 'kpi_tracking', title: 'KPI 达成分析', duration: 25, owner: '运营部' },
+              { type: 'action_review', title: '上月行动项复盘', duration: 20, owner: '各负责人' }
+            ],
+            actions: [
+              { id: 'A003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'in_progress' }
+            ],
+            decisions: [
+              { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'approved' }
+            ],
+            hasMinutes: true, minutesStatus: 'final',
+            metrics: { materialTimeliness: 95, resolutionTimeliness: 88, actionClosure: 72, satisfaction: 4.2 },
+            effectiveness: { overallScore: 88, dimensions: { preparation: 90, discussion: 85, decision: 92, execution: 85 }, feedback: ['时间控制良好', '数据充分', '落地路径清晰'] }
+          },
+          {
+            id: '20260520', title: '华东战区 5 月经营分析会', date: '2026-05-20', month: '2026-05',
+            level: 'L3', scope: 'region_east', scenario: 'region_routine',
+            status: 'in_progress', location: '上海办公室', host: '刘战区总', recorder: '王小明',
+            pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+            upstreamMeeting: '20260415', downstreamMeeting: null,
+            agenda_items: [
+              { type: 'financial_review', title: '5月财务复盘', duration: 30, owner: '财务组' },
+              { type: 'customer_success', title: '客户满意度分析', duration: 25, owner: '客户成功组' },
+              { type: 'action_review', title: '行动项跟踪', duration: 20, owner: '运营组' }
+            ],
+            actions: [
+              { id: 'A004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'in_progress' }
+            ],
+            decisions: [
+              { id: 'D004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'approved' }
+            ],
+            hasMinutes: false, minutesStatus: null,
+            metrics: { materialTimeliness: 90, resolutionTimeliness: 0, actionClosure: 60, satisfaction: 0 },
+            effectiveness: null
+          },
+          {
+            id: '20260525', title: '华南战区业绩承诺会暨经分会', date: '2026-05-25', month: '2026-05',
+            level: 'L3', scope: 'region_south', scenario: 'lagging_region',
+            status: 'planned', location: '深圳办公室', host: '赵战区总', recorder: '李小红',
+            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+            upstreamMeeting: null, downstreamMeeting: null,
+            agenda_items: [
+              { type: 'financial_review', title: '业绩差距根因分析', duration: 40, owner: '财务组' },
+              { type: 'risk_warning', title: '风险预警与整改', duration: 30, owner: '风控组' },
+              { type: 'action_review', title: '整改承诺与跟踪', duration: 30, owner: '各负责人' }
+            ],
+            actions: [],
+            decisions: [],
+            hasMinutes: false, minutesStatus: null,
+            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+            effectiveness: null
+          },
+          {
+            id: '20260601', title: '金融行业客群经分会', date: '2026-06-01', month: '2026-06',
+            level: 'L3', scope: 'vertical_finance', scenario: 'lagging_vertical',
+            status: 'planned', location: '北京办公室', host: '孙行业总', recorder: '周小华',
+            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+            upstreamMeeting: null, downstreamMeeting: null,
+            agenda_items: [
+              { type: 'financial_review', title: '客群财务分析', duration: 35, owner: '财务组' },
+              { type: 'customer_success', title: '客户流失分析', duration: 25, owner: '客户组' },
+              { type: 'product_roadmap', title: '产品路线调整', duration: 20, owner: '产品组' }
+            ],
+            actions: [],
+            decisions: [],
+            hasMinutes: false, minutesStatus: null,
+            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+            effectiveness: null
+          },
+          {
+            id: '20260615', title: '片联二季度经营分析会', date: '2026-06-15', month: '2026-06',
+            level: 'L1', scope: 'union', scenario: 'union_quarterly',
+            status: 'planned', location: '总部大会议室', host: '陈总裁', recorder: '待定',
+            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+            upstreamMeeting: null, downstreamMeeting: null,
+            agenda_items: [
+              { type: 'financial_review', title: 'Q2 财务复盘', duration: 45, owner: 'CFO' },
+              { type: 'kpi_tracking', title: '半年 KPI 追踪', duration: 30, owner: '运营部' }
+            ],
+            actions: [],
+            decisions: [],
+            hasMinutes: false, minutesStatus: null,
+            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+            effectiveness: null
+          },
+          {
+            id: '20260701', title: '7月营销本部经营分析会', date: '2026-07-01', month: '2026-07',
+            level: 'L2', scope: 'hq', scenario: 'hq_routine',
+            status: 'planned', location: '会议室 B', host: '张总', recorder: '待定',
+            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+            upstreamMeeting: '20260615', downstreamMeeting: null,
+            agenda_items: [
+              { type: 'financial_review', title: '6月财务复盘', duration: 30, owner: '财务部' },
+              { type: 'kpi_tracking', title: 'KPI 达成分析', duration: 25, owner: '运营部' }
+            ],
+            actions: [],
+            decisions: [],
+            hasMinutes: false, minutesStatus: null,
+            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+            effectiveness: null
+          }
         ];
 
-        const decisions = [
-          { id: 'D001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', progress: 75, status: 'normal', category: '财务', isOverdue: false },
-          { id: 'D002', content: '海外渠道拓展：新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', progress: 40, status: 'warning', category: '客户', isOverdue: false },
-          { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', progress: 60, status: 'normal', category: '流程', isOverdue: false },
-          { id: 'D004', content: '客户成功团队扩编至 15 人', owner: '赵经理', deadline: '2026-04-20', progress: 90, status: 'success', category: '学习成长', isOverdue: false },
-          { id: 'D005', content: '供应链成本降低 8%', owner: '张总监', deadline: '2026-06-30', progress: 30, status: 'normal', category: '财务', isOverdue: false },
-          { id: 'D006', content: '建立月度经营分析标准化流程', owner: '张总', deadline: '2026-04-15', progress: 100, status: 'success', category: '流程', isOverdue: false },
-          { id: 'D007', content: 'NPS 提升专项：目标从 62 提升至 70', owner: '赵经理', deadline: '2026-05-30', progress: 55, status: 'warning', category: '客户', isOverdue: false },
-          { id: 'D008', content: 'Q2 大客户攻坚：签约 3 家头部客户', owner: '陈总监', deadline: '2026-06-15', progress: 20, status: 'normal', category: '客户', isOverdue: false }
-        ];
-
-        const minutesList = [
-          { id: 'M001', meetingId: 2, meetingName: 'Q1 季度战略会', generatedAt: '2026-03-15 12:00', summary: '会议全面回顾了 Q1 战略执行情况，财务维度达成率 92%，客户维度 NPS 下滑需重点关注。决议 8 项，已全部录入系统并分配责任人。', keyPoints: ['营收达成率 92%，距目标差 8%', 'NPS 降至 62，低于目标 70', '新产品收入占比 28.4%，需加速推广', '供应链成本环比上升 12%', '客户成功团队建设滞后', 'Q2 目标：营收 3.2 亿、NPS 回升至 65'], actionItems: 8, status: 'final' },
-          { id: 'M002', meetingId: 5, meetingName: '客户满意度提升专题会', generatedAt: '2026-03-28 16:30', summary: '针对 NPS 下降问题召开专项分析会，识别出 3 个核心根因：服务响应慢、产品稳定性不足、客户分层运营缺失。制定 6 项改进决议。', keyPoints: ['服务响应时长平均 4.2 小时，目标 2 小时', '产品故障率 0.8%，目标 0.5%', '大客户专属服务覆盖率为 60%', '客户分层运营体系尚未建立'], actionItems: 6, status: 'final' }
-        ];
-
-        const effectivenessData = [
-          { meetingId: 2, meetingName: 'Q1 季度战略会', overallScore: 88, dimensions: { preparation: 90, discussion: 85, decision: 92, execution: 85 }, feedback: ['议程安排合理，时间控制良好', '数据准备充分，支撑决策', '决议责任明确，落地路径清晰'] },
-          { meetingId: 5, meetingName: '客户满意度提升专题会', overallScore: 92, dimensions: { preparation: 95, discussion: 90, decision: 95, execution: 88 }, feedback: ['根因分析深入，数据详实', '跨部门协作充分', '行动计划可衡量、可追踪'] }
-        ];
-
-        const statusBadgeClass = { 'ready': 'status-warning', 'done': 'status-success', 'plan': 'status-default' };
-        const progressColor = { 'normal': 'var(--primary)', 'warning': 'var(--warning)', 'success': 'var(--success)' };
-        const categoryColor = { '财务': 'var(--success)', '客户': 'var(--primary)', '流程': 'var(--warning)', '学习成长': 'var(--danger)' };
-        const typeBadgeStyle = { '月度': 'background: var(--primary-light); color: var(--primary);', '季度': 'background: rgba(82,196,26,0.1); color: var(--success);', '年度': 'background: rgba(250,173,20,0.1); color: var(--warning);', '专项': 'background: rgba(245,34,45,0.08); color: var(--danger);' };
-
-        // ---- 计算汇总数据 ----
+        // ---- 计算汇总 ----
         const totalMeetings = meetings.length;
-        const doneMeetings = meetings.filter(m => m.status === 'done').length;
-        const totalDecisions = decisions.length;
-        const doneDecisions = decisions.filter(d => d.progress === 100).length;
-        const avgEffectiveness = effectivenessData.length > 0 ? Math.round(effectivenessData.reduce((s, e) => s + e.overallScore, 0) / effectivenessData.length) : 0;
-        const totalMinutes = minutesList.length;
-        const overdueDecisions = decisions.filter(d => d.progress < 100 && d.isOverdue).length;
+        const doneMeetings = meetings.filter(m => m.status === 'completed').length;
+        const allActions = meetings.flatMap(m => m.actions || []);
+        const allDecisions = meetings.flatMap(m => m.decisions || []);
+        const doneDecisions = allDecisions.filter(d => d.status === 'approved' || d.status === 'implemented').length;
+        const completedEffectiveness = meetings.filter(m => m.effectiveness).map(m => m.effectiveness);
+        const avgEffectiveness = completedEffectiveness.length > 0 ? Math.round(completedEffectiveness.reduce((s, e) => s + e.overallScore, 0) / completedEffectiveness.length) : 0;
+        const totalMinutes = meetings.filter(m => m.hasMinutes).length;
 
-        // ---- 会议列表卡片 ----
-        const meetingCards = meetings.map(m => {
-          const typeStyle = typeBadgeStyle[m.type] || typeBadgeStyle['月度'];
-          const minutesBtn = m.status === 'done'
-            ? (m.hasMinutes
-              ? `<button class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="alert('查看会议纪要：${m.name}')">📄 查看纪要</button>`
-              : `<button class="btn btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="alert('AI 生成会议纪要：${m.name}')">🤖 生成纪要</button>`)
-            : '';
-          const evalBtn = m.status === 'done' && m.hasMinutes
-            ? `<button class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="alert('查看效果评估：${m.name}')">⭐ 效果评估 ${m.effectivenessScore > 0 ? m.effectivenessScore : ''}</button>`
-            : '';
-          const actionArea = (minutesBtn || evalBtn) ? `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">${minutesBtn}${evalBtn}</div>` : '';
-          const participantStr = m.participants.length > 0 ? `👥 ${m.participants.slice(0, 3).join('、')}${m.participants.length > 3 ? ' 等' + m.participants.length + '人' : ''}` : '';
+        // ---- 效率四卡片 ----
+        const avgMaterialTimeliness = Math.round(meetings.filter(m => m.metrics.materialTimeliness > 0).reduce((s, m) => s + m.metrics.materialTimeliness, 0) / Math.max(1, meetings.filter(m => m.metrics.materialTimeliness > 0).length));
+        const avgResolutionTimeliness = Math.round(meetings.filter(m => m.metrics.resolutionTimeliness > 0).reduce((s, m) => s + m.metrics.resolutionTimeliness, 0) / Math.max(1, meetings.filter(m => m.metrics.resolutionTimeliness > 0).length));
+        const avgActionClosure = Math.round(meetings.filter(m => m.metrics.actionClosure > 0).reduce((s, m) => s + m.metrics.actionClosure, 0) / Math.max(1, meetings.filter(m => m.metrics.actionClosure > 0).length));
+        const avgSatisfaction = (meetings.filter(m => m.metrics.satisfaction > 0).reduce((s, m) => s + m.metrics.satisfaction, 0) / Math.max(1, meetings.filter(m => m.metrics.satisfaction > 0).length)).toFixed(1);
+
+        // ---- 辅助函数 ----
+        function formatPipelineStep(step, done) {
+          return `<div style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: ${done ? 'var(--success)' : 'var(--text-tertiary)'};">
+            <span style="width: 14px; height: 14px; border-radius: 50%; background: ${done ? 'var(--success)' : 'var(--border-color)'}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 9px;">${done ? '✓' : '○'}</span>
+            ${step.label}
+          </div>`;
+        }
+        function renderPipeline(m) {
+          const cfg = SCENARIO_CONFIG[m.scenario];
+          if (!cfg || !cfg.pipelineEnabled) {
+            return `<div style="padding: 8px 10px; background: var(--bg-page); border-radius: 6px; font-size: 12px; color: var(--text-tertiary);">一报一会：不适用</div>`;
+          }
+          const steps = PIPELINE_STEPS.map(s => formatPipelineStep(s, m.pipeline[s.key]));
+          return `<div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 10px; background: var(--bg-page); border-radius: 6px; margin-top: 10px;">${steps.join('')}</div>`;
+        }
+        function renderTabs(m) {
+          const tabLabels = { minutes: '📄 纪要', actions: '✅ 行动项', decisions: '📋 决策', eval: '⭐ 评估', principles: '📐 原则', chain: '🔗 会议链' };
+          const tabContents = {
+            minutes: m.hasMinutes
+              ? `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                  <div style="margin-bottom: 8px;"><strong>纪要状态：</strong>${m.minutesStatus === 'final' ? '已定稿' : '起草中'}</div>
+                  <div>会议已召开，纪要${m.minutesStatus === 'final' ? '已定稿并归档' : '正在起草中'}。</div>
+                 </div>`
+              : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无纪要</div>`,
+            actions: (m.actions && m.actions.length > 0)
+              ? `<div style="display: flex; flex-direction: column; gap: 6px;">${m.actions.map(a => `
+                  <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                    <span style="color: ${a.status === 'completed' ? 'var(--success)' : a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'};">${a.status === 'completed' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
+                    <span style="flex: 1; color: var(--text-secondary);">${a.content}</span>
+                    <span style="color: var(--text-tertiary); font-size: 11px;">${a.owner} · ${a.deadline}</span>
+                  </div>`).join('')}</div>`
+              : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无行动项</div>`,
+            decisions: (m.decisions && m.decisions.length > 0)
+              ? `<div style="display: flex; flex-direction: column; gap: 6px;">${m.decisions.map(d => `
+                  <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                    <span style="color: ${d.status === 'approved' || d.status === 'implemented' ? 'var(--success)' : 'var(--warning)'};">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
+                    <span style="flex: 1; color: var(--text-secondary);">${d.content}</span>
+                    <span style="color: var(--text-tertiary); font-size: 11px;">${d.owner} · ${d.deadline}</span>
+                  </div>`).join('')}</div>`
+              : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无决议</div>`,
+            eval: m.effectiveness
+              ? `<div style="font-size: 12px; color: var(--text-secondary);">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <span style="font-size: 20px; font-weight: 700; color: ${m.effectiveness.overallScore >= 90 ? 'var(--success)' : m.effectiveness.overallScore >= 80 ? 'var(--primary)' : 'var(--warning)'};">${m.effectiveness.overallScore}</span>
+                    <span style="color: var(--text-tertiary);">综合评分</span>
+                  </div>
+                  <div style="margin-bottom: 6px;">准备度 ${m.effectiveness.dimensions.preparation} · 讨论度 ${m.effectiveness.dimensions.discussion} · 决议质量 ${m.effectiveness.dimensions.decision} · 执行落地 ${m.effectiveness.dimensions.execution}</div>
+                  ${m.effectiveness.feedback.map(f => `<div style="padding-left: 8px; border-left: 2px solid var(--primary-light); margin-bottom: 3px; color: var(--text-tertiary);">💬 ${f}</div>`).join('')}
+                 </div>`
+              : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无评估</div>`,
+            principles: `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+              <div style="margin-bottom: 4px;">1. 会前材料提前 48h 分发</div>
+              <div style="margin-bottom: 4px;">2. 决议必须有负责人和截止日期</div>
+              <div style="margin-bottom: 4px;">3. 纪要 24h 内发出</div>
+              <div>4. 行动项下次会议必须复盘</div>
+            </div>`,
+            chain: `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+              ${m.upstreamMeeting ? `<div style="margin-bottom: 4px;">⬆️ 上游：<a href="javascript:void(0)" onclick="openMeetingEditor('${m.upstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.upstreamMeeting)?.title || m.upstreamMeeting}</a></div>` : '<div style="margin-bottom: 4px;">⬆️ 上游：无</div>'}
+              ${m.downstreamMeeting ? `<div>⬇️ 下游：<a href="javascript:void(0)" onclick="openMeetingEditor('${m.downstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.downstreamMeeting)?.title || m.downstreamMeeting}</a></div>` : '<div>⬇️ 下游：无</div>'}
+            </div>`
+          };
+          const tabId = 'tabs-' + m.id;
           return `
-            <div style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${m.color}; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+            <div style="margin-top: 12px;" class="meeting-tabs" data-meeting="${m.id}">
+              <div style="display: flex; gap: 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 8px;">
+                ${Object.entries(tabLabels).map(([key, label]) => `
+                  <button type="button" onclick="switchMeetingTab('${m.id}', '${key}')" class="mtab-btn-${m.id} mtab-${key}" style="padding: 6px 12px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
+                `).join('')}
+              </div>
+              <div class="mtab-content-${m.id} mtab-panel-minutes">${tabContents.minutes}</div>
+              <div class="mtab-content-${m.id} mtab-panel-actions" style="display: none;">${tabContents.actions}</div>
+              <div class="mtab-content-${m.id} mtab-panel-decisions" style="display: none;">${tabContents.decisions}</div>
+              <div class="mtab-content-${m.id} mtab-panel-eval" style="display: none;">${tabContents.eval}</div>
+              <div class="mtab-content-${m.id} mtab-panel-principles" style="display: none;">${tabContents.principles}</div>
+              <div class="mtab-content-${m.id} mtab-panel-chain" style="display: none;">${tabContents.chain}</div>
+            </div>
+          `;
+        }
+        window.switchMeetingTab = function(meetingId, tabKey) {
+          document.querySelectorAll('.mtab-content-' + meetingId).forEach(el => el.style.display = 'none');
+          document.querySelectorAll('.mtab-btn-' + meetingId).forEach(el => { el.style.color = 'var(--text-tertiary)'; el.style.borderBottomColor = 'transparent'; });
+          const panel = document.querySelector('.mtab-panel-' + tabKey + '.mtab-content-' + meetingId);
+          if (panel) panel.style.display = 'block';
+          const btn = document.querySelector('.mtab-btn-' + meetingId + '.mtab-' + tabKey);
+          if (btn) { btn.style.color = 'var(--primary)'; btn.style.borderBottomColor = 'var(--primary)'; }
+        };
+        window.applyFilters = function() {
+          const month = document.getElementById('filter-month')?.value || 'all';
+          const status = document.getElementById('filter-status')?.value || 'all';
+          const scenario = document.getElementById('filter-scenario')?.value || 'all';
+          const pipeline = document.getElementById('filter-pipeline')?.value || 'all';
+          document.querySelectorAll('.meeting-card').forEach(card => {
+            let show = true;
+            if (month !== 'all' && card.dataset.month !== month) show = false;
+            if (status !== 'all' && card.dataset.status !== status) show = false;
+            if (scenario !== 'all' && card.dataset.scenario !== scenario) show = false;
+            if (pipeline !== 'all' && card.dataset.pipelineStep !== pipeline) show = false;
+            card.style.display = show ? 'block' : 'none';
+          });
+        };
+
+        // ---- 会议卡片 ----
+        const meetingCards = meetings.map(m => {
+          const sc = SCENARIO_CONFIG[m.scenario] || { label: m.scenario, color: 'var(--text-tertiary)', icon: '📋' };
+          const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
+          const agendaTags = (m.agenda_items || []).slice(0, 4).map(a => {
+            const label = AGENDA_TYPE_LABELS[a.type] || a.type;
+            return `<span style="padding: 2px 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">${label}</span>`;
+          }).join('');
+          const moreAgenda = (m.agenda_items || []).length > 4 ? `<span style="font-size: 11px; color: var(--text-tertiary);">+${m.agenda_items.length - 4}</span>` : '';
+          const pipelineStep = m.pipeline ? (Object.entries(m.pipeline).findLast(([k, v]) => v)?.[0] || 'none') : 'none';
+          return `
+            <div class="meeting-card" data-month="${m.month}" data-status="${m.status}" data-scenario="${m.scenario}" data-pipeline-step="${pipelineStep}"
+              style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${sc.color}; transition: all 0.2s; cursor: pointer;"
+              onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'" onclick="openMeetingEditor('${m.id}')">
               <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="font-size: 15px; font-weight: 600;">${m.name}</div>
-                  <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; ${typeStyle}">${m.type}</span>
+                  <div style="font-size: 15px; font-weight: 600;">${m.title}</div>
+                  <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: ${sc.color}18; color: ${sc.color};">${sc.icon} ${sc.label}</span>
+                  <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: var(--bg-card); color: var(--text-tertiary);">${m.level}</span>
                 </div>
-                <span class="status-badge ${statusBadgeClass[m.status]}">${m.statusLabel}</span>
+                <span class="status-badge ${st.badgeClass}">${st.label}</span>
               </div>
               <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
-                📅 ${m.date} ${m.time} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 主持人：${m.host}
+                📅 ${m.date} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 主持人：${m.host} &nbsp;|&nbsp; 📝 记录：${m.recorder}
               </div>
-              <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap;">
-                <span>📝 议题 ${m.topics}</span>
-                <span>✅ 决议 ${m.decisions}</span>
-                <span>📎 材料 ${m.reviewed}/${m.materials}</span>
-                ${m.materials > m.reviewed ? '<span style="color: var(--danger);">⚠️ 待审核</span>' : m.materials > 0 ? '<span style="color: var(--success);">✓ 已审完</span>' : ''}
-                ${participantStr}
+              <div style="display: flex; gap: 8px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; align-items: center;">
+                <span>📝 议程 ${m.agenda_items?.length || 0} 项</span>
+                <span>✅ 行动 ${m.actions?.length || 0} 项</span>
+                <span>📋 决议 ${m.decisions?.length || 0} 项</span>
+                ${m.hasMinutes ? '<span style="color: var(--success);">✓ 有纪要</span>' : '<span style="color: var(--text-tertiary);">○ 无纪要</span>'}
               </div>
-              ${m.agenda.length > 0 ? `<div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">${m.agenda.map(a => `<span style="padding: 3px 10px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 12px; color: var(--text-secondary);">${a}</span>`).join('')}</div>` : ''}
-              ${actionArea}
+              ${agendaTags ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">${agendaTags}${moreAgenda}</div>` : ''}
+              ${renderPipeline(m)}
+              ${renderTabs(m)}
             </div>
           `;
         }).join('');
 
-        // ---- 决议跟踪行 ----
-        const decisionRows = decisions.map(d => {
-          const overdueTag = d.isOverdue ? '<span style="color: var(--danger); font-size: 11px; margin-left: 6px;">🔴 已逾期</span>' : '';
-          return `
-            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
-              <div style="font-size: 11px; color: var(--text-tertiary); width: 50px;">${d.id}</div>
-              <div style="flex: 1; font-size: 13px;">${d.content}${overdueTag}</div>
-              <div style="font-size: 11px; padding: 1px 8px; border-radius: 4px; background: ${categoryColor[d.category]}18; color: ${categoryColor[d.category]}; width: 60px; text-align: center;">${d.category}</div>
-              <div style="font-size: 12px; color: var(--text-tertiary); width: 60px; text-align: center;">${d.owner}</div>
-              <div style="font-size: 12px; color: var(--text-tertiary); width: 90px; text-align: center;">${d.deadline}</div>
-              <div style="width: 100px;">
-                <div style="height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
-                  <div style="width: ${d.progress}%; height: 100%; background: ${progressColor[d.status]}; border-radius: 3px; transition: width 0.5s ease;"></div>
-                </div>
-                <div style="font-size: 11px; color: var(--text-tertiary); text-align: right; margin-top: 2px;">${d.progress}%</div>
+        // ---- 决议跟踪（全量） ----
+        const decisionRows = allDecisions.map(d => `
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
+            <div style="font-size: 11px; color: var(--text-tertiary); width: 50px;">${d.id}</div>
+            <div style="flex: 1; font-size: 13px;">${d.content}</div>
+            <div style="font-size: 12px; color: var(--text-tertiary); width: 60px; text-align: center;">${d.owner}</div>
+            <div style="font-size: 12px; color: var(--text-tertiary); width: 90px; text-align: center;">${d.deadline}</div>
+            <div style="width: 100px;">
+              <div style="height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
+                <div style="width: ${d.status === 'approved' || d.status === 'implemented' ? 100 : d.status === 'in_progress' ? 60 : 20}%; height: 100%; background: ${d.status === 'approved' || d.status === 'implemented' ? 'var(--success)' : d.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'}; border-radius: 3px;"></div>
               </div>
+              <div style="font-size: 11px; color: var(--text-tertiary); text-align: right; margin-top: 2px;">${d.status === 'approved' || d.status === 'implemented' ? '100%' : d.status === 'in_progress' ? '60%' : '20%'}</div>
             </div>
-          `;
-        }).join('');
+          </div>
+        `).join('');
 
         // ---- 纪要卡片 ----
-        const minutesCards = minutesList.map(m => {
-          const statusLabel = m.status === 'final' ? '已定稿' : '审核中';
-          const statusClass = m.status === 'final' ? 'status-success' : 'status-warning';
+        const minutesCards = meetings.filter(m => m.hasMinutes).map(m => {
+          const statusLabel = m.minutesStatus === 'final' ? '已定稿' : '审核中';
+          const statusClass = m.minutesStatus === 'final' ? 'status-success' : 'status-warning';
           return `
             <div style="padding: 14px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--primary); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <div style="font-size: 14px; font-weight: 600;">📄 ${m.meetingName}纪要</div>
+                <div style="font-size: 14px; font-weight: 600;">📄 ${m.title} 纪要</div>
                 <span class="status-badge ${statusClass}">${statusLabel}</span>
               </div>
-              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">生成时间：${m.generatedAt} &nbsp;|&nbsp; 行动项 ${m.actionItems} 项</div>
-              <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">${m.summary}</div>
-              <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
-                ${m.keyPoints.map(kp => `<span style="padding: 2px 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">• ${kp}</span>`).join('')}
-              </div>
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">会议日期：${m.date} &nbsp;|&nbsp; 决议 ${m.decisions?.length || 0} 项 &nbsp;|&nbsp; 行动项 ${m.actions?.length || 0} 项</div>
+              <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">会议已完成，纪要${m.minutesStatus === 'final' ? '已定稿并归档' : '正在审核中'}。</div>
             </div>
           `;
         }).join('');
 
-        // ---- 效果评估维度条 ----
-        const evalBars = (dimensions, maxWidth = 80) => {
-          const labels = { preparation: '准备度', discussion: '讨论度', decision: '决议质量', execution: '执行落地' };
-          return Object.entries(dimensions).map(([key, val]) => `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-              <div style="font-size: 11px; color: var(--text-tertiary); width: 56px; text-align: right;">${labels[key]}</div>
-              <div style="flex: 1; height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
-                <div style="width: ${val}%; height: 100%; background: ${val >= 90 ? 'var(--success)' : val >= 80 ? 'var(--primary)' : val >= 70 ? 'var(--warning)' : 'var(--danger)'}; border-radius: 3px;"></div>
-              </div>
-              <div style="font-size: 11px; color: var(--text-secondary); width: 28px; text-align: right; font-weight: 600;">${val}</div>
-            </div>
-          `).join('');
-        };
-
-        const effectivenessCards = effectivenessData.map(e => `
+        // ---- 效果评估卡片 ----
+        const effectivenessCards = completedEffectiveness.map(e => `
           <div style="padding: 14px; background: var(--bg-page); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div style="font-size: 14px; font-weight: 600;">${e.meetingName}</div>
               <div style="font-size: 20px; font-weight: 700; color: ${e.overallScore >= 90 ? 'var(--success)' : e.overallScore >= 80 ? 'var(--primary)' : 'var(--warning)'};">${e.overallScore}</div>
             </div>
-            ${evalBars(e.dimensions)}
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-light);">
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+              ${Object.entries(e.dimensions).map(([key, val]) => `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="font-size: 11px; color: var(--text-tertiary); width: 56px; text-align: right;">${{preparation:'准备度',discussion:'讨论度',decision:'决议质量',execution:'执行落地'}[key]}</div>
+                  <div style="flex: 1; height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
+                    <div style="width: ${val}%; height: 100%; background: ${val >= 90 ? 'var(--success)' : val >= 80 ? 'var(--primary)' : val >= 70 ? 'var(--warning)' : 'var(--danger)'}; border-radius: 3px;"></div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-secondary); width: 28px; text-align: right; font-weight: 600;">${val}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div style="padding-top: 8px; border-top: 1px solid var(--border-light);">
               <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">💬 参会反馈</div>
               ${e.feedback.map(fb => `<div style="font-size: 12px; color: var(--text-secondary); padding-left: 8px; border-left: 2px solid var(--primary-light); margin-bottom: 3px;">${fb}</div>`).join('')}
             </div>
@@ -741,16 +1040,18 @@
 
         // ---- 待办提醒 ----
         const todoItems = [];
-        meetings.filter(m => m.status === 'ready').forEach(m => {
-          if (m.materials > m.reviewed) todoItems.push({ icon: '📎', text: `${m.name} 有 ${m.materials - m.reviewed} 份材料待审核`, color: 'var(--danger)', link: 'reviewer.html' });
-          if (!m.hasMinutes && m.status === 'done') todoItems.push({ icon: '📄', text: `${m.name} 待生成纪要`, color: 'var(--warning)' });
+        meetings.filter(m => m.status === 'in_progress').forEach(m => {
+          if (!m.pipeline.preReviewDone) todoItems.push({ icon: '👀', text: `${m.title} 待会前评审`, color: 'var(--warning)' });
+          if (m.pipeline.meetingHeld && !m.hasMinutes) todoItems.push({ icon: '📄', text: `${m.title} 待生成纪要`, color: 'var(--warning)' });
         });
-        decisions.filter(d => d.progress < 100).forEach(d => {
-          const daysLeft = Math.ceil((new Date(d.deadline) - new Date('2026-04-15')) / (1000 * 60 * 60 * 24));
-          if (daysLeft <= 7 && daysLeft > 0) todoItems.push({ icon: '⏰', text: `${d.content} 即将到期（${daysLeft} 天）`, color: 'var(--warning)' });
+        meetings.filter(m => m.status === 'planned').forEach(m => {
+          if (!m.pipeline.reportGenerated) todoItems.push({ icon: '📝', text: `${m.title} 待生成经营分析报告`, color: 'var(--danger)' });
+        });
+        allActions.filter(a => a.status === 'pending' || a.status === 'in_progress').forEach(a => {
+          const daysLeft = Math.ceil((new Date(a.deadline) - new Date('2026-04-15')) / (1000 * 60 * 60 * 24));
+          if (daysLeft <= 7 && daysLeft > 0) todoItems.push({ icon: '⏰', text: `${a.content} 即将到期（${daysLeft} 天）`, color: 'var(--warning)' });
         });
         if (todoItems.length === 0) todoItems.push({ icon: '✅', text: '当前暂无待办事项', color: 'var(--success)' });
-
         const todoListHtml = todoItems.map(t => `
           <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 12px; color: var(--text-secondary);">
             <span style="color: ${t.color};">${t.icon}</span>
@@ -758,6 +1059,120 @@
             ${t.link ? `<a href="${t.link}" style="color: var(--primary); font-size: 11px; text-decoration: none;">去处理 →</a>` : ''}
           </div>
         `).join('');
+
+        // ---- 编辑弹窗函数 ----
+        window._meetingEditData = null;
+        window.openMeetingEditor = function(id) {
+          const m = meetings.find(x => x.id === id);
+          if (!m) return;
+          window._meetingEditData = JSON.parse(JSON.stringify(m));
+          renderEditorForm();
+          const ov = document.getElementById('meeting-editor-overlay');
+          if (ov) ov.style.display = 'flex';
+        };
+        window.closeMeetingEditor = function() {
+          const ov = document.getElementById('meeting-editor-overlay');
+          if (ov) ov.style.display = 'none';
+          window._meetingEditData = null;
+        };
+        function renderEditorForm() {
+          const d = window._meetingEditData;
+          if (!d) return;
+          document.getElementById('edit-meeting-id').value = d.id;
+          document.getElementById('edit-title').value = d.title || '';
+          document.getElementById('edit-date').value = d.date || '';
+          document.getElementById('edit-location').value = d.location || '';
+          document.getElementById('edit-host').value = d.host || '';
+          document.getElementById('edit-recorder').value = d.recorder || '';
+          document.getElementById('edit-scenario').value = d.scenario || 'hq_routine';
+          document.getElementById('edit-level').value = d.level || 'L2';
+          document.getElementById('edit-status').value = d.status || 'planned';
+          renderAgendaList();
+        }
+        function renderAgendaList() {
+          const d = window._meetingEditData;
+          const container = document.getElementById('edit-agenda-list');
+          if (!d || !container) return;
+          const list = d.agenda_items || [];
+          container.innerHTML = list.map((item, idx) => `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: var(--text-tertiary); width: 22px;">${idx + 1}.</span>
+              <select onchange="updateAgendaType(${idx}, this.value)" style="padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); width: 110px;">
+                ${Object.entries(AGENDA_TYPE_LABELS).map(([k, v]) => `<option value="${k}" ${item.type === k ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+              <input type="text" value="${item.title}" onchange="updateAgendaTitle(${idx}, this.value)" placeholder="议程标题" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <input type="number" value="${item.duration}" onchange="updateAgendaDuration(${idx}, this.value)" placeholder="分钟" min="1" style="width: 60px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <input type="text" value="${item.owner}" onchange="updateAgendaOwner(${idx}, this.value)" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↑</button>
+              <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↓</button>
+              <button type="button" onclick="removeAgendaItem(${idx})" ${list.length <= 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+            </div>
+          `).join('');
+          const total = list.reduce((s, a) => s + (parseInt(a.duration) || 0), 0);
+          document.getElementById('edit-agenda-total').textContent = '总时长：' + total + ' 分钟';
+        }
+        window.updateAgendaType = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].type = val; };
+        window.updateAgendaTitle = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].title = val; };
+        window.updateAgendaDuration = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].duration = parseInt(val) || 0; renderAgendaList(); };
+        window.updateAgendaOwner = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].owner = val; };
+        window.addAgendaItem = function() {
+          if (!window._meetingEditData) return;
+          if (!window._meetingEditData.agenda_items) window._meetingEditData.agenda_items = [];
+          window._meetingEditData.agenda_items.push({ type: 'financial_review', title: '新议程项', duration: 15, owner: '' });
+          renderAgendaList();
+        };
+        window.removeAgendaItem = function(idx) {
+          if (!window._meetingEditData?.agenda_items) return;
+          if (window._meetingEditData.agenda_items.length <= 1) { alert('至少保留一个议程项'); return; }
+          window._meetingEditData.agenda_items.splice(idx, 1);
+          renderAgendaList();
+        };
+        window.moveAgendaItem = function(idx, dir) {
+          if (!window._meetingEditData?.agenda_items) return;
+          const arr = window._meetingEditData.agenda_items;
+          const newIdx = idx + dir;
+          if (newIdx < 0 || newIdx >= arr.length) return;
+          [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+          renderAgendaList();
+        };
+        window.saveMeeting = function() {
+          const d = window._meetingEditData;
+          if (!d) return;
+          const id = document.getElementById('edit-meeting-id').value;
+          const idx = meetings.findIndex(m => m.id === id);
+          if (idx === -1) return;
+          const titleVal = document.getElementById('edit-title').value.trim();
+          const dateVal = document.getElementById('edit-date').value.trim();
+          if (!titleVal) { alert('会议名称不能为空'); return; }
+          if (!dateVal) { alert('会议日期不能为空'); return; }
+          const scenarioVal = document.getElementById('edit-scenario').value;
+          const statusVal = document.getElementById('edit-status').value;
+          const stCfg = STATUS_CONFIG[statusVal] || STATUS_CONFIG.planned;
+          meetings[idx].title = titleVal;
+          meetings[idx].date = dateVal;
+          meetings[idx].month = dateVal.slice(0, 7);
+          meetings[idx].location = document.getElementById('edit-location').value.trim() || '待确认';
+          meetings[idx].host = document.getElementById('edit-host').value.trim() || '待定';
+          meetings[idx].recorder = document.getElementById('edit-recorder').value.trim() || '待定';
+          meetings[idx].scenario = scenarioVal;
+          meetings[idx].level = document.getElementById('edit-level').value;
+          meetings[idx].status = statusVal;
+          meetings[idx].agenda_items = (d.agenda_items || []).filter(a => a.title.trim());
+          if (meetings[idx].agenda_items.length === 0) meetings[idx].agenda_items = [{ type: 'financial_review', title: '未设置议程', duration: 15, owner: '' }];
+          closeMeetingEditor();
+          apiSave('/api/meetings', meetings);
+          navigate('exe/meetings');
+        };
+        window.deleteMeeting = function() {
+          const d = window._meetingEditData;
+          if (!d) return;
+          if (!confirm('确定要删除该会议吗？此操作不可撤销。')) return;
+          const idx = meetings.findIndex(m => m.id === d.id);
+          if (idx > -1) meetings.splice(idx, 1);
+          apiSave('/api/meetings', meetings);
+          closeMeetingEditor();
+          navigate('exe/meetings');
+        };
 
         return `
           ${renderBreadcrumb('经营分析会')}
@@ -778,7 +1193,7 @@
             </div>
             <div class="kpi-card">
               <div class="kpi-label">决议总数</div>
-              <div class="kpi-value" style="color: var(--success);">${totalDecisions}</div>
+              <div class="kpi-value" style="color: var(--success);">${allDecisions.length}</div>
               <div class="kpi-trend up"><span>↑</span><span>已闭环 ${doneDecisions} 项</span></div>
             </div>
             <div class="kpi-card">
@@ -788,36 +1203,81 @@
             </div>
             <div class="kpi-card">
               <div class="kpi-label">平均效果评分</div>
-              <div class="kpi-value" style="color: ${avgEffectiveness >= 90 ? 'var(--success)' : avgEffectiveness >= 80 ? 'var(--primary)' : 'var(--warning)'};">${avgEffectiveness || '-'}</div>
-              <div class="kpi-trend up"><span>↑</span><span>基于 ${effectivenessData.length} 场评估</span></div>
+              <div class="kpi-value" style="color: ${avgEffectiveness >= 90 ? 'var(--success)' : avgEffectiveness >= 80 ? 'var(--primary)' : 'var(--warning)'}">${avgEffectiveness || '-'}</div>
+              <div class="kpi-trend up"><span>↑</span><span>基于 ${completedEffectiveness.length} 场评估</span></div>
+            </div>
+          </div>
+
+          <!-- 效率四卡片 -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">材料及时率</div>
+              <div style="font-size: 24px; font-weight: 700; color: ${avgMaterialTimeliness >= 90 ? 'var(--success)' : avgMaterialTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgMaterialTimeliness}%</div>
+              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
+                <div style="width: ${avgMaterialTimeliness}%; height: 100%; background: ${avgMaterialTimeliness >= 90 ? 'var(--success)' : avgMaterialTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+              </div>
+            </div>
+            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">决议及时率</div>
+              <div style="font-size: 24px; font-weight: 700; color: ${avgResolutionTimeliness >= 90 ? 'var(--success)' : avgResolutionTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgResolutionTimeliness}%</div>
+              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
+                <div style="width: ${avgResolutionTimeliness}%; height: 100%; background: ${avgResolutionTimeliness >= 90 ? 'var(--success)' : avgResolutionTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+              </div>
+            </div>
+            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">行动闭环率</div>
+              <div style="font-size: 24px; font-weight: 700; color: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgActionClosure}%</div>
+              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
+                <div style="width: ${avgActionClosure}%; height: 100%; background: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+              </div>
+            </div>
+            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">会议满意度</div>
+              <div style="font-size: 24px; font-weight: 700; color: ${parseFloat(avgSatisfaction) >= 4.5 ? 'var(--success)' : parseFloat(avgSatisfaction) >= 4.0 ? 'var(--primary)' : 'var(--warning)'}">${avgSatisfaction}</div>
+              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
+                <div style="width: ${(parseFloat(avgSatisfaction) / 5 * 100)}%; height: 100%; background: ${parseFloat(avgSatisfaction) >= 4.5 ? 'var(--success)' : parseFloat(avgSatisfaction) >= 4.0 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+              </div>
             </div>
           </div>
 
           <!-- 筛选栏 -->
           <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
-            <select style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
-              <option>📅 全部季度</option>
-              <option>2026 Q1</option>
-              <option>2026 Q2</option>
-              <option>2026 Q3</option>
+            <select id="filter-month" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
+              <option value="all">📅 全部月份</option>
+              <option value="2026-03">2026-03</option>
+              <option value="2026-04">2026-04</option>
+              <option value="2026-05">2026-05</option>
+              <option value="2026-06">2026-06</option>
+              <option value="2026-07">2026-07</option>
             </select>
-            <select style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
-              <option>📋 全部状态</option>
-              <option>准备中</option>
-              <option>已完成</option>
-              <option>规划中</option>
+            <select id="filter-status" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
+              <option value="all">📋 全部状态</option>
+              <option value="completed">已完成</option>
+              <option value="in_progress">准备中</option>
+              <option value="planned">规划中</option>
+              <option value="cancelled">已取消</option>
             </select>
-            <select style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
-              <option>🏷️ 全部类型</option>
-              <option>月度</option>
-              <option>季度</option>
-              <option>年度</option>
-              <option>专项</option>
+            <select id="filter-scenario" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
+              <option value="all">🏷️ 全部场景</option>
+              <option value="union_quarterly">片联季度会议</option>
+              <option value="hq_routine">营销本部月/双周会</option>
+              <option value="region_routine">战区月度经营分析会</option>
+              <option value="lagging_region">落后战区业绩承诺会</option>
+              <option value="lagging_vertical">落后垂直客群经分会</option>
+            </select>
+            <select id="filter-pipeline" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
+              <option value="all">📝 全部一报一会阶段</option>
+              <option value="reportGenerated">报告生成</option>
+              <option value="preReviewDone">会前评审</option>
+              <option value="meetingHeld">会议召开</option>
+              <option value="minutesDrafted">纪要起草</option>
+              <option value="minutesApproved">纪要定稿</option>
+              <option value="actionsTracked">行动追踪</option>
             </select>
             <div style="margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-tertiary);">
-              <span>📝 议题 <strong style="color: var(--text-primary);">18</strong></span>
-              <span>✅ 决议 <strong style="color: var(--text-primary);">${totalDecisions}</strong></span>
-              <span>📎 材料 <strong style="color: var(--text-primary);">20/20</strong></span>
+              <span>📝 议题 <strong style="color: var(--text-primary);">${meetings.reduce((s, m) => s + (m.agenda_items?.length || 0), 0)}</strong></span>
+              <span>✅ 决议 <strong style="color: var(--text-primary);">${allDecisions.length}</strong></span>
+              <span>📎 材料 <strong style="color: var(--text-primary);">${meetings.filter(m => m.pipeline.reportGenerated).length}/${meetings.length}</strong></span>
             </div>
           </div>
 
@@ -841,20 +1301,17 @@
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">本年会议</div>
                   </div>
                   <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--success);">${Math.round((doneDecisions / totalDecisions) * 100)}%</div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--success);">${Math.round((doneDecisions / Math.max(1, allDecisions.length)) * 100)}%</div>
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">决议闭环率</div>
                   </div>
                   <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--warning);">${decisions.filter(d => d.progress < 100).length}</div>
-                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待闭环</div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--warning);">${allActions.filter(a => a.status === 'pending' || a.status === 'in_progress').length}</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待闭环行动</div>
                   </div>
                   <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--danger);">${meetings.filter(m => m.materials > m.reviewed).reduce((s, m) => s + (m.materials - m.reviewed), 0)}</div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--danger);">${meetings.filter(m => m.status === 'in_progress' && !m.pipeline.reportGenerated).length}</div>
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待审核材料</div>
                   </div>
-                </div>
-                <div style="text-align: center; padding-top: 8px;">
-                  <a href="reviewer.html" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; text-decoration: none;">📋 审核会议材料</a>
                 </div>
               </div>
               <div class="card">
@@ -888,7 +1345,7 @@
           <div class="card" style="margin-bottom: 16px;">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
               <div class="card-title">📄 会议纪要</div>
-              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${minutesList.length} 份</span>
+              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${totalMinutes} 份</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 12px;">
               ${minutesCards}
@@ -910,13 +1367,12 @@
           <div class="card" style="margin-bottom: 16px;">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
               <div class="card-title">✅ 决议跟踪</div>
-              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${decisions.length} 项 &nbsp;|&nbsp; 已闭环 ${doneDecisions} 项 &nbsp;|&nbsp; 待闭环 ${decisions.length - doneDecisions} 项</span>
+              <span style="font-size: 12px; color: var(--text-tertiary);">共 ${allDecisions.length} 项 &nbsp;|&nbsp; 已闭环 ${doneDecisions} 项 &nbsp;|&nbsp; 待闭环 ${allDecisions.length - doneDecisions} 项</span>
             </div>
             <div style="padding: 0 4px;">
               <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 12px; font-weight: 600; color: var(--text-tertiary);">
                 <div style="width: 50px;">编号</div>
                 <div style="flex: 1;">决议内容</div>
-                <div style="width: 60px; text-align: center;">维度</div>
                 <div style="width: 60px; text-align: center;">负责人</div>
                 <div style="width: 90px; text-align: center;">截止日期</div>
                 <div style="width: 100px;">进度</div>
@@ -928,10 +1384,87 @@
           <div class="related-links">
             <div class="related-links-label">关联功能</div>
             <div class="related-links-row">
-              <a class="related-link" href="#exe/tasks" onclick="event.preventDefault(); navigate('exe/tasks')">✅ 重点工作</a>
-              <a class="related-link" href="#rev/review" onclick="event.preventDefault(); navigate('rev/review')">🔄 战略复盘</a>
-              <a class="related-link" href="#bp/kpi" onclick="event.preventDefault(); navigate('bp/kpi')">📈 KPI 看板</a>
+              <a class="related-link" href="#exe/tasks" data-navigate="exe/tasks">✅ 重点工作</a>
+              <a class="related-link" href="#rev/review" data-navigate="rev/review">🔄 战略复盘</a>
+              <a class="related-link" href="#bp/kpi" data-navigate="bp/kpi">📈 KPI 看板</a>
               <a class="related-link" href="reviewer.html">📋 会议材料审核</a>
+            </div>
+          </div>
+
+          <!-- 会议编辑弹窗 -->
+          <div id="meeting-editor-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000; align-items: center; justify-content: center; padding: 24px;">
+            <div style="background: var(--bg-card); border-radius: 12px; max-width: 760px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); display: flex; flex-direction: column;">
+              <div style="padding: 20px 24px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">✏️ 编辑会议</h2>
+                <button onclick="closeMeetingEditor()" style="background: none; border: none; font-size: 22px; color: var(--text-tertiary); cursor: pointer; line-height: 1;">×</button>
+              </div>
+              <div style="padding: 20px 24px; overflow-y: auto; flex: 1;">
+                <input type="hidden" id="edit-meeting-id" />
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">基本信息</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会议名称 <span style="color: var(--danger);">*</span></label>
+                    <input type="text" id="edit-title" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会议日期 <span style="color: var(--danger);">*</span></label>
+                    <input type="date" id="edit-date" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">地点</label>
+                    <input type="text" id="edit-location" placeholder="例如 会议室 A" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">主持人</label>
+                    <input type="text" id="edit-host" placeholder="例如 张总" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">记录人</label>
+                    <input type="text" id="edit-recorder" placeholder="例如 Jason.Jing" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会议场景</label>
+                    <select id="edit-scenario" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;">
+                      <option value="union_quarterly">🏛️ 片联季度会议</option>
+                      <option value="hq_routine">📅 营销本部月/双周会</option>
+                      <option value="region_routine">🗺️ 战区月度经营分析会</option>
+                      <option value="lagging_region">🚨 落后战区业绩承诺会</option>
+                      <option value="lagging_vertical">⚠️ 落后垂直客群经分会</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">层级</label>
+                    <select id="edit-level" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;">
+                      <option value="L1">L1 — 片联</option>
+                      <option value="L2">L2 — 营销本部</option>
+                      <option value="L3">L3 — 战区/垂直</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">状态</label>
+                    <select id="edit-status" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;">
+                      <option value="planned">规划中</option>
+                      <option value="in_progress">准备中</option>
+                      <option value="completed">已完成</option>
+                      <option value="cancelled">已取消</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">议程项</div>
+                  <div id="edit-agenda-total" style="font-size: 12px; color: var(--text-tertiary);">总时长：0 分钟</div>
+                </div>
+                <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
+                <button type="button" onclick="addAgendaItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加议程项</button>
+              </div>
+              <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-page);">
+                <button type="button" onclick="deleteMeeting()" style="padding: 8px 16px; font-size: 13px; border: 1px solid var(--danger); border-radius: 6px; background: rgba(245,34,45,0.08); color: var(--danger); cursor: pointer; font-weight: 500;">🗑️ 删除</button>
+                <div style="display: flex; gap: 10px;">
+                  <button type="button" onclick="closeMeetingEditor()" style="padding: 8px 18px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">取消</button>
+                  <button type="button" onclick="saveMeeting()" style="padding: 8px 18px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">保存</button>
+                </div>
+              </div>
             </div>
           </div>
         `;
@@ -1012,9 +1545,9 @@
           <div class="related-links">
             <div class="related-links-label">关联功能</div>
             <div class="related-links-row">
-              <a class="related-link" href="#sp/strategy-map" onclick="event.preventDefault(); navigate('sp/strategy-map')">🗺️ 战略地图</a>
-              <a class="related-link" href="#exe/business-topics" onclick="event.preventDefault(); navigate('exe/business-topics')">📂 业务专题</a>
-              <a class="related-link" href="#bp/kpi" onclick="event.preventDefault(); navigate('bp/kpi')">📈 KPI 看板</a>
+              <a class="related-link" href="#sp/strategy-map" data-navigate="sp/strategy-map">🗺️ 战略地图</a>
+              <a class="related-link" href="#exe/business-topics" data-navigate="exe/business-topics">📂 业务专题</a>
+              <a class="related-link" href="#bp/kpi" data-navigate="bp/kpi">📈 KPI 看板</a>
             </div>
           </div>
         `;
@@ -1116,9 +1649,9 @@
           <div class="related-links">
             <div class="related-links-label">关联功能</div>
             <div class="related-links-row">
-              <a class="related-link" href="#exe/tasks" onclick="event.preventDefault(); navigate('exe/tasks')">✅ 重点工作</a>
-              <a class="related-link" href="#exe/meetings" onclick="event.preventDefault(); navigate('exe/meetings')">🎯 经营分析会</a>
-              <a class="related-link" href="#sp/strategy-topics" onclick="event.preventDefault(); navigate('sp/strategy-topics')">📋 战略专题</a>
+              <a class="related-link" href="#exe/tasks" data-navigate="exe/tasks">✅ 重点工作</a>
+              <a class="related-link" href="#exe/meetings" data-navigate="exe/meetings">🎯 经营分析会</a>
+              <a class="related-link" href="#sp/strategy-topics" data-navigate="sp/strategy-topics">📋 战略专题</a>
             </div>
           </div>
         `;
@@ -1162,7 +1695,7 @@
         if (currentPhase === 'dashboard' && currentPage !== 'dashboard') {
           return `
             <div class="breadcrumb">
-              <a href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">驾驶舱</a>
+              <a href="#dashboard" data-navigate="dashboard">驾驶舱</a>
               <span class="breadcrumb-separator">/</span>
               <span>${pageName}</span>
             </div>
@@ -1173,9 +1706,9 @@
         }
         return `
           <div class="breadcrumb">
-            <a href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">驾驶舱</a>
+            <a href="#dashboard" data-navigate="dashboard">驾驶舱</a>
             <span class="breadcrumb-separator">/</span>
-            <a href="#${phase.defaultPage}" onclick="event.preventDefault(); navigate('${phase.defaultPage}')">${phase.name}</a>
+            <a href="#${phase.defaultPage}" data-navigate="${phase.defaultPage}">${phase.name}</a>
             <span class="breadcrumb-separator">/</span>
             <span>${pageName}</span>
           </div>
@@ -1312,7 +1845,7 @@
           const pulse = v.status === 'released' ? '' : 'animation: pulse 2s infinite;';
           const keyChanges = v.changes.slice(0, 2).map(c => `<span style="padding: 1px 6px; border-radius: 3px; font-size: 10px; background: ${typeColors[c.type]}18; color: ${typeColors[c.type]};">${c.desc.substring(0, 8)}${c.desc.length > 8 ? '...' : ''}</span>`).join('');
           return `
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 120px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" onclick="document.getElementById('version-${v.version}').scrollIntoView({behavior:'smooth', block:'center'})" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 120px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" data-scroll-to="version-${v.version}" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
               <div style="width: 14px; height: 14px; border-radius: 50%; background: ${color}; box-shadow: 0 0 0 4px ${color}33; ${pulse}"></div>
               <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${v.version}</div>
               <div style="font-size: 11px; color: var(--text-tertiary);">${v.date}</div>
@@ -1403,10 +1936,10 @@
           <div class="page-header">
             <h1 class="page-title">开发路线图 Road Map</h1>
             <div class="page-actions">
-              <button class="btn btn-secondary" onclick="filterRoadmap('all')">全部</button>
-              <button class="btn btn-secondary" onclick="filterRoadmap('done')">已达成</button>
-              <button class="btn btn-secondary" onclick="filterRoadmap('doing')">攻坚中</button>
-              <button class="btn btn-secondary" onclick="filterRoadmap('todo')">战略必争</button>
+              <button class="btn btn-secondary" data-filter-roadmap="all">全部</button>
+              <button class="btn btn-secondary" data-filter-roadmap="done">已达成</button>
+              <button class="btn btn-secondary" data-filter-roadmap="doing">攻坚中</button>
+              <button class="btn btn-secondary" data-filter-roadmap="todo">战略必争</button>
             </div>
           </div>
 
@@ -1504,7 +2037,7 @@
           <div class="related-links">
             <div class="related-links-label">关联功能</div>
             <div class="related-links-row">
-              <a class="related-link" href="#dashboard" onclick="event.preventDefault(); navigate('dashboard')">🎛️ 驾驶舱概览</a>
+              <a class="related-link" href="#dashboard" data-navigate="dashboard">🎛️ 驾驶舱概览</a>
               <a class="related-link" href="reviewer.html">📋 会议材料审核</a>
               <a class="related-link" href="business-topics.html">📂 业务专题管理</a>
             </div>
@@ -1526,7 +2059,7 @@
       }
 
       // 开发路线图筛选
-      function filterRoadmap(filter) {
+      window.filterRoadmap = function(filter) {
         const rows = document.querySelectorAll('[data-module-status]');
         rows.forEach(row => {
           const status = row.dataset.moduleStatus;

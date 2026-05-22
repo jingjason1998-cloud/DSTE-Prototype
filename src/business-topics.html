@@ -1401,6 +1401,122 @@
         .detail-kpi-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; }
         .detail-kpi-value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
         .tag-list { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* ===== AI 匹配建议卡片 ===== */
+        .ai-match-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .ai-match-card:hover {
+            border-color: var(--accent-indigo);
+            background: rgba(94,106,210,0.04);
+        }
+        .ai-match-card.selected {
+            border-color: var(--accent-indigo);
+            background: rgba(94,106,210,0.08);
+            box-shadow: 0 0 0 2px rgba(94,106,210,0.15);
+        }
+        .ai-match-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+        }
+        .ai-match-score {
+            width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;
+        }
+        .ai-match-score.high { background: linear-gradient(135deg, #10b981, #059669); }
+        .ai-match-score.medium { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .ai-match-score.low { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .ai-match-info { flex: 1; min-width: 0; }
+        .ai-match-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ai-match-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .ai-match-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .ai-match-reason {
+            font-size: 11px; padding: 3px 8px; border-radius: 12px; background: rgba(94,106,210,0.1); color: var(--accent-violet); font-weight: 500;
+        }
+        .ai-match-actions {
+            display: flex; gap: 8px; margin-top: 10px; align-items: center;
+        }
+        .ai-match-actions select {
+            font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-standard);
+            background: var(--bg-surface); color: var(--text-primary);
+        }
+
+        /* ===== 关联议题卡片（详情页） ===== */
+        .issue-link-card {
+            background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 14px;
+            transition: all 0.2s; position: relative;
+        }
+        .issue-link-card:hover {
+            border-color: var(--border-standard); transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .issue-link-card .relation-badge {
+            position: absolute; top: 10px; right: 10px;
+            font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600;
+        }
+        .relation-badge.direct { background: rgba(239,68,68,0.12); color: #ef4444; }
+        .relation-badge.support { background: rgba(59,130,246,0.12); color: #3b82f6; }
+        .relation-badge.reference { background: rgba(107,114,128,0.12); color: #6b7280; }
+        .issue-link-card .issue-icon {
+            width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+        .issue-link-card .issue-icon.st { background: rgba(139,92,246,0.12); }
+        .issue-link-card .issue-icon.at { background: rgba(6,182,212,0.12); }
+        .issue-link-card .issue-title {
+            font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .issue-link-card .issue-meta {
+            font-size: 12px; color: var(--text-muted); margin-top: 4px;
+        }
+        .issue-link-card .issue-actions {
+            display: flex; gap: 8px; margin-top: 10px;
+        }
+
+        /* ===== 关联议题列表（弹窗）优化 ===== */
+        .link-issue-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 6px; transition: all 0.2s;
+            background: var(--bg-surface);
+        }
+        .link-issue-item:hover {
+            border-color: var(--border-standard);
+        }
+        .link-issue-item.linked {
+            border-color: rgba(94,106,210,0.3);
+            background: rgba(94,106,210,0.04);
+        }
+        .link-issue-item .link-issue-badge {
+            font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap;
+        }
+        .link-issue-badge.st { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+        .link-issue-badge.at { background: rgba(6,182,212,0.12); color: #06b6d4; }
+        .link-issue-badge.relation-direct { background: rgba(239,68,68,0.12); color: #ef4444; }
+        .link-issue-badge.relation-support { background: rgba(59,130,246,0.12); color: #3b82f6; }
+        .link-issue-badge.relation-reference { background: rgba(107,114,128,0.12); color: #6b7280; }
+
+        /* ===== 可排序表头 ===== */
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+        .sortable-header:hover {
+            color: var(--accent-violet);
+        }
+        .sort-indicator {
+            display: inline-block;
+            min-width: 14px;
+            font-size: 12px;
+            color: var(--accent-violet);
+        }
     </style>
 </head>
 <body>
@@ -1451,11 +1567,14 @@
                 <div class="page-subtitle" id="pageSubtitle">战略执行层业务攻坚 · 季度-年度业务议题聚合</div>
             </div>
             <div class="nav-actions">
-                <button class="btn btn-ghost" onclick="exportTopics()">📥 导出</button>
+                <button class="btn btn-ghost" onclick="exportTopics()">📤 导出备份</button>
+                <button class="btn btn-ghost" onclick="document.getElementById('backupFileInput').click()">📥 导入备份</button>
+                <input type="file" id="backupFileInput" style="display:none" accept=".json" onchange="importTopicsFromFile(event)">
                 <button class="btn btn-ghost" onclick="openImportModal()">📋 导入议题</button>
                 <button class="btn btn-primary" onclick="openFormModal()">+ 新建业务专题</button>
             </div>
         </div>
+
 
         <div class="page-content">
             <div style="display: flex; gap: 16px; margin-bottom: 20px;">
@@ -1501,14 +1620,14 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>专题名称</th>
-                            <th>优先级</th>
-                            <th>负责人</th>
-                            <th>责任部门</th>
-                            <th>时间周期</th>
-                            <th>进度</th>
-                            <th>状态</th>
-                            <th>议题关联</th>
+                            <th class="sortable-header" onclick="toggleSort('name')" data-sort-field="name">专题名称 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" onclick="toggleSort('priority')" data-sort-field="priority">优先级 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" onclick="toggleSort('owner')" data-sort-field="owner">负责人 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" onclick="toggleSort('department')" data-sort-field="department">责任部门 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" onclick="toggleSort('startDate')" data-sort-field="startDate">时间周期 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" onclick="toggleSort('progress')" data-sort-field="progress">进度 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" onclick="toggleSort('status')" data-sort-field="status">状态 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" onclick="toggleSort('linkedIssues')" data-sort-field="linkedIssues">议题关联 <span class="sort-indicator"></span></th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -1742,19 +1861,20 @@
 
     <!-- 关联议题选择弹窗 -->
     <div class="modal-overlay" id="linkIssuesModal">
-        <div class="modal-content" style="max-width: 640px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-content" style="max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;">
             <button class="modal-close" onclick="closeModal('linkIssuesModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title">🔗 关联议题</div>
                 <div class="modal-subtitle" id="linkIssuesSubtitle">选择要关联的议题</div>
             </div>
-            <div style="margin-bottom: 12px;">
-                <input type="text" id="linkIssuesSearch" class="form-input" placeholder="搜索议题..." oninput="renderLinkIssuesList()" style="width: 100%;">
+            <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                <button class="btn btn-ghost" style="flex:1;" onclick="_linkIssuesFilter = 'all'; renderLinkIssuesList();" id="linkFilterAll">全部</button>
+                <button class="btn btn-ghost" style="flex:1;" onclick="_linkIssuesFilter = 'ST'; renderLinkIssuesList();">🏛️ ST</button>
+                <button class="btn btn-ghost" style="flex:1;" onclick="_linkIssuesFilter = 'AT'; renderLinkIssuesList();">🏢 AT</button>
+                <button class="btn btn-primary" style="flex:1.5; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));" onclick="openAiMatchModal()">🤖 AI 智能匹配</button>
             </div>
-            <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-                <button class="btn btn-ghost" onclick="_linkIssuesFilter = 'all'; renderLinkIssuesList();" id="linkFilterAll">全部</button>
-                <button class="btn btn-ghost" onclick="_linkIssuesFilter = 'ST'; renderLinkIssuesList();">🏛️ ST</button>
-                <button class="btn btn-ghost" onclick="_linkIssuesFilter = 'AT'; renderLinkIssuesList();">🏢 AT</button>
+            <div style="margin-bottom: 12px;">
+                <input type="text" id="linkIssuesSearch" class="form-input" placeholder="🔍 搜索议题编号、标题、部门..." oninput="renderLinkIssuesList()" style="width: 100%;">
             </div>
             <div id="linkIssuesList" style="flex: 1; overflow-y: auto; min-height: 200px;">
                 <!-- JS rendered -->
@@ -1762,6 +1882,37 @@
             <div class="form-actions" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color);">
                 <button type="button" class="btn btn-ghost" onclick="closeModal('linkIssuesModal')">取消</button>
                 <button type="button" class="btn btn-primary" onclick="saveTopicLinks()">保存关联</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 智能匹配建议弹窗 -->
+    <div class="modal-overlay" id="aiMatchModal">
+        <div class="modal-content" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-close" onclick="closeModal('aiMatchModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title">🤖 AI 智能关联建议</div>
+                <div class="modal-subtitle" id="aiMatchSubtitle">基于部门、关键词、KPI、时间窗口等维度分析</div>
+            </div>
+            <div id="aiMatchLoading" style="text-align:center; padding: 40px;">
+                <div style="font-size: 32px; margin-bottom: 12px;">🧠</div>
+                <div style="font-size: 14px; color: var(--text-secondary);">AI 正在分析专题与议题的关联度...</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">匹配维度：部门一致性 · 关键词重叠 · KPI关联 · 时间窗口 · 优先级</div>
+            </div>
+            <div id="aiMatchContent" style="display: none;">
+                <div id="aiMatchStats" style="margin-bottom: 16px; padding: 12px 16px; background: var(--bg-surface); border-radius: 8px; font-size: 13px; color: var(--text-secondary);"></div>
+                <div id="aiMatchList" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- JS rendered -->
+                </div>
+            </div>
+            <div id="aiMatchEmpty" style="display: none; text-align: center; padding: 40px; color: var(--text-muted);">
+                <div style="font-size: 32px; margin-bottom: 12px;">🔍</div>
+                <div style="font-size: 14px;">未发现高关联度议题</div>
+                <div style="font-size: 12px; margin-top: 8px;">建议导入更多议题数据，或检查专题信息是否完整</div>
+            </div>
+            <div class="form-actions" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('aiMatchModal')">关闭</button>
+                <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" onclick="applyAiMatches()" style="display:none;">✅ 关联选中建议</button>
             </div>
         </div>
     </div>
@@ -1817,6 +1968,42 @@
         let _cachedTopics = null;
         let _deleteTargetId = null;
         let _currentTab = 'all';
+        let _sortConfig = { field: 'priority', direction: 'desc' };
+
+        // ===== API 同步配置 =====
+        const API_BASE = (() => {
+            // 生产环境使用 Cloudflare Worker，开发环境可覆盖
+            const host = window.location.hostname;
+            if (host === 'localhost' || host === '127.0.0.1') {
+                return localStorage.getItem('dste_api_base') || '';
+            }
+            return 'https://dste-api.your-subdomain.workers.dev';
+        })();
+
+        async function apiSave(endpoint, data) {
+            if (!API_BASE) return;
+            try {
+                await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+            } catch (e) {
+                console.warn('API save failed (offline?), data kept in localStorage:', e.message);
+            }
+        }
+
+        async function apiLoad(endpoint) {
+            if (!API_BASE) return null;
+            try {
+                const resp = await fetch(API_BASE + endpoint);
+                const json = await resp.json();
+                return json.success ? json.data : null;
+            } catch (e) {
+                console.warn('API load failed (offline?):', e.message);
+                return null;
+            }
+        }
 
         function loadTopics() {
             if (_cachedTopics) return [..._cachedTopics];
@@ -1833,9 +2020,10 @@
         function saveTopics(topics) {
             _cachedTopics = topics;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
+            apiSave('/api/topics', topics); // 同步到云端
         }
 
-        function initDefaultData() {
+        function initDefaultData(shouldSave = true) {
             const now = new Date().toISOString();
             const topics = [
                 {
@@ -2038,8 +2226,32 @@
                     createdAt: "2026-05-19T17:24:00.297250",
                     updatedAt: "2026-05-19T17:24:00.297250",
                 },
+                {
+                    id: "bt_1779433644768_921",
+                    name: "战区-销售组长带人人数制度的优化",
+                    description: "组长带人人数的限制政策在当下是否需要优化？如何优化？",
+                    target: "修改完善制度，提高带人人数20人以上；",
+                    priority: "P2",
+                    status: "in_progress",
+                    owner: "方朱穆睿",
+                    department: "",
+                    progress: 0,
+                    startDate: "2026-03-27",
+                    endDate: "2026-06-30",
+                    budget: 0,
+                    actualCost: 0,
+                    milestones: [{id: "ms_1779433586058_286", name: "方案提交片联AT会议决策", date: "2026-06-03", status: "pending"}, {id: "ms_1779433604521_319", name: "管理制度正式发布与执行", date: "2026-06-30", status: "pending"}],
+                    tags: [],
+                    summary: '',
+                    createdAt: "2026-05-22T07:07:24.768Z",
+                    updatedAt: "2026-05-22T07:07:24.768Z",
+                    linkedIssues: [],
+                    linkedKpis: [],
+                    issueStats: {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null},
+                    dataVersion: 2,
+                },
             ];
-            saveTopics(topics);
+            if (shouldSave) saveTopics(topics);
             return topics;
         }
 
@@ -2153,6 +2365,9 @@
         function saveIssues(issues, sourceSystem) {
             const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
             localStorage.setItem(key, JSON.stringify(issues || []));
+            // 同步到云端（合并 ST + AT）
+            const allIssues = [...loadIssues('ST'), ...loadIssues('AT')];
+            apiSave('/api/issues', allIssues);
         }
 
         function loadAllIssues() {
@@ -2583,6 +2798,7 @@
             const allIssues = loadAllIssues();
             const topic = loadTopics().find(t => t.id === _currentLinkTopicId);
             const linkedIds = new Set((topic?.linkedIssues || []).map(li => li.issueId));
+            const linkedMap = new Map((topic?.linkedIssues || []).map(li => [li.issueId, li]));
 
             let filtered = allIssues;
             if (_linkIssuesFilter !== 'all') {
@@ -2603,16 +2819,22 @@
 
             container.innerHTML = filtered.map(issue => {
                 const isLinked = linkedIds.has(issue.issueId);
-                const existing = topic?.linkedIssues?.find(li => li.issueId === issue.issueId);
+                const existing = linkedMap.get(issue.issueId);
                 const relationType = existing?.relationType || 'support';
-                const icon = issue.sourceSystem === 'ST' ? '🏛️' : '🏢';
-                return `<div style="padding: 10px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="link_cb_${issue.issueId}" ${isLinked ? 'checked' : ''} style="cursor:pointer;" onchange="document.getElementById('link_rel_${issue.issueId}').style.display = this.checked ? 'inline' : 'none'">
-                    <div style="flex: 1;">
-                        <div style="font-weight: 500; font-size: 13px;">${icon} ${escapeHtml(issue.issueId)} ${escapeHtml(issue.issueTitle)}</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(issue.meetingName)} · ${escapeHtml(issue.department)} · ${escapeHtml(issue.status)}</div>
+                const badgeClass = issue.sourceSystem === 'ST' ? 'st' : 'at';
+                const relBadgeClass = relationType === 'direct' ? 'relation-direct' : relationType === 'support' ? 'relation-support' : 'relation-reference';
+                const relLabel = relationType === 'direct' ? '直接驱动' : relationType === 'support' ? '相关支撑' : '参考关联';
+                return `<div class="link-issue-item ${isLinked ? 'linked' : ''}">
+                    <input type="checkbox" id="link_cb_${issue.issueId}" ${isLinked ? 'checked' : ''} style="cursor:pointer; width: 16px; height: 16px; accent-color: var(--accent-indigo);" onchange="document.getElementById('link_rel_${issue.issueId}').style.display = this.checked ? 'inline-block' : 'none'; this.closest('.link-issue-item').classList.toggle('linked', this.checked);">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+                            <span class="link-issue-badge ${badgeClass}">${issue.sourceSystem}</span>
+                            <span style="font-weight: 600; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(issue.issueId)} ${escapeHtml(issue.issueTitle)}</span>
+                            ${isLinked ? `<span class="link-issue-badge ${relBadgeClass}">${relLabel}</span>` : ''}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(issue.meetingName)} · ${escapeHtml(issue.department)} · ${escapeHtml(issue.status)}${issue.priority ? ' · ' + issue.priority : ''}</div>
                     </div>
-                    <select id="link_rel_${issue.issueId}" style="font-size: 12px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); display: ${isLinked ? 'inline' : 'none'};">
+                    <select id="link_rel_${issue.issueId}" style="font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-standard); display: ${isLinked ? 'inline-block' : 'none'}; background: var(--bg-surface); color: var(--text-primary); min-width: 90px;">
                         <option value="direct" ${relationType === 'direct' ? 'selected' : ''}>直接驱动</option>
                         <option value="support" ${relationType === 'support' ? 'selected' : ''}>相关支撑</option>
                         <option value="reference" ${relationType === 'reference' ? 'selected' : ''}>参考关联</option>
@@ -2648,6 +2870,216 @@
             });
 
             closeModal('linkIssuesModal');
+        }
+
+        // ===================== AI 智能匹配 =====================
+        let _aiMatchTopicId = null;
+        let _aiMatchResults = [];
+
+        function extractKeywords(text) {
+            if (!text) return [];
+            const stopWords = new Set(['的','了','在','是','和','就','不','都','一','上','也','很','到','说','要','去','会','着','看','好','这','那','个','为','与','及','等','对','可','能','由','从','被','将','于','中','而','或','但','如','若','给','以','之','其','有','我','你','他','她','它','们','来','过','下','大','小','多','少','高','低','长','短','新','旧','年','月','日','时','分','秒','第','把','让','向','往','前','后','左','右','内','外','间','里','面','方','头','部','件','项','条','种','类','次','回','期','轮','批','组','套','份','块','片','段','节','章','款','则','条','例','案','题','问','答','话','文','字','词','句','行','页','栏','列','层','级','阶','段','步','环','点','线','面','体','量','度','率','比','值','数','额','量','价','金','钱','元','万','亿']);
+            const cleaned = text.toLowerCase().replace(/[^\u4e00-\u9fff\w]/g, ' ');
+            const words = cleaned.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w));
+            return [...new Set(words)].slice(0, 20);
+        }
+
+        function jaccardSimilarity(a, b) {
+            if (!a.length || !b.length) return 0;
+            const setA = new Set(a);
+            const setB = new Set(b);
+            const intersection = new Set([...setA].filter(x => setB.has(x)));
+            const union = new Set([...setA, ...setB]);
+            return intersection.size / Math.max(union.size, 1);
+        }
+
+        function computeAiMatchScore(topic, issue) {
+            let score = 0;
+            let reasons = [];
+            let relationSuggestion = 'support';
+
+            // 1. 部门匹配 (权重 0.25)
+            if (topic.department && issue.department) {
+                const tDept = topic.department.trim();
+                const iDept = issue.department.trim();
+                if (tDept === iDept) {
+                    score += 0.25;
+                    reasons.push('责任部门一致');
+                } else if (tDept.includes(iDept) || iDept.includes(tDept)) {
+                    score += 0.15;
+                    reasons.push('责任部门相关');
+                }
+            }
+
+            // 2. 关键词重叠 (权重 0.30)
+            const topicText = [topic.name, topic.description, topic.target, topic.department, ...(topic.tags || [])].join(' ');
+            const issueText = [issue.issueTitle, issue.content, issue.decision, issue.department, ...(issue.relatedKpis || [])].join(' ');
+            const topicKeywords = extractKeywords(topicText);
+            const issueKeywords = extractKeywords(issueText);
+            const keywordSim = jaccardSimilarity(topicKeywords, issueKeywords);
+            score += keywordSim * 0.30;
+            if (keywordSim > 0.3) {
+                reasons.push(`关键词高度相关(${Math.round(keywordSim * 100)}%)`);
+            } else if (keywordSim > 0.1) {
+                reasons.push(`关键词部分相关(${Math.round(keywordSim * 100)}%)`);
+            }
+
+            // 3. KPI/标签关联 (权重 0.25)
+            const topicTags = (topic.tags || []).map(t => t.toLowerCase());
+            const issueKpis = (issue.relatedKpis || []).map(k => k.toLowerCase());
+            let kpiOverlap = 0;
+            topicTags.forEach(t => {
+                issueKpis.forEach(k => {
+                    if (k.includes(t) || t.includes(k)) kpiOverlap++;
+                });
+            });
+            if (kpiOverlap > 0) {
+                score += Math.min(0.25, kpiOverlap * 0.08);
+                reasons.push(`KPI关联(${kpiOverlap}个)`);
+            }
+
+            // 4. 时间窗口 (权重 0.10)
+            if (topic.startDate && topic.endDate && issue.meetingDate) {
+                const s = new Date(topic.startDate);
+                const e = new Date(topic.endDate);
+                const m = new Date(issue.meetingDate);
+                if (m >= s && m <= e) {
+                    score += 0.10;
+                    reasons.push('议题日期在专题周期内');
+                } else {
+                    const daysDiff = Math.abs(m - Math.max(s, Math.min(m, e))) / (1000 * 60 * 60 * 24);
+                    if (daysDiff < 90) {
+                        score += 0.05;
+                        reasons.push('议题日期临近专题周期');
+                    }
+                }
+            }
+
+            // 5. 优先级加权
+            if (issue.priority === 'P0') score += 0.05;
+            else if (issue.priority === 'P1') score += 0.02;
+
+            // 6. 议题标题与专题名称直接包含关系
+            const tName = (topic.name || '').toLowerCase();
+            const iTitle = (issue.issueTitle || '').toLowerCase();
+            if (tName && iTitle && (tName.includes(iTitle) || iTitle.includes(tName))) {
+                score += 0.15;
+                reasons.push('名称高度相似');
+            }
+
+            // 关系类型建议
+            if (score >= 0.6) relationSuggestion = 'direct';
+            else if (score >= 0.35) relationSuggestion = 'support';
+            else relationSuggestion = 'reference';
+
+            const finalScore = Math.min(0.99, score);
+            return { score: finalScore, reasons, relationSuggestion, topic, issue };
+        }
+
+        function openAiMatchModal() {
+            _aiMatchTopicId = _currentLinkTopicId;
+            const topic = loadTopics().find(t => t.id === _aiMatchTopicId);
+            if (!topic) return;
+
+            document.getElementById('aiMatchSubtitle').textContent = '「' + topic.name + '」— 基于部门、关键词、KPI、时间窗口等维度分析';
+            document.getElementById('aiMatchLoading').style.display = 'block';
+            document.getElementById('aiMatchContent').style.display = 'none';
+            document.getElementById('aiMatchEmpty').style.display = 'none';
+            document.getElementById('aiMatchApplyBtn').style.display = 'none';
+            openModal('aiMatchModal');
+
+            setTimeout(() => {
+                runAiMatch(topic);
+            }, 600);
+        }
+
+        function runAiMatch(topic) {
+            const allIssues = loadAllIssues();
+            const linkedIds = new Set((topic.linkedIssues || []).map(li => li.issueId));
+            const candidates = allIssues.filter(i => !linkedIds.has(i.issueId));
+            if (candidates.length === 0) {
+                document.getElementById('aiMatchLoading').style.display = 'none';
+                document.getElementById('aiMatchEmpty').style.display = 'block';
+                return;
+            }
+
+            const results = candidates.map(issue => computeAiMatchScore(topic, issue))
+                .filter(r => r.score >= 0.15)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 10);
+
+            _aiMatchResults = results;
+            document.getElementById('aiMatchLoading').style.display = 'none';
+
+            if (results.length === 0) {
+                document.getElementById('aiMatchEmpty').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('aiMatchContent').style.display = 'block';
+            document.getElementById('aiMatchApplyBtn').style.display = 'inline-block';
+
+            const highCount = results.filter(r => r.score >= 0.5).length;
+            document.getElementById('aiMatchStats').innerHTML =
+                `分析完成 · 共扫描 ${candidates.length} 条未关联议题 · 发现 <strong style="color:var(--success)">${results.length}</strong> 条潜在关联` +
+                (highCount > 0 ? ` · <strong style="color:var(--accent-violet)">${highCount}</strong> 条高置信度` : '');
+
+            renderAiMatchResults();
+        }
+
+        function renderAiMatchResults() {
+            const container = document.getElementById('aiMatchList');
+            container.innerHTML = _aiMatchResults.map((r, idx) => {
+                const scorePct = Math.round(r.score * 100);
+                const scoreClass = scorePct >= 50 ? 'high' : scorePct >= 30 ? 'medium' : 'low';
+                const icon = r.issue.sourceSystem === 'ST' ? '🏛️' : '🏢';
+                const relLabel = r.relationSuggestion === 'direct' ? '直接驱动' : r.relationSuggestion === 'support' ? '相关支撑' : '参考关联';
+                const relColor = r.relationSuggestion === 'direct' ? '#ef4444' : r.relationSuggestion === 'support' ? '#3b82f6' : '#6b7280';
+                return `
+                <div class="ai-match-card" id="aimatch_card_${idx}">
+                    <div class="ai-match-header">
+                        <div class="ai-match-score ${scoreClass}">${scorePct}%</div>
+                        <div class="ai-match-info">
+                            <div class="ai-match-title">${icon} ${escapeHtml(r.issue.issueId)} ${escapeHtml(r.issue.issueTitle)}</div>
+                            <div class="ai-match-meta">${escapeHtml(r.issue.meetingName)} · ${escapeHtml(r.issue.department)} · ${escapeHtml(r.issue.status)} · 建议关系: <span style="color:${relColor}; font-weight:600;">${relLabel}</span></div>
+                        </div>
+                        <input type="checkbox" id="aimatch_cb_${idx}" checked style="width:18px; height:18px; accent-color: var(--accent-indigo); cursor:pointer;">
+                    </div>
+                    <div class="ai-match-reasons">
+                        ${r.reasons.map(reason => `<span class="ai-match-reason">${escapeHtml(reason)}</span>`).join('')}
+                    </div>
+                    <div class="ai-match-actions">
+                        <label style="font-size:12px; color:var(--text-muted);">关系类型:</label>
+                        <select id="aimatch_rel_${idx}">
+                            <option value="direct" ${r.relationSuggestion === 'direct' ? 'selected' : ''}>直接驱动</option>
+                            <option value="support" ${r.relationSuggestion === 'support' ? 'selected' : ''}>相关支撑</option>
+                            <option value="reference" ${r.relationSuggestion === 'reference' ? 'selected' : ''}>参考关联</option>
+                        </select>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function applyAiMatches() {
+            if (!_aiMatchTopicId || !_aiMatchResults.length) return;
+            let linkedCount = 0;
+            _aiMatchResults.forEach((r, idx) => {
+                const cb = document.getElementById('aimatch_cb_' + idx);
+                if (cb && cb.checked) {
+                    const relSelect = document.getElementById('aimatch_rel_' + idx);
+                    const relationType = relSelect ? relSelect.value : r.relationSuggestion;
+                    linkIssueToTopic(_aiMatchTopicId, r.issue.issueId, relationType);
+                    linkedCount++;
+                }
+            });
+            closeModal('aiMatchModal');
+            if (linkedCount > 0) {
+                alert(`AI 智能关联完成！已关联 ${linkedCount} 条议题`);
+                const linkModal = document.getElementById('linkIssuesModal');
+                if (linkModal && linkModal.classList.contains('active')) {
+                    renderLinkIssuesList();
+                }
+            }
         }
 
         // ===================== Phase 4: AI Global Report =====================
@@ -3106,13 +3538,47 @@
                 });
             }
 
-            // Sort: priority desc, then updatedAt desc
+            // Sort: configurable
+            const { field, direction } = _sortConfig;
+            const dir = direction === 'asc' ? 1 : -1;
             const pOrder = { P0: 3, P1: 2, P2: 1 };
+            const sOrder = { preparing: 1, in_progress: 2, done: 3, archived: 4, delayed: 5 };
+
             topics.sort((a, b) => {
-                const pa = pOrder[a.priority] || 0;
-                const pb = pOrder[b.priority] || 0;
-                if (pb !== pa) return pb - pa;
-                return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+                let cmp = 0;
+                switch (field) {
+                    case 'name':
+                        cmp = (a.name || '').localeCompare(b.name || '');
+                        break;
+                    case 'priority':
+                        cmp = (pOrder[a.priority] || 0) - (pOrder[b.priority] || 0);
+                        break;
+                    case 'owner':
+                        cmp = (a.owner || '').localeCompare(b.owner || '');
+                        break;
+                    case 'department':
+                        cmp = (a.department || '').localeCompare(b.department || '');
+                        break;
+                    case 'startDate':
+                        cmp = (a.startDate || '').localeCompare(b.startDate || '');
+                        break;
+                    case 'progress':
+                        cmp = (a.progress || 0) - (b.progress || 0);
+                        break;
+                    case 'status':
+                        cmp = (sOrder[a.status] || 0) - (sOrder[b.status] || 0);
+                        break;
+                    case 'linkedIssues':
+                        cmp = ((a.linkedIssues || []).length) - ((b.linkedIssues || []).length);
+                        break;
+                    default:
+                        cmp = (pOrder[a.priority] || 0) - (pOrder[b.priority] || 0);
+                }
+                if (cmp === 0) {
+                    // 第二排序键：更新时间
+                    cmp = (a.updatedAt || '').localeCompare(b.updatedAt || '');
+                }
+                return cmp * dir;
             });
 
             return topics;
@@ -3170,6 +3636,7 @@
                     </td>
                 </tr>`;
             }).join('');
+            updateSortIndicators();
         }
 
         function renderStats() {
@@ -3196,6 +3663,31 @@
 
         function applyFilters() {
             renderTable();
+        }
+
+        function toggleSort(field) {
+            if (_sortConfig.field === field) {
+                _sortConfig.direction = _sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                _sortConfig.field = field;
+                _sortConfig.direction = 'desc';
+            }
+            renderTable();
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('.sortable-header').forEach(th => {
+                const field = th.dataset.sortField;
+                const indicator = th.querySelector('.sort-indicator');
+                if (!indicator) return;
+                if (_sortConfig.field === field) {
+                    indicator.textContent = _sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
+                    th.style.color = 'var(--accent-violet)';
+                } else {
+                    indicator.textContent = '';
+                    th.style.color = '';
+                }
+            });
         }
 
         // ===================== Form Modal =====================
@@ -3326,6 +3818,10 @@
                 progress,
                 milestones,
                 tags,
+                linkedIssues: id ? (loadTopics().find(t => t.id === id)?.linkedIssues || []) : [],
+                linkedKpis: id ? (loadTopics().find(t => t.id === id)?.linkedKpis || []) : [],
+                issueStats: id ? (loadTopics().find(t => t.id === id)?.issueStats || {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null}) : {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null},
+                dataVersion: 2,
                 createdAt: id ? (loadTopics().find(t => t.id === id)?.createdAt || now) : now,
                 updatedAt: now,
             };
@@ -3376,21 +3872,31 @@
             const linkedIssues = topic.linkedIssues || [];
             let linkedIssuesHtml = '';
             if (linkedIssues.length > 0) {
-                linkedIssuesHtml = `<div style="display: grid; gap: 8px;">` + linkedIssues.map(li => {
+                linkedIssuesHtml = `<div style="display: grid; gap: 10px;">` + linkedIssues.map(li => {
                     const icon = li.sourceSystem === 'ST' ? '🏛️' : '🏢';
-                    return `<div style="padding: 10px 12px; background: var(--bg-surface); border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div style="font-weight: 500; font-size: 13px;">${icon} ${escapeHtml(li.issueId)} ${escapeHtml(li.issueTitle)}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(li.meetingName)} · ${escapeHtml(li.meetingDate)} · 关系: ${escapeHtml(li.relationType)}</div>
+                    const iconClass = li.sourceSystem === 'ST' ? 'st' : 'at';
+                    const relBadgeClass = li.relationType === 'direct' ? 'relation-badge direct' : li.relationType === 'support' ? 'relation-badge support' : 'relation-badge reference';
+                    const relLabel = li.relationType === 'direct' ? '直接驱动' : li.relationType === 'support' ? '相关支撑' : '参考关联';
+                    const linkStrength = li.linkStrength || 0.8;
+                    const strengthBar = `<div style="width:40px; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:4px;"><div style="width:${Math.round(linkStrength * 100)}%; height:100%; background:var(--accent-violet); border-radius:2px;"></div></div>`;
+                    return `<div class="issue-link-card">
+                        <span class="${relBadgeClass}">${relLabel}${strengthBar}</span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="issue-icon ${iconClass}">${icon}</div>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <div class="issue-title">${escapeHtml(li.issueId)} ${escapeHtml(li.issueTitle)}</div>
+                                <div class="issue-meta">${escapeHtml(li.meetingName)} · ${escapeHtml(li.meetingDate)} · ${escapeHtml(li.sourceSystem)}</div>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 6px;">
-                            <button class="op-btn" onclick="event.stopPropagation(); openIssueDetailModal('${escapeHtml(li.issueId)}')">查看</button>
-                            <button class="op-btn danger" onclick="event.stopPropagation(); unlinkIssueFromTopic('${topic.id}', '${escapeHtml(li.issueId)}'); openDetailModal('${topic.id}');">解除</button>
+                        <div class="issue-actions">
+                            <button class="op-btn" onclick="event.stopPropagation(); openIssueDetailModal('${escapeHtml(li.issueId)}')">📋 查看议题</button>
+                            <button class="op-btn" onclick="event.stopPropagation(); openLinkIssuesModal('${topic.id}');">🔗 管理关联</button>
+                            <button class="op-btn danger" onclick="event.stopPropagation(); unlinkIssueFromTopic('${topic.id}', '${escapeHtml(li.issueId)}'); openDetailModal('${topic.id}');">✕ 解除关联</button>
                         </div>
                     </div>`;
                 }).join('') + `</div>`;
             } else {
-                linkedIssuesHtml = '<div style="font-size:13px; color:var(--text-muted);">暂无关联议题 <button class="op-btn" onclick="closeModal(\'bizTopicModal\'); setTimeout(() => openLinkIssuesModal(\'' + topic.id + '\'), 200);">+ 关联议题</button></div>';
+                linkedIssuesHtml = '<div style="font-size:13px; color:var(--text-muted); padding: 16px 0;">暂无关联议题 <button class="op-btn" onclick="closeModal(\'bizTopicModal\'); setTimeout(() => openLinkIssuesModal(\'' + topic.id + '\'), 200);">+ 关联议题</button> <button class="op-btn" onclick="closeModal(\'bizTopicModal\'); setTimeout(() => { openLinkIssuesModal(\'' + topic.id + '\'); openAiMatchModal(); }, 300);">🤖 AI 智能匹配</button></div>';
             }
 
             const linkedKpis = topic.linkedKpis || [];
@@ -3518,6 +4024,46 @@
             setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
 
+        function importTopicsFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const topics = data.topics || data;
+                    if (!Array.isArray(topics)) {
+                        alert('备份文件格式错误：未找到 topics 数组');
+                        return;
+                    }
+                    // Validate topic structure
+                    const validTopics = topics.filter(t => t.id && t.name);
+                    if (validTopics.length === 0) {
+                        alert('备份文件中未找到有效的专题数据');
+                        return;
+                    }
+                    const confirmed = confirm(`确认导入备份？\n- 备份时间：${data.exportTime || '未知'}\n- 专题数量：${validTopics.length}\n- 当前专题数量：${loadTopics().length}\n\n⚠️ 导入将覆盖当前所有专题数据！`);
+                    if (!confirmed) return;
+                    // Ensure all topics have required v2 fields
+                    validTopics.forEach(t => {
+                        t.linkedIssues = t.linkedIssues || [];
+                        t.linkedKpis = t.linkedKpis || [];
+                        t.issueStats = t.issueStats || {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null};
+                        t.dataVersion = 2;
+                    });
+                    saveTopics(validTopics);
+                    renderTable();
+                    renderStats();
+                    renderDeptFilter();
+                    alert(`导入成功！共恢复 ${validTopics.length} 个专题`);
+                } catch (err) {
+                    alert('备份文件解析失败：' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
         // ===================== Modal / UI Utilities =====================
         function openModal(id) {
             document.getElementById(id).classList.add('active');
@@ -3562,11 +4108,45 @@
         }
 
         // ===================== Init =====================
-        function init() {
+        async function init() {
             migrateV1ToV2(); // v2.1: auto-migrate v1.2 data on load
-            if (loadTopics().length === 0) {
-                initDefaultData();
+
+            // 优先从云端加载数据
+            const remoteTopics = await apiLoad('/api/topics');
+            if (remoteTopics && remoteTopics.length > 0) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteTopics));
+                _cachedTopics = remoteTopics;
             }
+
+            let topics = loadTopics();
+            if (topics.length === 0) {
+                topics = initDefaultData();
+            } else {
+                // Ensure all default topics are present (merge missing ones)
+                const defaults = initDefaultData(false);
+                const existingIds = new Set(topics.map(t => t.id));
+                let added = 0;
+                defaults.forEach(d => {
+                    if (!existingIds.has(d.id)) {
+                        topics.push(d);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    saveTopics(topics);
+                }
+            }
+
+            // 同步加载云端议题数据
+            const remoteIssues = await apiLoad('/api/issues');
+            if (remoteIssues && remoteIssues.length > 0) {
+                // 按 sourceSystem 分组保存
+                const stIssues = remoteIssues.filter(i => i.sourceSystem === 'ST');
+                const atIssues = remoteIssues.filter(i => i.sourceSystem === 'AT');
+                localStorage.setItem(ISSUE_STORAGE_KEY + '_ST', JSON.stringify(stIssues));
+                localStorage.setItem(ISSUE_STORAGE_KEY + '_AT', JSON.stringify(atIssues));
+            }
+
             renderTable();
             renderStats();
             renderDeptFilter();
