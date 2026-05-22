@@ -8,6 +8,8 @@
     <meta http-equiv="Expires" content="0">
     <title>会议材料审核 - DSTE 战略管理平台</title>
     <link rel="stylesheet" href="../assets/css/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
         // DSTE 主题同步（提前初始化）
         (function() {
@@ -27,8 +29,8 @@
             padding: 0;
         }
         .reviewer-workspace {
-            background: linear-gradient(135deg, #0f1623 0%, #1a1a2e 50%, #16213e 100%);
-            color: #e0e0e0;
+            background: var(--bg-page);
+            color: var(--text-secondary);
             padding: 32px 20px;
             min-height: 100%;
         }
@@ -129,66 +131,80 @@
         }
         h1 {
             text-align: center;
-            font-size: 2.2em;
+            font-size: 2rem;
+            font-weight: 600;
             margin-bottom: 10px;
-            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-primary);
+            letter-spacing: -0.8px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         .subtitle {
             text-align: center;
-            color: #888;
+            color: var(--text-tertiary);
             margin-bottom: 40px;
-            font-size: 0.95em;
+            font-size: 1rem;
+            font-weight: 400;
         }
         .card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 30px;
             margin-bottom: 24px;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+            transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+            border-color: #d0d0d0;
+            transform: translateY(-1px);
         }
         .card h2 {
             font-size: 1.1em;
+            font-weight: 600;
             margin-bottom: 16px;
-            color: #00d4ff;
+            color: var(--text-primary);
         }
         input[type="text"] {
             width: 100%;
             padding: 14px 18px;
-            border: 2px solid rgba(255,255,255,0.15);
-            border-radius: 10px;
-            background: rgba(0,0,0,0.2);
-            color: #fff;
+            border: 1px solid #d0d0d0;
+            border-radius: 12px;
+            background: #fafafa;
+            color: var(--text-primary);
             font-size: 1em;
-            transition: border-color 0.3s;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
         }
         input[type="text"]:focus {
             outline: none;
-            border-color: #00d4ff;
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
-        input::placeholder { color: #666; }
+        input::placeholder { color: var(--text-disabled); }
         .btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 14px 28px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 10px;
-            font-size: 1em;
-            font-weight: 600;
+            border-radius: 9999px;
+            font-size: 15px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s ease;
             margin-top: 16px;
+            font-family: 'Inter', -apple-system, sans-serif;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #00d4ff, #0099cc);
-            color: #000;
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
         }
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,212,255,0.3);
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(22,119,255,0.2);
         }
         .btn-primary:disabled {
             opacity: 0.5;
@@ -196,66 +212,71 @@
             transform: none;
         }
         .btn-secondary {
-            background: rgba(255,255,255,0.1);
-            color: #fff;
-            border: 1px solid rgba(255,255,255,0.2);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
         }
         .btn-secondary:hover {
-            background: rgba(255,255,255,0.15);
+            background: var(--bg-hover);
+            border-color: var(--border-light);
         }
         .btn-success {
-            background: linear-gradient(135deg, #00ff88, #00cc66);
-            color: #000;
+            background: var(--success);
+            color: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
         }
         .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,255,100,0.3);
+            background: #389e0d;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(82,196,26,0.2);
         }
         .status {
             margin-top: 16px;
             padding: 12px 16px;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 0.9em;
             display: none;
         }
         .status.info {
             display: block;
-            background: rgba(0,212,255,0.1);
-            border: 1px solid rgba(0,212,255,0.3);
-            color: #00d4ff;
+            background: var(--primary-light);
+            border: 1px solid rgba(22,119,255,0.15);
+            color: var(--primary-dark);
         }
         .status.error {
             display: block;
-            background: rgba(255,50,50,0.1);
-            border: 1px solid rgba(255,50,50,0.3);
-            color: #ff5555;
+            background: rgba(245,34,45,0.06);
+            border: 1px solid rgba(245,34,45,0.15);
+            color: var(--danger);
         }
         .status.success {
             display: block;
-            background: rgba(0,255,100,0.1);
-            border: 1px solid rgba(0,255,100,0.3);
-            color: #00ff88;
+            background: rgba(82,196,26,0.08);
+            border: 1px solid rgba(82,196,26,0.15);
+            color: #389e0d;
         }
         .report-box {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 16px;
             padding: 24px;
             margin-top: 20px;
             font-size: 0.9em;
             line-height: 1.8;
             max-height: 600px;
             overflow-y: auto;
-            color: #e0e0e0;
+            color: var(--text-secondary);
             white-space: pre-wrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         .report-box h3 {
-            color: #00d4ff;
+            color: var(--primary);
             margin: 16px 0 8px;
             font-size: 1.1em;
+            font-weight: 600;
         }
         .report-box strong {
-            color: #ffd700;
+            color: var(--warning);
         }
         .hidden { display: none !important; }
         .spinner {
@@ -273,19 +294,20 @@
             top: 20px;
             right: 20px;
             padding: 8px 16px;
-            border-radius: 20px;
+            border-radius: 9999px;
             font-size: 0.8em;
             font-weight: 600;
+            z-index: 1000;
         }
         .proxy-status.online {
-            background: rgba(0,255,100,0.15);
-            color: #00ff88;
-            border: 1px solid rgba(0,255,100,0.3);
+            background: rgba(82,196,26,0.1);
+            color: var(--success);
+            border: 1px solid rgba(82,196,26,0.2);
         }
         .proxy-status.offline {
-            background: rgba(255,50,50,0.15);
-            color: #ff5555;
-            border: 1px solid rgba(255,50,50,0.3);
+            background: rgba(245,34,45,0.08);
+            color: var(--danger);
+            border: 1px solid rgba(245,34,45,0.15);
         }
         .page-info {
             background: rgba(0,212,255,0.05);
@@ -340,15 +362,15 @@
             align-items: center;
             justify-content: space-between;
             padding: 10px 16px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s;
         }
         .config-bar:hover {
-            background: rgba(255,255,255,0.06);
-            border-color: rgba(255,255,255,0.12);
+            background: #f5f5f5;
+            border-color: #c0c0c0;
         }
         .config-bar-left {
             display: flex;
@@ -377,10 +399,10 @@
         }
         .config-panel {
             padding: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid #e0e0e0;
             border-top: none;
-            border-radius: 0 0 8px 8px;
-            background: rgba(0,0,0,0.15);
+            border-radius: 0 0 12px 12px;
+            background: #ffffff;
         }
         .config-form {
             display: grid;
@@ -435,12 +457,12 @@
         .scene-select {
             width: 100%;
             padding: 14px 18px;
-            border: 2px solid rgba(255,255,255,0.15);
-            border-radius: 10px;
-            background: rgba(0,0,0,0.2);
-            color: #fff;
+            border: 1px solid #d0d0d0;
+            border-radius: 12px;
+            background: #fafafa;
+            color: var(--text-primary);
             font-size: 1em;
-            transition: border-color 0.3s;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
             cursor: pointer;
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
@@ -450,11 +472,13 @@
         }
         .scene-select:focus {
             outline: none;
-            border-color: #00d4ff;
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
         .scene-select option {
-            background: #1a1a2e;
-            color: #fff;
+            background: var(--bg-card);
+            color: var(--text-primary);
         }
         .input-row {
             display: flex;
@@ -462,7 +486,7 @@
             align-items: stretch;
         }
         .input-row .scene-select {
-            width: 200px;
+            width: 220px;
             flex-shrink: 0;
         }
         .input-row input[type="text"] {
@@ -473,18 +497,18 @@
             align-items: center;
             justify-content: space-between;
             padding: 12px 16px;
-            background: rgba(0,212,255,0.05);
-            border: 1px solid rgba(0,212,255,0.15);
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s;
             margin-top: 20px;
             font-size: 0.9em;
-            color: #888;
+            color: var(--text-tertiary);
         }
         .fact-check-bar:hover {
-            background: rgba(0,212,255,0.08);
-            border-color: rgba(0,212,255,0.25);
+            background: #f5f5f5;
+            border-color: #c0c0c0;
         }
         .fact-check-bar .arrow {
             transition: transform 0.3s;
@@ -528,91 +552,141 @@
         }
         /* 报告卡片式布局 */
         .score-board-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 16px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 0;
             margin-bottom: 16px;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(59,130,246,0.06), 0 1px 3px rgba(0,0,0,0.04);
+            color: #1f2937;
+            position: relative;
+            overflow: hidden;
+        }
+        .score-board-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+        }
+        .score-board-inner {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+        }
+        .score-board-left {
+            flex: 1;
+            min-width: 0;
+            padding: 24px;
+        }
+        .score-board-right {
+            flex: 0 0 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 20px 16px 0;
+            border-left: 1px solid #f3f4f6;
+        }
+        .score-board-right canvas {
+            max-width: 100%;
+            height: auto;
         }
         .score-board-main {
             text-align: center;
             padding-bottom: 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            border-bottom: 1px solid #f3f4f6;
             margin-bottom: 16px;
         }
         .score-total-value {
-            font-size: 2.2em;
-            font-weight: 700;
-            color: #ffd700;
-            line-height: 1.1;
+            font-size: 3.2em;
+            font-weight: 800;
+            color: #1e40af;
+            line-height: 1;
+            letter-spacing: -1px;
         }
         .score-total-label {
-            font-size: 0.9em;
-            color: #888;
-            margin-top: 4px;
+            font-size: 0.85em;
+            color: #6b7280;
+            margin-top: 6px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
         .analysis-status-badge {
             display: inline-block;
-            padding: 8px 24px;
-            border-radius: 20px;
-            font-size: 1em;
-            font-weight: 600;
-            margin-top: 12px;
+            padding: 10px 28px;
+            border-radius: 9999px;
+            font-size: 1.05em;
+            font-weight: 700;
+            margin-top: 16px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         .analysis-status-badge.pass {
-            background: rgba(0,255,100,0.12);
-            color: #00ff88;
-            border: 1px solid rgba(0,255,100,0.25);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+            border: 1px solid rgba(34,197,94,0.3);
+            box-shadow: 0 2px 8px rgba(34,197,94,0.15);
         }
         .analysis-status-badge.fail {
-            background: rgba(255,50,50,0.12);
-            color: #ff5555;
-            border: 1px solid rgba(255,50,50,0.25);
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            border: 1px solid rgba(239,68,68,0.3);
+            box-shadow: 0 2px 8px rgba(239,68,68,0.15);
         }
         .score-board-dims {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 10px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
         }
         .score-dim-item {
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-            padding: 8px 4px;
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 12px 4px;
             text-align: center;
-            border: 1px solid rgba(255,255,255,0.06);
+            border: 1px solid #f3f4f6;
+            transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+        }
+        .score-dim-item:hover {
+            background: #f3f4f6;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .score-dim-value {
-            font-size: 1.1em;
-            font-weight: 700;
+            font-size: 1.2em;
+            font-weight: 800;
         }
-        .score-dim-value.high { color: #00ff88; }
-        .score-dim-value.mid { color: #ffcc00; }
-        .score-dim-value.low { color: #ff5555; }
+        .score-dim-value.high { color: #15803d; }
+        .score-dim-value.mid { color: #b45309; }
+        .score-dim-value.low { color: #dc2626; }
         .score-dim-label {
-            font-size: 0.75em;
-            color: #888;
-            margin-top: 2px;
+            font-size: 0.72em;
+            color: #6b7280;
+            margin-top: 4px;
+            line-height: 1.3;
         }
         .score-board-bottomline {
             text-align: center;
             font-size: 0.85em;
-            color: #aaa;
-            padding-top: 10px;
-            border-top: 1px solid rgba(255,255,255,0.06);
+            color: #6b7280;
+            padding-top: 14px;
+            border-top: 1px solid #f3f4f6;
+            line-height: 1.7;
         }
         .report-section-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 16px;
+            background: #ffffff;
+            border: 1px solid #e8e8e8;
+            border-radius: 16px;
+            padding: 20px;
             margin-bottom: 16px;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         .section-title {
             font-size: 1em;
-            color: #00d4ff;
+            font-weight: 600;
+            color: var(--text-primary);
             margin-bottom: 12px;
             display: flex;
             align-items: center;
@@ -620,92 +694,145 @@
         }
         .issue-table, .suggestion-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 0.82em;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
         }
         .issue-table th, .suggestion-table th {
-            background: rgba(0,212,255,0.08);
-            color: #00d4ff;
-            padding: 8px 10px;
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            padding: 10px 12px;
             text-align: left;
-            border: 1px solid rgba(255,255,255,0.08);
+            border-bottom: 1px solid var(--border-light);
             font-weight: 600;
+            font-size: 13px;
         }
         .issue-table td, .suggestion-table td {
-            padding: 8px 10px;
-            border: 1px solid rgba(255,255,255,0.08);
-            color: #ccc;
+            padding: 12px 12px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-secondary);
             vertical-align: top;
+        }
+        .issue-table tr:last-child td, .suggestion-table tr:last-child td {
+            border-bottom: none;
+        }
+        .issue-table tr:hover td, .suggestion-table tr:hover td {
+            background: var(--bg-hover);
+        }
+        /* 问题分级行左边框 */
+        .issue-table tr.issue-fatal td:first-child {
+            border-left: 3px solid #f5222d;
+        }
+        .issue-table tr.issue-serious td:first-child {
+            border-left: 3px solid #fa8c16;
+        }
+        .issue-table tr.issue-warn td:first-child {
+            border-left: 3px solid #faad14;
+        }
+        .issue-table tr.issue-tip td:first-child {
+            border-left: 3px solid #52c41a;
         }
         .badge-fatal {
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 4px;
+            padding: 4px 10px;
+            border-radius: 9999px;
             font-size: 0.75em;
             font-weight: 600;
-            background: rgba(255,50,50,0.15);
-            color: #ff5555;
-            border: 1px solid rgba(255,50,50,0.3);
+            background: rgba(245,34,45,0.08);
+            color: var(--danger);
+            border: 1px solid rgba(245,34,45,0.15);
         }
         .badge-serious {
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 4px;
+            padding: 4px 10px;
+            border-radius: 9999px;
             font-size: 0.75em;
             font-weight: 600;
-            background: rgba(255,180,0,0.15);
-            color: #ffcc66;
-            border: 1px solid rgba(255,180,0,0.3);
+            background: rgba(250,173,20,0.08);
+            color: #d48806;
+            border: 1px solid rgba(250,173,20,0.15);
         }
         .badge-warn {
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 4px;
+            padding: 4px 10px;
+            border-radius: 9999px;
             font-size: 0.75em;
             font-weight: 600;
-            background: rgba(255,220,0,0.1);
-            color: #ffdd55;
-            border: 1px solid rgba(255,220,0,0.2);
+            background: rgba(250,173,20,0.06);
+            color: var(--warning);
+            border: 1px solid rgba(250,173,20,0.12);
         }
         .badge-tip {
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 4px;
+            padding: 4px 10px;
+            border-radius: 9999px;
             font-size: 0.75em;
             font-weight: 600;
-            background: rgba(0,255,100,0.1);
-            color: #00ff88;
-            border: 1px solid rgba(0,255,100,0.2);
+            background: rgba(82,196,26,0.08);
+            color: var(--success);
+            border: 1px solid rgba(82,196,26,0.15);
         }
-        .priority-p0 { color: #ff5555; font-weight: 700; }
-        .priority-p1 { color: #ffcc66; font-weight: 700; }
-        .priority-p2 { color: #00ff88; font-weight: 700; }
+        .priority-p0 { color: var(--danger); font-weight: 700; }
+        .priority-p1 { color: var(--warning); font-weight: 700; }
+        .priority-p2 { color: var(--success); font-weight: 700; }
         .highlight-list {
             padding-left: 20px;
             margin: 0;
-            color: #ccc;
+            color: var(--text-secondary);
             font-size: 0.9em;
             line-height: 1.8;
         }
         .highlight-list li {
             margin: 6px 0;
         }
+        .highlight-list li::marker {
+            color: var(--success);
+        }
         .conclusion-box {
-            background: linear-gradient(135deg, rgba(255,50,50,0.06), rgba(255,100,50,0.03));
-            border: 1px solid rgba(255,100,50,0.15);
-            border-radius: 12px;
-            padding: 18px 20px;
-            font-size: 0.9em;
-            line-height: 1.8;
-            color: #ddd;
+            background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+            border: 1px solid #e8e8e8;
+            border-radius: 16px;
+            padding: 24px;
+            font-size: 0.92em;
+            line-height: 1.9;
+            color: var(--text-secondary);
+            position: relative;
+        }
+        .conclusion-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), #7b2cbf);
+            border-radius: 3px 3px 0 0;
         }
         .conclusion-box strong {
-            color: #ffaa44;
+            color: var(--text-primary);
+            font-weight: 600;
         }
         .conclusion-box ul {
             padding-left: 20px;
-            margin: 8px 0 0;
-            color: #bbb;
+            margin: 10px 0 0;
+            color: var(--text-tertiary);
+        }
+        .conclusion-box.conclusion-pass {
+            background: linear-gradient(135deg, #f6ffed 0%, #f0f9ff 100%);
+            border-color: #b7eb8f;
+        }
+        .conclusion-box.conclusion-pass::before {
+            background: linear-gradient(90deg, #52c41a, #95de64);
+        }
+        .conclusion-box.conclusion-fail {
+            background: linear-gradient(135deg, #fff2f0 0%, #fff7e6 100%);
+            border-color: #ffccc7;
+        }
+        .conclusion-box.conclusion-fail::before {
+            background: linear-gradient(90deg, #f5222d, #ff7875);
         }
         .dimension-table {
             width: 100%;
@@ -728,55 +855,18 @@
         .score-pass { color: #00ff88; font-weight: 600; }
         .score-fail { color: #ff5555; font-weight: 600; }
         .radar-container {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 12px;
+            background: #ffffff;
+            border: 1px solid #e8e8e8;
+            border-radius: 16px;
+            padding: 20px;
             margin-bottom: 16px;
             text-align: center;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
-        .radar-canvas {
+        .radar-container canvas {
             max-width: 100%;
             height: auto;
-        }
-        .radar-score-summary {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin-top: 8px;
-            flex-wrap: wrap;
-        }
-        .radar-score-item {
-            text-align: center;
-            min-width: 60px;
-        }
-        .radar-score-value {
-            font-size: 1.1em;
-            font-weight: 700;
-        }
-        .radar-score-label {
-            font-size: 0.7em;
-            color: #888;
-            margin-top: 2px;
-        }
-        .radar-pass-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-        .radar-pass-badge.pass {
-            background: rgba(0,255,100,0.15);
-            color: #00ff88;
-            border: 1px solid rgba(0,255,100,0.3);
-        }
-        .radar-pass-badge.fail {
-            background: rgba(255,50,50,0.15);
-            color: #ff5555;
-            border: 1px solid rgba(255,50,50,0.3);
         }
 
         /* ── 左右分栏报告 ── */
@@ -805,45 +895,99 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         .principle-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 8px;
-            padding: 10px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 14px;
             margin-bottom: 10px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .principle-card:hover {
+            border-color: #c0c0c0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .principle-card.focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light), 0 2px 8px rgba(22,119,255,0.08);
         }
         .principle-card .dim-title {
-            font-size: 0.85em;
+            font-size: 0.9em;
             font-weight: 600;
-            color: #fff;
+            color: var(--text-primary);
             margin-bottom: 6px;
             display: flex;
             justify-content: space-between;
         }
         .principle-card .dim-weight {
-            font-size: 0.75em;
-            color: #888;
+            font-size: 0.8em;
+            color: var(--text-tertiary);
             font-weight: 400;
         }
         .principle-card .dim-body {
-            font-size: 0.78em;
-            color: #888;
+            font-size: 0.82em;
+            color: var(--text-tertiary);
             line-height: 1.6;
         }
         .principle-card .dim-bottom {
-            margin-top: 6px;
-            padding-top: 6px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-            font-size: 0.75em;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-light);
+            font-size: 0.78em;
         }
         .principle-card .dim-bottom.red {
-            color: #ff7777;
+            color: var(--danger);
         }
         .principle-card .dim-bottom.yellow {
-            color: #ffcc66;
+            color: var(--warning);
         }
         .report-right {
             min-width: 0;
             overflow-x: hidden;
+        }
+        .pass-standard-card {
+            background: linear-gradient(135deg, #f0f7ff 0%, #e8f0fe 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+        }
+        .pass-standard-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .pass-standard-icon {
+            font-size: 1.1em;
+        }
+        .pass-standard-title {
+            font-weight: 600;
+            font-size: 0.95em;
+            color: #1e40af;
+        }
+        .pass-standard-body {
+            font-size: 0.85em;
+            color: #374151;
+            line-height: 1.7;
+        }
+        .pass-standard-body .std-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            margin: 4px 0;
+        }
+        .pass-standard-body .std-dot {
+            flex-shrink: 0;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-top: 7px;
+        }
+        .pass-standard-body .std-redline {
+            color: #dc2626;
+            font-weight: 500;
         }
         .analysis-header {
             display: flex;
@@ -851,77 +995,84 @@
             gap: 16px;
             margin-bottom: 20px;
             padding: 16px 20px;
-            background: rgba(0,0,0,0.25);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid #e8e8e8;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         .analysis-score {
             font-size: 2em;
             font-weight: 700;
-            color: #ffd700;
+            color: var(--warning);
         }
         .analysis-status {
             padding: 6px 14px;
-            border-radius: 16px;
+            border-radius: 9999px;
             font-size: 0.9em;
             font-weight: 600;
         }
         .analysis-status.pass {
-            background: rgba(0,255,100,0.15);
-            color: #00ff88;
-            border: 1px solid rgba(0,255,100,0.3);
+            background: rgba(82,196,26,0.1);
+            color: var(--success);
+            border: 1px solid rgba(82,196,26,0.2);
         }
         .analysis-status.fail {
-            background: rgba(255,50,50,0.15);
-            color: #ff5555;
-            border: 1px solid rgba(255,50,50,0.3);
+            background: rgba(245,34,45,0.08);
+            color: var(--danger);
+            border: 1px solid rgba(245,34,45,0.15);
         }
         .analysis-status.warn {
-            background: rgba(255,180,0,0.15);
-            color: #ffcc44;
-            border: 1px solid rgba(255,180,0,0.3);
+            background: rgba(250,173,20,0.08);
+            color: #d48806;
+            border: 1px solid rgba(250,173,20,0.15);
         }
         .dimension-table-mini {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 0.82em;
             margin: 12px 0;
-            background: rgba(0,0,0,0.15);
-            border-radius: 8px;
+            background: var(--bg-card);
+            border-radius: 12px;
             overflow: hidden;
+            border: 1px solid var(--border-light);
         }
         .dimension-table-mini th,
         .dimension-table-mini td {
-            border: 1px solid rgba(255,255,255,0.06);
-            padding: 6px 8px;
+            border-bottom: 1px solid var(--border-light);
+            padding: 8px 10px;
             text-align: left;
         }
         .dimension-table-mini th {
-            background: rgba(0,212,255,0.08);
-            color: #00d4ff;
+            background: var(--bg-hover);
+            color: var(--text-primary);
             font-weight: 600;
             font-size: 0.85em;
         }
         .dimension-table-mini td {
-            color: #ccc;
+            color: var(--text-secondary);
             font-size: 0.85em;
+        }
+        .dimension-table-mini tr:last-child td {
+            border-bottom: none;
         }
         .raw-report-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 12px 16px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s;
             margin-top: 20px;
             font-size: 0.9em;
-            color: #888;
+            color: var(--text-tertiary);
         }
         .raw-report-bar:hover {
-            background: rgba(255,255,255,0.06);
+            background: #f5f5f5;
+            border-color: #c0c0c0;
         }
         .raw-report-bar .arrow {
             transition: transform 0.3s;
@@ -954,15 +1105,15 @@
         .history-item {
             padding: 12px 14px;
             margin-bottom: 8px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
             cursor: pointer;
             transition: all 0.2s;
         }
         .history-item:hover {
-            background: rgba(255,255,255,0.06);
-            border-color: rgba(0,212,255,0.2);
+            background: #f5f5f5;
+            border-color: #c0c0c0;
         }
         .history-item-header {
             display: flex;
@@ -1015,9 +1166,10 @@
             color: var(--text-primary);
         }
         [data-theme="light"] h1 {
-            background: linear-gradient(90deg, var(--primary), #7b2cbf);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-primary);
+            background: none;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: unset;
         }
         [data-theme="light"] .subtitle {
             color: var(--text-tertiary);
@@ -1074,6 +1226,9 @@
         [data-theme="light"] .page-info p {
             color: var(--text-secondary);
         }
+        [data-theme="light"] .page-info strong {
+            color: var(--primary) !important;
+        }
         [data-theme="light"] .config-form input {
             background: var(--bg-page);
             border-color: var(--border-color);
@@ -1105,25 +1260,67 @@
         [data-theme="light"] .report-box strong {
             color: var(--warning);
         }
-        [data-theme="light"] .score-board-card,
+        /* 总分卡片：light主题也用深色背景，它是视觉焦点，必须跳出来 */
+        [data-theme="light"] .score-board-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 20px rgba(59,130,246,0.06), 0 1px 3px rgba(0,0,0,0.04);
+            color: #1f2937;
+        }
+        [data-theme="light"] .score-board-card::before {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+        }
+        [data-theme="light"] .score-board-inner {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+        }
+        [data-theme="light"] .score-board-right {
+            border-left-color: #f3f4f6;
+        }
+        [data-theme="light"] .score-board-main {
+            border-bottom-color: rgba(255,255,255,0.12);
+        }
+        [data-theme="light"] .score-total-value {
+            color: #1e40af;
+            text-shadow: none;
+        }
+        [data-theme="light"] .score-total-label {
+            color: rgba(255,255,255,0.55);
+        }
+        [data-theme="light"] .analysis-status-badge.pass {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+            border-color: rgba(34,197,94,0.3);
+            box-shadow: 0 2px 8px rgba(34,197,94,0.15);
+        }
+        [data-theme="light"] .analysis-status-badge.fail {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            border-color: rgba(239,68,68,0.3);
+            box-shadow: 0 2px 8px rgba(239,68,68,0.15);
+        }
+        [data-theme="light"] .score-dim-item {
+            background: #f9fafb;
+            border-color: #f3f4f6;
+        }
+        [data-theme="light"] .score-dim-item:hover {
+            background: #f3f4f6;
+        }
+        [data-theme="light"] .score-dim-value.high { color: #15803d; }
+        [data-theme="light"] .score-dim-value.mid { color: #b45309; }
+        [data-theme="light"] .score-dim-value.low { color: #dc2626; }
+        [data-theme="light"] .score-dim-label {
+            color: #6b7280;
+        }
+        [data-theme="light"] .score-board-bottomline {
+            color: #6b7280;
+            border-top-color: #f3f4f6;
+        }
         [data-theme="light"] .report-section-card {
             background: var(--bg-card);
             border-color: var(--border-color);
             backdrop-filter: none;
-        }
-        [data-theme="light"] .score-board-main {
-            border-bottom-color: var(--border-light);
-        }
-        [data-theme="light"] .score-dim-item {
-            background: var(--bg-page);
-            border-color: var(--border-light);
-        }
-        [data-theme="light"] .score-dim-label {
-            color: var(--text-tertiary);
-        }
-        [data-theme="light"] .score-board-bottomline {
-            color: var(--text-tertiary);
-            border-top-color: var(--border-light);
         }
         [data-theme="light"] .section-title {
             color: var(--primary);
@@ -1151,9 +1348,17 @@
             color: var(--text-secondary);
         }
         [data-theme="light"] .conclusion-box {
-            background: linear-gradient(135deg, rgba(245, 34, 45, 0.03), rgba(255, 100, 50, 0.02));
-            border-color: rgba(245, 34, 45, 0.1);
+            background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+            border-color: #e8e8e8;
             color: var(--text-secondary);
+        }
+        [data-theme="light"] .conclusion-box.conclusion-pass {
+            background: linear-gradient(135deg, #f6ffed 0%, #f0f9ff 100%);
+            border-color: #b7eb8f;
+        }
+        [data-theme="light"] .conclusion-box.conclusion-fail {
+            background: linear-gradient(135deg, #fff2f0 0%, #fff7e6 100%);
+            border-color: #ffccc7;
         }
         [data-theme="light"] .analysis-header {
             background: var(--bg-page);
@@ -1163,8 +1368,9 @@
             color: var(--warning);
         }
         [data-theme="light"] .radar-container {
-            background: var(--bg-page);
-            border-color: var(--border-color);
+            background: #ffffff;
+            border: 1px solid #e8e8e8;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         [data-theme="light"] .principle-card {
             background: var(--bg-hover);
@@ -1209,13 +1415,19 @@
             border-color: rgba(245, 34, 45, 0.2);
         }
         [data-theme="light"] #batchInputArea {
-            background: var(--bg-hover) !important;
-            border-color: var(--border-light) !important;
+            background: #f5f5f5 !important;
+            border-color: #e0e0e0 !important;
         }
         [data-theme="light"] #batchUrls {
-            background: var(--bg-page) !important;
+            background: #fafafa !important;
             color: var(--text-primary) !important;
-            border-color: var(--border-color) !important;
+            border-color: #d0d0d0 !important;
+        }
+        [data-theme="light"] #batchSceneLabel {
+            color: var(--primary) !important;
+        }
+        [data-theme="light"] #batchProgressBar {
+            background: var(--primary) !important;
         }
         [data-theme="light"] .highlight-list {
             color: var(--text-secondary);
@@ -1310,14 +1522,14 @@
             </div>
             
             <!-- 批量审核输入区（点击按钮展开） -->
-            <div id="batchInputArea" style="display:none;margin-top:12px;padding:16px;background:rgba(0,0,0,0.15);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+            <div id="batchInputArea" style="display:none;margin-top:12px;padding:16px;background:#f5f5f5;border-radius:12px;border:1px solid #e0e0e0;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
                     <span style="color:#888;font-size:0.85em;">当前审核标准：</span>
                     <span id="batchSceneLabel" style="color:#00d4ff;font-size:0.85em;font-weight:600;">默认场景</span>
                     <span style="color:#555;font-size:0.8em;">（可在上方下拉框切换）</span>
                 </div>
                 <p style="color:#888;font-size:0.85em;margin-bottom:10px;">粘贴多个 KMS 链接，每行一个</p>
-                <textarea id="batchUrls" style="width:100%;height:80px;padding:10px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e0e0e0;font-size:0.9em;resize:vertical;" placeholder="https://kms.fineres.com/pages/viewpage.action?pageId=...\nhttps://kms.fineres.com/pages/viewpage.action?pageId=..."></textarea>
+                <textarea id="batchUrls" style="width:100%;height:80px;padding:10px;background:#fafafa;border:1px solid #d0d0d0;border-radius:8px;color:var(--text-primary);font-size:0.9em;resize:vertical;" placeholder="https://kms.fineres.com/pages/viewpage.action?pageId=...\nhttps://kms.fineres.com/pages/viewpage.action?pageId=..."></textarea>
                 <div style="display:flex;gap:10px;margin-top:12px;align-items:center;">
                     <button class="btn btn-success" id="batchStartBtn" onclick="startBatchReview()">开始批量审核</button>
                     <span id="batchStatus" style="color:#888;font-size:0.85em;"></span>
@@ -1349,62 +1561,35 @@
                     <!-- 左侧：评审原则 -->
                     <div class="report-left">
                         <h3>[清单] 评审原则</h3>
-                        
-                        <div class="principle-card" data-dim="完整性">
-                            <div class="dim-title">完整性 <span class="dim-weight">35分</span></div>
-                            <div class="dim-body">必备5大模块：业绩回顾与重点工作、差距拆解与根因分析、下一步计划（含时间节点）、资源需求、SP中长期机会点布局</div>
-                            <div class="dim-bottom yellow">评分：35-40/28-34/20-27/0-19</div>
-                        </div>
-                        
-                        <div class="principle-card" data-dim="差距与根因分析">
-                            <div class="dim-title">差距与根因分析 <span class="dim-weight">20分</span></div>
-                            <div class="dim-body">差距三维拆解（战区/客群机会点/产品线）、分析工具（5Why/鱼骨图/漏斗）、主观原因≥40%、穿透表象</div>
-                            <div class="dim-bottom red">⚠️ 单项底线≥12分，低于直接判定「待修改」</div>
-                        </div>
-                        
-                        <div class="principle-card" data-dim="业绩预测达成概率分析">
-                            <div class="dim-title">业绩预测达成概率分析 <span class="dim-weight">10分</span></div>
-                            <div class="dim-body">预测有数据支撑、与计划匹配、与根因对应、分阶段预测（下月/下季/全年）</div>
-                            <div class="dim-bottom yellow">评分：8-10/5-7/0-4</div>
-                        </div>
-                        
-                        <div class="principle-card" data-dim="下一步计划">
-                            <div class="dim-title">下一步计划 <span class="dim-weight">20分</span></div>
-                            <div class="dim-body">SMART原则：具体、可衡量、可达成、相关、有时限。前瞻部署优先于补救</div>
-                            <div class="dim-bottom yellow">扣分：缺前瞻(-5)/缺时限(-3)/不对应(-5)</div>
-                        </div>
-                        
-                        <div class="principle-card" data-dim="SP战略关联度">
-                            <div class="dim-title">SP战略关联度 <span class="dim-weight">10分</span></div>
-                            <div class="dim-body">方向一致、响应机会点、无冲突、主动引用SP并说明支撑关系</div>
-                            <div class="dim-bottom yellow">评分：8-10/5-7/0-4</div>
-                        </div>
-                        
-                        <div class="principle-card" data-dim="态度与反思">
-                            <div class="dim-title">态度与反思 <span class="dim-weight">5分</span></div>
-                            <div class="dim-body">真诚面对问题、具体自我反思案例、对标学习。关键词扣分："市场问题"/"尽力了"</div>
-                            <div class="dim-bottom yellow">评分：4-5/2-3/0-1</div>
-                        </div>
+                        <div id="principleCardsContainer"></div>
                     </div>
                     
                     <!-- 右侧：分析报告 -->
                     <div class="report-right">
-                        <!-- 总体评分卡片 -->
-                        <div class="score-board-card" id="scoreBoardCard">
-                            <div class="score-board-main">
-                                <div class="score-total-value" id="analysisTotalScore">--</div>
-                                <div class="score-total-label">总分 / 100 分</div>
-                                <div class="analysis-status-badge" id="analysisStatusBadge">审核中</div>
+                        <!-- 合格标准 -->
+                        <div class="pass-standard-card" id="passStandardCard">
+                            <div class="pass-standard-header">
+                                <span class="pass-standard-icon">📋</span>
+                                <span class="pass-standard-title">合格标准</span>
                             </div>
-                            <div class="score-board-dims" id="scoreBoardDims"></div>
-                            <div class="score-board-bottomline" id="scoreBoardBottomLine"></div>
+                            <div class="pass-standard-body" id="passStandardBody"></div>
                         </div>
                         
-                        <div id="radarChartBox" style="display:none;">
-                            <div class="radar-container">
-                                <canvas id="radarCanvas" width="280" height="220"></canvas>
-                                <div class="radar-score-summary" id="radarSummary"></div>
-                                <div id="radarPassBadge"></div>
+                        <!-- 评分总览：总分卡片 + 雷达图 左右并排 -->
+                        <div class="score-board-card" id="scoreBoardCard">
+                            <div class="score-board-inner">
+                                <div class="score-board-left">
+                                    <div class="score-board-main">
+                                        <div class="score-total-value" id="analysisTotalScore">--</div>
+                                        <div class="score-total-label">总分 / 100 分</div>
+                                        <div class="analysis-status-badge" id="analysisStatusBadge">审核中</div>
+                                    </div>
+                                    <div class="score-board-dims" id="scoreBoardDims"></div>
+                                    <div class="score-board-bottomline" id="scoreBoardBottomLine"></div>
+                                </div>
+                                <div class="score-board-right" id="radarChartBox" style="display:none;">
+                                    <canvas id="radarCanvas" width="280" height="230"></canvas>
+                                </div>
                             </div>
                         </div>
                         
@@ -1480,6 +1665,7 @@
                         
                         <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
                             <button class="btn btn-primary" onclick="copyReport()">[清单] 复制报告</button>
+                            <button class="btn btn-secondary" onclick="exportReportToPDF()">📄 导出 PDF</button>
                             <button class="btn btn-secondary" onclick="resetForm()">[刷新] 重新输入</button>
                         </div>
                     </div>
@@ -1614,10 +1800,13 @@
     <script>
         // 自动判断后端地址：
         // - file:// 打开 → 用 localhost（本地开发）
+        // - http://localhost 打开 → 用 localhost:8766（本地开发）
         // - https:// 打开（KMS嵌入）→ 用 HTTPS 代理地址
         // - http:// 打开 → 用部署域名 HTTPS
         let PROXY_URL = '';
         if (window.location.protocol === 'file:') {
+            PROXY_URL = 'http://localhost:8766';
+        } else if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
             PROXY_URL = 'http://localhost:8766';
         }
         // 允许 localStorage 覆盖（高级用户调试）
@@ -1634,7 +1823,7 @@
             { id: 'vertical-segment-review', short_name: '垂直客群-落后述职' },
             { id: 'lagging-region-review', short_name: '落后战区述职' },
             { id: 'annual-leader-review', short_name: '负责人年度述职' },
-            { id: 'special-topic', short_name: '专项议题' }
+            { id: 'general-topic-review', short_name: '通用议题材料审核（以本部会为例）' }
         ];
 
         // 加载场景列表
@@ -1670,15 +1859,119 @@
 
         loadScenes();
 
-        // 场景选择变化时高亮左侧重点关注维度
+        // 各场景评审维度卡片数据
+        const sceneDimensionData = {
+            'general-topic-review': [
+                {
+                    dim: '目标-解决方案对齐度',
+                    weight: '30分',
+                    body: '议题背景清晰、问题定义精准（现象vs根因）、方案直接对应问题根因。不是"通报情况"，而是"请求决策"',
+                    bottom: '⚠️ 红线：零决策请求 = 打回重写',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '决策支撑度',
+                    weight: '30分',
+                    body: '关键论点有数据/案例/对比支撑；提供明确的决策建议及备选方案对比；包含风险评估和资源需求清单',
+                    bottom: '⚠️ 红线：零数据支撑 = 打回补充',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '行动具体化',
+                    weight: '25分',
+                    body: 'SMART原则：具体(S)、可衡量(M)、可达成(A)、相关(R)、有时限(T)。每个行动项必须有责任人和时间节点',
+                    bottom: '⚠️ 红线：零责任主体或零时间计划 = 打回明确',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '材料规范度',
+                    weight: '15分',
+                    body: '结构清晰（背景→问题→分析→方案→决策请求）、篇幅可控（≤15页核心内容）、表达精简无空话套话',
+                    bottom: '扣分：结构混乱(-4)/篇幅失控(-3)/空话过多(-3)',
+                    bottomClass: 'yellow'
+                }
+            ],
+            'vertical-segment-review': [
+                {
+                    dim: '完整性',
+                    weight: '25分',
+                    body: '述职材料完整覆盖要求的模块：市场现状与竞争格局、业绩达成回顾、核心差距识别、根因分析、下一步行动计划。缺少任一模块均影响评审有效性',
+                    bottom: '⚠️ 红线：缺少市场现状或业绩回顾 = 打回补充',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '差距与根因分析',
+                    weight: '25分',
+                    body: '业绩差距需量化呈现（目标vs实际，同比/环比），根因分析需深入业务本质而非表面归因。建议使用5Why或鱼骨图等结构化方法，避免"市场环境不好"等空泛结论',
+                    bottom: '⚠️ 红线：差距无量化数据或根因停留在表面 = 打回重做',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '业绩预测达成概率分析',
+                    weight: '25分',
+                    body: '对未来业绩目标的预测需有逻辑支撑（历史趋势、市场容量、竞争态势、资源投入），明确给出达成概率评估及关键假设条件。避免"一定能完成"等主观断言',
+                    bottom: '⚠️ 红线：无概率评估或假设条件缺失 = 打回完善',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '下一步计划',
+                    weight: '25分',
+                    body: '改进措施需具体可执行，明确责任人和时间节点，与差距分析形成闭环。优先解决根因中的高影响项，资源需求和支持请求需清晰列出',
+                    bottom: '⚠️ 红线：措施与根因脱节或缺少责任人/时间节点 = 打回明确',
+                    bottomClass: 'red'
+                }
+            ],
+            'lagging-region-review': [],
+            'annual-leader-review': []
+        };
+
+        function renderPrincipleCards(sceneId) {
+            const container = document.getElementById('principleCardsContainer');
+            if (!container) return;
+            const activeScene = sceneId || 'general-topic-review';
+            const dims = sceneDimensionData[activeScene] || [];
+            if (dims.length === 0) {
+                container.innerHTML = '<div class="principle-card" style="opacity:0.6;text-align:center;padding:24px 0;">该场景评审维度暂未配置</div>';
+                return;
+            }
+            container.innerHTML = dims.map(d => `
+                <div class="principle-card" data-dim="${d.dim}">
+                    <div class="dim-title">${d.dim} <span class="dim-weight">${d.weight}</span></div>
+                    <div class="dim-body">${d.body}</div>
+                    <div class="dim-bottom ${d.bottomClass}">${d.bottom}</div>
+                </div>
+            `).join('');
+        }
+
+        function getLocalFocusDimensions(sceneId) {
+            const map = {
+                'vertical-segment-review': ['完整性', '差距与根因分析', '业绩预测达成概率分析', '下一步计划'],
+                'lagging-region-review': ['完整性', '差距与根因分析', 'SP战略关联度', '业绩预测达成概率分析'],
+                'annual-leader-review': ['完整性', 'SP战略关联度', '态度与反思', '下一步计划'],
+                'general-topic-review': ['目标-解决方案对齐度', '决策支撑度', '行动具体化', '材料规范度']
+            };
+            return map[sceneId] || [];
+        }
+
+        function highlightFocusDimensions(focusDims) {
+            const cards = document.querySelectorAll('.principle-card');
+            cards.forEach(card => {
+                const dim = card.getAttribute('data-dim');
+                if (!dim) return;
+                const match = focusDims.some(fd => dim === fd || dim.includes(fd) || fd.includes(dim));
+                if (match) card.classList.add('focus');
+            });
+        }
+
+        // 场景选择变化时重新渲染维度卡片并高亮
         document.getElementById('sceneSelect').addEventListener('change', async function() {
             const sceneId = this.value;
-            
-            // 先清除所有高亮
-            document.querySelectorAll('.principle-card').forEach(card => card.classList.remove('focus'));
-            
+
+            // 先渲染对应场景的维度卡片
+            renderPrincipleCards(sceneId);
+
             if (!sceneId) return;
-            
+
             // 获取场景详情
             let focusDims = [];
             try {
@@ -1690,46 +1983,18 @@
             } catch(e) {
                 console.log('从代理获取场景详情失败:', e);
             }
-            
+
             // 本地备用映射
             if (focusDims.length === 0) {
                 focusDims = getLocalFocusDimensions(sceneId);
             }
-            
+
             // 高亮匹配的 principle-card
             highlightFocusDimensions(focusDims);
         });
-        
-        function getLocalFocusDimensions(sceneId) {
-            const map = {
-                'vertical-segment-review': ['完整性', '差距与根因分析', '业绩预测达成概率分析', '下一步计划'],
-                'lagging-region-review': ['完整性', '差距与根因分析', 'SP战略关联度', '业绩预测达成概率分析'],
-                'annual-leader-review': ['完整性', 'SP战略关联度', '态度与反思', '下一步计划'],
-                'special-topic': ['完整性', '差距与根因分析', '下一步计划', '态度与反思']
-            };
-            return map[sceneId] || [];
-        }
-        
-        function highlightFocusDimensions(focusDims) {
-            const cards = document.querySelectorAll('.principle-card');
-            cards.forEach(card => {
-                const dim = card.getAttribute('data-dim');
-                if (!dim) return;
-                const match = focusDims.some(fd => {
-                    // 关键词匹配
-                    if (dim.includes(fd) || fd.includes(dim)) return true;
-                    // 特殊映射
-                    if (fd.includes('差距') && dim === '差距与根因分析') return true;
-                    if (fd.includes('根因') && dim === '差距与根因分析') return true;
-                    if (fd.includes('预测') && dim === '业绩预测达成概率分析') return true;
-                    if ((fd.includes('计划') || fd.includes('行动') || fd.includes('策略') || fd.includes('对策')) && dim === '下一步计划') return true;
-                    if ((fd.includes('战略') || fd.includes('SP') || fd.includes('资源')) && dim === 'SP战略关联度') return true;
-                    if (fd.includes('态度') && dim === '态度与反思') return true;
-                    return false;
-                });
-                if (match) card.classList.add('focus');
-            });
-        }
+
+        // 页面加载时默认渲染通用议题评审维度
+        renderPrincipleCards('general-topic-review');
 
         // 解析 prompt_suffix 提取要点
         function parsePromptSuffix(suffix) {
@@ -1757,13 +2022,19 @@
                     '下年度规划是否承接公司战略方向',
                     '风险识别和应对预案是否到位'
                 ],
-                'special-topic': [
-                    '问题定义是否精准（现象 vs 根因）',
-                    '数据分析是否支撑问题定位',
-                    '对策方案是否经过多维度评估',
-                    '资源需求和时间计划是否明确',
-                    '责任分工和跟踪机制是否清晰',
-                    '预期效果是否可衡量和验证'
+                'general-topic-review': [
+                    '议题是否有明确的决策请求（不是单纯通报）',
+                    '问题是否量化（目标值/实际值/缺口值三要素）',
+                    '方案是否直接对应问题根因（不做答非所问）',
+                    '关键论点是否有数据/案例/对比支撑',
+                    '是否提供决策选项及优劣对比（至少2个方案）',
+                    '风险分析和应对预案是否到位',
+                    '资源需求是否清单化（预算/人力/权限/协同）',
+                    '行动项是否符合SMART原则（具体/可衡量/可达成/相关/有时限）',
+                    '每个行动项是否有明确责任人和时间节点',
+                    '材料结构是否清晰（背景→问题→分析→方案→决策请求）',
+                    '篇幅是否可控（核心内容≤15页）',
+                    '是否删除空话套话（"加强/优化/提升/持续"等）'
                 ]
             };
             return hints[sceneId] || ['暂无审核要点'];
@@ -1801,9 +2072,10 @@
         }
 
         function getScoreColor(ratio) {
-            if (ratio >= 0.8) return '#00ff88';
-            if (ratio >= 0.6) return '#ffcc00';
-            return '#ff5555';
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (ratio >= 0.8) return isDark ? '#7ee787' : '#237804';
+            if (ratio >= 0.6) return isDark ? '#ffd666' : '#ad6800';
+            return isDark ? '#ff7875' : '#cf1322';
         }
 
         async function renderHistoryPanel() {
@@ -2054,7 +2326,8 @@
             const scoreColor = scoreChange >= 0 ? '#00ff88' : '#ff5555';
             
             // 维度分数对比
-            const dimChanges = DIMENSION_CONFIG.map(dim => {
+            const compareDimConfig = getDimensionConfig(v2.scene_id || v1.scene_id || '');
+            const dimChanges = compareDimConfig.map(dim => {
                 const s1 = (v1.dimension_scores || {})[dim.name] || 0;
                 const s2 = (v2.dimension_scores || {})[dim.name] || 0;
                 const change = s2 - s1;
@@ -2150,10 +2423,11 @@
             document.getElementById('reportBox').textContent = rec.report || '';
             let scoreData;
             if (rec.dimension_scores && Object.keys(rec.dimension_scores).length > 0) {
-                const parsed = parseDimensionScores(rec.report || '');
+                const parsed = parseDimensionScores(rec.report || '', rec.scene_id);
                 const commentMap = {};
                 parsed.scores.forEach(s => { commentMap[s.name] = s.comment; });
-                const scores = DIMENSION_CONFIG.map(dim => {
+                const dimConfig = getDimensionConfig(rec.scene_id || '');
+                const scores = dimConfig.map(dim => {
                     const score = rec.dimension_scores[dim.name] || 0;
                     return { ...dim, score, comment: commentMap[dim.name] || '' };
                 });
@@ -2163,7 +2437,7 @@
                     passed: parsed.passed
                 };
             } else {
-                scoreData = parseDimensionScores(rec.report || '');
+                scoreData = parseDimensionScores(rec.report || '', rec.scene_id);
             }
             drawRadarChart(scoreData);
             fillAnalysisReport(scoreData, rec.report || '', rec.facts || {});
@@ -2434,21 +2708,37 @@
         let lastReviewTime = 0;
         const REVIEW_COOLDOWN = 30000; // 30秒冷却
 
-        // ── 6维度雷达图 ──
-        const DIMENSION_CONFIG = [
-            { name: '完整性', max: 35, short: '完整性' },
-            { name: '差距与根因分析', max: 20, short: '差距根因' },
-            { name: '业绩预测达成概率分析', max: 10, short: '业绩预测' },
-            { name: '下一步计划', max: 20, short: '下一步计划' },
-            { name: 'SP战略关联度', max: 10, short: 'SP战略' },
-            { name: '态度与反思', max: 5, short: '态度反思' }
-        ];
+        // ── 维度配置（按场景） ──
+        function getDimensionConfig(sceneId) {
+            const configs = {
+                'general-topic-review': [
+                    { name: '目标-解决方案对齐度', max: 30, short: '目标对齐' },
+                    { name: '决策支撑度', max: 30, short: '决策支撑' },
+                    { name: '行动具体化', max: 25, short: '行动具体' },
+                    { name: '材料规范度', max: 15, short: '材料规范' }
+                ]
+            };
+            return configs[sceneId] || [
+                { name: '完整性', max: 35, short: '完整性' },
+                { name: '差距与根因分析', max: 20, short: '差距根因' },
+                { name: '业绩预测达成概率分析', max: 10, short: '业绩预测' },
+                { name: '下一步计划', max: 20, short: '下一步计划' },
+                { name: 'SP战略关联度', max: 10, short: 'SP战略' },
+                { name: '态度与反思', max: 5, short: '态度反思' }
+            ];
+        }
 
-        function parseDimensionScores(reportText) {
+        function getCurrentSceneId() {
+            const el = document.getElementById('sceneSelect');
+            return el ? el.value : '';
+        }
+
+        function parseDimensionScores(reportText, sceneId) {
             const scores = [];
             const lines = reportText.split('\n');
+            const dimConfig = getDimensionConfig(sceneId || getCurrentSceneId());
             
-            for (const dim of DIMENSION_CONFIG) {
+            for (const dim of dimConfig) {
                 let found = false;
                 const escapedName = dim.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 // 兼容维度名被 HTML 标签包裹的情况
@@ -2598,7 +2888,7 @@
             
             // 固定逻辑尺寸，避免多次调用导致canvas无限放大
             const W = 280;
-            const H = 220;
+            const H = 230;
             
             const dpr = window.devicePixelRatio || 1;
             canvas.width = W * dpr;
@@ -2612,17 +2902,21 @@
             
             ctx.clearRect(0, 0, W, H);
             
-            const angleStep = (Math.PI * 2) / 6;
+            const dimCount = scores.length || 6;
+            const angleStep = (Math.PI * 2) / dimCount;
             const startAngle = -Math.PI / 2;
             
-            // 网格
+            // 检测主题（雷达图在浅色卡片内，统一用适合白底的颜色）
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            
+            // 网格 — 在白底上用浅灰色
             const gridLevels = 5;
-            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.strokeStyle = 'rgba(0,0,0,0.08)';
             ctx.lineWidth = 1;
             for (let level = 1; level <= gridLevels; level++) {
                 const r = (radius / gridLevels) * level;
                 ctx.beginPath();
-                for (let i = 0; i < 6; i++) {
+                for (let i = 0; i < dimCount; i++) {
                     const angle = startAngle + i * angleStep;
                     const x = cx + Math.cos(angle) * r;
                     const y = cy + Math.sin(angle) * r;
@@ -2634,8 +2928,8 @@
             }
             
             // 轴线
-            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-            for (let i = 0; i < 6; i++) {
+            ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+            for (let i = 0; i < dimCount; i++) {
                 const angle = startAngle + i * angleStep;
                 ctx.beginPath();
                 ctx.moveTo(cx, cy);
@@ -2645,7 +2939,7 @@
             
             // 数据区域
             ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < dimCount; i++) {
                 const angle = startAngle + i * angleStep;
                 const ratio = scores[i].score / scores[i].max;
                 const r = radius * ratio;
@@ -2657,73 +2951,59 @@
             ctx.closePath();
             
             const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-            gradient.addColorStop(0, 'rgba(0,212,255,0.25)');
-            gradient.addColorStop(1, 'rgba(123,44,191,0.15)');
+            gradient.addColorStop(0, 'rgba(37,99,235,0.2)');
+            gradient.addColorStop(1, 'rgba(37,99,235,0.06)');
             ctx.fillStyle = gradient;
             ctx.fill();
-            ctx.strokeStyle = '#00d4ff';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#2563eb';
+            ctx.lineWidth = 2.5;
             ctx.stroke();
             
             // 数据点
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < dimCount; i++) {
                 const angle = startAngle + i * angleStep;
                 const ratio = scores[i].score / scores[i].max;
                 const r = radius * ratio;
                 const x = cx + Math.cos(angle) * r;
                 const y = cy + Math.sin(angle) * r;
                 ctx.beginPath();
-                ctx.arc(x, y, 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#00d4ff';
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#2563eb';
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 2;
                 ctx.stroke();
             }
             
             // 标签
-            ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < dimCount; i++) {
                 const angle = startAngle + i * angleStep;
-                const labelR = radius + 18;
+                const labelR = radius + 22;
                 const x = cx + Math.cos(angle) * labelR;
                 const y = cy + Math.sin(angle) * labelR;
-                ctx.fillStyle = '#aaa';
+                ctx.fillStyle = '#555';
                 ctx.fillText(scores[i].short, x, y);
                 ctx.fillStyle = getScoreColor(scores[i].score / scores[i].max);
-                ctx.font = 'bold 11px sans-serif';
-                ctx.fillText(`${scores[i].score}/${scores[i].max}`, x, y + 14);
-                ctx.font = '12px sans-serif';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(`${scores[i].score}/${scores[i].max}`, x, y + 16);
+                ctx.font = '13px sans-serif';
             }
             
             // 中心总分
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 18px sans-serif';
+            ctx.fillStyle = '#1f1f1f';
+            ctx.font = 'bold 20px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(`${totalScore}`, cx, cy - 4);
-            ctx.font = '11px sans-serif';
+            ctx.font = '12px sans-serif';
             ctx.fillStyle = '#888';
-            ctx.fillText('/ 100', cx, cy + 12);
+            ctx.fillText('/ 100', cx, cy + 14);
             
-            // 底部汇总
-            const summaryEl = document.getElementById('radarSummary');
-            summaryEl.innerHTML = scores.map(s => `
-                <div class="radar-score-item">
-                    <div class="radar-score-value" style="color:${getScoreColor(s.score/s.max)}">${s.score}</div>
-                    <div class="radar-score-label">${s.short}</div>
-                </div>
-            `).join('');
-            
+            // 雷达图区域不重复显示状态（左侧总分卡片已有）
             const badgeEl = document.getElementById('radarPassBadge');
-            if (passed === true) {
-                badgeEl.innerHTML = '<span class="radar-pass-badge pass">✅ 审核通过</span>';
-            } else if (passed === false) {
-                badgeEl.innerHTML = '<span class="radar-pass-badge fail">❌ 待修改</span>';
-            } else {
-                badgeEl.innerHTML = '';
-            }
+            if (badgeEl) badgeEl.innerHTML = '';
             
             document.getElementById('radarChartBox').style.display = 'block';
         }
@@ -2776,7 +3056,9 @@
                 const contentType = resp.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await resp.text();
-                    throw new Error('服务器返回非 JSON 响应（可能是 504 超时），请稍后重试');
+                    const preview = text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    console.error('服务器返回非JSON响应:', resp.status, preview);
+                    throw new Error(`服务器返回非 JSON 响应（HTTP ${resp.status}）\n响应预览：${preview.substring(0, 150)}...\n可能原因：①后端服务未启动 ②后端崩溃 ③网络超时`);
                 }
                 
                 const data = await resp.json();
@@ -2801,11 +3083,12 @@
                 let scoreData;
                 if (data.dimension_scores && Object.keys(data.dimension_scores).length > 0) {
                     // 从报告文本中解析打分理由（分数用后端返回的，理由从文本解析）
-                    const parsed = parseDimensionScores(data.report);
+                    const parsed = parseDimensionScores(data.report, data.scene_id);
                     const commentMap = {};
                     parsed.scores.forEach(s => { commentMap[s.name] = s.comment; });
+                    const dimConfig = getDimensionConfig(data.scene_id || getCurrentSceneId());
                     
-                    const scores = DIMENSION_CONFIG.map(dim => {
+                    const scores = dimConfig.map(dim => {
                         const score = data.dimension_scores[dim.name] || 0;
                         return { ...dim, score, comment: commentMap[dim.name] || '' };
                     });
@@ -2815,7 +3098,7 @@
                         passed: parsed.passed
                     };
                 } else {
-                    scoreData = parseDimensionScores(data.report);
+                    scoreData = parseDimensionScores(data.report, getCurrentSceneId());
                 }
                 drawRadarChart(scoreData);
                 fillAnalysisReport(scoreData, data.report, data.facts);
@@ -2974,6 +3257,30 @@
 
         function fillAnalysisReport(scoreData, reportText, facts) {
             
+            // ========== 合格标准 ==========
+            const stdBody = document.getElementById('passStandardBody');
+            const currentScene = getCurrentSceneId();
+            if (currentScene === 'general-topic-review') {
+                stdBody.innerHTML = `
+                    <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
+                    <div class="std-item"><span class="std-dot"></span><span>且未触碰任何红线：</span></div>
+                    <div style="padding-left:18px;color:#6b7280;font-size:0.9em;">
+                        <div>• 零决策请求 / 零数据支撑 / 零责任主体 / 零时间计划</div>
+                    </div>
+                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
+                        触碰红线 → 总分封顶60分，判定<span class="std-redline">「待修改」</span>
+                    </div>
+                `;
+            } else {
+                stdBody.innerHTML = `
+                    <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
+                    <div class="std-item"><span class="std-dot"></span><span>且差距与根因分析 ≥ <strong>12分</strong>（单项底线）</span></div>
+                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
+                        根因分析低于12分 → 直接判定<span class="std-redline">「待修改」</span>，不论总分
+                    </div>
+                `;
+            }
+            
             // ========== 总体评分大卡片 ==========
             const totalEl = document.getElementById('analysisTotalScore');
             const badgeEl = document.getElementById('analysisStatusBadge');
@@ -3001,14 +3308,31 @@
                 </div>`;
             }).join('');
             
-            // 单项底线提示
-            const rcScore = scoreData.scores.find(s => s.name.includes('根因'));
+            // 单项底线提示（根据场景适配）
             const bottomLine = document.getElementById('scoreBoardBottomLine');
-            if (rcScore && rcScore.score < 12) {
-                bottomLine.innerHTML = `<span class="highlight-red">差距与根因分析 ${rcScore.score} 分 &lt; 12 分底线</span><br>按评分规则直接判定为「待修改」，不论总分`;
+            let bottomLineHtml = '';
+            
+            if (currentScene === 'general-topic-review') {
+                // 通用议题场景：检查红线触碰
+                const alignScore = scoreData.scores.find(s => s.name.includes('目标'));
+                const decisionScore = scoreData.scores.find(s => s.name.includes('决策'));
+                const actionScore = scoreData.scores.find(s => s.name.includes('行动'));
+                const redLines = [];
+                if (alignScore && alignScore.score < 8) redLines.push('目标-解决方案对齐度 &lt; 8分（零决策请求风险）');
+                if (decisionScore && decisionScore.score < 8) redLines.push('决策支撑度 &lt; 8分（零数据支撑风险）');
+                if (actionScore && actionScore.score < 6) redLines.push('行动具体化 &lt; 6分（零责任主体或零时间计划风险）');
+                if (redLines.length > 0) {
+                    bottomLineHtml = `<span class="highlight-red">触碰红线：</span><br>` + redLines.map(l => `• ${l}`).join('<br>');
+                    bottomLineHtml += '<br><span style="color:#ff7777;font-size:0.85em;">触碰任意红线，总分封顶60分，不得直接上会</span>';
+                }
             } else {
-                bottomLine.innerHTML = '';
+                // 述职场景：差距与根因分析底线
+                const rcScore = scoreData.scores.find(s => s.name.includes('根因'));
+                if (rcScore && rcScore.score < 12) {
+                    bottomLineHtml = `<span class="highlight-red">差距与根因分析 ${rcScore.score} 分 &lt; 12 分底线</span><br>按评分规则直接判定为「待修改」，不论总分`;
+                }
             }
+            bottomLine.innerHTML = bottomLineHtml;
             
             // ========== 分项评分表 ==========
             const tbody = document.getElementById('dimensionTableBody');
@@ -3030,7 +3354,8 @@
                 const badgeMap = {'致命':'badge-fatal','严重':'badge-serious','警告':'badge-warn','建议':'badge-tip'};
                 document.getElementById('issueTableBody').innerHTML = issues.map(iss => {
                     const badgeCls = badgeMap[iss.level] || 'badge-warn';
-                    return `<tr>
+                    const rowCls = iss.level === '致命' ? 'issue-fatal' : (iss.level === '严重' ? 'issue-serious' : (iss.level === '警告' ? 'issue-warn' : 'issue-tip'));
+                    return `<tr class="${rowCls}">
                         <td><span class="${badgeCls}">${escapeHtml(iss.level)}</span></td>
                         <td>${escapeHtml(iss.dimension || '—')}</td>
                         <td>${renderRichComment(iss.desc)}</td>
@@ -3075,7 +3400,12 @@
                 // 将 markdown 简单转换为 HTML，并保留AI输出的颜色标签
                 let html = renderRichComment(conclusion)
                     .replace(/\n/g, '<br>');
-                document.getElementById('conclusionBox').innerHTML = html;
+                const box = document.getElementById('conclusionBox');
+                box.innerHTML = html;
+                // 根据通过状态给结论框添加样式
+                box.classList.remove('conclusion-pass', 'conclusion-fail');
+                if (scoreData.passed === true) box.classList.add('conclusion-pass');
+                else if (scoreData.passed === false) box.classList.add('conclusion-fail');
             } else {
                 concCard.style.display = 'none';
             }
@@ -3172,6 +3502,118 @@
             return `<div class="${cls}"><span class="icon">${icon}</span><span>${escapeHtml(text)}</span></div>`;
         }
 
+        async function exportReportToPDF() {
+            if (!currentReport) {
+                setStatus('请先完成审核再导出', 'error');
+                return;
+            }
+            
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner" style="border-color:rgba(0,0,0,0.2);border-top-color:var(--primary);"></span> 生成中...';
+            btn.disabled = true;
+            
+            try {
+                // 构建导出内容：页面信息 + 右侧报告
+                const container = document.createElement('div');
+                container.style.cssText = 'padding:24px;background:#fff;color:#1f1f1f;font-family:Inter,-apple-system,sans-serif;line-height:1.7;font-size:14px;max-width:800px;margin:0 auto;';
+                
+                // 标题
+                const title = currentPageInfo ? (currentPageInfo.title || '审核报告') : '审核报告';
+                container.innerHTML = `
+                    <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #1677ff;">
+                        <h1 style="font-size:22px;font-weight:700;color:#1f1f1f;margin:0 0 8px 0;">会议材料审核报告</h1>
+                        <p style="font-size:13px;color:#666;margin:0;">${escapeHtml(title)}</p>
+                        <p style="font-size:12px;color:#999;margin:4px 0 0 0;">生成时间：${new Date().toLocaleString('zh-CN')}</p>
+                    </div>
+                `;
+                
+                // 页面信息
+                if (currentPageInfo) {
+                    container.innerHTML += `
+                        <div style="margin-bottom:20px;padding:12px 16px;background:#f6f8fa;border-radius:8px;border-left:3px solid #1677ff;">
+                            <p style="margin:4px 0;font-size:13px;"><strong>标题：</strong>${escapeHtml(currentPageInfo.title || '')}</p>
+                            <p style="margin:4px 0;font-size:13px;"><strong>空间：</strong>${escapeHtml(currentPageInfo.space || '')}</p>
+                            <p style="margin:4px 0;font-size:13px;"><strong>链接：</strong>${escapeHtml(currentPageInfo.url || '')}</p>
+                        </div>
+                    `;
+                }
+                
+                // 克隆右侧报告区域
+                const reportRight = document.querySelector('.report-right');
+                if (reportRight) {
+                    const clone = reportRight.cloneNode(true);
+                    
+                    // 清理不需要的元素（原始报告折叠栏、系统事实检查等）
+                    const rawBar = clone.querySelector('.raw-report-bar');
+                    const rawContent = clone.querySelector('.raw-report-content');
+                    const factBar = clone.querySelector('.fact-check-bar');
+                    const factContent = clone.querySelector('.fact-check-content');
+                    const actionBtns = clone.querySelector('div[style*="flex-wrap"]');
+                    if (rawBar) rawBar.remove();
+                    if (rawContent) rawContent.remove();
+                    if (factBar) factBar.remove();
+                    if (factContent) factContent.remove();
+                    if (actionBtns && actionBtns.querySelector('button')) actionBtns.remove();
+                    
+                    // 处理canvas：把雷达图转为高清图片，PDF中保持足够尺寸
+                    const canvas = document.getElementById('radarCanvas');
+                    const cloneCanvas = clone.querySelector('canvas');
+                    if (canvas && cloneCanvas) {
+                        const img = document.createElement('img');
+                        img.src = canvas.toDataURL('image/png');
+                        img.style.cssText = 'width:240px;height:auto;display:block;margin:0 auto;';
+                        cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
+                    }
+                    
+                    // 清理内联样式中不适应打印的部分
+                    clone.querySelectorAll('[class*="hidden"]').forEach(el => {
+                        if (el.style.display === 'none') el.remove();
+                    });
+                    
+                    // 展开所有折叠内容
+                    clone.querySelectorAll('.raw-report-content, .fact-check-content').forEach(el => {
+                        el.style.maxHeight = 'none';
+                        el.style.overflow = 'visible';
+                    });
+                    
+                    container.appendChild(clone);
+                }
+                
+                // PDF 配置
+                const opt = {
+                    margin: [12, 12, 12, 12],
+                    filename: `审核报告-${title.substring(0, 30).replace(/[\\/:*?"<>|]/g, '_')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { 
+                        scale: 2, 
+                        useCORS: true, 
+                        logging: false,
+                        backgroundColor: '#ffffff'
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait' 
+                    },
+                    pagebreak: { 
+                        mode: ['css', 'legacy'],
+                        avoid: 'table'
+                    }
+                };
+                
+                await html2pdf().set(opt).from(container).save();
+                setStatus('✅ PDF 导出成功', 'success');
+                
+            } catch (err) {
+                console.error('PDF导出失败:', err);
+                setStatus('❌ PDF 导出失败: ' + err.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+        
         function resetForm() {
             document.getElementById('kmsUrl').value = '';
             document.getElementById('resultCard').classList.add('hidden');
@@ -3225,10 +3667,11 @@
         // 安全渲染AI输出的颜色标签（highlight-green/yellow/red）
         function renderRichComment(text) {
             if (!text) return '';
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             const colorMap = {
-                'green': '#00ff88',
-                'yellow': '#ffcc00',
-                'red': '#ff5555'
+                'green': isDark ? '#7ee787' : '#237804',
+                'yellow': isDark ? '#ffd666' : '#ad6800',
+                'red': isDark ? '#ff7875' : '#cf1322'
             };
             const parts = [];
             const regex = /<span class="highlight-(green|yellow|red)">(.*?)<\/span>/g;

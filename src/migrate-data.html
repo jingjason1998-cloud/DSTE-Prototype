@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DSTE 数据迁移工具</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; background: #f8fafc; }
+        .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h1 { font-size: 20px; margin: 0 0 8px; color: #1e293b; }
+        p { color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 20px; }
+        .btn { background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        .btn:hover { background: #4338ca; }
+        .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 13px; display: none; }
+        .status.success { background: #dcfce7; color: #166534; display: block; }
+        .status.error { background: #fee2e2; color: #991b1b; display: block; }
+        .topic-list { margin-top: 12px; font-size: 13px; color: #475569; }
+        .topic-list li { margin: 4px 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>📦 DSTE 数据迁移工具</h1>
+        <p>将业务专题数据从 8080 端口迁移到当前端口（<span id="origin"></span>）。</p>
+        <button class="btn" onclick="migrate()">开始迁移</button>
+        <div id="status" class="status"></div>
+        <ul id="topicList" class="topic-list"></ul>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'dste_business_topics_v2';
+        document.getElementById('origin').textContent = window.location.origin;
+
+        // Embedded backup data (11 topics from port 8080)
+        const BACKUP_DATA = [{"id":"bt_1716100000001","name":"滚运预测能力","description":"建立滚动预测机制，提升经营预测准确性","target":"1. 预测准确率达到85%\n2. 建立月度滚动预测机制\n3. 风险提前预警能力提升","priority":"P1","status":"in_progress","owner":"财务总监","department":"财务部","progress":50,"startDate":"2024-03-01","endDate":"2024-12-31","budget":120,"actualCost":80,"milestones":[{"id":"ms_1","name":"预测模型搭建","date":"2024-05-31","status":"completed"},{"id":"ms_2","name":"数据源整合","date":"2024-08-31","status":"completed"},{"id":"ms_3","name":"试点运行与调优","date":"2024-10-31","status":"in_progress"},{"id":"ms_4","name":"全面推广","date":"2024-12-31","status":"pending"}],"tags":["预测","财务","风险"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000002","name":"项目群经营分析","description":"建立项目群维度的经营分析体系","target":"1. 项目群利润可视化\n2. 资源投入产出分析\n3. 异常项目预警","priority":"P0","status":"in_progress","owner":"项目经理","department":"项目管理部","progress":35,"startDate":"2024-04-01","endDate":"2024-11-30","budget":80,"actualCost":30,"milestones":[{"id":"ms_1","name":"指标体系设计","date":"2024-06-30","status":"completed"},{"id":"ms_2","name":"数据接入","date":"2024-08-31","status":"in_progress"},{"id":"ms_3","name":"分析模型开发","date":"2024-10-31","status":"pending"}],"tags":["项目","经营","分析"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000003","name":"产品折扣管理","description":"规范产品折扣审批流程与事后分析","target":"1. 折扣审批线上化\n2. 折扣效果追踪\n3. 异常折扣预警","priority":"P1","status":"preparing","owner":"销售总监","department":"销售部","progress":10,"startDate":"2024-06-01","endDate":"2024-12-31","budget":60,"actualCost":5,"milestones":[{"id":"ms_1","name":"流程梳理","date":"2024-07-31","status":"in_progress"},{"id":"ms_2","name":"系统开发","date":"2024-09-30","status":"pending"},{"id":"ms_3","name":"试运行","date":"2024-11-30","status":"pending"}],"tags":["折扣","销售","流程"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000004","name":"合同质量分析","description":"分析合同签订质量，识别风险条款","target":"1. 合同风险条款识别率90%\n2. 标准合同模板优化\n3. 合同纠纷下降50%","priority":"P2","status":"preparing","owner":"法务经理","department":"法务部","progress":5,"startDate":"2024-07-01","endDate":"2025-03-31","budget":40,"actualCost":2,"milestones":[{"id":"ms_1","name":"历史合同分析","date":"2024-09-30","status":"pending"},{"id":"ms_2","name":"风险模型建立","date":"2024-12-31","status":"pending"},{"id":"ms_3","name":"系统上线","date":"2025-03-31","status":"pending"}],"tags":["合同","法务","风险"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000005","name":"临时授权管理","description":"规范临时授权的申请、审批与回收","target":"1. 授权流程线上化\n2. 授权时效自动提醒\n3. 越权操作实时监控","priority":"P2","status":"in_progress","owner":"IT经理","department":"IT部","progress":40,"startDate":"2024-05-01","endDate":"2024-10-31","budget":50,"actualCost":20,"milestones":[{"id":"ms_1","name":"需求调研","date":"2024-06-30","status":"completed"},{"id":"ms_2","name":"系统开发","date":"2024-08-31","status":"in_progress"},{"id":"ms_3","name":"全面推广","date":"2024-10-31","status":"pending"}],"tags":["授权","IT","安全"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000006","name":"应收账款管理","description":"加强应收账款跟踪与催收管理","target":"1. 账龄分析自动化\n2. 催收任务分配\n3. 坏账预警","priority":"P0","status":"in_progress","owner":"财务总监","department":"财务部","progress":65,"startDate":"2024-02-01","endDate":"2024-09-30","budget":100,"actualCost":70,"milestones":[{"id":"ms_1","name":"账龄模型搭建","date":"2024-04-30","status":"completed"},{"id":"ms_2","name":"催收流程优化","date":"2024-06-30","status":"completed"},{"id":"ms_3","name":"预警系统上线","date":"2024-09-30","status":"in_progress"}],"tags":["应收","财务","催收"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000007","name":"项目四算专项","description":"推进项目四算（算赢、算准、算清、算快）体系建设","target":"1. 四算模板标准化\n2. 项目盈利分析覆盖率100%\n3. 决策支持报告自动生成","priority":"P0","status":"in_progress","owner":"项目总监","department":"项目管理部","progress":45,"startDate":"2024-03-15","endDate":"2024-12-31","budget":150,"actualCost":60,"milestones":[{"id":"ms_1","name":"四算模板设计","date":"2024-05-31","status":"completed"},{"id":"ms_2","name":"试点项目验证","date":"2024-08-31","status":"in_progress"},{"id":"ms_3","name":"全面推广","date":"2024-12-31","status":"pending"}],"tags":["四算","项目","盈利"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000008","name":"费控专项","description":"加强费用控制，降低运营成本","target":"1. 费用预算执行率偏差<5%\n2. 异常费用自动预警\n3. 费用报销周期缩短30%","priority":"P1","status":"preparing","owner":"财务总监","department":"财务部","progress":15,"startDate":"2024-08-01","endDate":"2025-02-28","budget":70,"actualCost":8,"milestones":[{"id":"ms_1","name":"费控规则梳理","date":"2024-09-30","status":"in_progress"},{"id":"ms_2","name":"系统配置","date":"2024-11-30","status":"pending"},{"id":"ms_3","name":"试运行","date":"2025-02-28","status":"pending"}],"tags":["费控","财务","成本"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000009","name":"收入确认规则","description":"规范收入确认时点与规则，提升财务合规性","target":"1. 收入确认规则文档化\n2. 系统自动判断率80%\n3. 审计问题归零","priority":"P1","status":"preparing","owner":"财务经理","department":"财务部","progress":20,"startDate":"2024-07-01","endDate":"2024-12-31","budget":90,"actualCost":15,"milestones":[{"id":"ms_1","name":"规则梳理","date":"2024-08-31","status":"in_progress"},{"id":"ms_2","name":"系统改造","date":"2024-10-31","status":"pending"},{"id":"ms_3","name":"培训推广","date":"2024-12-31","status":"pending"}],"tags":["收入","财务","合规"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1716100000010","name":"制衡关系分析","description":"分析指标间的制衡关系及优化方法","target":"1. 建立关键指标制衡矩阵\n2. 避免单一指标导向\n3. 指标体系健康度评估","priority":"P2","status":"preparing","owner":"战略经理","department":"战略部","progress":0,"startDate":"2024-10-01","endDate":"2025-06-30","budget":100,"actualCost":15,"milestones":[{"id":"ms_1","name":"指标现状调研","date":"2024-11-30","status":"in_progress"},{"id":"ms_2","name":"制衡矩阵设计","date":"2025-02-28","status":"pending"},{"id":"ms_3","name":"评估模型开发","date":"2025-04-30","status":"pending"},{"id":"ms_4","name":"试点验证","date":"2025-06-30","status":"pending"}],"tags":["制衡","指标","战略"],"summary":"","createdAt":"2026-05-19T17:24:00.297250","updatedAt":"2026-05-19T17:24:00.297250","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2},{"id":"bt_1779433644768_921","name":"战区-销售组长带人人数制度的优化","description":"组长带人人数的限制政策在当下是否需要优化？如何优化？","target":"修改完善制度，提高带人人数20人以上；","priority":"P2","status":"in_progress","owner":"方朱穆睿","department":"","summary":"","startDate":"2026-03-27","endDate":"2026-06-30","budget":0,"actualCost":0,"progress":0,"milestones":[{"id":"ms_1779433586058_286","name":"方案提交片联AT会议决策","date":"2026-06-03","status":"pending"},{"id":"ms_1779433604521_319","name":"管理制度正式发布与执行","date":"2026-06-30","status":"pending"}],"tags":[],"createdAt":"2026-05-22T07:07:24.768Z","updatedAt":"2026-05-22T07:07:24.768Z","linkedIssues":[],"linkedKpis":[],"issueStats":{"stCount":0,"atCount":0,"totalCount":0,"lastMeetingDate":null},"dataVersion":2}];
+
+        function migrate() {
+            try {
+                const existing = localStorage.getItem(STORAGE_KEY);
+                const existingTopics = existing ? JSON.parse(existing) : [];
+                
+                if (existingTopics.length > 0) {
+                    const ok = confirm(`当前端口已有 ${existingTopics.length} 个专题，迁移将覆盖现有数据。确认继续？`);
+                    if (!ok) return;
+                }
+                
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(BACKUP_DATA));
+                
+                const status = document.getElementById('status');
+                status.className = 'status success';
+                status.innerHTML = `✅ 迁移成功！共写入 ${BACKUP_DATA.length} 个专题到 ${window.location.origin}`;
+                
+                const list = document.getElementById('topicList');
+                list.innerHTML = BACKUP_DATA.map(t => `<li>• [${t.priority}] ${t.name}</li>`).join('');
+            } catch (e) {
+                const status = document.getElementById('status');
+                status.className = 'status error';
+                status.textContent = '❌ 迁移失败: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
