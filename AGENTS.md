@@ -41,6 +41,38 @@ docs/
 3. **样式**：用 CSS 变量（`var(--primary)`），不要硬编码颜色
 4. **导航**：在 `src/lib/config.js` 的 `SIDEBAR_CONFIG` 添加项
 
+### cockpit.html 内联事件规范（重要）
+
+`cockpit.html` 的全部 JS 包裹在 IIFE 中，**局部函数无法被 HTML `onclick` 访问**。
+
+**禁止**：
+```javascript
+function foo() { ... }          // 局部函数
+return `<button onclick="foo()">`;  // 运行时报错：foo is not defined
+```
+
+**允许的方式（按优先级）**：
+
+1. **优先：事件委托（推荐）**
+   ```javascript
+   html += `<button data-action="edit" data-id="${id}">编辑</button>`;
+   // 渲染后统一绑定
+   container.querySelectorAll('[data-action]').forEach(btn => {
+     btn.addEventListener('click', handleAction);
+   });
+   ```
+
+2. **次选：暴露到全局**
+   ```javascript
+   window.foo = function() { ... };
+   return `<button onclick="foo()">`;
+   ```
+
+3. **提交前必须运行检查**
+   ```bash
+   npm run check:scope
+   ```
+
 ### 测试要求
 
 每个变更必须通过：
