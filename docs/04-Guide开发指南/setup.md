@@ -24,7 +24,7 @@ pip install pytest
 
 # 5. 启动开发服务器
 npm run dev
-# 打开 http://localhost:8080/src/cockpit.html
+# 打开 http://localhost:3456/src/cockpit.html
 ```
 
 ## 常用命令

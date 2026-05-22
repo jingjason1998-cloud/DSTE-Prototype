@@ -15,11 +15,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 8080,
+    port: 3456,
     open: '/src/cockpit.html',
   },
   preview: {
-    port: 8080,
+    port: 3456,
   },
   // Don't try to process assets/ as modules - they're static files
   assetsInclude: ['assets/**/*'],

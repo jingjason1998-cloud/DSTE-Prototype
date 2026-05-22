@@ -75,7 +75,7 @@ test: 测试更新
 ## 常用命令
 
 ```bash
-npm run dev              # 开发服务器 localhost:8080
+npm run dev              # 开发服务器 localhost:3456
 npm run build            # 生产构建
 npm run test:e2e         # Playwright E2E 测试
 python3 -m pytest tests/ # pytest 回归测试
