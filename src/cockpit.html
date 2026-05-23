@@ -946,13 +946,70 @@
           const status = document.getElementById('filter-status')?.value || 'all';
           const scenario = document.getElementById('filter-scenario')?.value || 'all';
           const pipeline = document.getElementById('filter-pipeline')?.value || 'all';
+          // 同步场景指标卡状态到筛选栏
+          if (window._meetingsFilterScene && scenario === 'all') {
+            const fs = document.getElementById('filter-scenario');
+            if (fs) fs.value = window._meetingsFilterScene;
+          }
+          const effectiveScenario = window._meetingsFilterScene || scenario;
           document.querySelectorAll('.meeting-card').forEach(card => {
             let show = true;
             if (month !== 'all' && card.dataset.month !== month) show = false;
             if (status !== 'all' && card.dataset.status !== status) show = false;
-            if (scenario !== 'all' && card.dataset.scenario !== scenario) show = false;
+            if (effectiveScenario !== 'all' && card.dataset.scenario !== effectiveScenario) show = false;
             if (pipeline !== 'all' && card.dataset.pipelineStep !== pipeline) show = false;
             card.style.display = show ? 'block' : 'none';
+          });
+          // 更新统计数字（可选）
+          const visibleCards = Array.from(document.querySelectorAll('.meeting-card')).filter(c => c.style.display !== 'none');
+          const countEl = document.querySelector('.meeting-list-count');
+          if (countEl) countEl.textContent = `共 ${visibleCards.length} 场`;
+        };
+
+        // ---- 场景场次指标卡 ----
+        const SCENE_CARD_CONFIG = [
+          { key: 'union_quarterly', label: '集团级经营例会', icon: '🏢', color: 'var(--primary)' },
+          { key: 'hq_routine', label: '产品线经营例会', icon: '📦', color: 'var(--success)' },
+          { key: 'region_routine', label: '区域经营例会', icon: '🌍', color: 'var(--warning)' },
+          { key: 'lagging_region', label: '战略专项评审会', icon: '🎯', color: 'var(--danger)' },
+          { key: 'other', label: '其他', icon: '📋', color: 'var(--text-secondary)' }
+        ];
+        const KNOWN_SCENES = ['union_quarterly', 'hq_routine', 'region_routine', 'lagging_region', 'lagging_vertical'];
+
+        const sceneCards = SCENE_CARD_CONFIG.map(s => {
+          const count = s.key === 'other'
+            ? meetings.filter(m => !KNOWN_SCENES.includes(m.scenario)).length
+            : meetings.filter(m => m.scenario === s.key).length;
+          const isActive = window._meetingsFilterScene === s.key;
+          return `<div class="scene-card" data-scene="${s.key}" onclick="filterByScene('${s.key}')" style="flex:1;min-width:0;padding:16px 12px;background:var(--bg-card);border-radius:10px;border:2px solid ${isActive ? s.color : 'var(--border-light)'};text-align:center;cursor:pointer;transition:all 0.2s ease;${isActive ? `background:linear-gradient(180deg, ${s.color}08 0%, var(--bg-card) 100%);box-shadow:0 2px 8px ${s.color}20;` : ''}">
+            <div style="font-size:24px;margin-bottom:8px;">${s.icon}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${s.label}</div>
+            <div style="font-size:22px;font-weight:800;color:${s.color};">${count}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">场会议</div>
+          </div>`;
+        }).join('');
+
+        window.filterByScene = function(sceneKey) {
+          if (window._meetingsFilterScene === sceneKey) {
+            window._meetingsFilterScene = null;
+          } else {
+            window._meetingsFilterScene = sceneKey;
+          }
+          // 同步筛选栏
+          const filterScenario = document.getElementById('filter-scenario');
+          if (filterScenario) {
+            filterScenario.value = window._meetingsFilterScene || 'all';
+          }
+          applyFilters();
+          // 刷新场景卡片高亮（通过重新渲染整个页面实现，因为场景卡片在HTML模板中）
+          // 简化处理：直接更新DOM
+          document.querySelectorAll('.scene-card').forEach(card => {
+            const key = card.dataset.scene;
+            const cfg = SCENE_CARD_CONFIG.find(s => s.key === key);
+            const isActive = window._meetingsFilterScene === key;
+            card.style.borderColor = isActive ? cfg.color : 'var(--border-light)';
+            card.style.background = isActive ? `linear-gradient(180deg, ${cfg.color}08 0%, var(--bg-card) 100%)` : 'var(--bg-card)';
+            card.style.boxShadow = isActive ? `0 2px 8px ${cfg.color}20` : 'none';
           });
         };
 
@@ -979,13 +1036,13 @@
                 <span class="status-badge ${st.badgeClass}">${st.label}</span>
               </div>
               <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
-                📅 ${m.date} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 主持人：${m.host} &nbsp;|&nbsp; 📝 记录：${m.recorder}
+                📅 ${m.date} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 ${m.host}
               </div>
-              <div style="display: flex; gap: 8px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; align-items: center;">
-                <span>📝 议程 ${m.agenda_items?.length || 0} 项</span>
-                <span>✅ 行动 ${m.actions?.length || 0} 项</span>
-                <span>📋 决议 ${m.decisions?.length || 0} 项</span>
-                ${m.hasMinutes ? '<span style="color: var(--success);">✓ 有纪要</span>' : '<span style="color: var(--text-tertiary);">○ 无纪要</span>'}
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 8px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; align-items: center;">
+                  <span>✅ 行动 ${m.actions?.filter(a => a.status === 'completed' || a.status === 'implemented').length || 0}/${m.actions?.length || 0}</span>
+                </div>
+                ${m.effectiveness ? `<div style="font-size: 14px; font-weight: 700; color: var(--warning);">⭐ ${m.effectiveness.overallScore}</div>` : ''}
               </div>
               ${agendaTags ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">${agendaTags}${moreAgenda}</div>` : ''}
               ${renderPipeline(m)}
@@ -1279,9 +1336,23 @@
           <div class="page-header">
             <h1 class="page-title">经营分析会</h1>
             <div class="page-actions">
-              <button class="btn btn-secondary" onclick="alert('切换至日历视图')">📅 日历视图</button>
-              <button class="btn btn-primary" onclick="alert('新建经营分析会')">+ 新建会议</button>
+              <button class="btn btn-secondary" id="btn-toggle-view" onclick="toggleMeetingsView()">📅 日历视图</button>
+              <button class="btn btn-primary" onclick="openNewMeeting()">+ 新建会议</button>
             </div>
+          </div>
+
+          <!-- 价值主张横幅 -->
+          <div style="padding: 28px 32px; background: linear-gradient(135deg, var(--primary) 0%, #1a6fc4 50%, #0d4a8a 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(13, 74, 138, 0.25); margin-bottom: 20px; position: relative; overflow: hidden;">
+            <div style="position: relative; z-index: 1;">
+              <div style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.15);">🎯 战略执行核心引擎</div>
+              <div style="font-size: 14px; font-weight: 400; color: rgba(255, 255, 255, 0.85); line-height: 1.7; max-width: 720px;">数据驱动的经营例会体系 —— 从会前智能预警到会中结构化决策，再到会后行动(TODO)项自动闭环，让每一次会议都成为战略落地的加速器。</div>
+              <div style="width: 48px; height: 3px; background: rgba(255, 255, 255, 0.5); border-radius: 2px; margin-top: 14px;"></div>
+            </div>
+          </div>
+
+          <!-- 场景场次指标卡 -->
+          <div id="scene-indicator-cards" style="display: flex; gap: 12px; margin-bottom: 20px;">
+            ${sceneCards}
           </div>
 
           <!-- KPI 摘要 -->
@@ -1491,19 +1562,16 @@
             </div>
           </div>
 
-          <!-- 会议详情弹窗 -->
-          <div id="meeting-detail-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000; align-items: center; justify-content: center; padding: 24px;">
-            <div style="background: var(--bg-card); border-radius: 12px; max-width: 760px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); display: flex; flex-direction: column;">
-              <div style="padding: 20px 24px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">📋 会议详情</h2>
-                <button onclick="closeMeetingDetail()" style="background: none; border: none; font-size: 22px; color: var(--text-tertiary); cursor: pointer; line-height: 1;">×</button>
-              </div>
-              <div id="meeting-detail-content" style="padding: 20px 24px; overflow-y: auto; flex: 1;"></div>
-              <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-page);">
-                <button type="button" onclick="closeMeetingDetail()" style="padding: 8px 18px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">关闭</button>
-                <button type="button" onclick="openEditorFromDetail()" style="padding: 8px 18px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">✏️ 编辑</button>
+          <!-- 会议主视图（全屏沉浸式） -->
+          <div id="meeting-detail-overlay" style="display: none; position: fixed; inset: 0; background: var(--bg-page); z-index: 2000; flex-direction: column;">
+            <div id="meeting-detail-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 32px; border-bottom: 1px solid var(--border-light); background: var(--bg-card); position: sticky; top: 0; z-index: 10;">
+              <div id="meeting-detail-header-left" style="display: flex; align-items: center; gap: 8px;"></div>
+              <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="openEditorFromDetail()" style="padding: 6px 14px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">✏️ 编辑</button>
+                <button onclick="closeMeetingDetail()" style="background: none; border: none; font-size: 18px; color: var(--text-tertiary); cursor: pointer; line-height: 1;">×</button>
               </div>
             </div>
+            <div id="meeting-detail-content" style="flex: 1; overflow-y: auto; padding: 20px 32px; max-width: 1200px; margin: 0 auto; width: 100%;"></div>
           </div>
 
           <!-- 会议编辑弹窗 -->
@@ -1957,6 +2025,14 @@
             { name: '干部管理与继任计划', priority: '中', eta: 'v0.7.0' },
             { name: '用户权限与角色管理', priority: '中', eta: 'v1.0.0' },
             { name: '数据导出与报表中心', priority: '低', eta: 'v1.0.0' }
+          ],
+          plans: [
+            { id: 'PLAN-001', name: '经营分析会纪要生成', status: '测试中', owner: 'AI-1', targetVersion: 'v0.4.0' },
+            { id: 'PLAN-002', name: '战略地图可视化（BSC）', status: '开发中', owner: 'AI-2', targetVersion: 'v0.5.0' },
+            { id: 'PLAN-003', name: 'KPI 看板数据对接', status: '开发中', owner: 'AI-1', targetVersion: 'v0.4.0' },
+            { id: 'PLAN-004', name: 'BEM 战略解码工具', status: '设计中', owner: 'AI-2', targetVersion: 'v0.5.0' },
+            { id: 'PLAN-005', name: '用户权限系统方案', status: '待评审', owner: '待分配', targetVersion: 'v1.0.0' },
+            { id: 'PLAN-006', name: '数据导出与报表中心', status: '设计中', owner: 'AI-1', targetVersion: 'v1.0.0' }
           ]
         };
 
@@ -2159,6 +2235,39 @@
               ${upcomingCard}
             </div>
           </div>
+
+          <!-- ⑤ 开发计划看板 -->
+          ${(() => {
+            const kanbanColumns = ['待评审', '设计中', '开发中', '测试中'];
+            const kanbanIcons = { '待评审': '📥', '设计中': '🎨', '开发中': '💻', '测试中': '🧪' };
+            const kanbanCards = {};
+            for (const col of kanbanColumns) {
+              kanbanCards[col] = roadmapData.plans
+                .filter(p => p.status === col)
+                .map(p => `
+                  <div class="plan-card" style="padding: 10px; background: var(--bg-page); border-radius: 6px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);">${p.name}</div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--text-tertiary);">
+                      <span>${p.id}</span>
+                      <span>👤 ${p.owner}</span>
+                    </div>
+                  </div>
+                `).join('') || '<div style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:8px;">暂无</div>';
+            }
+            return `
+              <div class="card" style="margin-bottom: 16px;">
+                <div class="card-header"><div class="card-title">📋 开发计划看板</div></div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 4px 0;">
+                  ${kanbanColumns.map(col => `
+                    <div class="kanban-column" data-kanban-status="${col}">
+                      <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">${kanbanIcons[col]} ${col}</div>
+                      ${kanbanCards[col]}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          })()}
 
           <div class="related-links">
             <div class="related-links-label">关联功能</div>

@@ -1,0 +1,156 @@
+{
+  "versions": [
+    {
+      "version": "v0.3.3",
+      "date": "2026-05-23",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "**reviewer 6维度述职场景**：vertical-segment-review 从4维度扩展为6维度"
+        },
+        {
+          "type": "修复",
+          "desc": "vertical-segment-review 维度配置与测试用例同步"
+        },
+        {
+          "type": "安全",
+          "desc": "GitHub Actions CI 强制门禁（SonarCloud + 测试通过率检查）"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.2",
+      "date": "2026-05-22",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "数据迁移工具页面 `migrate-data.html`（本地 → Cloudflare Worker KV 同步）"
+        },
+        {
+          "type": "修复",
+          "desc": "**reviewer.html 场景维度卡片缺失**：切换述职类场景时对应评价维度卡片动态渲染"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.1",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "**Road Map 交互增强**："
+        }
+      ]
+    },
+    {
+      "version": "v0.3.0",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "**开发路线图 Road Map 页面**："
+        }
+      ]
+    },
+    {
+      "version": "v0.2.0",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "**经营分析会页面全面升级**："
+        }
+      ]
+    },
+    {
+      "version": "v0.1.0",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "**驾驶舱首页** (`cockpit.html`)：6 阶段顶部导航 + 左侧边栏 + SPA 路由系统"
+        },
+        {
+          "type": "修复",
+          "desc": "修复 Light 模式下 CSS 变量被 `@media` 错误嵌套导致全部失效的 bug"
+        },
+        {
+          "type": "安全",
+          "desc": "会议材料 URL 输入增加协议校验（仅允许 http/https）"
+        }
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "name": "驾驶舱首页",
+      "progress": 85,
+      "status": "doing",
+      "targetVersion": "v0.4.0",
+      "owner": "AI-1"
+    },
+    {
+      "name": "会议审核助手",
+      "progress": 100,
+      "status": "done",
+      "targetVersion": "v0.1.0",
+      "owner": "AI-2"
+    },
+    {
+      "name": "业务专题管理",
+      "progress": 100,
+      "status": "done",
+      "targetVersion": "v0.1.0",
+      "owner": "AI-1"
+    },
+    {
+      "name": "经营分析会",
+      "progress": 100,
+      "status": "done",
+      "targetVersion": "v0.2.0",
+      "owner": "AI-1"
+    },
+    {
+      "name": "开发路线图",
+      "progress": 100,
+      "status": "done",
+      "targetVersion": "v0.3.0",
+      "owner": "AI-2"
+    },
+    {
+      "name": "战略地图",
+      "progress": 0,
+      "status": "todo",
+      "targetVersion": "v0.5.0",
+      "owner": "待分配"
+    },
+    {
+      "name": "KPI 看板",
+      "progress": 35,
+      "status": "doing",
+      "targetVersion": "v0.4.0",
+      "owner": "AI-2"
+    },
+    {
+      "name": "BEM 战略解码",
+      "progress": 0,
+      "status": "todo",
+      "targetVersion": "v0.5.0",
+      "owner": "待分配"
+    },
+    {
+      "name": "用户权限系统",
+      "progress": 0,
+      "status": "todo",
+      "targetVersion": "v1.0.0",
+      "owner": "待分配"
+    }
+  ],
+  "plans": []
+}

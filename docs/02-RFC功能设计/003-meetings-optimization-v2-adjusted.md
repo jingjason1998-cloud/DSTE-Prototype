@@ -273,8 +273,188 @@ const sceneCounts = {
 - [ ] 页面加载后，价值主张横幅位于页面标题与 KPI 卡片之间
 - [ ] 横幅为单区域设计，无三段式卡片，文案仅包含主标题 + 副标题
 - [ ] 视觉突出：深色渐变背景、白色大字、底部装饰线
-- [ ] 移动端适配正常，字号自动缩小
-- [ ] 不影响现有筛选联动、标签页切换、Playwright/pytest 测试通过
+- [ ] 场景场次指标卡显示5个场景，各场景场次数字正确
+- [ ] 点击场景指标卡筛选会议列表，卡片边框高亮，再次点击取消
+- [ ] 筛选栏选择场景时，场景指标卡同步高亮
+- [ ] KPI 效率四卡片显示材料及时率/决议及时率/闭环率/满意度
+- [ ] 筛选后 KPI 四卡片数据同步更新为筛选后数据
+- [ ] 筛选栏支持场景/层级/状态/日期范围筛选，[重置]按钮清除全部
+- [ ] 会议列表卡片显示场景标签/状态/名称/日期/地点/主持人/评分/TODO进度
+- [ ] 会议列表卡片点击打开主视图
+- [ ] 列表空状态显示"暂无符合条件的会议"和[+ 新建会议]按钮
+- [ ] 移动端适配正常，字号自动缩小，场景指标卡横向可滚动
+- [ ] 不影响现有 Playwright/pytest 测试通过
+
+### C.2b KPI 效率四卡片（补充设计）
+
+> 位置：场景场次指标卡下方，筛选栏上方
+
+**设计目标**：用4个核心指标衡量会议体系的健康度，数据驱动改进。
+
+**四指标定义**：
+
+| 指标 | 图标 | 计算方式 | 目标值 |
+|------|------|---------|--------|
+| 材料及时率 | 📄 | 会前24h材料提交数 / 会议总数 | ≥ 95% |
+| 决议及时率 | 📋 | 纪要48h内发布数 / 会议总数 | ≥ 90% |
+| 闭环率 | ✅ | 行动(TODO)项按期完成数 / 行动(TODO)项总数 | ≥ 85% |
+| 满意度 | ⭐ | 参会者评分平均 | ≥ 4.2/5 |
+
+**卡片样式**：
+
+```
+容器：
+- display: grid
+- grid-template-columns: repeat(4, 1fr)
+- gap: 12px
+- margin-bottom: 20px
+
+单卡片：
+- background: var(--bg-card)
+- border-radius: 10px
+- padding: 16px
+- border: 1px solid var(--border-light)
+
+指标名称：
+- font-size: 12px
+- color: var(--text-secondary)
+- margin-bottom: 8px
+
+指标数值：
+- font-size: 24px
+- font-weight: 700
+- color: var(--text-primary)
+
+环比变化（如有）：
+- font-size: 11px
+- color: var(--success) 或 var(--danger)
+- 格式："↑ 3%" / "↓ 1%"
+```
+
+> **数据计算**：基于 `window._meetingsData` 实时计算，筛选场景后四卡片同步更新为该场景的数据。
+
+---
+
+### C.2c 筛选栏（补充设计）
+
+> 位置：KPI 四卡片下方，会议列表上方
+
+**筛选条件**：
+
+```
+容器：
+- display: flex
+- gap: 12px
+- align-items: center
+- margin-bottom: 16px
+- padding: 12px 16px
+- background: var(--bg-card)
+- border-radius: 8px
+- border: 1px solid var(--border-light)
+
+筛选控件：
+- 会议场景：select（全部 / 5场景）
+- 层级：select（全部 / L1 / L2 / L3）
+- 状态：select（全部 / planned / in_progress / completed / cancelled）
+- 日期范围：date ~ date（可选）
+- [重置] 按钮：清除全部筛选条件
+
+标签样式：
+- font-size: 12px
+- color: var(--text-secondary)
+- margin-right: 4px
+
+选择器样式：
+- height: 32px
+- padding: 0 8px
+- border: 1px solid var(--border)
+- border-radius: 6px
+- font-size: 13px
+- background: var(--bg-page)
+```
+
+**筛选联动**：
+- 任意筛选条件变更 → 触发 `applyFilters()` → 会议列表 + KPI 四卡片 + 场景指标卡同步更新
+- [重置] 按钮 → 全部恢复默认值 → 场景指标卡取消高亮
+
+---
+
+### C.2d 会议列表卡片（补充设计）
+
+> 位置：筛选栏下方，主体区域
+
+**布局**：
+
+```
+容器：
+- display: grid
+- grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))
+- gap: 16px
+```
+
+**单卡片**：
+
+```
+容器：
+- background: var(--bg-card)
+- border-radius: 10px
+- padding: 16px
+- border: 1px solid var(--border-light)
+- cursor: pointer
+- transition: all 0.2s
+
+悬停：
+- transform: translateY(-2px)
+- box-shadow: 0 4px 12px rgba(0,0,0,0.08)
+- border-color: var(--primary-light)
+
+卡片头部：
+- display: flex
+- justify-content: space-between
+- align-items: center
+- margin-bottom: 10px
+
+  左侧：
+  - 场景标签：badge 样式（按场景区分颜色）
+  
+  右侧：
+  - 状态 badge：planned(灰) / in_progress(蓝) / completed(绿) / cancelled(红)
+
+会议名称：
+- font-size: 15px
+- font-weight: 600
+- color: var(--text-primary)
+- margin-bottom: 8px
+
+元信息行：
+- display: flex
+- gap: 12px
+- font-size: 12px
+- color: var(--text-secondary)
+- margin-bottom: 10px
+
+  内容：
+  - 📅 日期
+  - 📍 地点
+  - 👤 主持人
+
+底部信息行：
+- display: flex
+- justify-content: space-between
+- align-items: center
+
+  左侧：
+  - 效果评估（如有）：⭐ 综合评分数字（如 "4.5"），font-size: 14px, font-weight: 700, color: var(--warning)
+  - 无评估时：不显示
+
+  右侧：
+  - 行动(TODO)进度："✅ 3/5"，font-size: 12px, color: var(--text-secondary)
+```
+
+**空状态**：
+- 图标：📭
+- 文案："暂无符合条件的会议"
+- 按钮：[+ 新建会议]
 
 ---
 
@@ -794,6 +974,36 @@ downstreamMeeting: {
   - 已完成：var(--success)，进行中：var(--primary)，未开始：var(--border)
 ```
 
+**数据来源与状态判定**：
+
+```javascript
+// 一报一会流程段状态存储在会议数据中
+meeting: {
+  // ... 其他字段
+  pipeline: {
+    pre_meeting_ready: true,      // 会前准备
+    material_submitted: true,     // 材料提交
+    meeting_held: true,           // 会议召开
+    minutes_published: false,     // 纪要发布
+    action_tracked: false,        // 行动跟踪
+    closure_verified: false       // 闭环验证
+  }
+}
+```
+
+**状态判定规则**（自动推断为主）：
+
+| 步骤 | 自动判定条件 | 手动覆盖 |
+|------|-------------|---------|
+| 会前准备 | 会议日期已设定且议程非空 | 可手动标记 |
+| 材料提交 | 所有议程项的 material_link 非空 | 可手动标记 |
+| 会议召开 | 会议状态为 in_progress / completed | 自动，不可手动 |
+| 纪要发布 | 会议状态为 completed 且距会议日期 ≤24h | 自动，可手动确认 |
+| 行动跟踪 | 所有关联 actionItem 状态为 completed | 自动，不可手动 |
+| 闭环验证 | 行动跟踪完成 + 下游会议已召开 | 自动，不可手动 |
+
+> **设计原则**：六步状态以自动推断为主，减少用户操作；关键节点（材料提交、纪要发布）提供手动确认入口。
+
 #### D.3.9 会议链接
 
 **设计目标**：提供会议相关外部资源（飞书文档、Zoom/腾讯会议链接、录屏回放等）的快速入口，支持在主视图中一键访问或添加。
@@ -1140,7 +1350,7 @@ const totalMinutes = agenda.reduce((sum, item) => sum + (parseInt(item.duration)
   - 保存中：按钮显示 "保存中..." 并禁用，防止重复提交
 ```
 
-#### D.4.7 取消时的未保存提示
+#### D.4.9 取消时的未保存提示
 
 ```javascript
 // 编辑页面关闭前检查
@@ -1158,12 +1368,67 @@ if (hasUnsavedChanges()) {
 // 关闭编辑页面
 ```
 
-#### D.4.8 实现要点（编辑页面）
+#### D.4.10 实现要点（编辑页面）
 
 1. **数据隔离**：编辑页面必须操作 `window._editingMeeting` 的深拷贝，不能直接修改 `window._meetingsData`
 2. **保存原子性**：校验通过 → 写回数据 → API 同步 → 关闭页面 → 刷新主视图，任一步失败则回滚
 3. **议程项渲染**： agenda 数组变更后需重新渲染整个议程列表（因序号需要重新计算）
 4. **z-index**：编辑页面 2100，主视图 2000，编辑页面关闭后回到主视图
+
+#### D.4.11 新建会议页面
+
+**与编辑页面的关系**：
+
+> 新建会议页面复用编辑页面的全部表单组件和布局，差异仅在于初始状态和入口。
+
+**入口**：
+- 会议列表页面标题旁的 [+ 新建会议] 按钮
+- 日历视图当日浮层底部的 [+ 新建会议] 按钮
+
+**初始状态**：
+
+```javascript
+window._editingMeeting = {
+  id: generateId(),           // 生成新ID，如 "20260523-001"
+  name: "",
+  date: new Date().toISOString().split('T')[0],  // 默认今天
+  location: "",
+  host: "",
+  recorder: "",
+  scene: "集团级经营例会",    // 默认第一个场景
+  level: "L1",
+  status: "planned",
+  meeting_link: "",
+  agenda: [
+    { id: "1", type: "经营报告", title: "", start_time: "09:00", end_time: "09:30", duration: 30, speaker: "", material_link: "", purpose: "", description: "" }
+  ],
+  resolutions: [],
+  action_items: [],
+  upstream_meetings: [],
+  downstream_meetings: [],
+  pipeline: {
+    pre_meeting_ready: false,
+    material_submitted: false,
+    meeting_held: false,
+    minutes_published: false,
+    action_tracked: false,
+    closure_verified: false
+  }
+};
+```
+
+**与编辑的差异**：
+
+| 差异点 | 编辑页面 | 新建页面 |
+|--------|---------|---------|
+| 顶部标题 | ✏️ 编辑会议 | ➕ 新建会议 |
+| 数据回显 | 深拷贝已有会议 | 生成空会议对象 |
+| 删除按钮 | 有（🗑️ 删除会议） | 无 |
+| 保存行为 | 更新已有数据 | 向 meetings 数组 push 新数据 |
+| 保存后跳转 | 关闭编辑页，刷新主视图 | 关闭新建页，打开该会议的主视图 |
+| 取消行为 | 返回主视图（不保存） | 直接返回会议列表（无数据可丢弃） |
+
+> **实现建议**：新建和编辑共用同一套表单渲染函数，通过传入 `isNew` 参数区分行为。
 
 ### D.5 数据持久化机制
 
@@ -1215,12 +1480,18 @@ const meetings = window._meetingsData;
 - [ ] 议程项可添加、删除（至少保留1项）、上移、下移
 - [ ] 议程时长变更时总时长实时更新
 - [ ] 议程项标题/时长为空时保存，显示错误提示
+- [ ] 决议项可添加、删除（可全部删除），填写决议内容+决策人+状态
+- [ ] 行动(TODO)项可添加、删除（可全部删除），填写内容+负责人+截止日期+状态+关联决议
+- [ ] 编辑页面保存后，决议和行动(TODO)项同步更新到主视图
 - [ ] 底部保存按钮点击后先校验，通过后才写入数据并关闭页面
 - [ ] 保存中按钮显示"保存中..."并禁用，防止重复提交
 - [ ] 取消/关闭时如有未保存修改，弹出确认提示
 - [ ] 删除会议有二次确认弹窗，确认后从列表移除
+- [ ] [+ 新建会议]按钮打开新建页面，表单为空，保存后生成新会议并打开主视图
+- [ ] 新建会议取消直接返回列表，不保存
 - [ ] 保存成功后主视图数据刷新，修改立即生效
 - [ ] 主持人修改后保存成功，刷新页面后修改保留
+- [ ] 主视图移动端适配：左侧面板移到顶部全宽，标签内容区在下方
 - [ ] pytest 全量通过
 - [ ] JS 语法无错误
 

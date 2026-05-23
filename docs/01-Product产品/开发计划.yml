@@ -1,0 +1,66 @@
+plans:
+  - id: PLAN-001
+    name: 战略地图可视化（BSC 四维度）
+    priority: 高
+    status: 设计中
+    owner: AI-1
+    targetVersion: v0.5.0
+    eta: "2026-06-15"
+    progress: 15
+    issues: ["#45", "#46"]
+    description: "基于平衡计分卡四维度构建战略目标体系可视化"
+
+  - id: PLAN-002
+    name: KPI 详情下钻
+    priority: 高
+    status: 开发中
+    owner: AI-2
+    targetVersion: v0.4.0
+    eta: "2026-05-30"
+    progress: 35
+    issues: ["#38"]
+    description: "KPI 卡片点击后展开详情页，支持多层级指标拆解"
+
+  - id: PLAN-003
+    name: 年度经营计划编制
+    priority: 中
+    status: 待评审
+    owner: 待分配
+    targetVersion: v0.5.0
+    eta: "2026-06-30"
+    progress: 0
+    issues: []
+    description: "支持年度经营目标分解、资源配置、预算编制"
+
+  - id: PLAN-004
+    name: BEM 战略解码工具
+    priority: 中
+    status: 设计中
+    owner: AI-1
+    targetVersion: v0.5.0
+    eta: "2026-07-15"
+    progress: 10
+    issues: ["#52"]
+    description: "基于 BEM 六步解码法，将战略转化为可执行的行动计划"
+
+  - id: PLAN-005
+    name: 用户权限与角色管理
+    priority: 中
+    status: 待评审
+    owner: 待分配
+    targetVersion: v1.0.0
+    eta: "2026-08-01"
+    progress: 0
+    issues: []
+    description: "替换当前模拟登录，支持 RBAC 权限模型"
+
+  - id: PLAN-006
+    name: ST/AT 议题 Excel 模板下载
+    priority: 低
+    status: 待评审
+    owner: 待分配
+    targetVersion: v0.5.0
+    eta: "2026-06-20"
+    progress: 0
+    issues: []
+    description: "提供标准化议题模板下载，支持 Excel 格式"
