@@ -82,6 +82,35 @@ npx playwright test               # E2E 测试
 npm run build                     # 构建测试
 ```
 
+### 发布前检查清单（v0.3.2 教训）
+
+**自动化测试不够。以下必须人工/脚本验证：**
+
+1. **端到端功能测试**
+   -  reviewer.html：实际输入 KMS 链接跑审核，检查评分、打分理由、改进建议、亮点、审核结论是否完整显示
+   -  cockpit.html：增删改查会议/议题，检查数据同步
+   -  business-topics.html：AI 匹配弹窗是否正常
+
+2. **报告解析函数兼容性测试**
+   -  reviewer.html 的 `parseDimensionScores`、`parseIssues`、`parseSuggestions`、`parseHighlights`、`parseConclusion` 必须用**模拟报告文本**测试
+   -  测试用例必须覆盖 markdown 表格、HTML 标签包裹、纯文本列表等多种格式
+   -  修改维度配置（`getDimensionConfig`、`DIMENSION_CONFIG` 等）后，必须检查所有调用点的兼容性
+
+3. **git diff 全量审查**
+   -  修改/删除任何变量或函数后，用 `git diff` 检查所有调用点是否同步更新
+   -  特别注意：解析类函数的正则表达式、配置类数据的结构变化
+
+4. **本地 vs 线上对比**
+   -  部署后，用同一份测试材料在本地（`npm run preview`）和线上各跑一次
+   -  对比评分、报告内容、页面渲染是否完全一致
+
+### 历史教训记录
+
+**v0.3.2 reviewer.html 发布事故**
+- **原因**：将固定 `DIMENSION_CONFIG` 改为动态 `getDimensionConfig` 时，`parseDimensionScores` 正则仍用 `dim.max` 匹配满分列，但新配置的满分值和报告中的不一致，导致所有维度评分为 0
+- **后果**：用户审核后所有维度显示"未识别到评分"，改进建议/亮点/结论全部缺失，报告质量严重下降
+- **修复**：正则不再匹配满分列，从报告中提取实际满分；补齐所有场景的 `getDimensionConfig` 配置；修复 `parseIssues` 表头误匹配和 `parseHighlights` 重复触发
+
 ### Git 规范
 
 遵循 Conventional Commits：
