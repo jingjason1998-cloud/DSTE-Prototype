@@ -1900,31 +1900,45 @@
             'vertical-segment-review': [
                 {
                     dim: '完整性',
-                    weight: '25分',
+                    weight: '35分',
                     body: '述职材料完整覆盖要求的模块：市场现状与竞争格局、业绩达成回顾、核心差距识别、根因分析、下一步行动计划。缺少任一模块均影响评审有效性',
                     bottom: '⚠️ 红线：缺少市场现状或业绩回顾 = 打回补充',
                     bottomClass: 'red'
                 },
                 {
                     dim: '差距与根因分析',
-                    weight: '25分',
+                    weight: '20分',
                     body: '业绩差距需量化呈现（目标vs实际，同比/环比），根因分析需深入业务本质而非表面归因。建议使用5Why或鱼骨图等结构化方法，避免"市场环境不好"等空泛结论',
                     bottom: '⚠️ 红线：差距无量化数据或根因停留在表面 = 打回重做',
                     bottomClass: 'red'
                 },
                 {
                     dim: '业绩预测达成概率分析',
-                    weight: '25分',
+                    weight: '10分',
                     body: '对未来业绩目标的预测需有逻辑支撑（历史趋势、市场容量、竞争态势、资源投入），明确给出达成概率评估及关键假设条件。避免"一定能完成"等主观断言',
                     bottom: '⚠️ 红线：无概率评估或假设条件缺失 = 打回完善',
                     bottomClass: 'red'
                 },
                 {
                     dim: '下一步计划',
-                    weight: '25分',
+                    weight: '20分',
                     body: '改进措施需具体可执行，明确责任人和时间节点，与差距分析形成闭环。优先解决根因中的高影响项，资源需求和支持请求需清晰列出',
                     bottom: '⚠️ 红线：措施与根因脱节或缺少责任人/时间节点 = 打回明确',
                     bottomClass: 'red'
+                },
+                {
+                    dim: 'SP战略关联度',
+                    weight: '10分',
+                    body: '述职内容需与SP战略方向明确对齐，体现战略解码成果。展示本部门/区域如何承接公司战略，关键举措与战略目标的映射关系清晰',
+                    bottom: '⚠️ 红线：未提及战略方向或缺少对齐分析 = 打回补充',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '态度与反思',
+                    weight: '5分',
+                    body: '展现积极的问题意识和改进意愿，对过往失误有坦诚反思，不回避、不推诿。体现持续改进的管理者素养',
+                    bottom: '扣分：回避问题(-2)/推诿责任(-2)/缺乏反思(-1)',
+                    bottomClass: 'yellow'
                 }
             ],
             'lagging-region-review': [],
@@ -1951,7 +1965,7 @@
 
         function getLocalFocusDimensions(sceneId) {
             const map = {
-                'vertical-segment-review': ['完整性', '差距与根因分析', '业绩预测达成概率分析', '下一步计划'],
+                'vertical-segment-review': ['完整性', '差距与根因分析', '业绩预测达成概率分析', '下一步计划', 'SP战略关联度', '态度与反思'],
                 'lagging-region-review': ['完整性', '差距与根因分析', 'SP战略关联度', '业绩预测达成概率分析'],
                 'annual-leader-review': ['完整性', 'SP战略关联度', '态度与反思', '下一步计划'],
                 'general-topic-review': ['目标-解决方案对齐度', '决策支撑度', '行动具体化', '材料规范度']
@@ -2938,10 +2952,12 @@
                     { name: '材料规范度', max: 15, short: '材料规范' }
                 ],
                 'vertical-segment-review': [
-                    { name: '完整性', max: 25, short: '完整性' },
-                    { name: '差距与根因分析', max: 25, short: '差距根因' },
-                    { name: '业绩预测达成概率分析', max: 25, short: '业绩预测' },
-                    { name: '下一步计划', max: 25, short: '下一步计划' }
+                    { name: '完整性', max: 35, short: '完整性' },
+                    { name: '差距与根因分析', max: 20, short: '差距根因' },
+                    { name: '业绩预测达成概率分析', max: 10, short: '业绩预测' },
+                    { name: '下一步计划', max: 20, short: '下一步计划' },
+                    { name: 'SP战略关联度', max: 10, short: 'SP战略' },
+                    { name: '态度与反思', max: 5, short: '态度反思' }
                 ],
                 'lagging-region-review': [
                     { name: '完整性', max: 25, short: '完整性' },

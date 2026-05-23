@@ -49,10 +49,12 @@ const MOCK_REPORT_VERTICAL = `
 
 ## 分项评分
 | 维度 | 得分 | 满分 | 打分理由 |
-| 完整性 | 22 | 25 | 材料覆盖了市场现状和业绩回顾 |
-| 差距与根因分析 | 20 | 25 | 业绩差距量化清晰，根因分析较深入 |
-| 业绩预测达成概率分析 | 18 | 25 | 预测有逻辑支撑，但假设条件不够完整 |
-| 下一步计划 | 12 | 25 | 改进措施不够具体，缺少责任人 |
+| 完整性 | 22 | 35 | 材料覆盖了市场现状和业绩回顾 |
+| 差距与根因分析 | 20 | 20 | 业绩差距量化清晰，根因分析较深入 |
+| 业绩预测达成概率分析 | 18 | 10 | 预测有逻辑支撑，但假设条件不够完整 |
+| 下一步计划 | 12 | 20 | 改进措施不够具体，缺少责任人 |
+| SP战略关联度 | 5 | 10 | 材料提及了战略方向，但缺少具体对齐分析 |
+| 态度与反思 | 2 | 5 | 有反思意识，但缺乏深度自我剖析 |
 `;
 
 const MOCK_REPORT_HTML_TAGS = `
@@ -83,18 +85,20 @@ test.describe('parseDimensionScores — 评分解析', () => {
     expect(result.scores[1].comment.length).toBeGreaterThan(5);
   });
 
-  test('述职场景：4个维度全部解析正确', async ({ page }) => {
+  test('述职场景：6个维度全部解析正确', async ({ page }) => {
     await page.goto('/src/reviewer.html');
     const result = await page.evaluate((report) => {
       return window._testParseDimensionScores(report, 'vertical-segment-review');
     }, MOCK_REPORT_VERTICAL);
 
     expect(result.totalScore).toBe(72);
-    expect(result.scores).toHaveLength(4);
-    expect(result.scores[0]).toMatchObject({ name: '完整性', score: 22, max: 25 });
-    expect(result.scores[1]).toMatchObject({ name: '差距与根因分析', score: 20, max: 25 });
-    expect(result.scores[2]).toMatchObject({ name: '业绩预测达成概率分析', score: 18, max: 25 });
-    expect(result.scores[3]).toMatchObject({ name: '下一步计划', score: 12, max: 25 });
+    expect(result.scores).toHaveLength(6);
+    expect(result.scores[0]).toMatchObject({ name: '完整性', score: 22, max: 35 });
+    expect(result.scores[1]).toMatchObject({ name: '差距与根因分析', score: 20, max: 20 });
+    expect(result.scores[2]).toMatchObject({ name: '业绩预测达成概率分析', score: 18, max: 10 });
+    expect(result.scores[3]).toMatchObject({ name: '下一步计划', score: 12, max: 20 });
+    expect(result.scores[4]).toMatchObject({ name: 'SP战略关联度', score: 5, max: 10 });
+    expect(result.scores[5]).toMatchObject({ name: '态度与反思', score: 2, max: 5 });
   });
 
   test('HTML标签包裹的表格行也能解析', async ({ page }) => {
@@ -197,18 +201,20 @@ test.describe('getDimensionConfig — 维度配置完整性', () => {
     ]);
   });
 
-  test('vertical-segment-review 返回4个述职维度', async ({ page }) => {
+  test('vertical-segment-review 返回6个述职维度', async ({ page }) => {
     await page.goto('/src/reviewer.html');
     const config = await page.evaluate(() => {
       return window._testGetDimensionConfig('vertical-segment-review');
     });
 
-    expect(config).toHaveLength(4);
+    expect(config).toHaveLength(6);
     expect(config.map(c => c.name)).toEqual([
       '完整性',
       '差距与根因分析',
       '业绩预测达成概率分析',
-      '下一步计划'
+      '下一步计划',
+      'SP战略关联度',
+      '态度与反思'
     ]);
   });
 
