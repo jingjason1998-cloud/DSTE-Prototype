@@ -278,10 +278,12 @@ const sceneCounts = {
   ├─ 顶部标题栏：会议名称 + 场景标签 + 状态 Badge + [✏️ 编辑] + [✕ 关闭]
   ├─ 左侧信息面板：基本信息（日期/地点/主持人/记录人/层级）
   ├─ 右侧核心区域：
-  │   ├─ 议程时间线（视觉重点，见 D.3.3）
-  │   ├─ 行动项/决议卡片
-  │   ├─ 效果评估（如有）
-  │   └─ 一报一会流程段（适用场景才显示）
+  │   ├─ 标签导航栏（纪要 | 行动项 | 决策 | 会议链）
+  │   └─ 标签内容区（切换显示对应内容）
+  │       ├─ 议程时间线（视觉重点，见 D.3.3）← "纪要" 标签
+  │       ├─ 行动项列表 ← "行动项" 标签
+  │       ├─ 决议列表 ← "决策" 标签
+  │       └─ 上下游关联会议 ← "会议链" 标签
   └─ 底部操作栏：[关闭] [✏️ 编辑]
         ↓ 点击编辑
   保持主视图打开（背景遮罩）
@@ -305,12 +307,90 @@ const sceneCounts = {
 内容区：
 - flex: 1
 - overflow-y: auto
-- padding: 24px 32px
+- padding: 20px 32px
 - max-width: 1200px
 - margin: 0 auto
+
+内容区内部布局：
+- display: grid
+- grid-template-columns: 280px 1fr
+- gap: 24px
+
+左侧信息面板：
+- width: 280px
+- position: sticky
+- top: 20px
+- align-self: start
+
+右侧标签内容区：
+- min-width: 0
+- flex: 1
 ```
 
-#### D.3.2 顶部标题栏
+#### D.3.2 顶部标题栏与基本信息面板（紧凑设计）
+
+**顶部标题栏**：
+
+```
+布局：
+- display: flex
+- align-items: center
+- justify-content: space-between
+- padding: 12px 32px
+- border-bottom: 1px solid var(--border-light)
+- background: var(--bg-card)
+- position: sticky
+- top: 0
+- z-index: 10
+
+左侧（单行紧凑）：
+- 会议名称：font-size: 18px, font-weight: 700
+- 场景标签 + 状态 badge：紧跟名称后，margin-left: 8px，同一样式
+
+右侧操作：
+- [✏️ 编辑] 按钮：主按钮样式，font-size: 13px, padding: 6px 14px
+- [✕ 关闭] 按钮：图标按钮，font-size: 18px
+```
+
+**左侧基本信息面板**：
+
+```
+面板容器：
+- background: var(--bg-card)
+- border-radius: 10px
+- border: 1px solid var(--border-light)
+- padding: 16px
+
+信息项（单行紧凑布局）：
+- display: flex
+- align-items: baseline
+- gap: 8px
+- padding: 6px 0
+- border-bottom: 1px dashed var(--border-light)
+- 最后一项无边框
+
+标签：
+- font-size: 12px
+- color: var(--text-secondary)
+- min-width: 48px
+- flex-shrink: 0
+
+值：
+- font-size: 13px
+- color: var(--text-primary)
+- font-weight: 500
+
+信息项列表：
+- 📅 日期：2026-05-21
+- 📍 地点：会议室A
+- 👤 主持人：张三
+- 📝 记录人：李四
+- 🏢 层级：L1
+- 📊 状态：badge 样式
+- 🔗 会议链接：可点击跳转（如有）
+```
+
+> **紧凑要点**：面板宽度固定 280px，padding 仅 16px，信息项间距 6px，标签+值单行排列，不浪费纵向空间。总高度控制在 200px 以内，一屏可见。
 
 ```
 布局：
@@ -334,9 +414,44 @@ const sceneCounts = {
 - [✕ 关闭] 按钮：图标按钮
 ```
 
-#### D.3.3 议程时间线（视觉重点）
+#### D.3.3 标签导航栏
 
-**设计目标**：将议程从扁平列表升级为**横向时间轴 + 纵向详情卡片**的复合布局，直观呈现议程顺序、时长占比与进行状态。
+```
+容器：
+- display: flex
+- gap: 0
+- border-bottom: 1px solid var(--border-light)
+- margin-bottom: 20px
+
+标签项：
+- padding: 12px 20px
+- font-size: 14px
+- font-weight: 500
+- color: var(--text-secondary)
+- cursor: pointer
+- border-bottom: 2px solid transparent
+- transition: all 0.2s
+
+标签悬停：
+- color: var(--text-primary)
+
+标签选中：
+- color: var(--primary)
+- border-bottom: 2px solid var(--primary)
+- font-weight: 600
+
+标签顺序：
+- 📄 纪要（默认选中）
+- ✅ 行动项
+- 📋 决策
+- 🔗 会议链
+```
+
+> **说明**：效果评估和原则管理不在主视图标签中。效果评估数据在会议列表卡片上已展示综合评分，无需重复。原则管理作为系统级功能，独立入口更为合适。
+
+#### D.3.4 "纪要" 标签 — 议程时间线（视觉重点）
+
+**设计目标**：将议程从扁平列表升级为**横向时间轴 + 纵向详情卡片**的复合布局，直观呈现议程顺序、时长占比与当前进度，提升会议筹备与执行阶段的体验。
 
 **整体布局**：
 
@@ -405,20 +520,66 @@ const sceneCounts = {
 - transform: translateX(4px)
 - box-shadow: 0 4px 12px rgba(0,0,0,0.08)
 
-左侧时间标识：
-- 时长标签：font-size: 13px, font-weight: 600, color: var(--primary)
+左侧时间标识（时间段 + 时长）：
+- 时间段：font-size: 12px, font-weight: 600, color: var(--text-primary)
+  - 格式："09:00"（开始时间）
+- 连接符：font-size: 11px, color: var(--text-secondary)
+  - 格式："~"
+- 结束时间：font-size: 12px, font-weight: 600, color: var(--text-primary)
+  - 格式："09:25"
+- 时长标签：font-size: 11px, color: var(--primary), background: var(--primary-light)
+  - border-radius: 4px, padding: 2px 6px
   - 格式："25分钟"
-- 时间占比条：
-  - width: 4px
-  - height: 100%
-  - border-radius: 2px
-  - 背景：当前议程时长 / 总时长 的比例色带
+  - 位置：时间段下方，形成"时间块"视觉单元
+
+时间占比条：
+- width: 3px
+- height: 100%
+- border-radius: 2px
+- background：当前议程时长 / 总时长 的比例色带
 
 右侧内容区：
-- 议程标题：font-size: 15px, font-weight: 600, color: var(--text-primary)
-- 议题类型标签：inline badge，font-size: 11px
-- 负责人：👤 + 姓名，font-size: 13px, color: var(--text-secondary)
-- 描述（如有）：font-size: 13px, color: var(--text-secondary), line-height: 1.6
+- 第一行（标题行）：
+  - 议程标题：font-size: 15px, font-weight: 600, color: var(--text-primary)
+  - 议题类型标签：inline badge，font-size: 11px，margin-left: 8px
+
+- 第二行（元信息行，紧凑排列）：
+  - display: flex
+  - gap: 16px
+  - margin-top: 6px
+  - font-size: 12px
+  - color: var(--text-secondary)
+
+  元信息项：
+  - 👤 主持人：姓名（议程级主持人，区别于会议主持人）
+  - 📎 材料：链接文本，color: var(--primary)，带下划线，点击跳转
+    - 无材料时：不显示该项
+  - 🎯 目的：简短描述，最多 30 字截断
+    - 无目的时：不显示该项
+
+- 议程描述（如有）：
+  - font-size: 13px
+  - color: var(--text-secondary)
+  - line-height: 1.6
+  - margin-top: 8px
+  - padding-top: 8px
+  - border-top: 1px dashed var(--border-light)
+
+> **数据模型扩展**：
+> ```javascript
+> agendaItem: {
+>   id: "1",
+>   type: "经营报告",
+>   title: "Q1经营分析报告",
+>   start_time: "09:00",     // 新增：开始时间
+>   end_time: "09:25",       // 新增：结束时间
+>   duration: 25,            // 时长（分钟），由 start/end 计算或独立存储
+>   speaker: "张三",         // 主持人/主讲人（议程级）
+>   material_link: "https://...",  // 新增：会议材料链接
+>   purpose: "回顾Q1业绩，识别偏差",  // 新增：议程目的
+>   description: "..."       // 原有：详细描述
+> }
+> ```
 ```
 
 **议程总览头部**：
@@ -439,46 +600,108 @@ const sceneCounts = {
 - 圆形进度条（SVG）：直径 36px，描边宽度 3px，背景轨道灰色，进度色 var(--primary)
 ```
 
-#### D.3.4 行动项/决议区域
+#### D.3.5 "行动项" 标签 — 行动项列表
+
+**布局**：
 
 ```
-两列卡片布局：
-- display: grid
-- grid-template-columns: 1fr 1fr
-- gap: 16px
-- margin-bottom: 24px
-
-移动端：
-- grid-template-columns: 1fr
-
-单卡片：
+容器：
 - background: var(--bg-card)
 - border-radius: 10px
-- padding: 16px 20px
+- padding: 20px
 - border: 1px solid var(--border-light)
 
-卡片头部：
-- 标题："✅ 行动项" / "📌 决议"，font-size: 14px, font-weight: 700
-- 数量 badge：font-size: 11px
+头部：
+- 标题："✅ 行动项"，font-size: 16px, font-weight: 700
+- 数量 badge + 完成率（已完成 / 总数）
 
 列表项：
-- 状态图标 + 内容 + 负责人 + 截止日期
-- 无数据时显示占位文案："暂无行动项"（浅色居中）
+- 状态图标（✅/⏳/⏸️）+ 内容 + 负责人 + 截止日期
+- 每条底部 border-bottom: 1px solid var(--border-light)
+- 最后一条无边框
+
+空状态：
+- 居中显示 "暂无行动项"，color: var(--text-secondary)
 ```
 
-#### D.3.5 效果评估
+#### D.3.6 "决策" 标签 — 决议列表
 
-- 仅在 `m.effectiveness` 存在时显示
-- 展示：综合评分大数字（font-size: 36px, font-weight: 800） + 四维度分数条
-- 布局：横向排列四个维度卡片，每个含标签 + 分数 + 进度条
+**布局**：
 
-#### D.3.6 一报一会流程段
+```
+容器：与行动项标签同样式
 
-- **适用场景才显示**；不适用时整个区域直接隐藏，**不出现"不适用"等任何占位文案或提示**
-- 六步水平步骤条：会前准备 → 材料提交 → 会议召开 → 纪要发布 → 行动跟踪 → 闭环验证
-- 每步含图标 + 标签 + 状态指示（已完成/进行中/未开始）
+头部：
+- 标题："📋 决议"，font-size: 16px, font-weight: 700
+- 数量 badge
 
-#### D.3.7 会议链接
+列表项：
+- 状态图标（✅/⏳）+ 决议内容 + 负责人 + 截止日期
+- 空状态同行动项
+```
+
+> **说明**：原设计中"行动项/决议两列卡片"改为分标签独立展示，避免信息拥挤。
+
+#### D.3.7 "会议链" 标签 — 上下游关联会议
+
+**设计目标**：展示当前会议与上下游会议的关联关系，形成"会前遗留→本次会议→会后跟踪"的完整链条。
+
+**布局**：
+
+```
+容器：
+- background: var(--bg-card)
+- border-radius: 10px
+- padding: 20px
+- border: 1px solid var(--border-light)
+
+上游会议（前置会议）：
+- 标题："⬆️ 上游会议"，font-size: 14px, font-weight: 600
+- 会议卡片（迷你版）：
+  - 会议名称 + 日期
+  - 遗留问题数量 badge
+  - 点击：打开该会议主视图
+- 无上游时："无上游关联会议"
+
+当前会议：
+- 居中显示，带高亮边框
+- 标题："📍 当前会议"
+- 名称 + 日期
+
+下游会议（后续会议）：
+- 标题："⬇️ 下游会议"，font-size: 14px, font-weight: 600
+- 会议卡片（迷你版）：同上游
+- 无下游时："无下游关联会议"
+
+连接线（视觉）：
+- 上游 → 当前：向下箭头连线
+- 当前 → 下游：向下箭头连线
+- 使用虚线 + 箭头图标，color: var(--border)
+```
+
+#### D.3.8 一报一会流程段（跨标签常驻）
+
+> **位置**：一报一会流程段不属于任何标签内部，而是放在右侧核心区域的**标签导航栏上方**，作为会议的元信息常驻展示。适用场景才显示，不适用时直接隐藏。
+
+**布局**：
+
+```
+容器：
+- margin-bottom: 16px
+- padding: 12px 16px
+- background: linear-gradient(90deg, var(--primary-light) 0%, var(--bg-card) 100%)
+- border-radius: 8px
+- border-left: 3px solid var(--primary)
+
+内容：
+- 标题："📊 一报一会"，font-size: 13px, font-weight: 600
+- 六步水平步骤条（简化版）：
+  - 会前准备 → 材料提交 → 会议召开 → 纪要发布 → 行动跟踪 → 闭环验证
+  - 每步小圆点 + 标签，横向紧凑排列
+  - 已完成：var(--success)，进行中：var(--primary)，未开始：var(--border)
+```
+
+#### D.3.9 会议链接
 
 **设计目标**：提供会议相关外部资源（飞书文档、Zoom/腾讯会议链接、录屏回放等）的快速入口，支持在主视图中一键访问或添加。
 
@@ -525,10 +748,21 @@ meeting_link: {
 
 ### D.4 会议编辑页面
 
-#### D.4.1 触发方式
+#### D.4.1 触发方式与数据回显
 
 - **唯一入口**：主视图顶部或底部的"✏️ 编辑"按钮
 - 编辑页面为**全屏独立页面**，不再是居中弹窗，与主视图同为沉浸式布局
+
+**数据回显**：
+
+```javascript
+// 打开编辑页面时，将当前会议数据深拷贝到编辑表单
+// 避免直接修改 window._meetingsData，保证取消时可丢弃修改
+window._editingMeeting = JSON.parse(JSON.stringify(meeting));
+// meeting 为当前会议的完整对象引用，包含 id / name / date / agenda 等全部字段
+```
+
+> **关键**：编辑页面必须基于 `window._editingMeeting` 渲染表单，而非直接操作 `window._meetingsData`。保存时才将修改写回主数据。
 
 #### D.4.2 整体布局
 
@@ -541,40 +775,225 @@ meeting_link: {
 - display: flex
 - flex-direction: column
 
+顶部标题栏（同主视图结构，文案不同）：
+- 左侧："✏️ 编辑会议"，font-size: 20px, font-weight: 700
+- 右侧：[✕ 取消] 图标按钮（等价于底部取消）
+
 内容区：
 - flex: 1
 - overflow-y: auto
 - padding: 24px 32px
 - max-width: 960px
 - margin: 0 auto
+
+底部操作栏（sticky）：
+- position: sticky
+- bottom: 0
+- background: var(--bg-card)
+- border-top: 1px solid var(--border-light)
+- padding: 12px 32px
+- display: flex
+- justify-content: space-between
 ```
 
-#### D.4.3 表单字段
+#### D.4.3 表单字段布局
 
-| 字段 | 类型 | 必填 |
+**分组结构**：
+
+```
+【基本信息组】
+  会议名称        会议日期
+  地点            主持人
+  记录人          会议链接
+  会议场景        层级
+  状态
+
+【会议议程组】
+  议程项动态管理（见 D.4.5）
+```
+
+**字段样式**：
+
+```
+表单网格：
+- display: grid
+- grid-template-columns: 1fr 1fr
+- gap: 16px 24px
+
+单列字段（会议名称、会议链接）：
+- grid-column: 1 / -1
+
+标签：
+- font-size: 13px
+- font-weight: 500
+- color: var(--text-secondary)
+- margin-bottom: 6px
+
+输入框：
+- height: 40px
+- padding: 0 12px
+- border: 1px solid var(--border)
+- border-radius: 6px
+- font-size: 14px
+- background: var(--bg-card)
+- 聚焦：border-color: var(--primary), box-shadow: 0 0 0 3px var(--primary-light)
+
+必填标识：
+- 标签后加红色 *，font-size: 12px
+
+错误状态：
+- border-color: var(--danger)
+- 下方显示错误文案：font-size: 12px, color: var(--danger)
+```
+
+**字段详细定义**：
+
+| 字段 | 类型 | 必填 | 校验规则 |
+|------|------|------|---------|
+| 会议名称 | text | ✅ | 非空，最长 100 字 |
+| 会议日期 | date | ✅ | 合法日期格式 |
+| 地点 | text | | 最长 50 字 |
+| 主持人 | text | | 最长 20 字 |
+| 记录人 | text | | 最长 20 字 |
+| 会议场景 | select | | 5 选项：集团级经营例会 / 产品线经营例会 / 区域经营例会 / 战略专项评审会 / 其他 |
+| 层级 | select | | 3 选项：L1 / L2 / L3 |
+| 状态 | select | | 4 选项：planned / in_progress / completed / cancelled |
+| 会议链接 | text（URL） | | 如有值需符合 URL 格式（以 http:// 或 https:// 开头）|
+
+#### D.4.4 数据校验与反馈
+
+**保存前校验**：
+
+```javascript
+function validateMeetingForm(data) {
+  const errors = {};
+  if (!data.name || data.name.trim() === '') {
+    errors.name = '会议名称不能为空';
+  }
+  if (!data.date) {
+    errors.date = '请选择会议日期';
+  }
+  if (data.meeting_link && !data.meeting_link.startsWith('http')) {
+    errors.meeting_link = '链接格式不正确，需以 http:// 或 https:// 开头';
+  }
+  // 议程项校验
+  data.agenda.forEach((item, i) => {
+    if (!item.title || item.title.trim() === '') {
+      errors[`agenda_${i}`] = `议程第 ${i+1} 项标题不能为空`;
+    }
+    if (!item.duration || item.duration < 1) {
+      errors[`agenda_${i}_duration`] = `议程第 ${i+1} 项时长需为正整数`;
+    }
+  });
+  return errors;
+}
+```
+
+**校验失败时**：
+- 错误字段边框变红，下方显示错误文案
+- 页面自动滚动到第一个错误字段
+- 保存按钮恢复可点击状态
+
+**保存成功时**：
+- 将 `window._editingMeeting` 写回 `window._meetingsData` 对应项
+- 调用 `apiSave('/api/meetings', meetings)` 同步后端
+- 关闭编辑页面
+- 刷新主视图数据（重新渲染主视图内容区）
+
+#### D.4.5 议程项动态管理
+
+**布局**：
+
+```
+议程组标题：
+- "📋 会议议程"，font-size: 16px, font-weight: 700
+- 右侧：总时长 "预计 XX 分钟"，font-size: 13px, color: var(--text-secondary)
+
+议程列表容器：
+- display: flex
+- flex-direction: column
+- gap: 12px
+- margin: 12px 0
+
+单条议程项：
+- background: var(--bg-card)
+- border: 1px solid var(--border-light)
+- border-radius: 8px
+- padding: 12px 16px
+- display: grid
+- grid-template-columns: auto 1fr auto auto auto
+- gap: 12px
+- align-items: center
+
+议程项内部：
+- 类型选择器：select，width: 100px（经营报告/专题研讨/决策事项/其他）
+- 标题输入：text，flex: 1，placeholder "议程标题"
+- 时长输入：number，width: 80px，placeholder "分钟"
+- 负责人输入：text，width: 100px，placeholder "负责人"
+- 操作按钮组：
+  - [↑] 上移
+  - [↓] 下移
+  - [×] 删除（仅剩1项时禁用）
+```
+
+**交互规则**：
+
+| 操作 | 行为 | 限制 |
 |------|------|------|
-| 会议名称 | text | ✅ |
-| 会议日期 | date | ✅ |
-| 地点 | text | |
-| 主持人 | text | |
-| 记录人 | text | |
-| 会议场景 | select（5场景） | |
-| 层级 | select（L1/L2/L3） | |
-| 状态 | select（planned/in_progress/completed/cancelled） | |
-| 会议链接 | text（URL） | |
+| 添加议程项 | 列表末尾追加空议程项 | 无上限 |
+| 删除议程项 | 移除当前项 | 至少保留 1 项，仅剩1项时删除按钮 disabled |
+| 上移 | 与上一项交换位置 | 第1项不可上移 |
+| 下移 | 与下一项交换位置 | 最后1项不可下移 |
+| 时长变更 | 实时累加总时长 | 仅允许正整数 |
 
-#### D.4.4 议程项动态管理
+**总时长计算**：
 
-- 列表展示：类型选择器 + 标题输入 + 时长输入（分钟，正整数）+ 负责人输入
-- 操作：上移 ↑ / 下移 ↓ / 删除 ×（至少保留1项）
-- 底部：总时长自动累加显示
-- "+ 添加议程项" 按钮
+```javascript
+const totalMinutes = agenda.reduce((sum, item) => sum + (parseInt(item.duration) || 0), 0);
+// 显示格式："预计 90 分钟" 或 "预计 1小时30分钟"
+```
 
-#### D.4.5 底部操作
+#### D.4.6 底部操作
 
-- 左侧：🗑️ 删除（带确认弹窗）
-- 右侧：[取消] [保存]
-- 保存后：关闭编辑页面，返回并刷新主视图数据
+```
+左侧：
+- 🗑️ 删除会议：次要危险按钮样式
+  - 点击弹出确认弹窗："确定删除该会议？此操作不可撤销。"
+  - 确认后：从 meetings 数组移除该会议，apiSave，关闭编辑页面，返回会议列表
+
+右侧：
+- [取消] 按钮：次要按钮样式
+  - 点击：关闭编辑页面，返回主视图，**不保存任何修改**
+  - 若表单有修改：弹出确认 "是否放弃未保存的修改？"
+- [保存] 按钮：主按钮样式
+  - 点击：先执行 validateMeetingForm，通过后才保存
+  - 保存中：按钮显示 "保存中..." 并禁用，防止重复提交
+```
+
+#### D.4.7 取消时的未保存提示
+
+```javascript
+// 编辑页面关闭前检查
+function hasUnsavedChanges() {
+  const original = meetings.find(m => m.id === window._editingMeeting.id);
+  return JSON.stringify(original) !== JSON.stringify(window._editingMeeting);
+}
+
+// 点击取消或关闭按钮时
+if (hasUnsavedChanges()) {
+  // 弹出确认
+  const confirmed = confirm('您有未保存的修改，确定要放弃吗？');
+  if (!confirmed) return; // 留在编辑页面
+}
+// 关闭编辑页面
+```
+
+#### D.4.8 实现要点（编辑页面）
+
+1. **数据隔离**：编辑页面必须操作 `window._editingMeeting` 的深拷贝，不能直接修改 `window._meetingsData`
+2. **保存原子性**：校验通过 → 写回数据 → API 同步 → 关闭页面 → 刷新主视图，任一步失败则回滚
+3. **议程项渲染**： agenda 数组变更后需重新渲染整个议程列表（因序号需要重新计算）
+4. **z-index**：编辑页面 2100，主视图 2000，编辑页面关闭后回到主视图
 
 ### D.5 数据持久化机制
 
@@ -608,11 +1027,29 @@ const meetings = window._meetingsData;
 ### D.7 验收标准
 
 - [ ] 点击会议卡片打开全屏主视图，而非居中弹窗
-- [ ] 主视图展示会议全局信息（基本信息、议程时间线、行动项、决议、评估、流程段）
-- [ ] 一报一会流程段仅适用场景显示，不适用时直接隐藏，不出现"不适用"等任何文案
-- [ ] 议程时间线包含：顶部节点轴 + 议程详情卡片列表 + 总时长统计 + 进度指示
+- [ ] 主视图包含4个标签：纪要（默认）、行动项、决策、会议链
+- [ ] 标签导航栏有选中高亮下划线，切换流畅
+- [ ] "纪要"标签展示议程时间线（顶部节点轴 + 议程详情卡片 + 总时长统计）
+- [ ] "行动项"标签展示行动项列表（状态图标 + 内容 + 负责人 + 截止日期）
+- [ ] "决策"标签展示决议列表
+- [ ] "会议链"标签展示上下游关联会议（上游 → 当前 → 下游）
 - [ ] 议程卡片有左侧彩色竖线（按议题类型区分颜色）
+- [ ] 一报一会流程段在标签导航栏上方常驻显示，不适用时直接隐藏
+- [ ] 会议链接在左侧基本信息面板底部直接展示，不在标签内
+- [ ] 效果评估和原则管理不在主视图标签中
 - [ ] 主视图有"✏️ 编辑"按钮，点击打开全屏编辑页面
+- [ ] 编辑页面加载时正确回显当前会议的所有字段（深拷贝，不直接修改原数据）
+- [ ] 基本信息表单：两列布局，必填字段带 * 标识，聚焦有蓝色边框
+- [ ] 会议名称/日期为空时保存，显示错误提示并阻止保存
+- [ ] 会议链接格式非法时保存，显示错误提示
+- [ ] 议程项可添加、删除（至少保留1项）、上移、下移
+- [ ] 议程时长变更时总时长实时更新
+- [ ] 议程项标题/时长为空时保存，显示错误提示
+- [ ] 底部保存按钮点击后先校验，通过后才写入数据并关闭页面
+- [ ] 保存中按钮显示"保存中..."并禁用，防止重复提交
+- [ ] 取消/关闭时如有未保存修改，弹出确认提示
+- [ ] 删除会议有二次确认弹窗，确认后从列表移除
+- [ ] 保存成功后主视图数据刷新，修改立即生效
 - [ ] 主持人修改后保存成功，刷新页面后修改保留
 - [ ] pytest 全量通过
 - [ ] JS 语法无错误

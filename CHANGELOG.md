@@ -17,6 +17,23 @@
 
 ---
 
+## [v0.3.3] - 2026-05-23
+
+### Added
+- **reviewer 6维度述职场景**：vertical-segment-review 从4维度扩展为6维度
+  - 新增：SP战略关联度（10分）、态度与反思（5分）
+  - 调整权重：完整性35/差距根因20/业绩预测10/下一步计划20
+- **SonarCloud 代码质量监控**：GitHub Actions 自动扫描，每次 push/PR 触发
+
+### Fixed
+- vertical-segment-review 维度配置与测试用例同步
+- 6维度解析函数正则匹配满分值提取
+
+### Security
+- GitHub Actions CI 强制门禁（SonarCloud + 测试通过率检查）
+
+---
+
 ## [v0.3.2] - 2026-05-22
 
 ### Fixed
