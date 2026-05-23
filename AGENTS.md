@@ -91,18 +91,41 @@ npm run build                     # 构建测试
    -  cockpit.html：增删改查会议/议题，检查数据同步
    -  business-topics.html：AI 匹配弹窗是否正常
 
-2. **报告解析函数兼容性测试**
-   -  reviewer.html 的 `parseDimensionScores`、`parseIssues`、`parseSuggestions`、`parseHighlights`、`parseConclusion` 必须用**模拟报告文本**测试
-   -  测试用例必须覆盖 markdown 表格、HTML 标签包裹、纯文本列表等多种格式
-   -  修改维度配置（`getDimensionConfig`、`DIMENSION_CONFIG` 等）后，必须检查所有调用点的兼容性
+2. **报告解析函数测试（关键！）**
+   ```bash
+   npx playwright test tests/e2e/reviewer-parser.spec.js
+   ```
+   -  测试 `parseDimensionScores`、`parseIssues`、`parseSuggestions`、`parseHighlights`、`parseConclusion` 用模拟报告文本解析
+   -  覆盖 markdown 表格、HTML 标签包裹、纯文本列表等多种格式
+   -  覆盖通用议题和述职两种场景
+   -  **修改维度配置（`getDimensionConfig`）后必须跑这个测试**
 
-3. **git diff 全量审查**
+3. **报告渲染 E2E 测试（关键！）**
+   ```bash
+   npx playwright test tests/e2e/reviewer-report-render.spec.js
+   ```
+   -  mock 后端返回报告，验证前端 DOM 渲染结果
+   -  断言：总分、维度得分、改进建议条数、亮点条数、审核结论文字
+   -  **任何修改 reviewer.html 报告渲染逻辑后必须跑这个测试**
+
+4. **git diff 全量审查**
    -  修改/删除任何变量或函数后，用 `git diff` 检查所有调用点是否同步更新
    -  特别注意：解析类函数的正则表达式、配置类数据的结构变化
 
-4. **本地 vs 线上对比**
+5. **本地 vs 线上对比**
    -  部署后，用同一份测试材料在本地（`npm run preview`）和线上各跑一次
    -  对比评分、报告内容、页面渲染是否完全一致
+
+### 测试文件清单
+
+| 文件 | 类型 | 覆盖范围 | 运行命令 |
+|------|------|---------|---------|
+| `tests/test_integration.py` | pytest | 结构/内容/导航 | `python3 -m pytest tests/` |
+| `tests/e2e/navigation.spec.js` | Playwright | 页面导航、主题切换 | `npx playwright test tests/e2e/navigation.spec.js` |
+| `tests/e2e/theme.spec.js` | Playwright | 主题跨页面同步、样式断言 | `npx playwright test tests/e2e/theme.spec.js` |
+| `tests/e2e/reviewer.spec.js` | Playwright | reviewer 页面基础功能 | `npx playwright test tests/e2e/reviewer.spec.js` |
+| `tests/e2e/reviewer-parser.spec.js` | Playwright | **解析函数单元测试** | `npx playwright test tests/e2e/reviewer-parser.spec.js` |
+| `tests/e2e/reviewer-report-render.spec.js` | Playwright | **报告渲染 E2E 测试** | `npx playwright test tests/e2e/reviewer-report-render.spec.js` |
 
 ### 历史教训记录
 

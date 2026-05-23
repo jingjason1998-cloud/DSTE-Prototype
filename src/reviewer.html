@@ -2972,8 +2972,8 @@
             for (const dim of dimConfig) {
                 let found = false;
                 const escapedName = dim.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                // 兼容维度名被 HTML 标签包裹的情况，不严格匹配满分列（从报告中提取实际满分）
-                const regex = new RegExp('\\|\\s*(?:<[^>]+>)?\\s*' + escapedName + '\\s*(?:<\\/[^>]+>)?\\s*\\|\\s*(\\d+(?:\\.\\d+)?)\\s*\\|');
+                // 兼容维度名和得分被 HTML 标签包裹的情况，不严格匹配满分列（从报告中提取实际满分）
+                const regex = new RegExp('\\|\\s*(?:<[^>]+>)?\\s*' + escapedName + '\\s*(?:<\\/[^>]+>)?\\s*\\|\\s*(?:<[^>]+>)?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:<\\/[^>]+>)?\\s*\\|');
                 for (const line of lines) {
                     const match = line.match(regex);
                     if (match) {
@@ -4084,6 +4084,14 @@
                 }
             });
         })();
+
+        // 暴露解析函数供测试使用（不影响生产功能）
+        window._testParseDimensionScores = parseDimensionScores;
+        window._testParseIssues = parseIssues;
+        window._testParseSuggestions = parseSuggestions;
+        window._testParseHighlights = parseHighlights;
+        window._testParseConclusion = parseConclusion;
+        window._testGetDimensionConfig = getDimensionConfig;
     </script>
     </div>
     </div>
