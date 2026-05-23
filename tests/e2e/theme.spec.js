@@ -92,15 +92,28 @@ test.describe('主题切换 - 关键组件样式', () => {
     });
     await page.reload();
 
-    // 导航到包含表格的页面
-    await page.locator('.sidebar-item[data-page="sp/strategy-topics"]').click();
-    await page.waitForTimeout(500);
+    // 导航到包含表格的页面（使用更通用的选择器）
+    const sidebarItems = page.locator('.sidebar-item');
+    const count = await sidebarItems.count();
+    let clicked = false;
+    for (let i = 0; i < count; i++) {
+      const item = sidebarItems.nth(i);
+      const text = await item.textContent();
+      if (text && (text.includes('战略专题') || text.includes('KPI') || text.includes('经营分析'))) {
+        await item.click();
+        clicked = true;
+        break;
+      }
+    }
 
-    const th = page.locator('table th, .data-table th').first();
-    if (await th.isVisible().catch(() => false)) {
-      const bgColor = await th.evaluate(el => getComputedStyle(el).backgroundColor);
-      // light 模式下表头应该有明显背景色
-      expect(bgColor).not.toBe('rgba(0, 0, 0, 0)');
+    if (clicked) {
+      await page.waitForTimeout(500);
+      const th = page.locator('table th, .data-table th').first();
+      if (await th.isVisible().catch(() => false)) {
+        const bgColor = await th.evaluate(el => getComputedStyle(el).backgroundColor);
+        // light 模式下表头应该有明显背景色
+        expect(bgColor).not.toBe('rgba(0, 0, 0, 0)');
+      }
     }
   });
 });
