@@ -1808,6 +1808,8 @@
             PROXY_URL = 'http://localhost:8766';
         } else if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
             PROXY_URL = 'http://localhost:8766';
+        } else if (window.location.hostname === 'dste.fineres.com' || window.location.hostname === 'Dste.fineres.com') {
+            PROXY_URL = 'https://dste-api.jasonxspace.workers.dev';
         }
         // 允许 localStorage 覆盖（高级用户调试）
         PROXY_URL = localStorage.getItem('meetingReviewerProxyUrl') || PROXY_URL;
