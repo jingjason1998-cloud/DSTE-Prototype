@@ -2379,25 +2379,12 @@
             const warnings = [];
             const cleanedRow = { ...row };
 
-            // 检测导入格式：新格式（真实Excel列）vs 旧格式（预设模板列）
-            const isNewFormat = cleanedRow['议题主题'] !== undefined || cleanedRow['片联议题类型'] !== undefined;
-            const isOldFormat = cleanedRow['议题标题'] !== undefined || cleanedRow['议题编号'] !== undefined;
-
-            if (!isNewFormat && !isOldFormat) {
-                errors.push('无法识别导入格式：缺少必要的列（议题主题/片联议题类型 或 议题标题/议题编号）');
+            // 议题编号格式校验（如果有值）
+            if (cleanedRow['议题编号'] && !safeIssueId(cleanedRow['议题编号'])) {
+                errors.push(`议题编号格式错误: ${cleanedRow['议题编号']}`);
             }
 
-            // 新格式必填校验
-            if (isNewFormat) {
-                if (!cleanedRow['议题主题'] || String(cleanedRow['议题主题']).trim() === '') {
-                    errors.push('议题主题不能为空');
-                }
-            }
-
-            // CSV 注入防护（覆盖新旧格式的文本字段）
-            const textFields = isNewFormat
-                ? ['议题主题', '议题描述', '结论', '团队负责人审核结论']
-                : ['议题标题', '议题内容', '决议内容', '行动项'];
+            const textFields = ['议题标题', '议题内容', '决议内容', '行动项'];
             textFields.forEach(field => {
                 if (cleanedRow[field] && hasCsvFormulaInjection(cleanedRow[field])) {
                     warnings.push(`字段 "${field}" 可能包含 CSV 公式注入，已自动清理`);

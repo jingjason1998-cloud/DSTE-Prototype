@@ -226,6 +226,11 @@
         
         if (!PAGES[pageId]) pageId = 'dashboard';
 
+        // 同步 URL hash（避免和 hashchange 循环触发）
+        if (pushState && window.location.hash.slice(1) !== pageId) {
+          window.location.hash = pageId;
+        }
+
         currentPage = pageId;
 
         // 确定当前 phase
