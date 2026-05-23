@@ -1,0 +1,21 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password [lindex $argv 0]
+set host [lindex $argv 1]
+set src [lindex $argv 2]
+set dest [lindex $argv 3]
+
+spawn rsync -avz --delete "$src" "root@$host:$dest"
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    "Permission denied" {
+        puts "Authentication failed"
+        exit 1
+    }
+    eof
+}
+catch wait result
+exit [lindex $result 3]

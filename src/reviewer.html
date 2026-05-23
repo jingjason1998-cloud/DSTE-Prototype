@@ -1525,20 +1525,20 @@
             <div id="batchInputArea" style="display:none;margin-top:12px;padding:16px;background:#f5f5f5;border-radius:12px;border:1px solid #e0e0e0;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
                     <span style="color:#888;font-size:0.85em;">当前审核标准：</span>
-                    <span id="batchSceneLabel" style="color:#00d4ff;font-size:0.85em;font-weight:600;">默认场景</span>
+                    <span id="batchSceneLabel" style="color:#2563eb;font-size:0.85em;font-weight:600;">默认场景</span>
                     <span style="color:#555;font-size:0.8em;">（可在上方下拉框切换）</span>
                 </div>
                 <p style="color:#888;font-size:0.85em;margin-bottom:10px;">粘贴多个 KMS 链接，每行一个</p>
                 <textarea id="batchUrls" style="width:100%;height:80px;padding:10px;background:#fafafa;border:1px solid #d0d0d0;border-radius:8px;color:var(--text-primary);font-size:0.9em;resize:vertical;" placeholder="https://kms.fineres.com/pages/viewpage.action?pageId=...\nhttps://kms.fineres.com/pages/viewpage.action?pageId=..."></textarea>
                 <div style="display:flex;gap:10px;margin-top:12px;align-items:center;">
                     <button class="btn btn-success" id="batchStartBtn" onclick="startBatchReview()">开始批量审核</button>
-                    <span id="batchStatus" style="color:#888;font-size:0.85em;"></span>
+                    <span id="batchStatus" style="color:#6b7280;font-size:0.85em;"></span>
                 </div>
                 <div id="batchProgress" style="margin-top:16px;display:none;">
                     <div style="background:rgba(0,0,0,0.2);border-radius:8px;height:20px;overflow:hidden;">
-                        <div id="batchProgressBar" style="height:100%;width:0%;background:#00d4ff;border-radius:8px;transition:width 0.3s;"></div>
+                        <div id="batchProgressBar" style="height:100%;width:0%;background:#3b82f6;border-radius:8px;transition:width 0.3s;"></div>
                     </div>
-                    <div id="batchProgressText" style="color:#888;font-size:0.8em;margin-top:6px;">0/0</div>
+                    <div id="batchProgressText" style="color:#6b7280;font-size:0.8em;margin-top:6px;">0/0</div>
                     <div id="batchProgressList" style="margin-top:10px;font-size:0.8em;"></div>
                 </div>
                 <div id="batchActions" style="margin-top:16px;display:none;">
@@ -1686,7 +1686,7 @@
         </div>
         
         <!-- 审核历史面板 -->
-        <div class="card hidden" id="historyPanel" style="position:fixed;top:60px;right:0;width:420px;max-width:90vw;height:calc(100vh - 80px);overflow-y:auto;z-index:200;margin:0;border-radius:12px 0 0 12px;box-shadow:-4px 0 20px rgba(0,0,0,0.4);">
+        <div class="card hidden" id="historyPanel" style="position:fixed;top:60px;right:0;width:520px;max-width:92vw;height:calc(100vh - 80px);overflow-y:auto;z-index:200;margin:0;border-radius:12px 0 0 12px;box-shadow:-4px 0 24px rgba(0,0,0,0.15);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <h2 style="margin:0;">[历史] 审核历史</h2>
                 <div style="display:flex;gap:8px;">
@@ -1701,7 +1701,7 @@
             
             <div id="trendChartBox" style="display:none;margin-bottom:20px;">
                 <h3 style="color:#00d4ff;font-size:1em;margin-bottom:10px;">评分趋势</h3>
-                <canvas id="trendCanvas" width="640" height="180" style="background:rgba(0,0,0,0.2);border-radius:8px;"></canvas>
+                <canvas id="trendCanvas" width="480" height="180" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;"></canvas>
             </div>
             
             <div id="versionCompareBox" style="display:none;margin-bottom:20px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">
@@ -1716,10 +1716,10 @@
         </div>
         
         <!-- 对比矩阵图模态框 -->
-        <div class="hidden" id="compareMatrixModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;">
-            <div style="background:#0f1623;padding:28px;border-radius:16px;max-width:1000px;width:95%;margin:40px auto;border:1px solid rgba(255,255,255,0.08);box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <h3 style="margin:0;color:#00d4ff;font-size:1.1em;">📊 材料对比矩阵图</h3>
+        <div class="hidden" id="compareMatrixModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;">
+            <div style="background:var(--bg-card,#fff);padding:28px;border-radius:16px;max-width:1100px;width:95%;margin:40px auto;border:1px solid var(--border-color,#e5e7eb);box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border-color,#e5e7eb);">
+                    <h3 style="margin:0;color:var(--primary,#2563eb);font-size:1.1em;">📊 批量材料对比矩阵</h3>
                     <button class="btn btn-secondary" style="padding:6px 16px;font-size:0.85em;" onclick="closeCompareMatrixModal()">✕ 关闭</button>
                 </div>
                 <div id="compareMatrixContent"></div>
@@ -1829,30 +1829,36 @@
         // 加载场景列表
         async function loadScenes() {
             const select = document.getElementById('sceneSelect');
+            let sceneList = [];
             try {
                 const resp = await fetch(PROXY_URL + '/api/scenes', { method: 'GET', mode: 'cors' });
                 const data = await resp.json();
                 if (data.success && data.scenes && data.scenes.length > 0) {
-                    scenes = data.scenes;
-                    select.innerHTML = '<option value="">默认场景</option>';
-                    data.scenes.forEach(scene => {
-                        const opt = document.createElement('option');
-                        opt.value = scene.id;
-                        opt.textContent = scene.short_name || scene.name;
-                        select.appendChild(opt);
-                    });
-                    return;
+                    sceneList = data.scenes;
                 }
             } catch(e) {
                 console.log('从代理加载场景失败，使用本地配置:', e);
             }
-            // 备用：使用本地配置
-            scenes = LOCAL_SCENES;
+            // 如果代理没有返回或返回为空，使用本地配置
+            if (sceneList.length === 0) {
+                sceneList = LOCAL_SCENES;
+            }
+            // 确保通用议题评审场景始终存在，名称与本地保持一致
+            const hasGeneral = sceneList.some(s => s.id === 'general-topic-review');
+            if (!hasGeneral) {
+                sceneList.push({
+                    id: 'general-topic-review',
+                    name: '通用议题材料审核（以本部会为例）',
+                    short_name: '通用议题材料审核（以本部会为例）',
+                    description: '针对特定业务问题的深度分析'
+                });
+            }
+            scenes = sceneList;
             select.innerHTML = '<option value="">默认场景</option>';
-            LOCAL_SCENES.forEach(scene => {
+            sceneList.forEach(scene => {
                 const opt = document.createElement('option');
                 opt.value = scene.id;
-                opt.textContent = scene.short_name;
+                opt.textContent = scene.short_name || scene.name;
                 select.appendChild(opt);
             });
         }
@@ -1963,12 +1969,90 @@
             });
         }
 
-        // 场景选择变化时重新渲染维度卡片并高亮
+        function updatePassStandard(sceneId) {
+            const stdBody = document.getElementById('passStandardBody');
+            if (!stdBody) return;
+            const activeScene = sceneId || 'general-topic-review';
+            if (activeScene === 'general-topic-review') {
+                stdBody.innerHTML = `
+                    <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
+                    <div class="std-item"><span class="std-dot"></span><span>且未触碰任何红线：</span></div>
+                    <div style="padding-left:18px;color:#6b7280;font-size:0.9em;">
+                        <div>• 零决策请求 / 零数据支撑 / 零责任主体 / 零时间计划</div>
+                    </div>
+                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
+                        触碰红线 → 总分封顶60分，判定<span class="std-redline">「待修改」</span>
+                    </div>
+                `;
+            } else {
+                stdBody.innerHTML = `
+                    <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
+                    <div class="std-item"><span class="std-dot"></span><span>且差距与根因分析 ≥ <strong>12分</strong>（单项底线）</span></div>
+                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
+                        根因分析低于12分 → 直接判定<span class="std-redline">「待修改」</span>，不论总分
+                    </div>
+                `;
+            }
+        }
+
+        function resetReportArea() {
+            // 重置评分总览
+            const totalEl = document.getElementById('analysisTotalScore');
+            const badgeEl = document.getElementById('analysisStatusBadge');
+            const dimsBox = document.getElementById('scoreBoardDims');
+            const bottomLine = document.getElementById('scoreBoardBottomLine');
+            if (totalEl) totalEl.textContent = '--';
+            if (badgeEl) { badgeEl.textContent = '审核中'; badgeEl.className = 'analysis-status-badge'; }
+            if (dimsBox) dimsBox.innerHTML = '';
+            if (bottomLine) bottomLine.innerHTML = '';
+
+            // 重置分项评分表
+            const tbody = document.getElementById('dimensionTableBody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;">等待审核结果...</td></tr>';
+
+            // 隐藏问题清单、改进建议、亮点、结论
+            ['issuesCard','suggestionsCard','highlightsCard','conclusionCard'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+
+            // 清空事实检查和原始报告
+            const factCheckBox = document.getElementById('factCheckBox');
+            const reportBox = document.getElementById('reportBox');
+            if (factCheckBox) factCheckBox.innerHTML = '';
+            if (reportBox) reportBox.innerHTML = '';
+
+            // 收起事实检查和原始报告
+            const factCheckContent = document.getElementById('factCheckContent');
+            const rawReportContent = document.getElementById('rawReportContent');
+            const factCheckBar = document.getElementById('factCheckBar');
+            const rawReportBar = document.getElementById('rawReportBar');
+            if (factCheckContent) factCheckContent.classList.remove('expanded');
+            if (rawReportContent) rawReportContent.classList.remove('expanded');
+            if (factCheckBar) factCheckBar.classList.remove('expanded');
+            if (rawReportBar) rawReportBar.classList.remove('expanded');
+        }
+
+        // 场景选择变化时重新渲染维度卡片、更新合格标准、重置报告区域
         document.getElementById('sceneSelect').addEventListener('change', async function() {
             const sceneId = this.value;
 
             // 先渲染对应场景的维度卡片
             renderPrincipleCards(sceneId);
+
+            // 更新合格标准
+            updatePassStandard(sceneId);
+
+            // 如果报告区域已显示，重置并提示重新审核
+            const reportSection = document.getElementById('reportSection');
+            if (reportSection && !reportSection.classList.contains('hidden')) {
+                resetReportArea();
+                // 在合格标准下方添加场景切换提示
+                const stdBody = document.getElementById('passStandardBody');
+                if (stdBody) {
+                    stdBody.innerHTML += '<div style="margin-top:8px;padding:6px 10px;background:#fffbeb;border-radius:6px;border:1px solid #fcd34d;font-size:0.85em;color:#92400e;">⚠️ 场景已切换，请重新执行审核以获取当前场景的评审结果</div>';
+                }
+            }
 
             if (!sceneId) return;
 
@@ -2084,7 +2168,7 @@
                 const listEl = document.getElementById('historyList');
                 const trendEl = document.getElementById('trendChartBox');
                 if (!history.length) {
-                    listEl.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无审核记录<br><span style="font-size:0.8em;color:#666;">成功审核后记录会自动保存到服务器</span></p>';
+                    listEl.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px;">暂无审核记录<br><span style="font-size:0.8em;color:#d1d5db;">成功审核后记录会自动保存到服务器</span></p>';
                     if (trendEl) trendEl.style.display = 'none';
                     const vcBox = document.getElementById('versionCompareBox');
                     if (vcBox) vcBox.style.display = 'none';
@@ -2115,11 +2199,11 @@
                     let tagsHtml = '';
                     recs.forEach(rec => {
                         const isLatest = rec.id === latest.id;
-                        const bg = isLatest ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.05)';
-                        const color = isLatest ? '#00d4ff' : '#aaa';
-                        const border = isLatest ? 'rgba(0,212,255,0.3)' : 'transparent';
+                        const bg = isLatest ? 'rgba(59,130,246,0.1)' : '#f3f4f6';
+                        const color = isLatest ? '#2563eb' : '#6b7280';
+                        const border = isLatest ? 'rgba(59,130,246,0.3)' : '#e5e7eb';
                         const timeStr = new Date(rec.timestamp || 0).toLocaleString('zh-CN');
-                        tagsHtml += '<span class="history-version-tag' + (isLatest ? ' latest' : '') + '" style="padding:4px 10px;border-radius:6px;font-size:0.8em;cursor:pointer;background:' + bg + ';color:' + color + ';border:1px solid ' + border + ';" onclick="event.stopPropagation();showHistoryDetail(' + rec.id + ')" title="' + escapeHtml(timeStr) + '">v' + (rec.version || 1) + ' · ' + (rec.total_score || '--') + '分</span>';
+                        tagsHtml += '<span class="history-version-tag' + (isLatest ? ' latest' : '') + '" style="padding:4px 10px;border-radius:6px;font-size:0.8em;cursor:pointer;background:' + bg + ';color:' + color + ';border:1px solid ' + border + ';white-space:nowrap;" onclick="event.stopPropagation();showHistoryDetail(' + rec.id + ')" title="' + escapeHtml(timeStr) + '">v' + (rec.version || 1) + ' · ' + (rec.total_score || '--') + '分</span>';
                     });
                     
                     let compareBtn = '';
@@ -2128,13 +2212,13 @@
                         compareBtn = '<button class="btn btn-primary" style="padding:4px 12px;font-size:0.8em;" data-compare-url="' + escapeHtml(url) + '" onclick="event.stopPropagation();handleCompareClick(this)">&#128269; 对比版本</button>';
                     }
                     
-                    html += '<div class="history-group" style="margin-bottom:16px;padding:16px;background:rgba(255,255,255,0.03);border-radius:12px;border:1px solid rgba(255,255,255,0.06);">';
+                    html += '<div class="history-group" style="margin-bottom:16px;padding:16px;background:#f9fafb;border-radius:12px;border:1px solid #e8e8e8;">';
                     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
-                    html += '<div style="font-weight:600;color:#fff;font-size:0.95em;">' + escapeHtml(latest.title || '无标题') + '</div>';
-                    html += '<span style="font-size:0.8em;color:#888;">' + escapeHtml(latest.scene_name || '默认') + '</span>';
+                    html += '<div style="font-weight:600;color:#1f2937;font-size:0.95em;">' + escapeHtml(latest.title || '无标题') + '</div>';
+                    html += '<span style="font-size:0.8em;color:#9ca3af;">' + escapeHtml(latest.scene_name || '默认') + '</span>';
                     html += '</div>';
-                    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' + tagsHtml + '</div>';
-                    html += '<div style="display:flex;gap:8px;align-items:center;">' + compareBtn + '<span style="font-size:0.75em;color:#666;">' + recs.length + ' 个版本</span></div>';
+                    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;max-width:100%;">' + tagsHtml + '</div>';
+                    html += '<div style="display:flex;gap:8px;align-items:center;">' + compareBtn + '<span style="font-size:0.75em;color:#9ca3af;">' + recs.length + ' 个版本</span></div>';
                     html += '</div>';
                 });
                 
@@ -2149,7 +2233,7 @@
                 document.getElementById('versionCompareBox').style.display = 'none';
             } catch (err) {
                 console.error('renderHistoryPanel 错误:', err);
-                document.getElementById('historyList').innerHTML = '<p style="color:#ff5555;text-align:center;padding:20px;">加载失败: ' + escapeHtml(err.message) + '<br><span style="font-size:0.8em;color:#888;">请按 F12 查看控制台详细错误</span></p>';
+                document.getElementById('historyList').innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">加载失败: ' + escapeHtml(err.message) + '<br><span style="font-size:0.8em;color:#9ca3af;">请按 F12 查看控制台详细错误</span></p>';
             }
         }
         
@@ -2167,22 +2251,35 @@
             const ctx = canvas.getContext('2d');
             const w = canvas.width, h = canvas.height;
             const padding = 30;
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             ctx.clearRect(0, 0, w, h);
+            
+            // 背景
+            ctx.fillStyle = isDark ? '#1a1a2e' : '#f9fafb';
+            ctx.fillRect(0, 0, w, h);
+            
             const data = [...history].reverse();
             const scores = data.map(d => d.total_score || 0);
             const maxScore = Math.max(...scores, 100);
             const minScore = Math.min(...scores, 0);
             const range = maxScore - minScore || 1;
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            
+            // 网格线
+            ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
             ctx.lineWidth = 1;
             for (let i = 0; i <= 5; i++) {
                 const y = padding + (h - 2 * padding) * (1 - i / 5);
                 ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(w - padding, y); ctx.stroke();
-                ctx.fillStyle = '#888'; ctx.font = '10px sans-serif';
+                ctx.fillStyle = isDark ? '#888' : '#9ca3af';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'left';
                 ctx.fillText(Math.round(minScore + range * i / 5), 5, y + 3);
             }
+            
             if (data.length >= 2) {
-                ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2;
+                // 数据线
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
                 data.forEach((d, i) => {
                     const x = padding + (w - 2 * padding) * (i / (data.length - 1));
@@ -2190,15 +2287,26 @@
                     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
+                
+                // 数据点
                 data.forEach((d, i) => {
                     const x = padding + (w - 2 * padding) * (i / (data.length - 1));
                     const y = padding + (h - 2 * padding) * (1 - ((d.total_score || 0) - minScore) / range);
-                    ctx.fillStyle = '#00d4ff'; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+                    ctx.fillStyle = '#3b82f6';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = isDark ? '#fff' : '#1f2937';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
                     ctx.fillText(d.total_score || 0, x, y - 8);
                 });
             }
-            ctx.fillStyle = '#888'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+            
+            // X轴日期
+            ctx.fillStyle = isDark ? '#888' : '#9ca3af';
+            ctx.font = '9px sans-serif';
+            ctx.textAlign = 'center';
             data.forEach((d, i) => {
                 const x = padding + (w - 2 * padding) * (i / (data.length - 1));
                 const date = new Date(d.timestamp);
@@ -2334,9 +2442,17 @@
                 return {name: dim.name, v1: s1, v2: s2, change, max: dim.max};
             });
             
+            const materialTitle = escapeHtml(v2.title || v1.title || '未知材料');
+            
             content.innerHTML = `
-                <div style="background:rgba(0,212,255,0.08);padding:12px 16px;border-radius:8px;margin-bottom:20px;border-left:3px solid #00d4ff;">
-                    <div style="font-size:0.9em;color:#00d4ff;font-weight:600;">📊 ${escapeHtml(summary)}</div>
+                <div style="background:#f9fafb;padding:12px 16px;border-radius:8px;margin-bottom:16px;border:1px solid #e8e8e8;">
+                    <div style="font-size:0.85em;color:#6b7280;margin-bottom:4px;">📄 对比材料</div>
+                    <div style="font-size:1em;color:#1f2937;font-weight:600;">${materialTitle}</div>
+                    <div style="font-size:0.75em;color:#9ca3af;margin-top:2px;">${escapeHtml(v2.url || v1.url || '')}</div>
+                </div>
+                
+                <div style="background:rgba(59,130,246,0.08);padding:12px 16px;border-radius:8px;margin-bottom:20px;border-left:3px solid #2563eb;">
+                    <div style="font-size:0.9em;color:#2563eb;font-weight:600;">📊 ${escapeHtml(summary)}</div>
                 </div>
                 
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
@@ -2416,9 +2532,9 @@
             document.getElementById('kmsUrl').value = rec.url || '';
             currentPageInfo = { title: rec.title, space: rec.space, url: rec.url };
             document.getElementById('pageInfo').innerHTML = `
-                <p><strong style="color:#00d4ff">标题：</strong>${escapeHtml(rec.title || '')}</p>
-                <p><strong style="color:#00d4ff">空间：</strong>${escapeHtml(rec.space || '')}</p>
-                <p><strong style="color:#00d4ff">链接：</strong><a href="${sanitizeUrl(rec.url)}" target="_blank" style="color:#7b2cbf">${escapeHtml(rec.url)}</a></p>`;
+                <p><strong style="color:#2563eb">标题：</strong>${escapeHtml(rec.title || '')}</p>
+                <p><strong style="color:#2563eb">空间：</strong>${escapeHtml(rec.space || '')}</p>
+                <p><strong style="color:#2563eb">链接：</strong><a href="${sanitizeUrl(rec.url)}" target="_blank" style="color:#7c3aed">${escapeHtml(rec.url)}</a></p>`;
             currentReport = rec.report || '';
             document.getElementById('reportBox').textContent = rec.report || '';
             let scoreData;
@@ -2460,10 +2576,10 @@
                 panel.classList.remove('hidden');
                 panel.style.setProperty('display', 'block', 'important');
                 if (listEl) {
-                    listEl.innerHTML = '<p style="color:#00d4ff;text-align:center;padding:20px;">正在加载历史记录...</p>';
+                    listEl.innerHTML = '<p style="color:#2563eb;text-align:center;padding:20px;">正在加载历史记录...</p>';
                 }
                 renderHistoryPanel().catch(function(err) {
-                    if (listEl) listEl.innerHTML = '<p style="color:#ff5555;text-align:center;padding:20px;">加载失败: ' + (err.message || '未知错误') + '</p>';
+                    if (listEl) listEl.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">加载失败: ' + (err.message || '未知错误') + '</p>';
                 });
             } else {
                 panel.classList.add('hidden');
@@ -2509,12 +2625,12 @@
             var urls = textarea.value.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
             if (urls.length === 0) {
                 statusEl.textContent = '请输入至少一个链接';
-                statusEl.style.color = '#ff5555';
+                statusEl.style.color = '#dc2626';
                 return;
             }
             
             statusEl.textContent = '正在创建任务...';
-            statusEl.style.color = '#00d4ff';
+            statusEl.style.color = '#2563eb';
             
             try {
                 var resp = await fetch(PROXY_URL + '/api/batch', {
@@ -2525,7 +2641,7 @@
                 var data = await resp.json();
                 if (!data.success) {
                     statusEl.textContent = data.error || '创建失败';
-                    statusEl.style.color = '#ff5555';
+                    statusEl.style.color = '#dc2626';
                     return;
                 }
                 
@@ -2535,7 +2651,7 @@
                 pollBatchProgress(data.task_id);
             } catch(e) {
                 statusEl.textContent = '请求失败: ' + e.message;
-                statusEl.style.color = '#ff5555';
+                statusEl.style.color = '#dc2626';
             }
         }
         
@@ -2569,20 +2685,21 @@
                     var html = '';
                     rdata.results.forEach(function(res) {
                         var icon = res.status === 'completed' ? '✅' : (res.status === 'failed' ? '❌' : '⏳');
-                        var score = res.total_score ? ' · ' + res.total_score + '分' : '';
-                        html += '<div style="margin-bottom:4px;">' + icon + ' ' + (res.title || res.url).substring(0, 40) + score + '</div>';
+                        var score = res.total_score ? ' · <strong style="color:' + (res.total_score >= 80 ? '#16a34a' : (res.total_score >= 60 ? '#ca8a04' : '#dc2626')) + ';">' + res.total_score + '分</strong>' : '';
+                        var titleColor = res.status === 'failed' ? '#dc2626' : '#374151';
+                        html += '<div style="margin-bottom:4px;color:#6b7280;">' + icon + ' <span style="color:' + titleColor + ';">' + (res.title || res.url).substring(0, 40) + '</span>' + score + '</div>';
                     });
                     progressList.innerHTML = html;
                 }
                 
                 if (task.status === 'completed' || task.status === 'failed') {
                     statusEl.textContent = '审核完成';
-                    statusEl.style.color = '#00ff88';
+                    statusEl.style.color = '#16a34a';
                     actionsDiv.style.display = 'block';
                     window._lastBatchTaskId = taskId;
                 } else if (pollCount >= MAX_POLL) {
                     statusEl.textContent = '轮询超时，请手动刷新查看结果';
-                    statusEl.style.color = '#ffcc00';
+                    statusEl.style.color = '#ca8a04';
                     actionsDiv.style.display = 'block';
                     window._lastBatchTaskId = taskId;
                 } else {
@@ -2590,7 +2707,7 @@
                 }
             } catch(e) {
                 statusEl.textContent = '查询进度失败';
-                statusEl.style.color = '#ff5555';
+                statusEl.style.color = '#dc2626';
             }
         }
         
@@ -2612,7 +2729,7 @@
             var content = document.getElementById('compareMatrixContent');
             if (!modal || !content) return;
             
-            content.innerHTML = '<p style="color:#00d4ff;text-align:center;">正在生成对比矩阵...</p>';
+            content.innerHTML = '<p style="color:#2563eb;text-align:center;padding:20px;">正在生成对比矩阵...</p>';
             modal.classList.remove('hidden');
             modal.style.setProperty('display', 'flex', 'important');
             
@@ -2620,12 +2737,12 @@
                 var resp = await fetch(PROXY_URL + '/api/batch/' + taskId + '/compare');
                 var data = await resp.json();
                 if (!data.success) {
-                    content.innerHTML = '<p style="color:#ff5555;text-align:center;">' + (data.error || '生成失败') + '</p>';
+                    content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">' + (data.error || '生成失败') + '</p>';
                     return;
                 }
                 renderCompareMatrix(data);
             } catch(e) {
-                content.innerHTML = '<p style="color:#ff5555;text-align:center;">请求失败: ' + e.message + '</p>';
+                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">请求失败: ' + e.message + '</p>';
             }
         }
         
@@ -2633,41 +2750,144 @@
             var content = document.getElementById('compareMatrixContent');
             if (!content) return;
             if (!data.matrix || !Array.isArray(data.matrix) || data.matrix.length === 0) {
-                content.innerHTML = '<p style="color:#ff5555;text-align:center;">对比矩阵数据为空</p>';
+                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">对比矩阵数据为空</p>';
                 return;
             }
             if (!data.matrix[0] || typeof data.matrix[0] !== 'object') {
-                content.innerHTML = '<p style="color:#ff5555;text-align:center;">对比矩阵数据格式错误</p>';
+                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">对比矩阵数据格式错误</p>';
                 return;
             }
             
-            var html = '<div style="margin-bottom:16px;">';
-            html += '<strong>综合评分：</strong>';
-            data.scores.forEach(function(s) {
-                html += '<span style="margin-right:16px;color:#00d4ff;">' + s.title + ' (' + s.total_score + '分)</span>';
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            var colKeys = Object.keys(data.matrix[0]).filter(function(k) { return k !== 'dimension'; });
+            
+            // 建立 url -> title 映射
+            var urlTitleMap = {};
+            (data.scores || []).forEach(function(s) {
+                urlTitleMap[s.url] = s.title || s.url;
+            });
+            
+            // 按总分排序（高->低）
+            var sortedScores = (data.scores || []).slice().sort(function(a, b) {
+                return (b.total_score || 0) - (a.total_score || 0);
+            });
+            var sortedColKeys = sortedScores.map(function(s) { return s.url; });
+            
+            // 合格线
+            var PASS_LINE = 80;
+            
+            var html = '';
+            
+            // ===== 排名卡片区域 =====
+            html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">';
+            sortedScores.forEach(function(s, idx) {
+                var rankColors = ['#f59e0b', '#9ca3af', '#b45309']; // 金、银、铜
+                var rankBg = idx < 3 ? 'background:linear-gradient(135deg,' + rankColors[idx] + '15,transparent);' : '';
+                var rankBorder = idx < 3 ? 'border-color:' + rankColors[idx] + '40;' : '';
+                var passed = (s.total_score || 0) >= PASS_LINE;
+                var statusBadge = passed 
+                    ? '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#dcfce7;color:#166534;font-weight:600;">✅ 合格</span>'
+                    : '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#fee2e2;color:#991b1b;font-weight:600;">❌ 不合格</span>';
+                var scoreColor = s.total_score >= 80 ? '#16a34a' : (s.total_score >= 60 ? '#ca8a04' : '#dc2626');
+                var titleShort = (s.title || s.url || '未知').substring(0, 20) + ((s.title || s.url || '').length > 20 ? '...' : '');
+                html += '<div style="flex:1;min-width:160px;max-width:220px;padding:14px;border-radius:10px;border:1px solid #e5e7eb;' + rankBg + rankBorder + 'box-shadow:0 1px 3px rgba(0,0,0,0.04);">';
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+                html += '<span style="font-size:1.1em;font-weight:800;color:' + (idx < 3 ? rankColors[idx] : '#6b7280') + ';">#' + (idx + 1) + '</span>';
+                html += '<span style="font-size:0.75em;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="' + escapeHtml(s.title || s.url) + '">' + escapeHtml(titleShort) + '</span>';
+                html += '</div>';
+                html += '<div style="font-size:2em;font-weight:800;color:' + scoreColor + ';line-height:1;">' + (s.total_score || 0) + '<span style="font-size:0.5em;color:#9ca3af;font-weight:400;">/100</span></div>';
+                html += '<div style="margin-top:6px;">' + statusBadge + '</div>';
+                html += '</div>';
             });
             html += '</div>';
             
-            // 热力图表格
-            html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.85em;">';
-            html += '<thead><tr><th style="padding:8px;border:1px solid rgba(255,255,255,0.1);text-align:left;">维度</th>';
-            var colKeys = Object.keys(data.matrix[0]).filter(function(k) { return k !== 'dimension'; });
-            colKeys.forEach(function(k) {
-                html += '<th style="padding:8px;border:1px solid rgba(255,255,255,0.1);text-align:center;">' + k + '</th>';
+            // ===== 热力图表格 =====
+            var theadBorder = '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb');
+            var cellBorder = '1px solid ' + (isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6');
+            var dimTextColor = isDark ? '#ccc' : '#374151';
+            var thBg = isDark ? 'rgba(255,255,255,0.03)' : '#f9fafb';
+            
+            html += '<div style="overflow-x:auto;border-radius:10px;border:1px solid #e5e7eb;">';
+            html += '<table style="width:100%;border-collapse:collapse;font-size:0.85em;">';
+            
+            // 表头
+            html += '<thead><tr style="background:' + thBg + ';">';
+            html += '<th style="padding:10px 8px;border-bottom:' + theadBorder + ';text-align:left;font-weight:600;color:#6b7280;font-size:0.8em;white-space:nowrap;">维度 \ 材料</th>';
+            sortedColKeys.forEach(function(k) {
+                var title = urlTitleMap[k] || k;
+                var shortTitle = title.substring(0, 12) + (title.length > 12 ? '...' : '');
+                html += '<th style="padding:10px 8px;border-bottom:' + theadBorder + ';text-align:center;font-weight:600;color:#374151;font-size:0.8em;min-width:80px;" title="' + escapeHtml(title) + '">' + escapeHtml(shortTitle) + '</th>';
             });
             html += '</tr></thead><tbody>';
             
+            // 维度行
             data.matrix.forEach(function(row) {
-                html += '<tr>';
-                html += '<td style="padding:8px;border:1px solid rgba(255,255,255,0.1);">' + row.dimension + '</td>';
-                colKeys.forEach(function(k) {
+                html += '<tr style="border-bottom:' + cellBorder + ';">';
+                html += '<td style="padding:10px 8px;text-align:left;font-weight:500;color:' + dimTextColor + ';white-space:nowrap;font-size:0.85em;">' + escapeHtml(row.dimension) + '</td>';
+                sortedColKeys.forEach(function(k) {
                     var score = row[k] || 0;
-                    var color = score >= 8 ? '#00ff88' : (score >= 5 ? '#ffcc00' : '#ff5555');
-                    html += '<td style="padding:8px;border:1px solid rgba(255,255,255,0.1);text-align:center;color:' + color + ';">' + score + '</td>';
+                    var maxScore = data.scores.find(function(s) { return s.url === k; });
+                    // 热力图背景色
+                    var heatBg = '';
+                    if (score >= 8) heatBg = 'background:rgba(22,163,74,0.08);';
+                    else if (score >= 5) heatBg = 'background:rgba(202,138,4,0.08);';
+                    else heatBg = 'background:rgba(220,38,38,0.06);';
+                    var scoreColor = score >= 8 ? '#16a34a' : (score >= 5 ? '#ca8a04' : '#dc2626');
+                    html += '<td style="padding:10px 8px;text-align:center;font-weight:600;color:' + scoreColor + ';font-size:0.9em;' + heatBg + '">' + score + '</td>';
                 });
                 html += '</tr>';
             });
+            
+            // 总分行
+            html += '<tr style="background:' + thBg + ';font-weight:700;border-top:2px solid #e5e7eb;">';
+            html += '<td style="padding:10px 8px;text-align:left;color:#1f2937;font-size:0.9em;white-space:nowrap;">🏆 总分</td>';
+            sortedColKeys.forEach(function(k) {
+                var s = sortedScores.find(function(item) { return item.url === k; });
+                var total = s ? (s.total_score || 0) : 0;
+                var totalColor = total >= 80 ? '#16a34a' : (total >= 60 ? '#ca8a04' : '#dc2626');
+                html += '<td style="padding:10px 8px;text-align:center;font-size:1.1em;font-weight:800;color:' + totalColor + ';">' + total + '</td>';
+            });
+            html += '</tr>';
+            
+            // 统计行：平均分
+            html += '<tr style="border-top:1px dashed #e5e7eb;">';
+            html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">📊 平均分</td>';
+            sortedColKeys.forEach(function(k) {
+                var scores = data.matrix.map(function(row) { return row[k] || 0; });
+                var avg = scores.length ? (scores.reduce(function(a,b){return a+b;}, 0) / scores.length).toFixed(1) : 0;
+                html += '<td style="padding:10px 8px;text-align:center;color:#6b7280;font-size:0.8em;">' + avg + '</td>';
+            });
+            html += '</tr>';
+            
+            // 统计行：最高分
+            html += '<tr>';
+            html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">⬆️ 最高分</td>';
+            sortedColKeys.forEach(function(k) {
+                var scores = data.matrix.map(function(row) { return row[k] || 0; });
+                var max = scores.length ? Math.max.apply(null, scores) : 0;
+                html += '<td style="padding:10px 8px;text-align:center;color:#16a34a;font-size:0.8em;">' + max + '</td>';
+            });
+            html += '</tr>';
+            
+            // 统计行：最低分
+            html += '<tr>';
+            html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">⬇️ 最低分</td>';
+            sortedColKeys.forEach(function(k) {
+                var scores = data.matrix.map(function(row) { return row[k] || 0; });
+                var min = scores.length ? Math.min.apply(null, scores) : 0;
+                html += '<td style="padding:10px 8px;text-align:center;color:#dc2626;font-size:0.8em;">' + min + '</td>';
+            });
+            html += '</tr>';
+            
             html += '</tbody></table></div>';
+            
+            // ===== 图例 =====
+            html += '<div style="display:flex;gap:16px;justify-content:center;margin-top:16px;font-size:0.75em;color:#9ca3af;">';
+            html += '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(22,163,74,0.15);margin-right:4px;vertical-align:middle;"></span>优秀 (≥8)</span>';
+            html += '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(202,138,4,0.15);margin-right:4px;vertical-align:middle;"></span>一般 (5-7)</span>';
+            html += '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(220,38,38,0.1);margin-right:4px;vertical-align:middle;"></span>需改进 (&lt;5)</span>';
+            html += '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#f59e0b;margin-right:4px;vertical-align:middle;"></span>前3名</span>';
+            html += '</div>';
             
             content.innerHTML = html;
         }
@@ -2716,16 +2936,27 @@
                     { name: '决策支撑度', max: 30, short: '决策支撑' },
                     { name: '行动具体化', max: 25, short: '行动具体' },
                     { name: '材料规范度', max: 15, short: '材料规范' }
+                ],
+                'vertical-segment-review': [
+                    { name: '完整性', max: 25, short: '完整性' },
+                    { name: '差距与根因分析', max: 25, short: '差距根因' },
+                    { name: '业绩预测达成概率分析', max: 25, short: '业绩预测' },
+                    { name: '下一步计划', max: 25, short: '下一步计划' }
+                ],
+                'lagging-region-review': [
+                    { name: '完整性', max: 25, short: '完整性' },
+                    { name: '差距与根因分析', max: 25, short: '差距根因' },
+                    { name: 'SP战略关联度', max: 25, short: 'SP战略' },
+                    { name: '业绩预测达成概率分析', max: 25, short: '业绩预测' }
+                ],
+                'annual-leader-review': [
+                    { name: '完整性', max: 25, short: '完整性' },
+                    { name: 'SP战略关联度', max: 25, short: 'SP战略' },
+                    { name: '态度与反思', max: 25, short: '态度反思' },
+                    { name: '下一步计划', max: 25, short: '下一步计划' }
                 ]
             };
-            return configs[sceneId] || [
-                { name: '完整性', max: 35, short: '完整性' },
-                { name: '差距与根因分析', max: 20, short: '差距根因' },
-                { name: '业绩预测达成概率分析', max: 10, short: '业绩预测' },
-                { name: '下一步计划', max: 20, short: '下一步计划' },
-                { name: 'SP战略关联度', max: 10, short: 'SP战略' },
-                { name: '态度与反思', max: 5, short: '态度反思' }
-            ];
+            return configs[sceneId] || configs['general-topic-review'];
         }
 
         function getCurrentSceneId() {
@@ -2737,20 +2968,22 @@
             const scores = [];
             const lines = reportText.split('\n');
             const dimConfig = getDimensionConfig(sceneId || getCurrentSceneId());
-            
+
             for (const dim of dimConfig) {
                 let found = false;
                 const escapedName = dim.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                // 兼容维度名被 HTML 标签包裹的情况
-                const regex = new RegExp('\\|\\s*(?:<[^>]+>)?\\s*' + escapedName + '\\s*(?:<\\/[^>]+>)?\\s*\\|\\s*(\\d+(?:\\.\\d+)?)\\s*\\|\\s*' + dim.max + '\\s*\\|');
+                // 兼容维度名被 HTML 标签包裹的情况，不严格匹配满分列（从报告中提取实际满分）
+                const regex = new RegExp('\\|\\s*(?:<[^>]+>)?\\s*' + escapedName + '\\s*(?:<\\/[^>]+>)?\\s*\\|\\s*(\\d+(?:\\.\\d+)?)\\s*\\|');
                 for (const line of lines) {
                     const match = line.match(regex);
                     if (match) {
-                        // 提取评价：分割表格行，取第5列（先去掉HTML标签）
+                        // 提取评价：分割表格行，取第4/5列（先去掉HTML标签）
                         const cleanLine = line.replace(/<[^>]+>/g, '');
                         const parts = cleanLine.split('|').map(s => s.trim()).filter(s => s);
+                        const score = parseFloat(match[1]);
+                        const maxFromReport = parts.length >= 3 ? parseFloat(parts[2]) || dim.max : dim.max;
                         const comment = parts.length >= 5 ? parts[4] : (parts.length >= 4 ? parts[3] : '');
-                        scores.push({ ...dim, score: parseFloat(match[1]), comment });
+                        scores.push({ ...dim, score, max: maxFromReport, comment });
                         found = true;
                         break;
                     }
@@ -2759,16 +2992,16 @@
                     scores.push({ ...dim, score: 0, comment: '未识别到评分' });
                 }
             }
-            
+
             let totalScore = 0;
             const totalMatch = reportText.match(/【总体评分】\s*(\d+(?:\.\d+)?)\s*\/\s*100/);
             if (totalMatch) totalScore = parseFloat(totalMatch[1]);
-            
+
             let passed = null;
             // 精确匹配判定结果，避免在"通过标准"段落误匹配
             if (/判定[：:]\s*✅\s*通过/.test(reportText)) passed = true;
             else if (/判定[：:]\s*❌\s*待修改/.test(reportText)) passed = false;
-            
+
             return { scores, totalScore, passed };
         }
 
@@ -2789,43 +3022,64 @@
             const lines = reportText.split('\n');
             let inIssues = false;
             for (const line of lines) {
-                if (line.includes('【问题清单') || line.includes('问题清单（分级）')) {
+                const trimmed = line.trim();
+                // 支持多种标题格式：【问题清单】、问题清单（分级）、## 问题清单 等
+                if (!inIssues && (/问题清单/.test(trimmed) && !/【问题清单】/.test(trimmed) || trimmed.includes('【问题清单'))) {
                     inIssues = true; continue;
                 }
-                if (inIssues && line.startsWith('【')) break;
+                // 遇到下一个一级标题或空行+标题时退出
+                if (inIssues && (/^#{1,2}\s/.test(trimmed) || /^【/.test(trimmed) || /^[-=]{3,}$/.test(trimmed))) {
+                    // 如果是紧跟的下一个大段落标题，退出
+                    if (/亮点|改进建议|审核结论|总体评分/.test(trimmed)) break;
+                }
                 if (!inIssues) continue;
                 // 表格行：| 致命 | 维度 | 描述 |
-                let m = line.match(/^\|\s*([红]|[黄]|[绿])?\s*(致命|严重|警告|建议)\s*\|\s*([^|]*)\|\s*(.+)\|/);
+                let m = line.match(/^\|\s*(?:\[[红黄绿]\])?\s*(致命|严重|警告|建议)\s*\|\s*([^|]*)\|\s*(.+)\|/);
                 if (m) {
-                    const emoji = m[1] || (m[2]==='致命'?'[红]':m[2]==='建议'?'[绿]':'[黄]');
-                    issues.push({emoji, level:m[2], dimension:m[3].trim(), desc:m[4].trim()});
+                    // 过滤表头行
+                    const dimName = m[2].trim();
+                    const descText = m[3].trim();
+                    if (dimName === '维度' && /^(描述|问题|建议)$/.test(descText)) continue;
+                    const emoji = m[1]==='致命'?'[红]':m[1]==='建议'?'[绿]':'[黄]';
+                    issues.push({emoji, level:m[1], dimension:dimName, desc:descText});
                     continue;
                 }
-                // 列表行：- [红] 致命 | 维度 | 描述
-                m = line.match(/^[\-*]\s*([红]|[黄]|[绿])?\s*(致命|严重|警告|建议)[：:]\s*(.+)$/);
+                // 列表行：- [红] 致命：维度 | 描述
+                m = line.match(/^[\-*•]\s*(?:\[[红黄绿]\])?\s*(致命|严重|警告|建议)[：:]\s*(.+)$/);
                 if (m) {
-                    const emoji = m[1] || (m[2]==='致命'?'[红]':m[2]==='建议'?'[绿]':'[黄]');
-                    issues.push({emoji, level:m[2], dimension:'', desc:m[3].trim()});
+                    const emoji = m[1]==='致命'?'[红]':m[1]==='建议'?'[绿]':'[黄]';
+                    // 尝试拆分维度和描述
+                    const parts = m[2].split(/[|｜]/).map(s => s.trim()).filter(s => s);
+                    if (parts.length >= 2) {
+                        issues.push({emoji, level:m[1], dimension:parts[0], desc:parts.slice(1).join(' | ')});
+                    } else {
+                        issues.push({emoji, level:m[1], dimension:'', desc:m[2].trim()});
+                    }
                     continue;
                 }
                 // 简单行：[红] 致命：描述
-                m = line.match(/^([红]|[黄]|[绿])\s*(致命|严重|警告|建议)[：:]\s*(.+)$/);
+                m = line.match(/^(?:\[[红黄绿]\])?\s*(致命|严重|警告|建议)[：:]\s*(.+)$/);
                 if (m) {
-                    issues.push({emoji:m[1], level:m[2], dimension:'', desc:m[3].trim()});
+                    const emoji = m[1]==='致命'?'[红]':m[1]==='建议'?'[绿]':'[黄]';
+                    issues.push({emoji, level:m[1], dimension:'', desc:m[2].trim()});
                 }
             }
             return issues;
         }
-        
+
         function parseSuggestions(reportText) {
             const suggestions = [];
             const lines = reportText.split('\n');
             let inSugg = false;
             for (const line of lines) {
-                if (line.includes('【改进建议') || line.trim()==='改进建议') {
+                const trimmed = line.trim();
+                // 支持多种标题格式
+                if (/改进建议/.test(trimmed) && !/【改进建议】/.test(trimmed) || trimmed.includes('【改进建议')) {
                     inSugg = true; continue;
                 }
-                if (inSugg && (line.startsWith('【') || line.includes('【亮点') || line.includes('亮点'))) break;
+                if (inSugg && (/^#{1,2}\s/.test(trimmed) || /^【/.test(trimmed))) {
+                    if (/亮点|审核结论|总体评分|问题清单/.test(trimmed)) break;
+                }
                 if (!inSugg) continue;
                 // 表格行：| P0 | 问题 | 建议 |
                 let m = line.match(/^\|\s*(P[012])\s*\|\s*([^|]*)\|\s*(.+)\|/);
@@ -2834,43 +3088,55 @@
                     continue;
                 }
                 // 列表行：- P0 | 问题 | 建议
-                m = line.match(/^[\-*]\s*(P[012])\s*[|｜]\s*([^|｜]*)[|｜]\s*(.+)$/);
+                m = line.match(/^[\-*•]\s*(P[012])\s*[|｜]\s*([^|｜]*)[|｜]\s*(.+)$/);
                 if (m) {
                     suggestions.push({priority:m[1], problem:m[2].trim(), suggestion:m[3].trim()});
                     continue;
                 }
                 // 简单行：P0：问题 → 建议
-                m = line.match(/^(P[012])[：:]\s*(.+?)[→\-]\s*(.+)$/);
+                m = line.match(/^(P[012])[：:]\s*(.+?)[→\-\~]\s*(.+)$/);
+                if (m) {
+                    suggestions.push({priority:m[1], problem:m[2].trim(), suggestion:m[3].trim()});
+                    continue;
+                }
+                // 行内格式：P0 问题 → 建议
+                m = line.match(/^(P[012])\s+(.+?)[→\-\~]\s*(.+)$/);
                 if (m) {
                     suggestions.push({priority:m[1], problem:m[2].trim(), suggestion:m[3].trim()});
                 }
             }
             return suggestions;
         }
-        
+
         function parseHighlights(reportText) {
             const highlights = [];
             const lines = reportText.split('\n');
             let inHigh = false;
             for (const line of lines) {
-                if (line.includes('【亮点')) { inHigh = true; continue; }
-                if (inHigh && line.startsWith('【')) break;
+                const trimmed = line.trim();
+                if (!inHigh && /亮点/.test(trimmed) && !trimmed.includes('无亮点') && !trimmed.includes('未识别')) {
+                    inHigh = true; continue;
+                }
+                if (inHigh && (/^#{1,2}\s/.test(trimmed) || /^【/.test(trimmed))) {
+                    if (/改进建议|审核结论|总体评分|问题清单/.test(trimmed)) break;
+                }
                 if (!inHigh) continue;
-                const m = line.match(/^[•\-*]\s*(.+)$/);
+                const m = line.match(/^[\-*•]\s*(.+)$/);
                 if (m) highlights.push(m[1].trim());
             }
             return highlights;
         }
-        
+
         function parseConclusion(reportText) {
             const lines = reportText.split('\n');
             let inConc = false;
             const parts = [];
             for (const line of lines) {
-                if (line.includes('【审核结论') || line.trim()==='审核结论') { inConc = true; continue; }
-                if (inConc && line.startsWith('【')) break;
+                const trimmed = line.trim();
+                if (/审核结论/.test(trimmed) || trimmed.includes('【审核结论')) { inConc = true; continue; }
+                if (inConc && (/^#{1,2}\s/.test(trimmed) || /^【/.test(trimmed))) break;
                 if (!inConc) continue;
-                if (line.trim()) parts.push(line.trim());
+                if (trimmed) parts.push(trimmed);
             }
             return parts.join('\n');
         }

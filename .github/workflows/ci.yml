@@ -1,46 +1,14 @@
-name: CI/CD
+name: DSTE CI — 强制测试门禁
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run linter
-        run: npm run lint || true
-
-      - name: Build
-        run: npm run build
-
-      - name: Run E2E tests
-        run: npm run test:e2e
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
-
-  deploy:
-    needs: test
-    if: github.ref == 'refs/heads/main'
+  # ========== 阶段1：代码检查 ==========
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +17,95 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - run: npm run lint
+      - run: npm run check:scope
+
+  # ========== 阶段2：基线结构测试 ==========
+  baseline:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pytest
+      - run: python3 -m pytest tests/test_baseline.py -v
+      - run: python3 -m pytest tests/test_integration.py -v
+
+  # ========== 阶段3：E2E 测试（最关键） ==========
+  e2e:
+    runs-on: ubuntu-latest
+    needs: baseline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - run: npm run build
-      - name: Deploy to server
-        run: echo "Deploy step - configure SSH/SCP here"
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ========== 阶段4：构建验证 ==========
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, baseline]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: 验证构建产物
+        run: |
+          test -f dist/index.html || (echo "❌ index.html 未生成" && exit 1)
+          test -f dist/cockpit.html || (echo "❌ cockpit.html 未生成" && exit 1)
+          echo "✅ 构建产物完整"
+
+  # ========== 阶段5：文件变更范围检查（PR时） ==========
+  scope-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 检查核心文件是否被修改
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "变更文件:"
+          echo "$CHANGED"
+          
+          # 检查核心配置文件
+          CRITICAL_FILES="src/lib/config.js src/lib/shell.js vite.config.js package.json playwright.config.js index.html"
+          for file in $CRITICAL_FILES; do
+            if echo "$CHANGED" | grep -q "^$file$"; then
+              echo "🚨 CRITICAL: 核心配置文件被修改: $file"
+              echo "如需修改，请在PR描述中说明原因并获得审查员批准"
+              exit 1
+            fi
+          done
+          
+          # 检查主线模块
+          MAINLINE_FILES="src/cockpit.html assets/css/main.css assets/js/main.js"
+          for file in $MAINLINE_FILES; do
+            if echo "$CHANGED" | grep -q "^$file$"; then
+              echo "⚠️ WARNING: 主线模块被修改: $file"
+              echo "请确认此变更经过充分测试"
+            fi
+          done
+          
+          echo "✅ 文件范围检查通过"
