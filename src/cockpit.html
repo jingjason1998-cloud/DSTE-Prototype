@@ -701,9 +701,10 @@
         ];
 
         // ---- 数据模型 ----
-        let meetings = [
-          {
-            id: '20260415', title: '片联一季度经营分析会', date: '2026-04-15', month: '2026-04',
+        if (!window._meetingsData) {
+          window._meetingsData = [
+            {
+              id: '20260415', title: '片联一季度经营分析会', date: '2026-04-15', month: '2026-04',
             level: 'L1', scope: 'union', scenario: 'union_quarterly',
             status: 'completed', location: '总部大会议室', host: '陈总裁', recorder: 'Jason.Jing',
             pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: true },
@@ -835,6 +836,8 @@
             effectiveness: null
           }
         ];
+        }
+        const meetings = window._meetingsData;
 
         // ---- 计算汇总 ----
         const totalMeetings = meetings.length;
@@ -909,8 +912,8 @@
               <div>4. 行动项下次会议必须复盘</div>
             </div>`,
             chain: `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
-              ${m.upstreamMeeting ? `<div style="margin-bottom: 4px;">⬆️ 上游：<a href="javascript:void(0)" onclick="openMeetingEditor('${m.upstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.upstreamMeeting)?.title || m.upstreamMeeting}</a></div>` : '<div style="margin-bottom: 4px;">⬆️ 上游：无</div>'}
-              ${m.downstreamMeeting ? `<div>⬇️ 下游：<a href="javascript:void(0)" onclick="openMeetingEditor('${m.downstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.downstreamMeeting)?.title || m.downstreamMeeting}</a></div>` : '<div>⬇️ 下游：无</div>'}
+              ${m.upstreamMeeting ? `<div style="margin-bottom: 4px;">⬆️ 上游：<a href="javascript:void(0)" onclick="openMeetingDetail('${m.upstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.upstreamMeeting)?.title || m.upstreamMeeting}</a></div>` : '<div style="margin-bottom: 4px;">⬆️ 上游：无</div>'}
+              ${m.downstreamMeeting ? `<div>⬇️ 下游：<a href="javascript:void(0)" onclick="openMeetingDetail('${m.downstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.downstreamMeeting)?.title || m.downstreamMeeting}</a></div>` : '<div>⬇️ 下游：无</div>'}
             </div>`
           };
           const tabId = 'tabs-' + m.id;
@@ -966,7 +969,7 @@
           return `
             <div class="meeting-card" data-month="${m.month}" data-status="${m.status}" data-scenario="${m.scenario}" data-pipeline-step="${pipelineStep}"
               style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${sc.color}; transition: all 0.2s; cursor: pointer;"
-              onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'" onclick="openMeetingEditor('${m.id}')">
+              onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'" onclick="openMeetingDetail('${m.id}')">
               <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <div style="font-size: 15px; font-weight: 600;">${m.title}</div>
@@ -1069,6 +1072,93 @@
             ${t.link ? `<a href="${t.link}" style="color: var(--primary); font-size: 11px; text-decoration: none;">去处理 →</a>` : ''}
           </div>
         `).join('');
+
+        // ---- 会议详情函数 ----
+        window._currentDetailMeetingId = null;
+        window.openMeetingDetail = function(id) {
+          const m = meetings.find(x => x.id === id);
+          if (!m) return;
+          window._currentDetailMeetingId = id;
+          renderMeetingDetail(m);
+          const ov = document.getElementById('meeting-detail-overlay');
+          if (ov) ov.style.display = 'flex';
+        };
+        window.closeMeetingDetail = function() {
+          const ov = document.getElementById('meeting-detail-overlay');
+          if (ov) ov.style.display = 'none';
+          window._currentDetailMeetingId = null;
+        };
+        window.openEditorFromDetail = function() {
+          closeMeetingDetail();
+          if (window._currentDetailMeetingId) {
+            openMeetingEditor(window._currentDetailMeetingId);
+          }
+        };
+        function renderMeetingDetail(m) {
+          const sc = SCENARIO_CONFIG[m.scenario] || {};
+          const st = STATUS_CONFIG[m.status] || {};
+          const content = document.getElementById('meeting-detail-content');
+          if (!content) return;
+          content.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会议名称</label><div style="font-size: 14px; font-weight: 600;">${m.title}</div></div>
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">场景</label><div style="font-size: 14px;">${sc.icon || ''} ${sc.label || m.scenario}</div></div>
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">日期</label><div style="font-size: 14px;">📅 ${m.date}</div></div>
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">地点</label><div style="font-size: 14px;">📍 ${m.location}</div></div>
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">主持人</label><div style="font-size: 14px;">👤 ${m.host}</div></div>
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">记录人</label><div style="font-size: 14px;">📝 ${m.recorder}</div></div>
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">层级</label><div style="font-size: 14px;">${m.level}</div></div>
+              <div><label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">状态</label><div style="font-size: 14px;"><span class="status-badge ${st.badgeClass}">${st.label}</span></div></div>
+            </div>
+            <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;">议程 (${m.agenda_items?.length || 0} 项)</div>
+            <div style="margin-bottom: 16px;">
+              ${(m.agenda_items || []).map((a, i) => `
+                <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-light); font-size: 13px;">
+                  <span style="color: var(--text-tertiary); width: 20px;">${i + 1}.</span>
+                  <span style="flex: 1; color: var(--text-secondary);">${AGENDA_TYPE_LABELS[a.type] || a.type} — ${a.title}</span>
+                  <span style="color: var(--text-tertiary); font-size: 12px;">${a.duration} 分钟 · ${a.owner}</span>
+                </div>
+              `).join('')}
+            </div>
+            ${m.actions?.length ? `
+              <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;">行动项 (${m.actions.length} 项)</div>
+              <div style="margin-bottom: 16px;">
+                ${m.actions.map(a => `
+                  <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-light); font-size: 13px;">
+                    <span style="color: ${a.status === 'completed' ? 'var(--success)' : a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'}">${a.status === 'completed' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
+                    <span style="flex: 1; color: var(--text-secondary);">${a.content}</span>
+                    <span style="color: var(--text-tertiary); font-size: 12px;">${a.owner} · ${a.deadline}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${m.decisions?.length ? `
+              <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;">决议 (${m.decisions.length} 项)</div>
+              <div style="margin-bottom: 16px;">
+                ${m.decisions.map(d => `
+                  <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-light); font-size: 13px;">
+                    <span style="color: ${d.status === 'approved' || d.status === 'implemented' ? 'var(--success)' : 'var(--warning)'}">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
+                    <span style="flex: 1; color: var(--text-secondary);">${d.content}</span>
+                    <span style="color: var(--text-tertiary); font-size: 12px;">${d.owner} · ${d.deadline}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${m.effectiveness ? `
+              <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;">效果评估</div>
+              <div style="padding: 12px; background: var(--bg-page); border-radius: 8px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                  <span style="font-size: 24px; font-weight: 700; color: ${m.effectiveness.overallScore >= 90 ? 'var(--success)' : m.effectiveness.overallScore >= 80 ? 'var(--primary)' : 'var(--warning)'}">${m.effectiveness.overallScore}</span>
+                  <span style="color: var(--text-tertiary);">综合评分</span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                  准备度 ${m.effectiveness.dimensions.preparation} · 讨论度 ${m.effectiveness.dimensions.discussion} · 决议质量 ${m.effectiveness.dimensions.decision} · 执行落地 ${m.effectiveness.dimensions.execution}
+                </div>
+              </div>
+            ` : ''}
+            ${renderPipeline(m)}
+          `;
+        }
 
         // ---- 编辑弹窗函数 ----
         window._meetingEditData = null;
@@ -1398,6 +1488,21 @@
               <a class="related-link" href="#rev/review" data-navigate="rev/review">🔄 战略复盘</a>
               <a class="related-link" href="#bp/kpi" data-navigate="bp/kpi">📈 KPI 看板</a>
               <a class="related-link" href="reviewer.html">📋 会议材料审核</a>
+            </div>
+          </div>
+
+          <!-- 会议详情弹窗 -->
+          <div id="meeting-detail-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000; align-items: center; justify-content: center; padding: 24px;">
+            <div style="background: var(--bg-card); border-radius: 12px; max-width: 760px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); display: flex; flex-direction: column;">
+              <div style="padding: 20px 24px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">📋 会议详情</h2>
+                <button onclick="closeMeetingDetail()" style="background: none; border: none; font-size: 22px; color: var(--text-tertiary); cursor: pointer; line-height: 1;">×</button>
+              </div>
+              <div id="meeting-detail-content" style="padding: 20px 24px; overflow-y: auto; flex: 1;"></div>
+              <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-page);">
+                <button type="button" onclick="closeMeetingDetail()" style="padding: 8px 18px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">关闭</button>
+                <button type="button" onclick="openEditorFromDetail()" style="padding: 8px 18px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">✏️ 编辑</button>
+              </div>
             </div>
           </div>
 

@@ -177,3 +177,41 @@ def test_cockpit_links_to_business_topics():
     content = (SRC / "cockpit.html").read_text(encoding="utf-8")
     assert "business-topics.html" in content, "驾驶舱未链接到 business-topics.html"
     assert "'exe/business-topics': 'business-topics.html'" in content, "外部页面映射不正确"
+
+
+def test_meeting_detail_view_exists():
+    """会议详情弹窗存在且可打开"""
+    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    assert "window.openMeetingDetail = function(" in content, "缺少 openMeetingDetail 函数"
+    assert "meeting-detail-overlay" in content, "缺少会议详情弹窗 HTML"
+    assert "closeMeetingDetail" in content, "缺少关闭详情函数"
+
+
+def test_meeting_card_opens_detail_not_editor():
+    """点击会议卡片进入详情而非直接编辑"""
+    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    # 卡片 onclick 应调用 openMeetingDetail
+    assert 'onclick="openMeetingDetail(' in content, "会议卡片未绑定 openMeetingDetail"
+    # 卡片不应直接调用 openMeetingEditor
+    card_pattern = re.compile(r'class="meeting-card".*onclick="openMeetingEditor')
+    assert not card_pattern.search(content), "会议卡片仍直接绑定 openMeetingEditor"
+
+
+def test_meeting_detail_has_edit_button():
+    """详情弹窗包含编辑按钮"""
+    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    # 详情弹窗内应有编辑按钮
+    assert "openMeetingEditor" in content, "详情弹窗缺少编辑按钮触发"
+    # 编辑按钮应在详情弹窗内部（通过overlay id判断）
+    detail_section = content.split('id="meeting-detail-overlay"')[1] if 'id="meeting-detail-overlay"' in content else content
+    assert "编辑" in detail_section or "✏️" in detail_section, "详情弹窗缺少编辑按钮"
+
+
+def test_meeting_host_save_persisted():
+    """会议主持人修改通过 window._meetingsData 持久化"""
+    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    assert "window._meetingsData" in content, "缺少 meetings 数据持久化机制"
+    # saveMeeting 中应修改 meetings 数组
+    save_section = content.split("window.saveMeeting = function()")[1] if "window.saveMeeting = function()" in content else ""
+    assert "edit-host" in save_section, "saveMeeting 未读取主持人输入"
+    assert "meetings[idx].host" in save_section, "saveMeeting 未保存主持人"
