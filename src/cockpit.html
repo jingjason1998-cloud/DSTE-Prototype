@@ -160,6 +160,7 @@
       // ===== 路由状态 =====
       let currentPhase = 'dashboard';
       let currentPage = 'dashboard';
+      let meetings = [];
 
       // ===== 初始化 =====
       async function init() {
@@ -193,10 +194,14 @@
 
         container.querySelectorAll('a').forEach(link => {
           link.addEventListener('click', (e) => {
+            e.preventDefault();
             const phase = link.dataset.phase;
             const defaultPage = TOP_NAV.find(n => n.id === phase).defaultPage;
             // 如果已经在该phase，跳转到默认页
             if (currentPhase === phase) {
+              navigate(defaultPage);
+            } else {
+              // 切换phase，跳转到默认页
               navigate(defaultPage);
             }
           });
