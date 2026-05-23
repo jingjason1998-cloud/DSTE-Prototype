@@ -1,0 +1,35 @@
+name: SonarQube — 代码质量门禁
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  sonar:
+    name: SonarQube 扫描
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 完整历史，用于 blame 分析
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # 运行 ESLint（生成报告供 SonarQube 读取）
+      - run: npm run lint -- --format json --output-file eslint-report.json || true
+
+      # SonarQube 扫描
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.eslint.reportPaths=eslint-report.json
