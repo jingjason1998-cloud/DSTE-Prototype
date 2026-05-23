@@ -2076,6 +2076,17 @@
 
       // 启动
       init();
+
+      // 显示版本号
+      console.log('DSTE Platform v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'));
+    })();
+  </script>
+  <div id="app-version" style="position:fixed;bottom:4px;right:8px;font-size:11px;color:var(--text-tertiary);opacity:0.6;z-index:9999;pointer-events:none;"></div>
+  <script type="module">
+    (function() {
+      var v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+      var el = document.getElementById('app-version');
+      if (el) el.textContent = 'v' + v;
     })();
   </script>
 </body>
