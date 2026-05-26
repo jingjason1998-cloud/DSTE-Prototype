@@ -17,6 +17,18 @@
 
 ---
 
+## [v0.3.5] - 2026-05-26
+
+### Added
+- **iframe 嵌入模式**：`?embed=1` 参数支持，隐藏导航栏/侧边栏/面包屑
+- **iframe 自适应高度**：`postMessage` 双向通信，ResizeObserver + 防抖，内容变化自动伸缩
+- **通用嵌入架构**：`main.css` 统一管理嵌入样式，新增页面只需 copy 3 行检测脚本
+
+### Changed
+- 嵌入模式下 `.app` / `.content-area` 去除 `overflow: hidden`，允许内容自然撑开
+
+---
+
 ## [v0.3.4] - 2026-05-25
 
 ### Fixed
