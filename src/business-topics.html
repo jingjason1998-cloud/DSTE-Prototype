@@ -13,6 +13,30 @@
         (function() {
             const theme = localStorage.getItem('dste-theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
+
+            // 嵌入模式：在 iframe 中使用时隐藏导航外壳
+            if (new URLSearchParams(location.search).get('embed') === '1') {
+                document.documentElement.setAttribute('data-embed', 'true');
+
+                // 向父页面汇报高度，实现 iframe 自适应
+                if (window !== window.top) {
+                    let lastHeight = 0;
+                    const reportHeight = () => {
+                        const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+                        if (h !== lastHeight) {
+                            lastHeight = h;
+                            window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*');
+                        }
+                    };
+                    reportHeight();
+                    let timer;
+                    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                    if (typeof ResizeObserver !== 'undefined') {
+                        const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                        ro.observe(document.body);
+                    }
+                }
+            }
         })();
     </script>
     <style>
@@ -1567,23 +1591,23 @@
                 <div class="page-subtitle" id="pageSubtitle">战略执行层业务攻坚 · 季度-年度业务议题聚合</div>
             </div>
             <div class="nav-actions">
-                <button class="btn btn-ghost" onclick="exportTopics()">📤 导出备份</button>
-                <button class="btn btn-ghost" onclick="document.getElementById('backupFileInput').click()">📥 导入备份</button>
-                <input type="file" id="backupFileInput" style="display:none" accept=".json" onchange="importTopicsFromFile(event)">
-                <button class="btn btn-ghost" onclick="openImportModal()">📋 导入议题</button>
-                <button class="btn btn-primary" onclick="openFormModal()">+ 新建业务专题</button>
+                <button class="btn btn-ghost" data-action="export-topics">📤 导出备份</button>
+                <button class="btn btn-ghost" data-action="trigger-import">📥 导入备份</button>
+                <input type="file" id="backupFileInput" style="display:none" accept=".json" data-action="import-file">
+                <button class="btn btn-ghost" data-action="open-import">📋 导入议题</button>
+                <button class="btn btn-primary" data-action="new-topic">+ 新建业务专题</button>
             </div>
         </div>
 
 
         <div class="page-content">
             <div style="display: flex; gap: 16px; margin-bottom: 20px;">
-                <div class="report-card report-card-st" onclick="openAiReportModal('ST')">
+                <div class="report-card report-card-st" data-action="ai-report" data-report-type="ST">
                     <div class="report-card-label">🏛️ ST 议题全局分析</div>
                     <div class="report-card-status" id="stReportStatus">点击生成</div>
                     <div class="report-card-meta" id="stReportMeta">—</div>
                 </div>
-                <div class="report-card report-card-at" onclick="openAiReportModal('AT')">
+                <div class="report-card report-card-at" data-action="ai-report" data-report-type="AT">
                     <div class="report-card-label">🏢 AT 议题全局分析</div>
                     <div class="report-card-status" id="atReportStatus">点击生成</div>
                     <div class="report-card-meta" id="atReportMeta">—</div>
@@ -1591,43 +1615,43 @@
             </div>
 
             <div class="dashboard-tabs" style="margin-bottom: 24px;" id="topicTabs">
-                <div class="dashboard-tab active" data-tab="all" onclick="switchTab('all')">全部</div>
-                <div class="dashboard-tab" data-tab="in_progress" onclick="switchTab('in_progress')">进行中</div>
-                <div class="dashboard-tab" data-tab="done" onclick="switchTab('done')">已结束</div>
-                <div class="dashboard-tab" data-tab="archived" onclick="switchTab('archived')">已归档</div>
-                <div class="dashboard-tab" data-tab="mine" onclick="switchTab('mine')">我负责的</div>
+                <div class="dashboard-tab active" data-tab="all">全部</div>
+                <div class="dashboard-tab" data-tab="in_progress">进行中</div>
+                <div class="dashboard-tab" data-tab="done">已结束</div>
+                <div class="dashboard-tab" data-tab="archived">已归档</div>
+                <div class="dashboard-tab" data-tab="mine">我负责的</div>
             </div>
 
             <div class="filter-bar" style="margin-bottom: 20px;">
-                <select id="filterYear" class="form-select" style="min-width: 120px;" onchange="applyFilters()">
+                <select id="filterYear" class="form-select" style="min-width: 120px;" data-filter>
                     <option value="">全部年度</option>
                     <option value="2024">2024</option>
                     <option value="2025">2025</option>
                 </select>
-                <select id="filterDept" class="form-select" style="min-width: 140px;" onchange="applyFilters()">
+                <select id="filterDept" class="form-select" style="min-width: 140px;" data-filter>
                     <option value="">全部部门</option>
                 </select>
-                <select id="filterPriority" class="form-select" style="min-width: 120px;" onchange="applyFilters()">
+                <select id="filterPriority" class="form-select" style="min-width: 120px;" data-filter>
                     <option value="">全部优先级</option>
                     <option value="P0">P0</option>
                     <option value="P1">P1</option>
                     <option value="P2">P2</option>
                 </select>
-                <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜索专题名称、负责人..." oninput="applyFilters()">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜索专题名称、负责人..." data-search>
             </div>
 
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); padding: 24px;">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th class="sortable-header" onclick="toggleSort('name')" data-sort-field="name">专题名称 <span class="sort-indicator"></span></th>
-                            <th class="sortable-header" onclick="toggleSort('priority')" data-sort-field="priority">优先级 <span class="sort-indicator"></span></th>
-                            <th class="sortable-header" onclick="toggleSort('owner')" data-sort-field="owner">负责人 <span class="sort-indicator"></span></th>
-                            <th class="sortable-header" onclick="toggleSort('department')" data-sort-field="department">责任部门 <span class="sort-indicator"></span></th>
-                            <th class="sortable-header" onclick="toggleSort('startDate')" data-sort-field="startDate">时间周期 <span class="sort-indicator"></span></th>
-                            <th class="sortable-header" onclick="toggleSort('progress')" data-sort-field="progress">进度 <span class="sort-indicator"></span></th>
-                            <th class="sortable-header" onclick="toggleSort('status')" data-sort-field="status">状态 <span class="sort-indicator"></span></th>
-                            <th class="sortable-header" onclick="toggleSort('linkedIssues')" data-sort-field="linkedIssues">议题关联 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="name">专题名称 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="priority">优先级 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="owner">负责人 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="department">责任部门 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="startDate">时间周期 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="progress">进度 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="status">状态 <span class="sort-indicator"></span></th>
+                            <th class="sortable-header" data-sort-field="linkedIssues">议题关联 <span class="sort-indicator"></span></th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -1674,12 +1698,12 @@
     <!-- 新建/编辑弹窗 -->
     <div class="modal-overlay" id="formModal">
         <div class="modal-content" style="max-width: 720px;">
-            <button class="modal-close" onclick="closeModal('formModal')">×</button>
+            <button class="modal-close" data-modal-close="formModal">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="formTitle">新建业务专题</div>
                 <div class="modal-subtitle">填写专题基本信息与里程碑</div>
             </div>
-            <form id="topicForm" onsubmit="event.preventDefault(); saveTopic();">
+            <form id="topicForm" data-form="topic">
                 <input type="hidden" id="formTopicId">
                 <div class="form-grid">
                     <div class="form-group">
@@ -1749,11 +1773,11 @@
                         <div class="milestone-list" id="formMilestones">
                             <!-- JS rendered -->
                         </div>
-                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 8px;" onclick="addMilestoneRow()">+ 添加里程碑</button>
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 8px;" data-ms-action="add">+ 添加里程碑</button>
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-ghost" onclick="closeModal('formModal')">取消</button>
+                    <button type="button" class="btn btn-ghost" data-modal-close="formModal">取消</button>
                     <button type="submit" class="btn btn-primary">保存</button>
                 </div>
             </form>
@@ -1769,8 +1793,8 @@
                 删除后不可恢复，关联的里程碑数据也将一并清除。
             </div>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button class="btn btn-ghost" onclick="closeModal('deleteModal')">取消</button>
-                <button class="btn btn-primary" style="background: var(--danger);" onclick="confirmDeleteTopic()">确认删除</button>
+                <button class="btn btn-ghost" data-modal-close="deleteModal">取消</button>
+                <button class="btn btn-primary" style="background: var(--danger);" data-modal-action="confirm-delete">确认删除</button>
             </div>
         </div>
     </div>
@@ -1778,7 +1802,7 @@
     <!-- 详情弹窗 -->
     <div class="modal-overlay" id="bizTopicModal">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeModal('bizTopicModal')">×</button>
+            <button class="modal-close" data-modal-close="bizTopicModal">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="detailTitle">🎯 专题详情</div>
                 <div class="modal-subtitle" id="detailSubtitle">加载中...</div>
@@ -1787,7 +1811,7 @@
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
-                <button type="button" class="btn btn-ghost" onclick="closeModal('bizTopicModal')">关闭</button>
+                <button type="button" class="btn btn-ghost" data-modal-close="bizTopicModal">关闭</button>
                 <button type="button" class="btn btn-primary" id="detailEditBtn">编辑</button>
             </div>
         </div>
@@ -1796,33 +1820,33 @@
     <!-- 导入议题弹窗 -->
     <div class="modal-overlay" id="importModal">
         <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-            <button class="modal-close" onclick="closeModal('importModal')">×</button>
+            <button class="modal-close" data-modal-close="importModal">×</button>
             <div class="modal-header">
                 <div class="modal-title">📋 导入 ST/AT 议题</div>
                 <div class="modal-subtitle">粘贴表格数据、拖拽 Excel/CSV 文件或点击上传</div>
             </div>
             <div style="margin-bottom: 16px;">
                 <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 12px;">
-                    <input type="radio" name="importSource" value="ST" checked onchange="updateImportPreview()"> 🏛️ ST 会议系统
+                    <input type="radio" name="importSource" value="ST" checked data-import-source> 🏛️ ST 会议系统
                 </label>
                 <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 12px;">
-                    <input type="radio" name="importSource" value="AT" onchange="updateImportPreview()"> 🏢 AT 会议系统
+                    <input type="radio" name="importSource" value="AT" data-import-source> 🏢 AT 会议系统
                 </label>
             </div>
 
             <!-- 拖拽上传区域 -->
             <div id="importDropZone" style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 32px 24px; text-align: center; margin-bottom: 16px; transition: all 0.2s; cursor: pointer;"
-                 ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)"
-                 onclick="document.getElementById('importFileInput').click()">
+                 data-drop-zone
+                 data-trigger-file-input="importFileInput">
                 <div style="font-size: 36px; margin-bottom: 8px;">📁</div>
                 <div style="font-weight: 500; color: var(--text-secondary); margin-bottom: 4px;">拖拽 Excel / CSV 文件到此处</div>
                 <div style="font-size: 13px; color: var(--text-muted);">或点击选择文件 · 支持 .xlsx .xls .csv</div>
-                <input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">
+                <input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" data-action="import-file-select">
             </div>
 
             <div class="form-group full">
                 <label class="form-label">粘贴表格数据（从 Excel 复制，作为备选方式）</label>
-                <textarea id="importPasteArea" class="form-textarea" rows="4" placeholder="会议名称,会议日期,议题编号,议题标题,议题类型,主责部门,提案人,议题内容,决议内容,行动项,关联KPI,状态,优先级&#10;片联ST-2026-Q1,2026-01-20,ST-2026-Q1-001,渠道下沉策略,战略,销售部,销售总监,简要描述...,决定...,项1|负责人|2026-02-15|已完成,KPI-001,已决议,P0" oninput="updateImportPreview()"></textarea>
+                <textarea id="importPasteArea" class="form-textarea" rows="4" placeholder="会议名称,会议日期,议题编号,议题标题,议题类型,主责部门,提案人,议题内容,决议内容,行动项,关联KPI,状态,优先级&#10;片联ST-2026-Q1,2026-01-20,ST-2026-Q1-001,渠道下沉策略,战略,销售部,销售总监,简要描述...,决定...,项1|负责人|2026-02-15|已完成,KPI-001,已决议,P0" data-import-preview></textarea>
             </div>
             <div id="importPreviewArea" style="margin-top: 16px; display: none;">
                 <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">预览（前 5 条）</div>
@@ -1836,8 +1860,8 @@
             </div>
             <div id="importErrorArea" style="margin-top: 12px; color: var(--danger); font-size: 13px; display: none;"></div>
             <div class="form-actions">
-                <button type="button" class="btn btn-ghost" onclick="closeModal('importModal')">取消</button>
-                <button type="button" class="btn btn-primary" onclick="confirmImport()">确认导入</button>
+                <button type="button" class="btn btn-ghost" data-modal-close="importModal">取消</button>
+                <button type="button" class="btn btn-primary" data-modal-action="confirm-import">确认导入</button>
             </div>
         </div>
     </div>
@@ -1845,7 +1869,7 @@
     <!-- 议题详情弹窗 -->
     <div class="modal-overlay" id="issueDetailModal">
         <div class="modal-content" style="max-width: 640px;">
-            <button class="modal-close" onclick="closeModal('issueDetailModal')">×</button>
+            <button class="modal-close" data-modal-close="issueDetailModal">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="issueDetailTitle">📋 议题详情</div>
                 <div class="modal-subtitle" id="issueDetailSubtitle"></div>
@@ -1854,7 +1878,7 @@
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
-                <button type="button" class="btn btn-ghost" onclick="closeModal('issueDetailModal')">关闭</button>
+                <button type="button" class="btn btn-ghost" data-modal-close="issueDetailModal">关闭</button>
             </div>
         </div>
     </div>
@@ -1862,26 +1886,26 @@
     <!-- 关联议题选择弹窗 -->
     <div class="modal-overlay" id="linkIssuesModal">
         <div class="modal-content" style="max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;">
-            <button class="modal-close" onclick="closeModal('linkIssuesModal')">×</button>
+            <button class="modal-close" data-modal-close="linkIssuesModal">×</button>
             <div class="modal-header">
                 <div class="modal-title">🔗 关联议题</div>
                 <div class="modal-subtitle" id="linkIssuesSubtitle">选择要关联的议题</div>
             </div>
             <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
-                <button class="btn btn-ghost" style="flex:1;" onclick="_linkIssuesFilter = 'all'; renderLinkIssuesList();" id="linkFilterAll">全部</button>
-                <button class="btn btn-ghost" style="flex:1;" onclick="_linkIssuesFilter = 'ST'; renderLinkIssuesList();">🏛️ ST</button>
-                <button class="btn btn-ghost" style="flex:1;" onclick="_linkIssuesFilter = 'AT'; renderLinkIssuesList();">🏢 AT</button>
-                <button class="btn btn-primary" style="flex:1.5; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));" onclick="openAiMatchModal()">🤖 AI 智能匹配</button>
+                <button class="btn btn-ghost" style="flex:1;" data-link-filter="all" id="linkFilterAll">全部</button>
+                <button class="btn btn-ghost" style="flex:1;" data-link-filter="ST">🏛️ ST</button>
+                <button class="btn btn-ghost" style="flex:1;" data-link-filter="AT">🏢 AT</button>
+                <button class="btn btn-primary" style="flex:1.5; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));" data-action="ai-match">🤖 AI 智能匹配</button>
             </div>
             <div style="margin-bottom: 12px;">
-                <input type="text" id="linkIssuesSearch" class="form-input" placeholder="🔍 搜索议题编号、标题、部门..." oninput="renderLinkIssuesList()" style="width: 100%;">
+                <input type="text" id="linkIssuesSearch" class="form-input" placeholder="🔍 搜索议题编号、标题、部门..." data-link-search style="width: 100%;">
             </div>
             <div id="linkIssuesList" style="flex: 1; overflow-y: auto; min-height: 200px;">
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-                <button type="button" class="btn btn-ghost" onclick="closeModal('linkIssuesModal')">取消</button>
-                <button type="button" class="btn btn-primary" onclick="saveTopicLinks()">保存关联</button>
+                <button type="button" class="btn btn-ghost" data-modal-close="linkIssuesModal">取消</button>
+                <button type="button" class="btn btn-primary" data-modal-action="save-links">保存关联</button>
             </div>
         </div>
     </div>
@@ -1889,7 +1913,7 @@
     <!-- AI 智能匹配建议弹窗 -->
     <div class="modal-overlay" id="aiMatchModal">
         <div class="modal-content" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
-            <button class="modal-close" onclick="closeModal('aiMatchModal')">×</button>
+            <button class="modal-close" data-modal-close="aiMatchModal">×</button>
             <div class="modal-header">
                 <div class="modal-title">🤖 AI 智能关联建议</div>
                 <div class="modal-subtitle" id="aiMatchSubtitle">基于部门、关键词、KPI、时间窗口等维度分析</div>
@@ -1911,8 +1935,8 @@
                 <div style="font-size: 12px; margin-top: 8px;">建议导入更多议题数据，或检查专题信息是否完整</div>
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
-                <button type="button" class="btn btn-ghost" onclick="closeModal('aiMatchModal')">关闭</button>
-                <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" onclick="applyAiMatches()" style="display:none;">✅ 关联选中建议</button>
+                <button type="button" class="btn btn-ghost" data-modal-close="aiMatchModal">关闭</button>
+                <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" data-modal-action="apply-ai-matches" style="display:none;">✅ 关联选中建议</button>
             </div>
         </div>
     </div>
@@ -1920,7 +1944,7 @@
     <!-- AI 全局报告弹窗 -->
     <div class="modal-overlay" id="aiReportModal">
         <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-            <button class="modal-close" onclick="closeModal('aiReportModal')">×</button>
+            <button class="modal-close" data-modal-close="aiReportModal">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="aiReportTitle">🤖 AI 全局分析报告</div>
                 <div class="modal-subtitle" id="aiReportSubtitle"></div>
@@ -1929,18 +1953,18 @@
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
-                <button type="button" class="btn btn-ghost" onclick="closeModal('aiReportModal')">关闭</button>
-                <button type="button" class="btn btn-primary" onclick="regenerateAiReport()">🔄 重新生成</button>
+                <button type="button" class="btn btn-ghost" data-modal-close="aiReportModal">关闭</button>
+                <button type="button" class="btn btn-primary" data-action="regenerate-report">🔄 重新生成</button>
             </div>
         </div>
     </div>
 
     <!-- AI助手浮窗 -->
-    <button class="ai-fab" onclick="toggleAI()" title="AI战略助手">🤖</button>
+    <button class="ai-fab" data-action="toggle-ai" title="AI战略助手">🤖</button>
     <div class="ai-panel" id="aiPanel">
         <div class="ai-panel-header">
             <div class="ai-panel-title"><span>🤖</span><span>AI战略助手</span></div>
-            <button onclick="toggleAI()" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:18px;">×</button>
+            <button data-action="toggle-ai" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:18px;">×</button>
         </div>
         <div class="ai-panel-body" id="aiMessages">
             <div class="ai-message assistant">
@@ -1949,14 +1973,14 @@
                 <br>• 生成经营分析报告
                 <br>• 模拟战略调整影响
                 <div class="ai-suggestions">
-                    <span class="ai-suggestion" onclick="askAI('Q3营收为什么低于预期？')">Q3营收为什么低于预期？</span>
-                    <span class="ai-suggestion" onclick="askAI('生成月度经营分析报告')">生成月度经营分析报告</span>
+                    <span class="ai-suggestion" data-ask-ai="Q3营收为什么低于预期？">Q3营收为什么低于预期？</span>
+                    <span class="ai-suggestion" data-ask-ai="生成月度经营分析报告">生成月度经营分析报告</span>
                 </div>
             </div>
         </div>
         <div class="ai-input-area">
             <input type="text" class="ai-input" id="aiInput" placeholder="输入你的问题..." onkeypress="if(event.key==='Enter')sendAI()">
-            <button class="ai-send" onclick="sendAI()">发送</button>
+            <button class="ai-send" data-action="send-ai">发送</button>
         </div>
     </div>
 
@@ -2561,7 +2585,7 @@
                 '<div style="font-size: 36px; margin-bottom: 8px;">📁</div>' +
                 '<div style="font-weight: 500; color: var(--text-secondary); margin-bottom: 4px;">拖拽 Excel / CSV 文件到此处</div>' +
                 '<div style="font-size: 13px; color: var(--text-muted);">或点击选择文件 · 支持 .xlsx .xls .csv</div>' +
-                '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">';
+                '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" data-action="import-file-select">';
             document.querySelector('input[name="importSource"][value="ST"]').checked = true;
             _importRows = null;
             _importFileName = null;
@@ -2631,7 +2655,7 @@
                         '<div style="font-size: 36px; margin-bottom: 8px;">✅</div>' +
                         '<div style="font-weight: 500; color: var(--success);">' + escapeHtml(file.name) + '</div>' +
                         '<div style="font-size: 13px; color: var(--text-muted);">共 ' + _importRows.length + ' 行数据 · 点击可重新选择</div>' +
-                        '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">';
+                        '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" data-action="import-file-select">';
                     updateImportPreview();
                 } catch (err) {
                     alert('解析文件失败: ' + err.message);
@@ -2838,7 +2862,7 @@
                 const relBadgeClass = relationType === 'direct' ? 'relation-direct' : relationType === 'support' ? 'relation-support' : 'relation-reference';
                 const relLabel = relationType === 'direct' ? '直接驱动' : relationType === 'support' ? '相关支撑' : '参考关联';
                 return `<div class="link-issue-item ${isLinked ? 'linked' : ''}">
-                    <input type="checkbox" id="link_cb_${issue.issueId}" ${isLinked ? 'checked' : ''} style="cursor:pointer; width: 16px; height: 16px; accent-color: var(--accent-indigo);" onchange="document.getElementById('link_rel_${issue.issueId}').style.display = this.checked ? 'inline-block' : 'none'; this.closest('.link-issue-item').classList.toggle('linked', this.checked);">
+                    <input type="checkbox" id="link_cb_${issue.issueId}" ${isLinked ? 'checked' : ''} style="cursor:pointer; width: 16px; height: 16px; accent-color: var(--accent-indigo);" data-link-checkbox data-issue-id="${issue.issueId}">
                     <div style="flex: 1; min-width: 0;">
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
                             <span class="link-issue-badge ${badgeClass}">${issue.sourceSystem}</span>
@@ -3745,7 +3769,7 @@
                 const sid = safeId(t.id);
                 if (!sid) return '';
                 const progressColor = t.progress >= 80 ? 'green' : t.progress >= 50 ? 'yellow' : 'red';
-                return `<tr style="cursor:pointer;" onclick="openDetailModal('${sid}')">
+                return `<tr style="cursor:pointer;" data-action="detail" data-topic-id="${sid}">
                     <td>
                         <div style="font-weight:500; color:var(--text-primary);">${escapeHtml(t.name)}</div>
                         <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(t.description || '')}</div>
@@ -3763,10 +3787,10 @@
                     <td><span class="tag ${getStatusTagClass(t.status)}">${getStatusLabel(t.status)}</span></td>
                     <td style="font-size:12px;">${(t.linkedIssues || []).length > 0 ? '🏛️' + (t.linkedIssues || []).filter(i => i.sourceSystem === 'ST').length + ' 🏢' + (t.linkedIssues || []).filter(i => i.sourceSystem === 'AT').length : '<span style="color:var(--text-muted);">-</span>'}</td>
                     <td>
-                        <div class="op-group" onclick="event.stopPropagation();">
-                            <button class="op-btn" onclick="openDetailModal('${sid}')">详情</button>
-                            <button class="op-btn" onclick="openFormModal('${sid}')">编辑</button>
-                            <button class="op-btn danger" onclick="openDeleteModal('${sid}')">删除</button>
+                        <div class="op-group" data-stop-propagation>
+                            <button class="op-btn" data-action="detail" data-topic-id="${sid}">详情</button>
+                            <button class="op-btn" data-action="edit" data-topic-id="${sid}">编辑</button>
+                            <button class="op-btn danger" data-action="delete" data-topic-id="${sid}">删除</button>
                         </div>
                     </td>
                 </tr>`;
@@ -3868,8 +3892,8 @@
                 <div class="milestone-row" data-msid="${m.id || generateMsId()}">
                     <input type="text" class="ms-name" value="${escapeHtml(m.name)}" placeholder="里程碑名称" required>
                     <input type="date" class="ms-date" value="${m.date || ''}">
-                    <span class="milestone-status ${m.status}" onclick="toggleMsStatus(this)">${m.status === 'completed' ? '✓ 已完成' : '○ 未完成'}</span>
-                    <button type="button" class="milestone-remove" onclick="removeMilestoneRow(this)">×</button>
+                    <span class="milestone-status ${m.status}" data-ms-action="toggle">${m.status === 'completed' ? '✓ 已完成' : '○ 未完成'}</span>
+                    <button type="button" class="milestone-remove" data-ms-action="remove">×</button>
                 </div>
             `).join('');
         }
@@ -3885,8 +3909,8 @@
             row.innerHTML = `
                 <input type="text" class="ms-name" placeholder="里程碑名称" required>
                 <input type="date" class="ms-date">
-                <span class="milestone-status pending" onclick="toggleMsStatus(this)">○ 未完成</span>
-                <button type="button" class="milestone-remove" onclick="removeMilestoneRow(this)">×</button>
+                <span class="milestone-status pending" data-ms-action="toggle">○ 未完成</span>
+                <button type="button" class="milestone-remove" data-ms-action="remove">×</button>
             `;
             container.appendChild(row);
         }
@@ -4024,14 +4048,14 @@
                             </div>
                         </div>
                         <div class="issue-actions">
-                            <button class="op-btn" onclick="event.stopPropagation(); openIssueDetailModal('${escapeHtml(li.issueId)}')">📋 查看议题</button>
-                            <button class="op-btn" onclick="event.stopPropagation(); openLinkIssuesModal('${topic.id}');">🔗 管理关联</button>
-                            <button class="op-btn danger" onclick="event.stopPropagation(); unlinkIssueFromTopic('${topic.id}', '${escapeHtml(li.issueId)}'); openDetailModal('${topic.id}');">✕ 解除关联</button>
+                            <button class="op-btn" data-action="issue-detail" data-issue-id="${escapeHtml(li.issueId)}" data-stop-propagation>📋 查看议题</button>
+                            <button class="op-btn" data-action="manage-links" data-topic-id="${topic.id}" data-stop-propagation>🔗 管理关联</button>
+                            <button class="op-btn danger" data-action="unlink-issue" data-topic-id="${topic.id}" data-issue-id="${escapeHtml(li.issueId)}" data-stop-propagation>✕ 解除关联</button>
                         </div>
                     </div>`;
                 }).join('') + `</div>`;
             } else {
-                linkedIssuesHtml = '<div style="font-size:13px; color:var(--text-muted); padding: 16px 0;">暂无关联议题 <button class="op-btn" onclick="closeModal(\'bizTopicModal\'); setTimeout(() => openLinkIssuesModal(\'' + topic.id + '\'), 200);">+ 关联议题</button> <button class="op-btn" onclick="closeModal(\'bizTopicModal\'); setTimeout(() => { openLinkIssuesModal(\'' + topic.id + '\'); openAiMatchModal(); }, 300);">🤖 AI 智能匹配</button></div>';
+                linkedIssuesHtml = '<div style="font-size:13px; color:var(--text-muted); padding: 16px 0;">暂无关联议题 <button class="op-btn" data-action="close-and-link" data-topic-id="' + topic.id + '">+ 关联议题</button> <button class="op-btn" data-action="close-and-ai-match" data-topic-id="' + topic.id + '">🤖 AI 智能匹配</button></div>';
             }
 
             const linkedKpis = topic.linkedKpis || [];
@@ -4107,7 +4131,7 @@
                 <div class="detail-section">
                     <div class="detail-section-title" style="display:flex; justify-content:space-between; align-items:center;">
                         <span>🔗 关联议题</span>
-                        <button class="op-btn" onclick="closeModal('bizTopicModal'); setTimeout(() => openLinkIssuesModal('${topic.id}'), 200);">+ 关联议题</button>
+                        <button class="op-btn" data-action="close-and-link" data-topic-id="${topic.id}">+ 关联议题</button>
                     </div>
                     ${linkedIssuesHtml}
                 </div>
@@ -4287,7 +4311,266 @@
             renderDeptFilter();
             updateAiReportCards(); // v2.1: update AI report entry cards
 
+            bindDelegatedEvents();
+
             // Nav active state removed (integrated into DSTE nav)
+        }
+
+        // ===================== Event Delegation =====================
+        function bindDelegatedEvents() {
+            const container = document.querySelector('.page-container') || document.body;
+
+            container.addEventListener('click', handleDelegatedClick);
+            container.addEventListener('change', handleDelegatedChange);
+            container.addEventListener('input', handleDelegatedInput);
+
+            // Drag & drop on import drop zone
+            const dropZone = document.getElementById('importDropZone');
+            if (dropZone) {
+                dropZone.addEventListener('dragover', handleDragOver);
+                dropZone.addEventListener('dragleave', handleDragLeave);
+                dropZone.addEventListener('drop', handleFileDrop);
+            }
+
+            // Form submit
+            const topicForm = document.getElementById('topicForm');
+            if (topicForm) {
+                topicForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    saveTopic();
+                });
+            }
+        }
+
+        function handleDelegatedClick(e) {
+            const target = e.target;
+
+            // Stop propagation marker
+            if (target.closest('[data-stop-propagation]')) {
+                // Individual handlers below will check this; don't early return here
+            }
+
+            // data-action handlers
+            const actionEl = target.closest('[data-action]');
+            if (actionEl) {
+                const action = actionEl.dataset.action;
+                const topicId = actionEl.dataset.topicId;
+                const issueId = actionEl.dataset.issueId;
+
+                if (actionEl.hasAttribute('data-stop-propagation')) {
+                    e.stopPropagation();
+                }
+
+                switch (action) {
+                    case 'export-topics':
+                        exportTopics();
+                        return;
+                    case 'trigger-import':
+                        document.getElementById('backupFileInput').click();
+                        return;
+                    case 'open-import':
+                        openImportModal();
+                        return;
+                    case 'new-topic':
+                        openFormModal();
+                        return;
+                    case 'ai-report':
+                        openAiReportModal(actionEl.dataset.reportType);
+                        return;
+                    case 'detail':
+                        if (topicId) openDetailModal(topicId);
+                        return;
+                    case 'edit':
+                        if (topicId) openFormModal(topicId);
+                        return;
+                    case 'delete':
+                        if (topicId) openDeleteModal(topicId);
+                        return;
+                    case 'import-file-select':
+                        // handled by change event
+                        return;
+                    case 'issue-detail':
+                        if (issueId) openIssueDetailModal(issueId);
+                        return;
+                    case 'manage-links':
+                        if (topicId) openLinkIssuesModal(topicId);
+                        return;
+                    case 'unlink-issue':
+                        if (topicId && issueId) {
+                            unlinkIssueFromTopic(topicId, issueId);
+                            openDetailModal(topicId);
+                        }
+                        return;
+                    case 'close-and-link':
+                        if (topicId) {
+                            closeModal('bizTopicModal');
+                            setTimeout(() => openLinkIssuesModal(topicId), 200);
+                        }
+                        return;
+                    case 'close-and-ai-match':
+                        if (topicId) {
+                            closeModal('bizTopicModal');
+                            setTimeout(() => { openLinkIssuesModal(topicId); openAiMatchModal(); }, 300);
+                        }
+                        return;
+                    case 'ai-match':
+                        openAiMatchModal();
+                        return;
+                    case 'regenerate-report':
+                        regenerateAiReport();
+                        return;
+                    case 'toggle-ai':
+                        toggleAI();
+                        return;
+                    case 'send-ai':
+                        sendAI();
+                        return;
+                }
+            }
+
+            // data-tab (tab switching)
+            const tabEl = target.closest('[data-tab]');
+            if (tabEl) {
+                switchTab(tabEl.dataset.tab);
+                return;
+            }
+
+            // data-modal-close
+            const modalCloseEl = target.closest('[data-modal-close]');
+            if (modalCloseEl) {
+                closeModal(modalCloseEl.dataset.modalClose);
+                return;
+            }
+
+            // data-modal-action
+            const modalActionEl = target.closest('[data-modal-action]');
+            if (modalActionEl) {
+                switch (modalActionEl.dataset.modalAction) {
+                    case 'confirm-delete':
+                        confirmDeleteTopic();
+                        return;
+                    case 'confirm-import':
+                        confirmImport();
+                        return;
+                    case 'save-links':
+                        saveTopicLinks();
+                        return;
+                    case 'apply-ai-matches':
+                        applyAiMatches();
+                        return;
+                }
+            }
+
+            // data-ms-action (milestones)
+            const msEl = target.closest('[data-ms-action]');
+            if (msEl) {
+                switch (msEl.dataset.msAction) {
+                    case 'add':
+                        addMilestoneRow();
+                        return;
+                    case 'toggle':
+                        toggleMsStatus(msEl);
+                        return;
+                    case 'remove':
+                        removeMilestoneRow(msEl);
+                        return;
+                }
+            }
+
+            // data-ask-ai
+            const askAiEl = target.closest('[data-ask-ai]');
+            if (askAiEl) {
+                askAI(askAiEl.dataset.askAi);
+                return;
+            }
+
+            // data-trigger-file-input
+            const triggerFileEl = target.closest('[data-trigger-file-input]');
+            if (triggerFileEl) {
+                const inputId = triggerFileEl.dataset.triggerFileInput;
+                const input = document.getElementById(inputId);
+                if (input) input.click();
+                return;
+            }
+
+            // data-link-filter
+            const linkFilterEl = target.closest('[data-link-filter]');
+            if (linkFilterEl) {
+                window._linkIssuesFilter = linkFilterEl.dataset.linkFilter;
+                renderLinkIssuesList();
+                return;
+            }
+
+            // data-sort-field
+            const sortEl = target.closest('[data-sort-field]');
+            if (sortEl) {
+                toggleSort(sortEl.dataset.sortField);
+                return;
+            }
+        }
+
+        function handleDelegatedChange(e) {
+            const target = e.target;
+
+            // data-filter selects
+            if (target.hasAttribute('data-filter')) {
+                applyFilters();
+                return;
+            }
+
+            // data-action="import-file" (backup file input)
+            if (target.dataset.action === 'import-file') {
+                importTopicsFromFile(e);
+                return;
+            }
+
+            // data-action="import-file-select" (import modal file input)
+            if (target.dataset.action === 'import-file-select') {
+                handleFileSelect(e);
+                return;
+            }
+
+            // data-import-source radio buttons
+            if (target.hasAttribute('data-import-source')) {
+                updateImportPreview();
+                return;
+            }
+
+            // data-link-checkbox
+            if (target.hasAttribute('data-link-checkbox')) {
+                const issueId = target.dataset.issueId;
+                const relSelect = document.getElementById('link_rel_' + issueId);
+                if (relSelect) {
+                    relSelect.style.display = target.checked ? 'inline-block' : 'none';
+                }
+                const item = target.closest('.link-issue-item');
+                if (item) {
+                    item.classList.toggle('linked', target.checked);
+                }
+                return;
+            }
+        }
+
+        function handleDelegatedInput(e) {
+            const target = e.target;
+
+            // data-search
+            if (target.hasAttribute('data-search')) {
+                applyFilters();
+                return;
+            }
+
+            // data-link-search
+            if (target.hasAttribute('data-link-search')) {
+                renderLinkIssuesList();
+                return;
+            }
+
+            // data-import-preview
+            if (target.hasAttribute('data-import-preview')) {
+                updateImportPreview();
+                return;
+            }
         }
 
         // DSTE 主题切换

@@ -717,3 +717,28 @@ body {
     display: none;
   }
 }
+
+/* ===== 嵌入模式 (iframe 嵌入时使用 ?embed=1) ===== */
+[data-embed="true"] .top-nav,
+[data-embed="true"] .sidebar,
+[data-embed="true"] .breadcrumb {
+  display: none !important;
+}
+
+[data-embed="true"] .app {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}
+
+[data-embed="true"] .app-body {
+  padding: 0;
+  overflow: visible;
+}
+
+[data-embed="true"] .content-area {
+  margin-left: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}

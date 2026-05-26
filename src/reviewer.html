@@ -11,11 +11,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        // DSTE 主题同步（提前初始化）
+        // DSTE 主题同步 + 嵌入模式检测（提前初始化）
         (function() {
             const theme = localStorage.getItem('dste-theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
             window.__APP_BUILD__ = 'v0.3.4';
+
+            // 嵌入模式：在 iframe 中使用时隐藏导航外壳
+            if (new URLSearchParams(location.search).get('embed') === '1') {
+                document.documentElement.setAttribute('data-embed', 'true');
+
+                // 向父页面汇报高度，实现 iframe 自适应
+                if (window !== window.top) {
+                    let lastHeight = 0;
+                    const reportHeight = () => {
+                        const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+                        if (h !== lastHeight) {
+                            lastHeight = h;
+                            window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*');
+                        }
+                    };
+                    reportHeight();
+                    let timer;
+                    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                    if (typeof ResizeObserver !== 'undefined') {
+                        const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                        ro.observe(document.body);
+                    }
+                }
+            }
         })();
     </script>
     <style>
@@ -1809,7 +1833,7 @@
         } else if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
             PROXY_URL = 'http://localhost:8766';
         } else if (window.location.hostname === 'dste.fineres.com' || window.location.hostname === 'Dste.fineres.com') {
-            PROXY_URL = 'https://dste-api.jasonxspace.workers.dev';
+            PROXY_URL = '';  // 使用相对路径，由 nginx 反向代理到后端审核服务
         }
         // 允许 localStorage 覆盖（高级用户调试）
         PROXY_URL = localStorage.getItem('meetingReviewerProxyUrl') || PROXY_URL;
@@ -3710,6 +3734,69 @@
             
             const items = [];
             
+            // ========== 通用议题场景检查项 ==========
+            // 问题定义
+            const prob = facts.problem_definition;
+            if (prob) {
+                items.push(renderFactItem(prob.has_problem_definition, prob.has_problem_definition ? '✓' : '✗', prob.has_problem_definition ? `问题定义：已检测到（${(prob.keywords_found || []).slice(0, 3).join('、')}）` : '问题定义：未明确检测到议题/问题/痛点描述'));
+            }
+            
+            // 目标-方案对齐
+            const align = facts.solution_alignment;
+            if (align) {
+                if (align.has_alignment) {
+                    items.push(renderFactItem(true, '✓', '目标-方案对齐：问题与解决方案均已检测到'));
+                } else if (align.has_problem && !align.has_solution) {
+                    items.push(renderFactItem(false, '✗', '目标-方案对齐：有问题描述但缺少对应解决方案'));
+                } else if (!align.has_problem && align.has_solution) {
+                    items.push(renderFactItem(false, '✗', '目标-方案对齐：有解决方案但缺少问题定义'));
+                } else {
+                    items.push(renderFactItem(false, '✗', '目标-方案对齐：未检测到明确的问题和解决方案'));
+                }
+            }
+            
+            // 数据支撑
+            const data = facts.data_support;
+            if (data) {
+                items.push(renderFactItem(data.has_data_support, data.has_data_support ? '✓' : '✗', data.has_data_support ? `数据支撑：检测到 ${data.data_count || 0} 处量化数据` : '数据支撑：未检测到量化数据（百分比/金额/数量等）'));
+            }
+            
+            // 决策逻辑
+            const logic = facts.decision_logic;
+            if (logic) {
+                items.push(renderFactItem(logic.has_decision_logic, logic.has_decision_logic ? '✓' : '✗', logic.has_decision_logic ? '决策逻辑：已检测到推理/结论表述' : '决策逻辑：未检测到明确的分析推理过程'));
+            }
+            
+            // 行动具体化
+            const action = facts.action_specificity;
+            if (action) {
+                const parts = [];
+                if (action.has_action_items) parts.push('有行动项');
+                if (action.has_responsible_person) parts.push('有责任人');
+                if (action.has_timeline) parts.push('有时间节点');
+                if (parts.length > 0) {
+                    items.push(renderFactItem(null, '•', `行动具体化：${parts.join(' | ')}`, 'info'));
+                } else {
+                    items.push(renderFactItem(false, '✗', '行动具体化：未检测到具体行动安排'));
+                }
+            }
+            
+            // 材料格式
+            const fmt = facts.material_format;
+            if (fmt) {
+                const parts = [];
+                if (fmt.has_headings) parts.push('标题层级');
+                if (fmt.has_lists) parts.push('列表');
+                if (fmt.has_tables) parts.push('表格');
+                if (fmt.has_paragraphs) parts.push('分段');
+                if (parts.length > 0) {
+                    items.push(renderFactItem(true, '✓', `材料格式：${parts.join(' | ')}`));
+                } else {
+                    items.push(renderFactItem(false, '✗', '材料格式：结构混乱，缺少标题/列表/表格'));
+                }
+            }
+            
+            // ========== 述职场景检查项（保持原有逻辑） ==========
             // 完整性
             const comp = facts.completeness;
             if (comp) {
