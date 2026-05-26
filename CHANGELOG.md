@@ -17,6 +17,29 @@
 
 ---
 
+## [v0.4.0] - 2026-05-26
+
+### Security
+- **事件委托改造**：移除 business-topics.html 中全部 79 个内联事件属性（onclick/onchange/oninput/onsubmit/ondrop/ondragover/ondragleave），改为统一的事件委托处理器
+- 消除 XSS 注入风险点，彻底摆脱对内联 `onclick` 的依赖
+
+### Changed
+- **CSS 抽离**：内联 1500 行样式迁移至 `src/pages/business-topics/style.css`，HTML 仅保留结构
+- **JS 模块化拆分**：内联 2614 行脚本按功能拆分为 4 个 ES 模块：
+  - `main.js`（1420 行）：核心逻辑（数据层、渲染、表单、筛选排序、事件委托、初始化）
+  - `issue-import.js`（360 行）：ST/AT 议题导入（CSV/Excel 解析、拖拽上传、数据校验）
+  - `ai-analysis.js`（740 行）：AI 智能匹配与全局分析报告
+  - `topic-issues.js`（141 行）：议题关联管理
+- `business-topics.html` 从 4326 行降至约 500 行（-88%），可维护性显著提升
+- Vite 自动打包 JS 模块为独立 chunk，首屏加载优化
+
+### Engineering
+- ESLint `max-lines` 警告消除（原 4326 行超标 → 最大模块 1420 行）
+- 测试更新：pytest 基线测试适配模块化结构（54 个全部通过）
+- Playwright E2E 测试全部通过（8 个）
+
+---
+
 ## [v0.3.5] - 2026-05-26
 
 ### Added

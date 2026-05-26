@@ -49,6 +49,14 @@
       })();
 
       async function apiSave(endpoint, data) {
+        // 无论 API 是否可用，都先保存到 localStorage 作为兜底，防止数据丢失
+        if (endpoint === '/api/meetings') {
+          try {
+            localStorage.setItem('dste_meetings', JSON.stringify(data));
+          } catch (e) {
+            console.warn('localStorage save failed:', e.message);
+          }
+        }
         if (!API_BASE) return;
         try {
           await fetch(API_BASE + endpoint, {
@@ -62,15 +70,30 @@
       }
 
       async function apiLoad(endpoint) {
-        if (!API_BASE) return null;
-        try {
-          const resp = await fetch(API_BASE + endpoint);
-          const json = await resp.json();
-          return json.success ? json.data : null;
-        } catch (e) {
-          console.warn('API load failed:', e.message);
-          return null;
+        let apiData = null;
+        if (API_BASE) {
+          try {
+            const resp = await fetch(API_BASE + endpoint);
+            const json = await resp.json();
+            if (json.success && json.data) apiData = json.data;
+          } catch (e) {
+            console.warn('API load failed:', e.message);
+          }
         }
+        if (apiData && apiData.length > 0) return apiData;
+        // API 无数据或失败时 fallback 到 localStorage
+        if (endpoint === '/api/meetings') {
+          const local = localStorage.getItem('dste_meetings');
+          if (local) {
+            try {
+              const parsed = JSON.parse(local);
+              if (parsed && parsed.length > 0) return parsed;
+            } catch (e) {
+              console.warn('localStorage parse failed:', e);
+            }
+          }
+        }
+        return null;
       }
 
       const TOP_NAV = [
@@ -149,6 +172,7 @@
         'exe/tasks': renderTasks,
         'exe/business-topics': () => { window.location.href = 'business-topics.html'; return ''; },
         'exe/meetings': renderMeetings,
+        'exe/meetings/edit': renderMeetingEditPage,
         'exe/finereport': renderFineReport,
         'rev/performance': () => renderPlaceholder('🏆 绩效与激励', '绩效考核体系管理、激励方案设计与执行效果评估。'),
         'rev/cadre': () => renderPlaceholder('👔 干部管理', '干部梯队建设、能力评估、轮岗培养与继任计划。'),
@@ -160,16 +184,15 @@
       // ===== 路由状态 =====
       let currentPhase = 'dashboard';
       let currentPage = 'dashboard';
-      let meetings = [];
 
       // ===== 初始化 =====
       async function init() {
         renderTopNav();
 
-        // 从云端加载会议数据
+        // 加载会议数据：优先 API，其次 localStorage（由 apiLoad 处理），最后由 renderMeetings 创建 mock
         const remoteMeetings = await apiLoad('/api/meetings');
         if (remoteMeetings && remoteMeetings.length > 0) {
-          meetings = remoteMeetings;
+          window._meetingsData = remoteMeetings;
         }
 
         const hash = window.location.hash.slice(1) || 'dashboard';
@@ -255,6 +278,18 @@
         // 绑定事件委托（替代内联 onclick）
         bindPageEvents(contentEl);
 
+        // 页面特定初始化
+        if (pageId === 'exe/meetings/edit') {
+          const editId = window._editMeetingId;
+          const m = window._meetingsData?.find(x => x.id === editId);
+          if (!m) {
+            navigate('exe/meetings');
+          } else {
+            window._meetingEditData = JSON.parse(JSON.stringify(m));
+            renderEditorForm();
+          }
+        }
+
         // 更新左侧 active
         document.querySelectorAll('.sidebar-item').forEach(item => {
           item.classList.toggle('active', item.dataset.page === pageId);
@@ -265,7 +300,7 @@
           'dashboard': '驾驶舱',
           'sp/strategy-map': '战略地图', 'sp/strategy-topics': '战略专题', 'sp/market-insight': '市场洞察',
           'bp/kpi': 'KPI 指标体系', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
-          'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meeting-review': '会议材料审核',
+          'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meetings/edit': '编辑会议', 'exe/meeting-review': '会议材料审核',
           'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
           'ai': 'AI 战略助手',
           'dashboard/roadmap': '开发路线图 Road Map'
@@ -294,6 +329,15 @@
           if (scrollTrigger) {
             const target = document.getElementById(scrollTrigger.dataset.scrollTo);
             if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+          // data-edit-meeting: 会议列表编辑按钮
+          const editBtn = e.target.closest('[data-edit-meeting]');
+          if (editBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            window._editMeetingId = editBtn.dataset.editId;
+            navigate('exe/meetings/edit');
             return;
           }
         });
@@ -340,11 +384,8 @@
         });
       }
 
-      // ===== FineReport 报表嵌入（iframe + 跨域单点登录） =====
+      // ===== FineReport 报表（弹窗模式） =====
       function renderFineReport() {
-        // 延迟初始化 SSO，等 DOM 渲染完成
-        setTimeout(initFineReportSSO, 100);
-
         return `
           <div class="breadcrumb">
             <a href="#dashboard" data-navigate="dashboard">驾驶舱</a>
@@ -355,57 +396,35 @@
           </div>
           <div class="page-header">
             <h1 class="page-title">📊 FineReport 报表</h1>
-            <div class="page-actions">
-              <button class="btn btn-secondary" onclick="refreshFineReport()">⟳ 刷新</button>
-              <button class="btn btn-secondary" onclick="window.open('https://crm.finereporthelp.com/WebReport/decision?#directory?activeTab=old-platform-reportlet-entry-973','_blank')">↗ 新窗口打开</button>
-            </div>
           </div>
 
-          <!-- 单点登录配置卡片（未配置时显示） -->
-          <div id="fr-sso-config" class="card" style="margin-bottom:16px;">
-            <div class="card-header">
-              <div class="card-title">🔐 FineReport 账号配置</div>
-            </div>
-            <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-              <div style="flex:1;min-width:180px;">
-                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">FineReport 账号</label>
-                <input id="fr-username" type="text" placeholder="请输入账号" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
-              </div>
-              <div style="flex:1;min-width:180px;">
-                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">FineReport 密码</label>
-                <input id="fr-password" type="password" placeholder="请输入密码" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
-              </div>
-              <button class="btn btn-primary" onclick="doFineReportLogin()">🔓 登录并嵌入</button>
-            </div>
-            <div style="margin-top:8px;font-size:12px;color:var(--text-tertiary);">
-              💡 提示：如果已在其他标签页登录 FineReport，点击「登录并嵌入」即可自动完成单点登录。账号密码仅用于本次会话，不会保存。
-            </div>
-          </div>
-
-          <!-- 单点登录 iframe（隐藏） -->
-          <iframe id="fr-sso-iframe" style="display:none;width:0;height:0;border:none;"></iframe>
-
-          <!-- 报表 iframe -->
-          <div class="card" style="padding:0;height:calc(100vh - 320px);position:relative;min-height:400px;">
-            <iframe
-              id="fr-report-iframe"
-              src="https://crm.finereporthelp.com/WebReport/decision?#directory?activeTab=old-platform-reportlet-entry-973"
-              style="width:100%;height:100%;border:none;border-radius:8px;"
-              allow="fullscreen"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-              onload="var l=document.getElementById('fr-loading');if(l)l.style.display='none';"
-            ></iframe>
-            <!-- 加载状态 -->
-            <div id="fr-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg-card);border-radius:8px;z-index:1;">
-              <div style="text-align:center;color:var(--text-tertiary);">
-                <div style="font-size:24px;margin-bottom:8px;">⏳</div>
-                <div>加载 FineReport 报表中...</div>
-                <div id="fr-loading-hint" style="font-size:12px;margin-top:8px;opacity:0.7;">等待单点登录完成</div>
-              </div>
+          <div class="card" style="padding:48px;text-align:center;">
+            <div style="font-size:64px;margin-bottom:20px;">📊</div>
+            <h2 style="margin-bottom:8px;color:var(--text-primary);">销售任务完成统计</h2>
+            <p style="color:var(--text-tertiary);margin-bottom:32px;font-size:14px;">
+              FineReport 报表 · finance/payment_planning_stat.frm
+            </p>
+            <button class="btn btn-primary" style="font-size:15px;padding:12px 32px;"
+                    onclick="openFineReportPopup()">
+              🔗 打开报表
+            </button>
+            <div style="margin-top:16px;font-size:12px;color:var(--text-tertiary);">
+              将在弹窗中打开（1440×900），关闭后自动返回 DSTE
             </div>
           </div>
         `;
       }
+
+      window.openFineReportPopup = function() {
+        var url = 'https://crm.finereporthelp.com/WebReport/decision/view/report?viewlet=finance/payment_planning_stat.frm';
+        var w = 1440;
+        var h = 900;
+        var left = (window.screen.width - w) / 2;
+        var top = (window.screen.height - h) / 2;
+        var features = 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top
+                     + ',menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes';
+        window.open(url, 'finereport-popup', features);
+      };
 
       // FineReport 跨域单点登录
       window.doFineReportLogin = function() {
@@ -675,7 +694,7 @@
           union_quarterly: { label: '片联季度会议', color: '#8b5cf6', icon: '🏛️', pipelineEnabled: false },
           hq_routine:      { label: '营销本部月/双周会', color: '#3b82f6', icon: '📅', pipelineEnabled: false },
           region_routine:  { label: '战区月度经营分析会', color: '#0ea5e9', icon: '🗺️', pipelineEnabled: true },
-          lagging_region:  { label: '落后战区业绩承诺会暨经分会', color: '#dc2626', icon: '🚨', pipelineEnabled: true },
+          lagging_region:  { label: '落后战区业绩承诺会', color: '#dc2626', icon: '🚨', pipelineEnabled: true },
           lagging_vertical:{ label: '落后垂直客群经分会', color: '#ef4444', icon: '⚠️', pipelineEnabled: true }
         };
         const STATUS_CONFIG = {
@@ -691,6 +710,12 @@
           cost_optimization: '成本优化', talent_development: '人才发展', digital_transform: '数字化',
           esg_sustainability: 'ESG'
         };
+        const AGENDA_TYPE_COLORS = {
+          financial_review: 'var(--primary)', kpi_tracking: 'var(--primary)', digital_transform: 'var(--primary)',
+          market_insight: 'var(--warning)', talent_development: 'var(--warning)', org_review: 'var(--warning)', product_roadmap: 'var(--warning)',
+          resource_allocation: 'var(--success)', action_review: 'var(--success)', customer_success: 'var(--success)', cost_optimization: 'var(--success)',
+          risk_warning: '#dc2626', esg_sustainability: '#10b981'
+        };
         const PIPELINE_STEPS = [
           { key: 'reportGenerated', label: '报告生成', icon: '📝' },
           { key: 'preReviewDone',   label: '会前评审', icon: '👀' },
@@ -701,6 +726,16 @@
         ];
 
         // ---- 数据模型 ----
+        if (!window._meetingsData) {
+          const localMeetings = localStorage.getItem('dste_meetings');
+          if (localMeetings) {
+            try {
+              window._meetingsData = JSON.parse(localMeetings);
+            } catch (e) {
+              console.warn('localStorage parse failed:', e);
+            }
+          }
+        }
         if (!window._meetingsData) {
           window._meetingsData = [
             {
@@ -750,7 +785,7 @@
           },
           {
             id: '20260520', title: '华东战区 5 月经营分析会', date: '2026-05-20', month: '2026-05',
-            level: 'L3', scope: 'region_east', scenario: 'region_routine',
+            level: 'L2', scope: 'region_east', scenario: 'region_routine',
             status: 'in_progress', location: '上海办公室', host: '刘战区总', recorder: '王小明',
             pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
             upstreamMeeting: '20260415', downstreamMeeting: null,
@@ -837,15 +872,24 @@
           }
         ];
         }
-        const meetings = window._meetingsData;
+        const meetings = window._meetingsData.slice(); // 复制数组避免修改原始数据
 
-        // ---- 计算汇总 ----
+        // 按状态优先级 + 时间倒序排序：准备中 → 规划中 → 已完成 → 已取消
+        const STATUS_ORDER = { in_progress: 0, planned: 1, completed: 2, cancelled: 3 };
+        meetings.sort((a, b) => {
+          const orderA = STATUS_ORDER[a.status] ?? 99;
+          const orderB = STATUS_ORDER[b.status] ?? 99;
+          if (orderA !== orderB) return orderA - orderB;
+          return (b.date || '').localeCompare(a.date || '');
+        });
+
+        // ---- 计算汇总 --
         const totalMeetings = meetings.length;
         const doneMeetings = meetings.filter(m => m.status === 'completed').length;
         const allActions = meetings.flatMap(m => m.actions || []);
         const allDecisions = meetings.flatMap(m => m.decisions || []);
         const doneDecisions = allDecisions.filter(d => d.status === 'approved' || d.status === 'implemented').length;
-        const completedEffectiveness = meetings.filter(m => m.effectiveness).map(m => m.effectiveness);
+        const completedEffectiveness = meetings.filter(m => m.effectiveness).map(m => ({ ...m.effectiveness, meetingName: m.title }));
         const avgEffectiveness = completedEffectiveness.length > 0 ? Math.round(completedEffectiveness.reduce((s, e) => s + e.overallScore, 0) / completedEffectiveness.length) : 0;
         const totalMinutes = meetings.filter(m => m.hasMinutes).length;
 
@@ -865,7 +909,7 @@
         function renderPipeline(m) {
           const cfg = SCENARIO_CONFIG[m.scenario];
           if (!cfg || !cfg.pipelineEnabled) {
-            return `<div style="padding: 8px 10px; background: var(--bg-page); border-radius: 6px; font-size: 12px; color: var(--text-tertiary);">一报一会：不适用</div>`;
+            return '';
           }
           const steps = PIPELINE_STEPS.map(s => formatPipelineStep(s, m.pipeline[s.key]));
           return `<div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 10px; background: var(--bg-page); border-radius: 6px; margin-top: 10px;">${steps.join('')}</div>`;
@@ -921,7 +965,7 @@
             <div style="margin-top: 12px;" class="meeting-tabs" data-meeting="${m.id}">
               <div style="display: flex; gap: 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 8px;">
                 ${Object.entries(tabLabels).map(([key, label]) => `
-                  <button type="button" onclick="switchMeetingTab('${m.id}', '${key}')" class="mtab-btn-${m.id} mtab-${key}" style="padding: 6px 12px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
+                  <button type="button" onclick="switchMeetingTab('${m.id}', '${key}'); event.stopPropagation();" class="mtab-btn-${m.id} mtab-${key}" style="padding: 6px 12px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
                 `).join('')}
               </div>
               <div class="mtab-content-${m.id} mtab-panel-minutes">${tabContents.minutes}</div>
@@ -968,18 +1012,16 @@
 
         // ---- 场景场次指标卡 ----
         const SCENE_CARD_CONFIG = [
-          { key: 'union_quarterly', label: '集团级经营例会', icon: '🏢', color: 'var(--primary)' },
-          { key: 'hq_routine', label: '产品线经营例会', icon: '📦', color: 'var(--success)' },
-          { key: 'region_routine', label: '区域经营例会', icon: '🌍', color: 'var(--warning)' },
-          { key: 'lagging_region', label: '战略专项评审会', icon: '🎯', color: 'var(--danger)' },
-          { key: 'other', label: '其他', icon: '📋', color: 'var(--text-secondary)' }
+          { key: 'union_quarterly', label: '片联季度会议', icon: '🏛️', color: '#8b5cf6' },
+          { key: 'hq_routine', label: '营销本部月/双周会', icon: '📅', color: '#3b82f6' },
+          { key: 'region_routine', label: '战区月度经营分析会', icon: '🗺️', color: '#0ea5e9' },
+          { key: 'lagging_region', label: '落后战区业绩承诺会', icon: '🚨', color: '#dc2626' },
+          { key: 'lagging_vertical', label: '落后垂直客群经分会', icon: '⚠️', color: '#ef4444' }
         ];
         const KNOWN_SCENES = ['union_quarterly', 'hq_routine', 'region_routine', 'lagging_region', 'lagging_vertical'];
 
         const sceneCards = SCENE_CARD_CONFIG.map(s => {
-          const count = s.key === 'other'
-            ? meetings.filter(m => !KNOWN_SCENES.includes(m.scenario)).length
-            : meetings.filter(m => m.scenario === s.key).length;
+          const count = meetings.filter(m => m.scenario === s.key).length;
           const isActive = window._meetingsFilterScene === s.key;
           return `<div class="scene-card" data-scene="${s.key}" onclick="filterByScene('${s.key}')" style="flex:1;min-width:0;padding:16px 12px;background:var(--bg-card);border-radius:10px;border:2px solid ${isActive ? s.color : 'var(--border-light)'};text-align:center;cursor:pointer;transition:all 0.2s ease;${isActive ? `background:linear-gradient(180deg, ${s.color}08 0%, var(--bg-card) 100%);box-shadow:0 2px 8px ${s.color}20;` : ''}">
             <div style="font-size:24px;margin-bottom:8px;">${s.icon}</div>
@@ -1019,7 +1061,8 @@
           const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
           const agendaTags = (m.agenda_items || []).slice(0, 4).map(a => {
             const label = AGENDA_TYPE_LABELS[a.type] || a.type;
-            return `<span style="padding: 2px 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">${label}</span>`;
+            const hasMaterial = a.material_link ? ' 🔗' : '';
+            return `<span style="padding: 2px 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">${label}${hasMaterial}</span>`;
           }).join('');
           const moreAgenda = (m.agenda_items || []).length > 4 ? `<span style="font-size: 11px; color: var(--text-tertiary);">+${m.agenda_items.length - 4}</span>` : '';
           const pipelineStep = m.pipeline ? (Object.entries(m.pipeline).findLast(([k, v]) => v)?.[0] || 'none') : 'none';
@@ -1033,7 +1076,10 @@
                   <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: ${sc.color}18; color: ${sc.color};">${sc.icon} ${sc.label}</span>
                   <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: var(--bg-card); color: var(--text-tertiary);">${m.level}</span>
                 </div>
-                <span class="status-badge ${st.badgeClass}">${st.label}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="status-badge ${st.badgeClass}">${st.label}</span>
+                  <button type="button" data-edit-meeting data-edit-id="${m.id}" style="padding: 2px 8px; font-size: 11px; border: none; border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">✏️ 编辑</button>
+                </div>
               </div>
               <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
                 📅 ${m.date} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 ${m.host}
@@ -1156,7 +1202,7 @@
             status: 'planned', location: '', host: '', recorder: '',
             pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
             upstreamMeeting: null, downstreamMeeting: null,
-            agenda_items: [{ type: 'financial_review', title: '', duration: 30, owner: '' }],
+            agenda_items: [{ type: 'financial_review', title: '', duration: 30, owner: '', material_link: '' }],
             actions: [], decisions: [], hasMinutes: false, minutesStatus: null,
             metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
             effectiveness: null
@@ -1179,6 +1225,20 @@
           const ov = document.getElementById('meeting-detail-overlay');
           if (ov) ov.style.display = 'flex';
         };
+
+        function getMaterialScore(url) {
+          if (!url) return null;
+          try {
+            const map = JSON.parse(localStorage.getItem('dste_review_scores') || '{}');
+            return map[url]?.maxScore || null;
+          } catch (e) { return null; }
+        }
+        function getScoreColor(score) {
+          if (score === null || score === undefined) return 'var(--text-tertiary)';
+          if (score >= 80) return 'var(--success)';
+          if (score >= 60) return 'var(--warning)';
+          return 'var(--danger)';
+        }
         window.closeMeetingDetail = function() {
           const ov = document.getElementById('meeting-detail-overlay');
           if (ov) ov.style.display = 'none';
@@ -1187,7 +1247,9 @@
         window.openEditorFromDetail = function() {
           closeMeetingDetail();
           if (window._currentDetailMeetingId) {
-            openMeetingEditor(window._currentDetailMeetingId);
+            // 和列表页编辑按钮走相同流程（路由导航），更稳定
+            window._editMeetingId = window._currentDetailMeetingId;
+            navigate('exe/meetings/edit');
           }
         };
         window._currentMeetingTab = '纪要';
@@ -1284,6 +1346,11 @@
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                           <span style="font-size: 15px; font-weight: 600; color: var(--text-primary);">${a.title}</span>
                           <span style="padding: 1px 6px; border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-secondary);">${AGENDA_TYPE_LABELS[a.type] || a.type}</span>
+                          ${(() => {
+                            const s = getMaterialScore(a.material_link);
+                            if (s === null) return '';
+                            return `<span style="font-size: 11px; font-weight: 600; color: ${getScoreColor(s)};">⭐ ${s}分</span>`;
+                          })()}
                         </div>
                         <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary);">
                           ${a.speaker ? `<span>👤 主持人：${a.speaker}</span>` : ''}
@@ -1344,6 +1411,7 @@
               <div style="background: var(--bg-card); border-radius: 10px; padding: 20px; border: 1px solid var(--border-light);">
                 ${m.upstreamMeeting ? (() => {
                   const um = meetings.find(x => x.id === m.upstreamMeeting);
+                  if (!um) return '<div style="margin-bottom: 16px; color: var(--text-secondary);">⬆️ 上游：关联会议未找到</div>';
                   return `<div style="margin-bottom: 16px;">
                     <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">⬆️ 上游会议</div>
                     <div onclick="openMeetingDetail('${um.id}')" style="padding: 12px 16px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light);">
@@ -1359,6 +1427,7 @@
                 </div>
                 ${m.downstreamMeeting ? (() => {
                   const dm = meetings.find(x => x.id === m.downstreamMeeting);
+                  if (!dm) return '<div style="color: var(--text-secondary);">⬇️ 下游：关联会议未找到</div>';
                   return `<div>
                     <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">⬇️ 下游会议</div>
                     <div onclick="openMeetingDetail('${dm.id}')" style="padding: 12px 16px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light);">
@@ -1409,9 +1478,144 @@
           }
           window._meetingEditData = null;
         };
-        function renderEditorForm() {
+        // ---- 智能填充：根据会议名称自动匹配历史模板 / 关键词规则 ----
+        function extractTitleKeywords(title) {
+          if (!title) return [];
+          return title
+            .replace(/\d+月份?/g, '').replace(/Q\d/gi, '').replace(/[\d年月日]/g, '')
+            .split(/[\s_\-\/]+/).filter(w => w.length >= 2);
+        }
+        function findBestMeetingMatch(inputTitle) {
+          if (!window._meetingsData || window._meetingsData.length === 0) return null;
+          const inputWords = extractTitleKeywords(inputTitle);
+          if (inputWords.length === 0) return null;
+          let best = null, bestScore = 0;
+          for (const m of window._meetingsData) {
+            const histWords = extractTitleKeywords(m.title);
+            const common = inputWords.filter(w => histWords.includes(w));
+            const score = common.length / Math.max(inputWords.length, histWords.length, 1);
+            if (score > bestScore && score >= 0.3) { bestScore = score; best = m; }
+          }
+          return best;
+        }
+        function applyKeywordRules(title) {
+          // 按具体程度排序：多关键词 > 单关键词，先匹配先返回
+          const rules = [
+            { keywords: ['落后','垂直'], scenario: 'lagging_vertical', level: 'L3' },
+            { keywords: ['落后','行业'], scenario: 'lagging_vertical', level: 'L3' },
+            { keywords: ['落后','客群'], scenario: 'lagging_vertical', level: 'L3' },
+            { keywords: ['落后'], scenario: 'lagging_region', level: 'L3' },
+            { keywords: ['营销本部'], scenario: 'hq_routine', level: 'L2' },
+            { keywords: ['片联'], scenario: 'union_quarterly', level: 'L1' },
+            { keywords: ['战区'], scenario: 'region_routine', level: 'L2' },
+            { keywords: ['本部'], scenario: 'hq_routine', level: 'L2' },
+            { keywords: ['经分会'], scenario: 'region_routine', level: 'L2' },
+          ];
+          for (const r of rules) {
+            if (r.keywords.every(k => title.includes(k))) return { scenario: r.scenario, level: r.level };
+          }
+          return null;
+        }
+        function inferDateFromTitle(title) {
+          const m = title.match(/(\d{1,2})月份?/);
+          if (m) {
+            const month = parseInt(m[1]);
+            const year = new Date().getFullYear();
+            return `${year}-${String(month).padStart(2,'0')}-01`;
+          }
+          const qm = title.match(/Q(\d)/i);
+          if (qm) {
+            const q = parseInt(qm[1]);
+            const year = new Date().getFullYear();
+            const month = (q - 1) * 3 + 1;
+            return `${year}-${String(month).padStart(2,'0')}-01`;
+          }
+          return null;
+        }
+        function autoFillMeetingForm() {
+          const titleInput = document.getElementById('edit-title');
+          if (!titleInput) return;
+          const title = titleInput.value.trim();
+          if (!title || title.length < 1) return;
+          const isNew = document.getElementById('edit-meeting-id')?.value?.startsWith('new_');
+          if (!isNew) return; // 仅新建会议时自动填充
+
+          const fieldMap = {
+            'edit-date': 'date', 'edit-location': 'location', 'edit-host': 'host',
+            'edit-recorder': 'recorder', 'edit-scenario': 'scenario', 'edit-level': 'level'
+          };
+          let source = null, matched = false;
+
+          // 1. 历史模板匹配
+          const hist = findBestMeetingMatch(title);
+          if (hist) { source = hist; matched = true; }
+          else {
+            // 2. 关键词规则兜底
+            const rule = applyKeywordRules(title);
+            if (rule) source = rule;
+          }
+          const inferredDate = inferDateFromTitle(title);
+
+          // 新建会议时的默认值，可被智能填充覆盖
+          const DEFAULT_OVERRIDES = {
+            'edit-scenario': ['union_quarterly'],
+            'edit-level': ['L1'],
+            'edit-status': ['planned']
+          };
+
+          // 填充空字段（或默认值）
+          const filledIds = [];
+          for (const [id, key] of Object.entries(fieldMap)) {
+            const el = document.getElementById(id);
+            if (!el) continue;
+            const isDefaultOverride = isNew && (DEFAULT_OVERRIDES[id] || []).includes(el.value);
+            const isUserEdited = window._userEditedFields?.has(key);
+            if (el.value && !isDefaultOverride && !isUserEdited) continue;
+            let val = null;
+            if (key === 'date' && inferredDate) val = inferredDate;
+            else if (source && source[key] !== undefined && source[key] !== '') val = source[key];
+            if (!val && key === 'date' && inferredDate) val = inferredDate;
+            if (val) {
+              el.value = val;
+              if (window._meetingEditData) window._meetingEditData[key] = val;
+              filledIds.push(id);
+            }
+          }
+
+          // 议程项模板（仅当议程为空或只有1个空白项时）
+          if (matched && source.agenda_items && source.agenda_items.length > 0) {
+            const agendaList = window._meetingEditData?.agenda_items || [];
+            const hasRealAgenda = agendaList.some(a => a.title && a.title.trim());
+            if (!hasRealAgenda) {
+              const templateItems = source.agenda_items.map(a => ({
+                type: a.type || 'financial_review', title: '',
+                duration: a.duration || 30, owner: '', material_link: ''
+              }));
+              if (window._meetingEditData) window._meetingEditData.agenda_items = templateItems;
+              renderAgendaList();
+              // 视觉提示：议程区域
+              const agendaContainer = document.getElementById('edit-agenda-list');
+              if (agendaContainer) {
+                agendaContainer.style.border = '1px solid var(--primary)';
+                agendaContainer.style.borderRadius = '6px';
+                agendaContainer.style.padding = '4px';
+                setTimeout(() => { agendaContainer.style.border = ''; agendaContainer.style.padding = ''; }, 2000);
+              }
+            }
+          }
+
+          // 视觉提示：被填充的字段边框变蓝
+          filledIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.style.borderColor = 'var(--primary)'; el.style.transition = 'border-color 0.3s'; setTimeout(() => { el.style.borderColor = ''; }, 2000); }
+          });
+        }
+
+        window.renderEditorForm = function() {
           const d = window._meetingEditData;
           if (!d) return;
+          // 每次打开编辑弹窗时清空用户编辑记录，避免弹窗间互相影响
+          window._userEditedFields = new Set();
           document.getElementById('edit-meeting-id').value = d.id;
           document.getElementById('edit-title').value = d.title || '';
           document.getElementById('edit-date').value = d.date || '';
@@ -1422,6 +1626,42 @@
           document.getElementById('edit-level').value = d.level || 'L2';
           document.getElementById('edit-status').value = d.status || 'planned';
           renderAgendaList();
+          renderActionList();
+
+          // 草稿自动保存：表单变化实时同步到 _meetingEditData
+          const fieldMap = {
+            'edit-title': 'title', 'edit-date': 'date', 'edit-location': 'location',
+            'edit-host': 'host', 'edit-recorder': 'recorder',
+            'edit-scenario': 'scenario', 'edit-level': 'level', 'edit-status': 'status'
+          };
+          // 追踪用户手动编辑的字段（autoFill 不覆盖用户手改的值）
+          window._userEditedFields = window._userEditedFields || new Set();
+          Object.entries(fieldMap).forEach(([id, key]) => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.oninput = () => {
+                if (window._meetingEditData) {
+                  window._meetingEditData[key] = el.value;
+                }
+                if (key !== 'title') {
+                  window._userEditedFields.add(key);
+                }
+              };
+            }
+          });
+
+          // 会议名称输入防抖自动填充（停止输入 500ms 后触发）
+          const titleEl = document.getElementById('edit-title');
+          if (titleEl) {
+            let _autoFillTimer = null;
+            titleEl.oninput = () => {
+              if (window._meetingEditData) {
+                window._meetingEditData.title = titleEl.value;
+              }
+              clearTimeout(_autoFillTimer);
+              _autoFillTimer = setTimeout(() => { autoFillMeetingForm(); }, 500);
+            };
+          }
         }
         function renderAgendaList() {
           const d = window._meetingEditData;
@@ -1436,6 +1676,7 @@
               </select>
               <input type="text" value="${item.title}" onchange="updateAgendaTitle(${idx}, this.value)" placeholder="议程标题" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
               <input type="number" value="${item.duration}" onchange="updateAgendaDuration(${idx}, this.value)" placeholder="分钟" min="1" style="width: 60px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <input type="text" value="${item.material_link || ''}" onchange="updateAgendaMaterialLink(${idx}, this.value)" placeholder="材料链接" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
               <input type="text" value="${item.owner}" onchange="updateAgendaOwner(${idx}, this.value)" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
               <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↑</button>
               <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↓</button>
@@ -1449,6 +1690,7 @@
         window.updateAgendaTitle = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].title = val; };
         window.updateAgendaDuration = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].duration = parseInt(val) || 0; renderAgendaList(); };
         window.updateAgendaOwner = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].owner = val; };
+        window.updateAgendaMaterialLink = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].material_link = val; };
         window.addAgendaItem = function() {
           if (!window._meetingEditData) return;
           if (!window._meetingEditData.agenda_items) window._meetingEditData.agenda_items = [];
@@ -1469,6 +1711,48 @@
           [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
           renderAgendaList();
         };
+
+        // ---- 行动项编辑 ----
+        function renderActionList() {
+          const d = window._meetingEditData;
+          const container = document.getElementById('edit-action-list');
+          if (!d || !container) return;
+          const list = d.actions || [];
+          if (list.length === 0) {
+            container.innerHTML = '<div style="font-size: 12px; color: var(--text-tertiary); padding: 8px 0;">暂无行动项，点击上方按钮添加</div>';
+            return;
+          }
+          container.innerHTML = list.map((item, idx) => `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <input type="text" value="${item.content}" onchange="updateActionContent(${idx}, this.value)" placeholder="行动内容" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <input type="text" value="${item.owner}" onchange="updateActionOwner(${idx}, this.value)" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <input type="date" value="${item.deadline}" onchange="updateActionDeadline(${idx}, this.value)" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <select onchange="updateActionStatus(${idx}, this.value)" style="width: 90px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
+                <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>待办</option>
+                <option value="in_progress" ${item.status === 'in_progress' ? 'selected' : ''}>进行中</option>
+                <option value="completed" ${item.status === 'completed' ? 'selected' : ''}>已完成</option>
+              </select>
+              <button type="button" onclick="removeActionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+            </div>
+          `).join('');
+        }
+        window.updateActionContent = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].content = val; };
+        window.updateActionOwner = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].owner = val; };
+        window.updateActionDeadline = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].deadline = val; };
+        window.updateActionStatus = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].status = val; };
+        window.addActionItem = function() {
+          if (!window._meetingEditData) return;
+          if (!window._meetingEditData.actions) window._meetingEditData.actions = [];
+          const today = new Date().toISOString().split('T')[0];
+          window._meetingEditData.actions.push({ content: '', owner: '', deadline: today, status: 'pending' });
+          renderActionList();
+        };
+        window.removeActionItem = function(idx) {
+          if (!window._meetingEditData?.actions) return;
+          window._meetingEditData.actions.splice(idx, 1);
+          renderActionList();
+        };
+
         window.saveMeeting = function() {
           const d = window._meetingEditData;
           if (!d) return;
@@ -1506,7 +1790,8 @@
             };
             if (newMeeting.agenda_items.length === 0) newMeeting.agenda_items = [{ type: 'financial_review', title: '未设置议程', duration: 15, owner: '' }];
             meetings.push(newMeeting);
-            closeMeetingEditor();
+            const editorOverlay = document.getElementById('meeting-editor-overlay');
+            if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
             apiSave('/api/meetings', meetings);
             openMeetingDetail(newMeeting.id);
           } else {
@@ -1521,7 +1806,8 @@
             meetings[idx].status = statusVal;
             meetings[idx].agenda_items = (d.agenda_items || []).filter(a => a.title.trim());
             if (meetings[idx].agenda_items.length === 0) meetings[idx].agenda_items = [{ type: 'financial_review', title: '未设置议程', duration: 15, owner: '' }];
-            closeMeetingEditor();
+            const editorOverlay = document.getElementById('meeting-editor-overlay');
+            if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
             apiSave('/api/meetings', meetings);
             navigate('exe/meetings');
           }
@@ -1533,7 +1819,8 @@
           const idx = meetings.findIndex(m => m.id === d.id);
           if (idx > -1) meetings.splice(idx, 1);
           apiSave('/api/meetings', meetings);
-          closeMeetingEditor();
+          const editorOverlay = document.getElementById('meeting-editor-overlay');
+          if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
           navigate('exe/meetings');
         };
 
@@ -1889,6 +2176,12 @@
                 </div>
                 <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
                 <button type="button" onclick="addAgendaItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加议程项</button>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px;">
+                  <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">行动项</div>
+                </div>
+                <div id="edit-action-list" style="margin-bottom: 10px;"></div>
+                <button type="button" onclick="addActionItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--success); border-radius: 6px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500;">+ 添加行动项</button>
               </div>
             </div>
             <div style="padding: 12px 32px; border-top: 1px solid var(--border-light); background: var(--bg-card); display: flex; justify-content: space-between; align-items: center; position: sticky; bottom: 0;">
@@ -1897,6 +2190,94 @@
                 <button type="button" onclick="closeMeetingEditor()" style="padding: 8px 18px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">取消</button>
                 <button type="button" onclick="saveMeeting()" style="padding: 8px 18px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">保存</button>
               </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== 会议编辑页面（独立路由）=====
+      function renderMeetingEditPage() {
+        return `
+          ${renderBreadcrumb('经营分析会')}
+          <div class="page-header">
+            <h1 class="page-title">✏️ 编辑会议</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary" onclick="navigate('exe/meetings')">取消</button>
+            </div>
+          </div>
+          <div style="max-width: 960px; margin: 0 auto;">
+            <div style="padding: 20px 24px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light);">
+              <input type="hidden" id="edit-meeting-id" />
+              <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">基本信息</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会议名称 <span style="color: var(--danger);">*</span></label>
+                  <input type="text" id="edit-title" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会议日期 <span style="color: var(--danger);">*</span></label>
+                  <input type="date" id="edit-date" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">地点</label>
+                  <input type="text" id="edit-location" placeholder="例如 会议室 A" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">主持人</label>
+                  <input type="text" id="edit-host" placeholder="例如 张总" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">记录人</label>
+                  <input type="text" id="edit-recorder" placeholder="例如 Jason.Jing" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会议场景</label>
+                  <select id="edit-scenario" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;">
+                    <option value="union_quarterly">🏛️ 片联季度会议</option>
+                    <option value="hq_routine">📅 营销本部月/双周会</option>
+                    <option value="region_routine">🗺️ 战区月度经营分析会</option>
+                    <option value="lagging_region">🚨 落后战区业绩承诺会</option>
+                    <option value="lagging_vertical">⚠️ 落后垂直客群经分会</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">层级</label>
+                  <select id="edit-level" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;">
+                    <option value="L1">L1 — 片联</option>
+                    <option value="L2">L2 — 营销本部/战区常规</option>
+                    <option value="L3">L3 — 落后整改（战区/垂直）</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">状态</label>
+                  <select id="edit-status" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;">
+                    <option value="planned">规划中</option>
+                    <option value="in_progress">准备中</option>
+                    <option value="completed">已完成</option>
+                    <option value="cancelled">已取消</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">议程项</div>
+                <div id="edit-agenda-total" style="font-size: 12px; color: var(--text-tertiary);">总时长：0 分钟</div>
+              </div>
+              <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
+              <button type="button" onclick="addAgendaItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加议程项</button>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">行动项</div>
+              </div>
+              <div id="edit-action-list" style="margin-bottom: 10px;"></div>
+              <button type="button" onclick="addActionItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--success); border-radius: 6px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500;">+ 添加行动项</button>
+            </div>
+          </div>
+          <div style="max-width: 960px; margin: 16px auto 0; padding: 12px 24px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center;">
+            <button type="button" onclick="deleteMeeting()" style="padding: 8px 16px; font-size: 13px; border: 1px solid var(--danger); border-radius: 6px; background: rgba(245,34,45,0.08); color: var(--danger); cursor: pointer; font-weight: 500;">🗑️ 删除</button>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" onclick="navigate('exe/meetings')" style="padding: 8px 18px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">取消</button>
+              <button type="button" onclick="saveMeeting()" style="padding: 8px 18px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">保存</button>
             </div>
           </div>
         `;
@@ -2204,7 +2585,7 @@
         const roadmapData = {
           versions: [
             {
-              version: 'v0.3.4',
+              version: 'v0.3.5',
               date: '2026-05-25',
               status: 'released',
               changes: [

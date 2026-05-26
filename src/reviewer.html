@@ -15,7 +15,7 @@
         (function() {
             const theme = localStorage.getItem('dste-theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
-            window.__APP_BUILD__ = 'v0.3.4';
+            window.__APP_BUILD__ = 'v0.3.5';
 
             // 嵌入模式：在 iframe 中使用时隐藏导航外壳
             if (new URLSearchParams(location.search).get('embed') === '1') {
@@ -2173,6 +2173,16 @@
             });
             const data = await resp.json();
             if (!data.success) throw new Error(data.error || '保存失败');
+            // 同步最高分到 localStorage，供 cockpit 议程展示使用
+            try {
+                const map = JSON.parse(localStorage.getItem('dste_review_scores') || '{}');
+                const url = record.url;
+                const current = map[url];
+                if (!current || (record.total_score || 0) > current.maxScore) {
+                    map[url] = { maxScore: record.total_score || 0, lastReviewAt: record.timestamp };
+                    localStorage.setItem('dste_review_scores', JSON.stringify(map));
+                }
+            } catch (e) { /* ignore localStorage errors */ }
             return data;
         }
 
