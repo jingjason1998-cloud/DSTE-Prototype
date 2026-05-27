@@ -37,6 +37,29 @@
                     }
                 }
             }
+
+            // 移动端汉堡菜单切换
+            document.addEventListener('DOMContentLoaded', function() {
+                const menuToggle = document.getElementById('mobile-menu-toggle');
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebar-overlay');
+                if (menuToggle && sidebar && overlay) {
+                    menuToggle.addEventListener('click', function() {
+                        sidebar.classList.toggle('open');
+                        overlay.classList.toggle('open');
+                    });
+                    overlay.addEventListener('click', function() {
+                        sidebar.classList.remove('open');
+                        overlay.classList.remove('open');
+                    });
+                    sidebar.addEventListener('click', function(e) {
+                        if (e.target.closest('.sidebar-item')) {
+                            sidebar.classList.remove('open');
+                            overlay.classList.remove('open');
+                        }
+                    });
+                }
+            });
         })();
     </script>
     <link rel="stylesheet" href="./pages/business-topics/style.css">
@@ -45,9 +68,12 @@
     <div class="app">
         <!-- 顶部导航 (与 cockpit.html 一致) -->
         <nav class="top-nav">
-            <div class="top-nav-brand">
-                <div class="top-nav-logo">D</div>
-                <span class="top-nav-title">DSTE 战略管理平台</span>
+            <div style="display: flex; align-items: center;">
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单">☰</button>
+                <div class="top-nav-brand">
+                    <div class="top-nav-logo">D</div>
+                    <span class="top-nav-title">DSTE 战略管理平台</span>
+                </div>
             </div>
             <ul class="top-nav-links" id="top-nav-links">
                 <li><a href="cockpit.html#dashboard" data-phase="dashboard"><span>🎛️</span><span>驾驶舱</span><span class="nav-full-label">驾驶舱</span></a></li>
@@ -65,6 +91,9 @@
         </nav>
 
         <div class="app-body">
+            <!-- 侧边栏遮罩层 -->
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
             <!-- 左侧边栏 (执行阶段) -->
             <aside class="sidebar" id="sidebar">
                 <div class="sidebar-group">
@@ -139,6 +168,7 @@
             </div>
 
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); padding: 24px;">
+                <div class="table-scroll-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -157,6 +187,7 @@
                         <!-- JS rendered -->
                     </tbody>
                 </table>
+                </div>
                 <div id="emptyState" class="empty-state" style="display: none;">
                     <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
                     <div style="font-size: 14px; margin-bottom: 8px;">暂无业务专题</div>
@@ -166,7 +197,7 @@
 
             <div style="margin-top: 24px; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
                 <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">📊 业务专题统计</div>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px;">
                     <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
                         <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="statInProgress">0</div>
                         <div style="font-size: 12px; color: var(--text-tertiary);">进行中</div>
@@ -195,7 +226,7 @@
 
     <!-- 新建/编辑弹窗 -->
     <div class="modal-overlay" id="formModal">
-        <div class="modal-content" style="max-width: 720px;">
+        <div class="modal-content" style="max-width: min(720px, calc(100vw - 32px)); width: 100%;">
             <button class="modal-close" data-modal-close="formModal">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="formTitle">新建业务专题</div>
@@ -284,7 +315,7 @@
 
     <!-- 删除确认弹窗 -->
     <div class="modal-overlay" id="deleteModal">
-        <div class="modal-content" style="max-width: 420px; text-align: center;">
+        <div class="modal-content" style="max-width: min(420px, calc(100vw - 32px)); width: 100%; text-align: center;">
             <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
             <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">确认删除该业务专题？</div>
             <div style="font-size: 14px; color: var(--text-tertiary); margin-bottom: 24px;">

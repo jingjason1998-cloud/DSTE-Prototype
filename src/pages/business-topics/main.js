@@ -576,37 +576,147 @@ function renderTable() {
         return;
     }
     empty.style.display = 'none';
+    tbody.innerHTML = '';
 
-    tbody.innerHTML = topics.map(t => {
+    for (const t of topics) {
         const sid = safeId(t.id);
-        if (!sid) return '';
+        if (!sid) continue;
+
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.onclick = (e) => {
+            if (!e.target.closest('.op-group')) {
+                openDetailModal(sid);
+            }
+        };
+
+        // 名称 + 描述
+        const tdName = document.createElement('td');
+        const nameDiv = document.createElement('div');
+        nameDiv.style.cssText = 'font-weight:500; color:var(--text-primary);';
+        nameDiv.textContent = t.name || '';
+        tdName.appendChild(nameDiv);
+        if (t.description) {
+            const descDiv = document.createElement('div');
+            descDiv.style.cssText = 'font-size:12px; color:var(--text-muted);';
+            descDiv.textContent = t.description;
+            tdName.appendChild(descDiv);
+        }
+        tr.appendChild(tdName);
+
+        // 优先级
+        const tdPriority = document.createElement('td');
+        const priorityTag = document.createElement('span');
+        priorityTag.className = 'tag ' + getPriorityTagClass(t.priority);
+        priorityTag.textContent = t.priority || '';
+        tdPriority.appendChild(priorityTag);
+        tr.appendChild(tdPriority);
+
+        // 负责人
+        const tdOwner = document.createElement('td');
+        tdOwner.textContent = t.owner || '-';
+        tr.appendChild(tdOwner);
+
+        // 部门
+        const tdDept = document.createElement('td');
+        tdDept.textContent = t.department || '-';
+        tr.appendChild(tdDept);
+
+        // 时间周期
+        const tdPeriod = document.createElement('td');
+        tdPeriod.textContent = formatPeriod(t.startDate, t.endDate);
+        tr.appendChild(tdPeriod);
+
+        // 进度
+        const tdProgress = document.createElement('td');
+        const progressWrap = document.createElement('div');
+        progressWrap.style.cssText = 'display:flex; align-items:center; gap:8px;';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        progressBar.style.width = '80px';
+        const progressFill = document.createElement('div');
         const progressColor = t.progress >= 80 ? 'green' : t.progress >= 50 ? 'yellow' : 'red';
-        return `<tr style="cursor:pointer;" data-action="detail" data-topic-id="${sid}">
-            <td>
-                <div style="font-weight:500; color:var(--text-primary);">${escapeHtml(t.name)}</div>
-                <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(t.description || '')}</div>
-            </td>
-            <td><span class="tag ${getPriorityTagClass(t.priority)}">${t.priority}</span></td>
-            <td>${escapeHtml(t.owner || '-')}</td>
-            <td>${escapeHtml(t.department || '-')}</td>
-            <td>${formatPeriod(t.startDate, t.endDate)}</td>
-            <td>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <div class="progress-bar" style="width:80px;"><div class="progress-fill ${progressColor}" style="width:${t.progress}%"></div></div>
-                    <span style="font-size:12px;">${t.progress}%</span>
-                </div>
-            </td>
-            <td><span class="tag ${getStatusTagClass(t.status)}">${getStatusLabel(t.status)}</span></td>
-            <td style="font-size:12px;">${(t.linkedIssues || []).length > 0 ? '🏛️' + (t.linkedIssues || []).filter(i => i.sourceSystem === 'ST').length + ' 🏢' + (t.linkedIssues || []).filter(i => i.sourceSystem === 'AT').length : '<span style="color:var(--text-muted);">-</span>'}</td>
-            <td>
-                <div class="op-group" data-stop-propagation>
-                    <button class="op-btn" data-action="detail" data-topic-id="${sid}">详情</button>
-                    <button class="op-btn" data-action="edit" data-topic-id="${sid}">编辑</button>
-                    <button class="op-btn danger" data-action="delete" data-topic-id="${sid}">删除</button>
-                </div>
-            </td>
-        </tr>`;
-    }).join('');
+        progressFill.className = 'progress-fill ' + progressColor;
+        progressFill.style.width = (t.progress || 0) + '%';
+        progressBar.appendChild(progressFill);
+        progressWrap.appendChild(progressBar);
+        const progressText = document.createElement('span');
+        progressText.style.fontSize = '12px';
+        progressText.textContent = (t.progress || 0) + '%';
+        progressWrap.appendChild(progressText);
+        tdProgress.appendChild(progressWrap);
+        tr.appendChild(tdProgress);
+
+        // 状态
+        const tdStatus = document.createElement('td');
+        const statusTag = document.createElement('span');
+        statusTag.className = 'tag ' + getStatusTagClass(t.status);
+        statusTag.textContent = getStatusLabel(t.status);
+        tdStatus.appendChild(statusTag);
+        tr.appendChild(tdStatus);
+
+        // 议题关联
+        const tdIssues = document.createElement('td');
+        tdIssues.style.fontSize = '12px';
+        const stCount = (t.linkedIssues || []).filter(i => i.sourceSystem === 'ST').length;
+        const atCount = (t.linkedIssues || []).filter(i => i.sourceSystem === 'AT').length;
+        if (stCount > 0 || atCount > 0) {
+            tdIssues.textContent = '🏛️' + stCount + ' 🏢' + atCount;
+        } else {
+            const dashSpan = document.createElement('span');
+            dashSpan.style.color = 'var(--text-muted)';
+            dashSpan.textContent = '-';
+            tdIssues.appendChild(dashSpan);
+        }
+        tr.appendChild(tdIssues);
+
+        // 操作按钮 - 显式绑定 onclick
+        const tdOps = document.createElement('td');
+        const opGroup = document.createElement('div');
+        opGroup.className = 'op-group';
+
+        const btnDetail = document.createElement('button');
+        btnDetail.className = 'op-btn';
+        btnDetail.type = 'button';
+        btnDetail.dataset.action = 'detail';
+        btnDetail.dataset.topicId = sid;
+        btnDetail.textContent = '详情';
+        btnDetail.onclick = (e) => {
+            e.stopPropagation();
+            openDetailModal(sid);
+        };
+        opGroup.appendChild(btnDetail);
+
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'op-btn';
+        btnEdit.type = 'button';
+        btnEdit.dataset.action = 'edit';
+        btnEdit.dataset.topicId = sid;
+        btnEdit.textContent = '编辑';
+        btnEdit.onclick = (e) => {
+            e.stopPropagation();
+            openFormModal(sid);
+        };
+        opGroup.appendChild(btnEdit);
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'op-btn danger';
+        btnDelete.type = 'button';
+        btnDelete.dataset.action = 'delete';
+        btnDelete.dataset.topicId = sid;
+        btnDelete.textContent = '删除';
+        btnDelete.onclick = (e) => {
+            e.stopPropagation();
+            openDeleteModal(sid);
+        };
+        opGroup.appendChild(btnDelete);
+
+        tdOps.appendChild(opGroup);
+        tr.appendChild(tdOps);
+
+        tbody.appendChild(tr);
+    }
+
     updateSortIndicators();
 }
 

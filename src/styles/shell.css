@@ -74,9 +74,9 @@
 .content-area {
   flex: 1; overflow-y: auto; padding: 20px 24px;
   background: var(--bg-page);
+  animation: fadeIn 0.25s ease;
 }
 .page-content {
-  animation: fadeIn 0.25s ease;
   max-width: 1200px; margin: 0 auto;
 }
 @keyframes fadeIn {
@@ -152,10 +152,58 @@
 }
 .ai-input-bar input:focus { border-color: var(--primary); }
 
-/* Responsive */
+/* ===== 移动端汉堡菜单按钮 ===== */
+.mobile-menu-toggle {
+  display: none;
+  width: 36px; height: 36px; border: none; background: transparent;
+  border-radius: 6px; cursor: pointer; font-size: 18px;
+  color: var(--text-secondary); align-items: center; justify-content: center;
+  margin-right: 8px;
+}
+.mobile-menu-toggle:hover { background: var(--bg-hover); }
+
+/* 侧边栏遮罩层 */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: 98; opacity: 0; transition: opacity 0.3s;
+}
+.sidebar-overlay.open { display: block; opacity: 1; }
+
+/* ===== Responsive ===== */
+
+/* Tablet (768px - 1280px) */
+@media (max-width: 1280px) {
+  .sidebar { width: 180px; }
+  .top-nav-links a { padding: 6px 10px; font-size: 12px; }
+  .page-content { max-width: 100%; }
+}
+
+/* Narrow desktop / wide tablet (900px - 1280px) */
+@media (max-width: 1024px) {
+  .top-nav-title { display: none; }
+  .top-nav-logo { margin-right: 0; }
+  .top-nav-links a { padding: 6px 8px; gap: 4px; }
+  .nav-full-label { display: none; }
+}
+
+/* Mobile (<768px) */
 @media (max-width: 768px) {
-  .sidebar { position: fixed; left: -220px; top: 56px; height: calc(100vh - 56px); z-index: 99; transition: left 0.3s; }
+  .mobile-menu-toggle { display: inline-flex; }
+  .sidebar { position: fixed; left: -220px; top: 56px; height: calc(100vh - 56px); z-index: 99; transition: left 0.3s; width: 220px; }
   .sidebar.open { left: 0; }
   .top-nav-links a { padding: 6px 10px; font-size: 12px; }
   .nav-full-label { display: none; }
+  .page-title { font-size: 18px; }
+  .page-actions { flex-wrap: wrap; }
+  .content-area { padding: 16px; }
+}
+
+/* Small Phone (<480px) */
+@media (max-width: 480px) {
+  .sidebar { width: 100vw; left: -100vw; }
+  .sidebar.open { left: 0; }
+  .content-area { padding: 12px; }
+  .breadcrumb { display: none; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .page-title { font-size: 16px; }
 }

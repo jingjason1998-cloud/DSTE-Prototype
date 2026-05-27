@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, copyFileSync, mkdirSync } from 'fs';
 
 // 读取 package.json 版本号
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
@@ -32,4 +32,17 @@ export default defineConfig({
   // Static assets that should NOT be processed as modules (images, fonts, etc.)
   // CSS/JS files in assets/ should still be processed by Vite
   assetsInclude: ['assets/**/*.{png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot,mp4,webm}'],
+  plugins: [
+    {
+      name: 'copy-shell-css',
+      closeBundle() {
+        try {
+          mkdirSync('dist/src/styles', { recursive: true });
+          copyFileSync('src/styles/shell.css', 'dist/src/styles/shell.css');
+        } catch (e) {
+          console.error('Failed to copy shell.css:', e.message);
+        }
+      }
+    }
+  ],
 });

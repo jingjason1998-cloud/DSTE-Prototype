@@ -675,6 +675,16 @@
             .features-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+            .top-nav-title {
+                display: none;
+            }
+            .top-nav-links a {
+                padding: 6px 8px;
+                gap: 4px;
+            }
+            .nav-full-label {
+                display: none;
+            }
         }
         
         @media (max-width: 768px) {
@@ -697,6 +707,45 @@
             .nav-full-label { display: none; }
             .sidebar { position: fixed; left: -220px; top: 56px; height: calc(100vh - 56px); z-index: 99; transition: left 0.3s; }
             .sidebar.open { left: 0; }
+            /* 表格横向滚动 */
+            .table-scroll-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: -24px;
+                padding: 24px;
+            }
+            .table-scroll-wrapper table {
+                min-width: 800px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero h1 {
+                font-size: 28px;
+            }
+            .hero p {
+                font-size: 14px;
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stat-card {
+                padding: 16px;
+            }
+            .stat-value {
+                font-size: 24px;
+            }
+            .page-container {
+                padding: 16px 12px;
+            }
+            .filter-bar {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .table-scroll-wrapper {
+                margin: -16px;
+                padding: 16px;
+            }
         }
 
         /* ===== Light 主题覆盖 ===== */
@@ -1024,14 +1073,6 @@
         }
         .content-area {
             padding: 20px 24px;
-        }
-        /* 页面加载动画 (与 cockpit.html 一致) */
-        .content-area {
-            animation: fadeIn 0.25s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         /* Tab 切换过渡 */
         .dashboard-tab {

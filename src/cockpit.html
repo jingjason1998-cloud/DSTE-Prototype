@@ -6,14 +6,133 @@
   <title>DSTE 战略管理平台</title>
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="./styles/shell.css">
+  <style>
+    /* ===== cockpit.html 页面级响应式覆盖 ===== */
+
+    /* Tablet (<1024px) */
+    @media (max-width: 1024px) {
+      #page-content [style*="grid-template-columns: repeat(4, 1fr)"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      #page-content [style*="grid-template-columns: 2fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(3, 1fr)"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(7, 1fr)"] {
+        grid-template-columns: repeat(4, 1fr) !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(5, 1fr)"] {
+        grid-template-columns: repeat(3, 1fr) !important;
+      }
+      #page-content [style*="grid-template-columns: 280px 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+      /* Roadmap 时间线节点缩小 */
+      #dev-timeline .timeline-node {
+        min-width: 90px !important;
+        padding: 6px !important;
+      }
+    }
+
+    /* Mobile (<768px) */
+    @media (max-width: 768px) {
+      #page-content [style*="grid-template-columns: repeat(4, 1fr)"] {
+        grid-template-columns: 1fr !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(2, 1fr)"] {
+        grid-template-columns: 1fr !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(3, 1fr)"] {
+        grid-template-columns: 1fr !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(7, 1fr)"] {
+        grid-template-columns: repeat(3, 1fr) !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(5, 1fr)"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      #page-content [style*="grid-template-columns: 280px 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+      /* Roadmap 时间线节点进一步缩小 */
+      #dev-timeline .timeline-node {
+        min-width: 80px !important;
+        padding: 4px !important;
+      }
+      #dev-timeline .timeline-node > div:nth-child(2) {
+        font-size: 12px !important;
+      }
+      #dev-timeline .timeline-node > div:nth-child(3),
+      #dev-timeline .timeline-node > div:nth-child(4) {
+        font-size: 10px !important;
+      }
+      /* 卡片 padding 缩小 */
+      #page-content .card {
+        padding: 12px !important;
+      }
+      /* 看板列从 4 列变为可滚动 */
+      #page-content [style*="grid-template-columns: repeat(4, 1fr)"][class*="kanban"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+    }
+
+    /* Small Phone (<480px) */
+    @media (max-width: 480px) {
+      #page-content [style*="grid-template-columns: repeat(2, 1fr)"] {
+        grid-template-columns: 1fr !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(7, 1fr)"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(5, 1fr)"] {
+        grid-template-columns: 1fr !important;
+      }
+      #page-content [style*="grid-template-columns: repeat(4, 1fr)"] {
+        grid-template-columns: 1fr !important;
+      }
+      #dev-timeline .timeline-node {
+        min-width: 70px !important;
+      }
+      #page-content .card {
+        padding: 10px !important;
+      }
+      /* 看板单列 */
+      #page-content [style*="grid-template-columns: repeat(4, 1fr)"][class*="kanban"] {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* 表格横向滚动容器 */
+    .table-scroll-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .table-scroll-wrapper table {
+      min-width: 600px;
+    }
+
+    /* 减少动画偏好 */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="app" id="app">
     <!-- 顶部导航 -->
     <nav class="top-nav">
-      <div class="top-nav-brand">
-        <div class="top-nav-logo">D</div>
-        <span class="top-nav-title">DSTE 战略管理平台</span>
+      <div style="display: flex; align-items: center;">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单">☰</button>
+        <div class="top-nav-brand">
+          <div class="top-nav-logo">D</div>
+          <span class="top-nav-title">DSTE 战略管理平台</span>
+        </div>
       </div>
       <ul class="top-nav-links" id="top-nav-links"></ul>
       <div class="top-nav-actions">
@@ -24,6 +143,9 @@
     </nav>
 
     <div class="app-body">
+      <!-- 侧边栏遮罩层 -->
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
       <!-- 左侧边栏 -->
       <aside class="sidebar" id="sidebar"></aside>
 
@@ -140,7 +262,7 @@
             { id: 'exe/tasks', icon: '✅', label: '重点工作管理' },
             { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
             { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' },
-            { id: 'exe/finereport', icon: '📊', label: 'FineReport 报表' }
+            { id: 'exe/report-center', icon: '📊', label: '报表中心' }
           ]},
           { type: 'quick', label: '快捷工具' },
           { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
@@ -171,7 +293,7 @@
         'exe/business-topics': () => { window.location.href = 'business-topics.html'; return ''; },
         'exe/meetings': renderMeetings,
         'exe/meetings/edit': renderMeetingEditPage,
-        'exe/finereport': renderFineReport,
+        'exe/report-center': renderReportCenter,
         'rev/performance': () => renderPlaceholder('🏆 绩效与激励', '绩效考核体系管理、激励方案设计与执行效果评估。'),
         'rev/cadre': () => renderPlaceholder('👔 干部管理', '干部梯队建设、能力评估、轮岗培养与继任计划。'),
         'rev/review': () => renderPlaceholder('🔄 战略复盘', '定期战略复盘会议管理，差距分析、经验萃取与改进措施跟踪。'),
@@ -200,6 +322,28 @@
         // 显示用户名
         const user = sessionStorage.getItem('dste-user') || '张';
         document.getElementById('user-avatar').textContent = user.charAt(0);
+
+        // 移动端汉堡菜单切换
+        const menuToggle = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (menuToggle && sidebar && overlay) {
+          menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+          });
+          overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+          });
+          // 点击 sidebar 内的链接后自动关闭
+          sidebar.addEventListener('click', (e) => {
+            if (e.target.closest('.sidebar-item') || e.target.closest('[data-page]')) {
+              sidebar.classList.remove('open');
+              overlay.classList.remove('open');
+            }
+          });
+        }
       }
 
       // ===== 渲染顶部导航 =====
@@ -273,6 +417,14 @@
         contentEl.innerHTML = PAGES[pageId]();
         contentEl.style.animation = '';
 
+        // Roadmap 时间线默认滚动到最左侧（显示最新版本）
+        if (pageId === 'dashboard/roadmap') {
+          requestAnimationFrame(() => {
+            const tl = document.getElementById('dev-timeline');
+            if (tl) tl.scrollLeft = 0;
+          });
+        }
+
         // 绑定事件委托（替代内联 onclick）
         bindPageEvents(contentEl);
 
@@ -344,6 +496,45 @@
       // ===== 渲染左侧栏 =====
       function renderSidebar(phase) {
         const container = document.getElementById('sidebar');
+
+        // 报表中心页面：侧边栏显示报表分类
+        if (currentPage === 'report-center') {
+          container.classList.remove('collapsed');
+          let html = '<div class="sidebar-group"><div class="sidebar-group-title">📊 报表分类</div>';
+          REPORT_CATALOG.forEach((cat, ci) => {
+            const isActive = ci === window._reportCenterActiveCategory;
+            html += `
+              <div class="sidebar-item ${isActive ? 'active' : ''}" onclick="switchReportCategory(${ci})" style="cursor: pointer;">
+                <span class="icon">${cat.icon}</span>
+                <span>${cat.category}</span>
+                <span style="margin-left: auto; font-size: 11px; color: var(--text-tertiary); background: var(--bg-page); padding: 1px 6px; border-radius: 10px;">${cat.reports?.length || 0}</span>
+              </div>
+            `;
+            if (isActive) {
+              (cat.reports || []).forEach(r => {
+                const isReportActive = r.id === window._reportCenterActiveReport;
+                html += `
+                  <div class="sidebar-item ${isReportActive ? 'active' : ''}" onclick="openReport('${r.id}')" style="padding-left: 40px; cursor: pointer; font-size: 13px;">
+                    <span>${r.name}</span>
+                    <span style="margin-left: auto; font-size: 10px; opacity: 0.5;">${r.embed ? '🌐' : '↗'}</span>
+                  </div>
+                `;
+              });
+            }
+          });
+          html += '</div>';
+          // 返回按钮
+          html += `
+            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-light);">
+              <div class="sidebar-item" onclick="navigate('exe/meetings')" style="cursor: pointer; color: var(--text-tertiary);">
+                <span class="icon">←</span><span>返回战略执行</span>
+              </div>
+            </div>
+          `;
+          container.innerHTML = html;
+          return;
+        }
+
         const config = SIDEBAR_CONFIG[phase] || [];
 
         if (phase === 'ai') {
@@ -382,116 +573,155 @@
         });
       }
 
-      // ===== FineReport 报表（弹窗模式） =====
-      function renderFineReport() {
-        return `
-          <div class="breadcrumb">
-            <a href="#dashboard" data-navigate="dashboard">驾驶舱</a>
-            <span class="breadcrumb-separator">/</span>
-            <a href="#exe/tasks" data-navigate="exe/tasks">战略执行</a>
-            <span class="breadcrumb-separator">/</span>
-            <span>FineReport 报表</span>
+      // ===== 报表中心 =====
+      // 两级目录：分类 → 报表。后续添加 = 在对应分类的 reports 数组中加一项
+      const REPORT_CATALOG = [
+        {
+          category: '经营预算',
+          icon: '📊',
+          color: '#1677FF',
+          reports: [
+            {
+              id: 'fr-001',
+              name: '国内营销线利润表',
+              description: '国内营销线利润表（新分析），按预算维度展示利润完成情况',
+              url: 'http://106.14.3.184:8090/WebReport/decision/view/report?viewlet=budget_2023_pg%252F%25E5%2588%25A9%25E6%25B6%25A6%25E8%25A1%25A8%252F%25E5%259B%25BD%25E5%2586%2585%25E8%2590%25A5%25E9%2594%2580%25E7%25BA%25BF%25E5%2588%25A9%25E6%25B6%25A6%25E8%25A1%25A8%25E6%2596%25B0%25E5%2588%2586%25E6%25A0%2587%25E7%259A%2584.cpt&ref_t=design&op=view&ref_c=38281e6b-72a8-41e6-b341-774eef488f3c',
+              embed: true
+            },
+            {
+              id: 'fr-002',
+              name: '国内营销线利润表（新）',
+              description: '国内营销线利润表新分标的，FineReport 财务直连版',
+              url: 'https://caiwu.fineres.com:8084/WebReport/decision/view/report?viewlet=budget_2023_pg/%E5%88%A9%E6%B6%A6%E8%A1%A8/%E5%9B%BD%E5%86%85%E8%90%A5%E9%94%80%E7%BA%BF%E5%88%A9%E6%B6%A6%E8%A1%A8%E6%96%B0%E5%88%86%E6%A0%87%E7%9A%84.cpt&op=view&fine_digital_signature=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJidWRnZXRfMjAyM19wZy9bNTIyOV1bNmRhNl1bODg2OF0vWzU2ZmRdWzUxODVdWzg0MjVdWzk1MDBdWzdlYmZdWzUyMjldWzZkYTZdWzg4NjhdWzY1YjBdWzUyMDZdWzY4MDddWzc2ODRdLmNwdCIsImlhdCI6MTc3OTg3Nzk5NiwiZXhwIjoxNzc5ODgxNTk2LCJqdGkiOiIifQ.dFaTF46RjFFkIkD3_4dmJnnyhUce4oNOCEA9X6t8cfA',
+              embed: true
+            }
+          ]
+        },
+        {
+          category: '专题报表',
+          icon: '📈',
+          color: '#52C41A',
+          reports: [
+            // 开口：后续在此处添加专题报表
+          ]
+        }
+      ];
+
+      window._reportCenterActiveCategory = 0;
+      window._reportCenterActiveReport = null;
+
+      window.switchReportCategory = function(idx) {
+        window._reportCenterActiveCategory = idx;
+        window._reportCenterActiveReport = null;
+        renderReportCenterUI();
+      };
+
+      window.openReport = function(reportId) {
+        const cat = REPORT_CATALOG[window._reportCenterActiveCategory];
+        if (!cat) return;
+        const r = cat.reports.find(x => x.id === reportId);
+        if (!r) return;
+
+        if (r.embed) {
+          // iframe 内嵌
+          window._reportCenterActiveReport = reportId;
+          renderReportCenterUI();
+        } else {
+          // 新标签页打开
+          window.open(r.url, '_blank');
+        }
+      };
+
+      function renderReportCenterUI() {
+        // 重新渲染 sidebar（分类/报表高亮状态变了）
+        renderSidebar(currentPhase);
+
+        // 重新渲染页面内容（分类切换时右侧内容变化）
+        const contentEl = document.getElementById('page-content');
+        if (contentEl && currentPage === 'report-center') {
+          contentEl.innerHTML = PAGES['report-center']();
+        }
+      }
+
+      function renderReportCenter() {
+        const totalReports = REPORT_CATALOG.reduce((s, c) => s + (c.reports?.length || 0), 0);
+        const activeCat = REPORT_CATALOG[window._reportCenterActiveCategory];
+        const activeReport = activeCat?.reports?.find(x => x.id === window._reportCenterActiveReport);
+
+        const welcomeContent = `
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; min-height: 400px;">
+            <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
+            <div style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">报表中心</div>
+            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; max-width: 400px;">
+              共 ${totalReports} 张报表，分 ${REPORT_CATALOG.length} 个分类。
+              在左侧边栏选择分类和报表，带 🌐 标记的报表会在当前页面内嵌显示。
+            </div>
+            <div style="display: flex; gap: 16px;">
+              ${REPORT_CATALOG.map(c => `
+                <div style="text-align: center; padding: 16px 24px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light);">
+                  <div style="font-size: 28px; margin-bottom: 4px;">${c.icon}</div>
+                  <div style="font-size: 13px; font-weight: 600;">${c.category}</div>
+                  <div style="font-size: 12px; color: var(--text-tertiary);">${c.reports?.length || 0} 张</div>
+                </div>
+              `).join('')}
+            </div>
           </div>
+        `;
+
+        const reportListContent = activeCat ? `
+          <div style="padding: 24px;">
+            <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">${activeCat.icon} ${activeCat.category}</div>
+            <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 20px;">共 ${activeCat.reports?.length || 0} 张报表</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+              ${(activeCat.reports || []).map(r => `
+                <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 20px; transition: all 0.2s;"
+                     onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.06)';"
+                     onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${r.name}</div>
+                    <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: ${r.embed ? 'var(--primary-light)' : 'var(--bg-page)'}; color: ${r.embed ? 'var(--primary)' : 'var(--text-tertiary)'};">${r.embed ? '🌐 内嵌' : '↗ 外链'}</span>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px; min-height: 36px;">${r.description || ''}</div>
+                  <button type="button" onclick="openReport('${r.id}')" class="btn btn-primary" style="width: 100%; font-size: 13px; padding: 8px;">
+                    ${r.embed ? '🌐 在页面中查看' : '↗ 新标签页打开'}
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+            ${(activeCat.reports || []).length === 0 ? `<div style="text-align: center; padding: 60px 20px; color: var(--text-tertiary);">该分类下暂无报表</div>` : ''}
+          </div>
+        ` : welcomeContent;
+
+        return `
+          ${renderBreadcrumb('报表中心')}
           <div class="page-header">
-            <h1 class="page-title">📊 FineReport 报表</h1>
+            <h1 class="page-title">📊 报表中心</h1>
+            <div class="page-actions">
+              <span style="font-size: 13px; color: var(--text-tertiary);">共 ${totalReports} 张报表 · ${REPORT_CATALOG.length} 个分类</span>
+            </div>
           </div>
 
-          <div class="card" style="padding:48px;text-align:center;">
-            <div style="font-size:64px;margin-bottom:20px;">📊</div>
-            <h2 style="margin-bottom:8px;color:var(--text-primary);">销售任务完成统计</h2>
-            <p style="color:var(--text-tertiary);margin-bottom:32px;font-size:14px;">
-              FineReport 报表 · finance/payment_planning_stat.frm
-            </p>
-            <button class="btn btn-primary" style="font-size:15px;padding:12px 32px;"
-                    onclick="openFineReportPopup()">
-              🔗 打开报表
-            </button>
-            <div style="margin-top:16px;font-size:12px;color:var(--text-tertiary);">
-              将在弹窗中打开（1440×900），关闭后自动返回 DSTE
+          <!-- 右侧内容区全宽显示（左侧目录已移到 sidebar） -->
+          <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden; position: relative; min-height: 500px;">
+            <!-- iframe 挂载区 -->
+            <div id="report-center-iframe-wrap" style="display: ${activeReport ? 'block' : 'none'}; position: absolute; inset: 0; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--bg-page); border-bottom: 1px solid var(--border-light);">
+                <div style="font-size: 13px; font-weight: 600;">${activeReport ? activeReport.name : ''}</div>
+                <div style="display: flex; gap: 8px;">
+                  <a href="${activeReport ? activeReport.url : ''}" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;">↗ 新标签页打开</a>
+                  <button type="button" onclick="window._reportCenterActiveReport=null; renderReportCenterUI();" style="font-size: 12px; color: var(--text-tertiary); background: none; border: none; cursor: pointer;">✕ 关闭</button>
+                </div>
+              </div>
+              <iframe id="report-center-iframe" style="width: 100%; height: calc(100% - 41px); border: none;" src="${activeReport ? activeReport.url : 'about:blank'}"></iframe>
+            </div>
+
+            <!-- 主内容区（iframe 隐藏时显示） -->
+            <div id="report-center-main" style="height: 100%; overflow-y: auto; ${activeReport ? 'display: none;' : ''}">
+              ${reportListContent}
             </div>
           </div>
         `;
       }
-
-      window.openFineReportPopup = function() {
-        var url = 'https://crm.finereporthelp.com/WebReport/decision/view/report?viewlet=finance/payment_planning_stat.frm';
-        var w = 1440;
-        var h = 900;
-        var left = (window.screen.width - w) / 2;
-        var top = (window.screen.height - h) / 2;
-        var features = 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top
-                     + ',menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes';
-        window.open(url, 'finereport-popup', features);
-      };
-
-      // FineReport 跨域单点登录
-      window.doFineReportLogin = function() {
-        const u = document.getElementById('fr-username').value.trim();
-        const p = document.getElementById('fr-password').value;
-
-        if (!u || !p) {
-          alert('请输入 FineReport 账号和密码');
-          return;
-        }
-
-        const loadingHint = document.getElementById('fr-loading-hint');
-        if (loadingHint) loadingHint.textContent = '正在单点登录...';
-
-        // FineReport 跨域单点登录接口（参数名拆分避免误报）
-        const ssoUrl = [
-          'https://crm.finereporthelp.com/WebReport/decision/login/cross/domain',
-          '?fine_username=', encodeURIComponent(u),
-          '&fine_pass', 'word=', encodeURIComponent(p),
-          '&validity=-1'
-        ].join('');
-
-        const ssoIframe = document.getElementById('fr-sso-iframe');
-
-        ssoIframe.onload = function() {
-          // SSO 完成，刷新报表 iframe 以携带新 Cookie
-          setTimeout(function() {
-            const reportIframe = document.getElementById('fr-report-iframe');
-            if (reportIframe) {
-              reportIframe.src = reportIframe.src;
-            }
-            // 隐藏配置卡片
-            const configCard = document.getElementById('fr-sso-config');
-            if (configCard) configCard.style.display = 'none';
-          }, 500);
-        };
-
-        ssoIframe.src = ssoUrl;
-      };
-
-      // 自动尝试 SSO（如果本地存储了凭据）
-      function initFineReportSSO() {
-        const dsteUser = sessionStorage.getItem('dste-user') || localStorage.getItem('dste-remember-user');
-        const dsteP = sessionStorage.getItem('dste-p');
-
-        // 如果 DSTE 已登录且保存了密码，自动单点登录
-        if (dsteUser && dsteP) {
-          const frUserInput = document.getElementById('fr-username');
-          const frPwdInput = document.getElementById('fr-password');
-          if (frUserInput) frUserInput.value = dsteUser;
-          if (frPwdInput) frPwdInput.value = dsteP;
-          // 自动执行单点登录
-          doFineReportLogin();
-          return;
-        }
-
-        // 只有用户名，自动填充并聚焦密码框
-        const frUserInput = document.getElementById('fr-username');
-        const frPwdInput = document.getElementById('fr-password');
-        if (dsteUser && frUserInput) {
-          frUserInput.value = dsteUser;
-          if (frPwdInput) frPwdInput.focus();
-        }
-      }
-
-      window.refreshFineReport = function() {
-        const iframe = document.getElementById('fr-report-iframe');
-        if (iframe) iframe.src = iframe.src;
-      };
 
       // ===== 驾驶舱概览 =====
       function renderDashboard() {
@@ -870,6 +1100,7 @@
           }
         ];
         }
+        window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
         const meetings = window._meetingsData.slice(); // 复制数组避免修改原始数据
 
         // 按状态优先级 + 时间倒序排序：准备中 → 规划中 → 已完成 → 已取消
@@ -898,19 +1129,34 @@
         const avgSatisfaction = (meetings.filter(m => m.metrics.satisfaction > 0).reduce((s, m) => s + m.metrics.satisfaction, 0) / Math.max(1, meetings.filter(m => m.metrics.satisfaction > 0).length)).toFixed(1);
 
         // ---- 辅助函数 ----
-        function formatPipelineStep(step, done) {
-          return `<div style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: ${done ? 'var(--success)' : 'var(--text-tertiary)'};">
-            <span style="width: 14px; height: 14px; border-radius: 50%; background: ${done ? 'var(--success)' : 'var(--border-color)'}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 9px;">${done ? '✓' : '○'}</span>
-            ${step.label}
-          </div>`;
-        }
         function renderPipeline(m) {
           const cfg = SCENARIO_CONFIG[m.scenario];
-          if (!cfg || !cfg.pipelineEnabled) {
-            return '';
-          }
-          const steps = PIPELINE_STEPS.map(s => formatPipelineStep(s, m.pipeline[s.key]));
-          return `<div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 10px; background: var(--bg-page); border-radius: 6px; margin-top: 10px;">${steps.join('')}</div>`;
+          if (!cfg || !cfg.pipelineEnabled) return '';
+          const total = PIPELINE_STEPS.length;
+          const doneCount = PIPELINE_STEPS.filter(s => m.pipeline[s.key]).length;
+          const pct = Math.round((doneCount / total) * 100);
+          const currentIdx = PIPELINE_STEPS.findIndex(s => !m.pipeline[s.key]);
+          const steps = PIPELINE_STEPS.map((s, i) => {
+            const isDone = m.pipeline[s.key];
+            const isCurrent = i === currentIdx;
+            return `<div onclick="togglePipelineStep('${m.id}', '${s.key}')" title="点击切换状态"
+              onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'"
+              style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-tertiary)'}; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: background 0.15s; user-select: none;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border-color)'}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; ${isCurrent ? 'animation: pulse-dot 2s infinite;' : ''}">${isDone ? '✓' : isCurrent ? '●' : '○'}</span>
+              ${s.label}
+            </div>`;
+          });
+          return `
+            <div style="padding: 8px 10px; background: var(--bg-page); border-radius: 6px; margin-top: 10px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <span style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">📊 一报一会</span>
+                <span style="font-size: 11px; color: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total} (${pct}%)</span>
+              </div>
+              <div style="width: 100%; height: 4px; background: var(--border-light); border-radius: 2px; margin-bottom: 8px; overflow: hidden;">
+                <div style="width: ${pct}%; height: 100%; background: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; border-radius: 2px; transition: width 0.3s ease;"></div>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">${steps.join('')}</div>
+            </div>`;
         }
         function renderTabs(m) {
           const tabLabels = { minutes: '📄 纪要', actions: '✅ 行动项', decisions: '📋 决策', eval: '⭐ 评估', principles: '📐 原则', chain: '🔗 会议链' };
@@ -1021,11 +1267,10 @@
         const sceneCards = SCENE_CARD_CONFIG.map(s => {
           const count = meetings.filter(m => m.scenario === s.key).length;
           const isActive = window._meetingsFilterScene === s.key;
-          return `<div class="scene-card" data-scene="${s.key}" onclick="filterByScene('${s.key}')" style="flex:1;min-width:0;padding:16px 12px;background:var(--bg-card);border-radius:10px;border:2px solid ${isActive ? s.color : 'var(--border-light)'};text-align:center;cursor:pointer;transition:all 0.2s ease;${isActive ? `background:linear-gradient(180deg, ${s.color}08 0%, var(--bg-card) 100%);box-shadow:0 2px 8px ${s.color}20;` : ''}">
-            <div style="font-size:24px;margin-bottom:8px;">${s.icon}</div>
-            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${s.label}</div>
-            <div style="font-size:22px;font-weight:800;color:${s.color};">${count}</div>
-            <div style="font-size:11px;color:var(--text-secondary);">场会议</div>
+          return `<div class="scene-card" data-scene="${s.key}" onclick="filterByScene('${s.key}')" style="flex:1;min-width:0;padding:8px 6px;background:var(--bg-card);border-radius:8px;border:1.5px solid ${isActive ? s.color : 'var(--border-light)'};text-align:center;cursor:pointer;transition:all 0.2s ease;${isActive ? `background:linear-gradient(180deg, ${s.color}08 0%, var(--bg-card) 100%);box-shadow:0 2px 6px ${s.color}20;` : ''}">
+            <div style="font-size:16px;margin-bottom:4px;">${s.icon}</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-primary);line-height:1.3;margin-bottom:2px;">${s.label}</div>
+            <div style="font-size:16px;font-weight:700;color:${s.color};">${count}</div>
           </div>`;
         }).join('');
 
@@ -1175,20 +1420,210 @@
         `).join('');
 
         // ---- 会议详情函数 ----
+        // ---- 日历视图状态与渲染 ----
+        window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
+
+        function renderCalendarMonth(year, month) {
+          const header = document.getElementById('calendar-header');
+          const body = document.getElementById('calendar-body');
+          const footer = document.getElementById('calendar-footer');
+          if (!header || !body || !footer) return;
+
+          const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+          const monthMeetings = meetings.filter(m => m.date && m.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`));
+
+          // 头部：导航 + 视图切换
+          header.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button onclick="changeCalendarMonth(-1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">← 上一月</button>
+                <span style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${year}年${monthNames[month]}</span>
+                <button onclick="changeCalendarMonth(1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">下一月 →</button>
+                <button onclick="goCalendarToday()" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📅 今天</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 12px; color: var(--text-tertiary);">本月 ${monthMeetings.length} 场会议</span>
+                <button onclick="switchCalendarView('year')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">📆 年视图</button>
+              </div>
+            </div>
+          `;
+
+          // 主体：日历网格
+          const firstDay = new Date(year, month, 1).getDay();
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          const today = new Date();
+          const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
+          let gridHtml = `<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border-light); border-radius: 8px; overflow: hidden;">`;
+          ['日','一','二','三','四','五','六'].forEach(d => {
+            gridHtml += `<div style="text-align: center; padding: 6px 0; font-size: 12px; font-weight: 600; color: var(--text-secondary); background: var(--bg-card);">${d}</div>`;
+          });
+
+          for (let i = 0; i < firstDay; i++) {
+            gridHtml += `<div style="min-height: 100px; padding: 6px; background: var(--bg-page);"></div>`;
+          }
+
+          for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dayMeetings = meetings.filter(m => m.date === dateStr);
+            const isToday = isCurrentMonth && d === today.getDate();
+
+            gridHtml += `<div style="min-height: 100px; padding: 6px; background: var(--bg-card); position: relative;">
+              <div style="font-size: 12px; font-weight: ${isToday ? '700' : '400'}; color: ${isToday ? '#fff' : 'var(--text-primary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 4px;">${d}</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                ${dayMeetings.slice(0, 2).map(m => {
+                  const sc = SCENARIO_CONFIG[m.scenario] || { color: 'var(--text-secondary)' };
+                  return `<div onclick="openMeetingDetail('${m.id}')" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" style="padding: 2px 5px; border-radius: 3px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; background: ${sc.color}18; color: ${sc.color}; border-left: 3px solid ${sc.color};">${m.title.slice(0, 10)}${m.title.length > 10 ? '...' : ''}</div>`;
+                }).join('')}
+                ${dayMeetings.length > 2 ? `<div style="font-size: 10px; color: var(--text-tertiary); padding-left: 4px;">+${dayMeetings.length - 2}</div>` : ''}
+              </div>
+            </div>`;
+          }
+          gridHtml += `</div>`;
+          body.innerHTML = gridHtml;
+
+          // 底部：当月会议清单
+          const sorted = monthMeetings.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+          footer.innerHTML = `
+            <div class="card" style="margin-bottom: 0;">
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="card-title">📋 ${year}年${monthNames[month]} 会议清单</div>
+                <span style="font-size: 12px; color: var(--text-tertiary);">共 ${sorted.length} 场</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${sorted.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 20px;">本月暂无会议</div>' : sorted.map(m => {
+                  const sc = SCENARIO_CONFIG[m.scenario] || { label: m.scenario, color: 'var(--text-tertiary)', icon: '📋' };
+                  const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
+                  return `<div onclick="openMeetingDetail('${m.id}')" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s; border-left: 3px solid ${sc.color};">
+                    <span style="font-size: 12px; color: var(--text-tertiary); min-width: 60px;">${m.date.slice(5)}</span>
+                    <span style="font-size: 13px; font-weight: 500; flex: 1; color: var(--text-primary);">${m.title}</span>
+                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: ${sc.color}15; color: ${sc.color};">${sc.icon} ${sc.label}</span>
+                    <span class="status-badge ${st.badgeClass}" style="font-size: 11px;">${st.label}</span>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        function renderCalendarYear(year) {
+          const header = document.getElementById('calendar-header');
+          const body = document.getElementById('calendar-body');
+          const footer = document.getElementById('calendar-footer');
+          if (!header || !body || !footer) return;
+
+          const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+          const today = new Date();
+
+          header.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button onclick="changeCalendarYear(-1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">← 上一年</button>
+                <span style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${year}年</span>
+                <button onclick="changeCalendarYear(1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">下一年 →</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button onclick="goCalendarToday()" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📅 今天</button>
+                <button onclick="switchCalendarView('month')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">📅 月视图</button>
+              </div>
+            </div>
+          `;
+
+          let gridHtml = `<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">`;
+
+          for (let m = 0; m < 12; m++) {
+            const firstDay = new Date(year, m, 1).getDay();
+            const daysInMonth = new Date(year, m + 1, 0).getDate();
+            const monthMeetings = meetings.filter(mt => mt.date && mt.date.startsWith(`${year}-${String(m + 1).padStart(2, '0')}`));
+            const isCurrentMonth = year === today.getFullYear() && m === today.getMonth();
+
+            let miniGrid = '';
+            for (let i = 0; i < firstDay; i++) {
+              miniGrid += `<div></div>`;
+            }
+            for (let d = 1; d <= daysInMonth; d++) {
+              const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              const dayMeetings = meetings.filter(mt => mt.date === dateStr);
+              const isToday = isCurrentMonth && d === today.getDate();
+              const hasMeeting = dayMeetings.length > 0;
+              const sc = hasMeeting ? SCENARIO_CONFIG[dayMeetings[0].scenario] : null;
+              miniGrid += `<div style="position: relative; display: flex; align-items: center; justify-content: center; height: 22px; font-size: 10px; color: ${isToday ? '#fff' : hasMeeting ? sc.color : 'var(--text-tertiary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; border-radius: 3px; cursor: ${hasMeeting ? 'pointer' : 'default'};" ${hasMeeting ? `onclick="switchCalendarView('month'); window._calendarState.year=${year}; window._calendarState.month=${m}; renderCalendarMonth(${year}, ${m});" title="${dayMeetings.map(dm => dm.title).join(', ')}"` : ''}>
+                ${d}
+                ${hasMeeting ? `<div style="position: absolute; bottom: 2px; left: 20%; right: 20%; height: 2px; background: ${sc.color}; border-radius: 1px;"></div>` : ''}
+              </div>`;
+            }
+
+            gridHtml += `
+              <div onclick="switchCalendarView('month'); window._calendarState.year=${year}; window._calendarState.month=${m}; renderCalendarMonth(${year}, ${m});" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-light)'" style="padding: 10px; background: var(--bg-card); border-radius: 8px; border: 1px solid ${isCurrentMonth ? 'var(--primary)' : 'var(--border-light)'}; cursor: pointer; transition: border-color 0.15s;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <span style="font-size: 13px; font-weight: 600; color: ${isCurrentMonth ? 'var(--primary)' : 'var(--text-primary)'};">${monthNames[m]}</span>
+                  <span style="font-size: 11px; color: var(--text-tertiary);">${monthMeetings.length} 场</span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center;">
+                  ${miniGrid}
+                </div>
+              </div>
+            `;
+          }
+
+          gridHtml += `</div>`;
+          body.innerHTML = gridHtml;
+          footer.innerHTML = '';
+        }
+
+        window.switchCalendarView = function(mode) {
+          window._calendarState.view = mode;
+          const state = window._calendarState;
+          if (mode === 'month') {
+            renderCalendarMonth(state.year, state.month);
+          } else {
+            renderCalendarYear(state.year);
+          }
+        };
+
+        window.changeCalendarMonth = function(delta) {
+          const state = window._calendarState;
+          state.month += delta;
+          if (state.month > 11) { state.month = 0; state.year++; }
+          if (state.month < 0) { state.month = 11; state.year--; }
+          renderCalendarMonth(state.year, state.month);
+        };
+
+        window.changeCalendarYear = function(delta) {
+          window._calendarState.year += delta;
+          renderCalendarYear(window._calendarState.year);
+        };
+
+        window.goCalendarToday = function() {
+          const now = new Date();
+          window._calendarState.year = now.getFullYear();
+          window._calendarState.month = now.getMonth();
+          if (window._calendarState.view === 'month') {
+            renderCalendarMonth(now.getFullYear(), now.getMonth());
+          } else {
+            renderCalendarYear(now.getFullYear());
+          }
+        };
+
         window.toggleMeetingsView = function() {
           const btn = document.getElementById('btn-toggle-view');
           if (window._meetingsViewMode === 'calendar') {
             window._meetingsViewMode = 'list';
             if (btn) btn.textContent = '📅 日历视图';
-            // 重新渲染列表视图
             document.getElementById('meetings-list-container').style.display = 'block';
             document.getElementById('meetings-calendar-container').style.display = 'none';
           } else {
             window._meetingsViewMode = 'calendar';
             if (btn) btn.textContent = '📋 列表视图';
-            // 显示日历视图（简化实现）
             document.getElementById('meetings-list-container').style.display = 'none';
             document.getElementById('meetings-calendar-container').style.display = 'block';
+            // 渲染日历
+            const state = window._calendarState;
+            if (state.view === 'month') {
+              renderCalendarMonth(state.year, state.month);
+            } else {
+              renderCalendarYear(state.year);
+            }
           }
         };
 
@@ -1298,22 +1733,42 @@
             </div>
           `;
 
-          // 一报一会流程段（简化版）
-          const pipelineHtml = m.pipeline && (m.scenario === 'region_routine' || m.scenario === 'lagging_region' || m.scenario === 'lagging_vertical') ? `
-            <div style="margin-bottom: 16px; padding: 12px 16px; background: linear-gradient(90deg, var(--primary-light) 0%, var(--bg-card) 100%); border-radius: 8px; border-left: 3px solid var(--primary);">
-              <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">📊 一报一会</div>
-              <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                ${PIPELINE_STEPS.map((step, i) => {
-                  const isDone = m.pipeline[step.key];
-                  const isCurrent = !isDone && (i === 0 || m.pipeline[PIPELINE_STEPS[i-1].key]);
-                  return `<div style="display: flex; align-items: center; gap: 4px;">
-                    <span style="width: 8px; height: 8px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border)'};"></span>
-                    <span style="font-size: 11px; color: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-secondary)'}">${step.label}</span>
-                  </div>${i < PIPELINE_STEPS.length - 1 ? '<span style="color: var(--border); font-size: 11px;">→</span>' : ''}`;
-                }).join('')}
+          // 一报一会流程段（交互版）
+          const pipelineHtml = m.pipeline && (m.scenario === 'region_routine' || m.scenario === 'lagging_region' || m.scenario === 'lagging_vertical') ? (() => {
+            const total = PIPELINE_STEPS.length;
+            const doneCount = PIPELINE_STEPS.filter(s => m.pipeline[s.key]).length;
+            const pct = Math.round((doneCount / total) * 100);
+            const currentIdx = PIPELINE_STEPS.findIndex(s => !m.pipeline[s.key]);
+            return `
+              <div style="margin-bottom: 16px; padding: 14px 18px; background: linear-gradient(90deg, var(--primary-light) 0%, var(--bg-card) 100%); border-radius: 10px; border-left: 3px solid var(--primary);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                  <div style="font-size: 14px; font-weight: 600;">📊 一报一会流程</div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 80px; height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden;">
+                      <div style="width: ${pct}%; height: 100%; background: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
+                    </div>
+                    <span style="font-size: 12px; color: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total}</span>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; position: relative; padding: 0 4px;">
+                  <!-- 连接线 -->
+                  <div style="position: absolute; top: 10px; left: 24px; right: 24px; height: 2px; background: linear-gradient(90deg, var(--success) 0%, var(--success) ${Math.max(0, doneCount > 0 ? ((doneCount - 0.5) / (total - 1)) * 100 : 0)}%, var(--border-light) ${Math.max(0, doneCount > 0 ? ((doneCount - 0.5) / (total - 1)) * 100 : 0)}%, var(--border-light) 100%); border-radius: 1px; z-index: 0;"></div>
+                  ${PIPELINE_STEPS.map((step, i) => {
+                    const isDone = m.pipeline[step.key];
+                    const isCurrent = i === currentIdx;
+                    return `
+                      <div onclick="togglePipelineStep('${m.id}', '${step.key}')" title="点击切换状态"
+                        onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; position: relative; z-index: 1; transition: transform 0.15s; user-select: none; flex: 1; max-width: 70px;">
+                        <span style="width: 20px; height: 20px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : '#fff'}; color: ${isDone ? '#fff' : isCurrent ? '#fff' : 'var(--text-tertiary)'}; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 2px solid ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border-light)'}; ${isCurrent ? 'box-shadow: 0 0 0 3px var(--primary-light); animation: pulse-dot 2s infinite;' : ''}">${isDone ? '✓' : step.icon}</span>
+                        <span style="font-size: 11px; color: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight: ${isCurrent ? '600' : '400'}; text-align: center; line-height: 1.2;">${step.label}</span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
               </div>
-            </div>
-          ` : '';
+            `;
+          })() : '';
 
           // 纪要标签内容
           const agendaTotalMinutes = (m.agenda_items || []).reduce((s, a) => s + (a.duration || 0), 0);
@@ -1457,6 +1912,39 @@
             </div>
           `;
         }
+
+        // ---- 一报一会流程交互 ----
+        window.togglePipelineStep = function(meetingId, stepKey) {
+          const meeting = meetings.find(m => m.id === meetingId);
+          if (!meeting || !meeting.pipeline) return;
+          const newValue = !meeting.pipeline[stepKey];
+          const stepIdx = PIPELINE_STEPS.findIndex(s => s.key === stepKey);
+          if (newValue) {
+            // 标记完成：检查前面步骤是否都已完成
+            for (let i = 0; i < stepIdx; i++) {
+              if (!meeting.pipeline[PIPELINE_STEPS[i].key]) {
+                if (!confirm(`「${PIPELINE_STEPS[i].label}」尚未完成，确定要直接完成「${PIPELINE_STEPS[stepIdx].label}」吗？`)) return;
+                break;
+              }
+            }
+          } else {
+            // 取消完成：检查后面是否有已完成步骤
+            for (let i = stepIdx + 1; i < PIPELINE_STEPS.length; i++) {
+              if (meeting.pipeline[PIPELINE_STEPS[i].key]) {
+                if (!confirm(`「${PIPELINE_STEPS[i].label}」已完成，取消「${PIPELINE_STEPS[stepIdx].label}」将同时取消后续所有步骤。确定吗？`)) return;
+                for (let j = stepIdx; j < PIPELINE_STEPS.length; j++) {
+                  meeting.pipeline[PIPELINE_STEPS[j].key] = false;
+                }
+                apiSave('/api/meetings', meetings);
+                openMeetingDetail(meetingId);
+                return;
+              }
+            }
+          }
+          meeting.pipeline[stepKey] = newValue;
+          apiSave('/api/meetings', meetings);
+          openMeetingDetail(meetingId);
+        };
 
         // ---- 编辑弹窗函数 ----
         window._meetingEditData = null;
@@ -1833,11 +2321,12 @@
           </div>
 
           <!-- 价值主张横幅 -->
-          <div style="padding: 28px 32px; background: linear-gradient(135deg, var(--primary) 0%, #1a6fc4 50%, #0d4a8a 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(13, 74, 138, 0.25); margin-bottom: 20px; position: relative; overflow: hidden;">
-            <div style="position: relative; z-index: 1;">
-              <div style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.15);">🎯 战略执行核心引擎</div>
-              <div style="font-size: 14px; font-weight: 400; color: rgba(255, 255, 255, 0.85); line-height: 1.7; max-width: 720px;">数据驱动的经营例会体系 —— 从会前智能预警到会中结构化决策，再到会后行动(TODO)项自动闭环，让每一次会议都成为战略落地的加速器。</div>
-              <div style="width: 48px; height: 3px; background: rgba(255, 255, 255, 0.5); border-radius: 2px; margin-top: 14px;"></div>
+          <div style="padding: 14px 20px; background: linear-gradient(135deg, var(--primary) 0%, #1a6fc4 50%, #0d4a8a 100%); border-radius: 10px; box-shadow: 0 2px 10px rgba(13, 74, 138, 0.2); margin-bottom: 14px; position: relative; overflow: hidden;">
+            <div style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 16px; font-weight: 700; color: #ffffff; letter-spacing: 0.3px; margin-bottom: 4px;">🎯 战略执行核心引擎</div>
+                <div style="font-size: 12px; font-weight: 400; color: rgba(255, 255, 255, 0.8); line-height: 1.5;">会前预警 → 会中决策 → 会后闭环，让会议驱动战略落地。</div>
+              </div>
             </div>
           </div>
 
@@ -1846,58 +2335,50 @@
             ${sceneCards}
           </div>
 
-          <!-- KPI 摘要 -->
-          <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
-            <div class="kpi-card">
-              <div class="kpi-label">本年会议</div>
-              <div class="kpi-value" style="color: var(--primary);">${totalMeetings}</div>
-              <div class="kpi-trend up"><span>↑</span><span>已完成 ${doneMeetings} 场</span></div>
+          <!-- 统计迷你条（8 列紧凑） -->
+          <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">本年会议</div>
+              <div style="font-size: 16px; font-weight: 700; color: var(--primary);">${totalMeetings}</div>
             </div>
-            <div class="kpi-card">
-              <div class="kpi-label">决议总数</div>
-              <div class="kpi-value" style="color: var(--success);">${allDecisions.length}</div>
-              <div class="kpi-trend up"><span>↑</span><span>已闭环 ${doneDecisions} 项</span></div>
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">决议总数</div>
+              <div style="font-size: 16px; font-weight: 700; color: var(--success);">${allDecisions.length}</div>
             </div>
-            <div class="kpi-card">
-              <div class="kpi-label">会议纪要</div>
-              <div class="kpi-value" style="color: var(--warning);">${totalMinutes}</div>
-              <div class="kpi-trend"><span>—</span><span>AI 辅助生成</span></div>
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">纪要</div>
+              <div style="font-size: 16px; font-weight: 700; color: var(--warning);">${totalMinutes}</div>
             </div>
-            <div class="kpi-card">
-              <div class="kpi-label">平均效果评分</div>
-              <div class="kpi-value" style="color: ${avgEffectiveness >= 90 ? 'var(--success)' : avgEffectiveness >= 80 ? 'var(--primary)' : 'var(--warning)'}">${avgEffectiveness || '-'}</div>
-              <div class="kpi-trend up"><span>↑</span><span>基于 ${completedEffectiveness.length} 场评估</span></div>
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">效果评分</div>
+              <div style="font-size: 16px; font-weight: 700; color: ${avgEffectiveness >= 90 ? 'var(--success)' : avgEffectiveness >= 80 ? 'var(--primary)' : 'var(--warning)'}">${avgEffectiveness || '-'}</div>
             </div>
-          </div>
-
-          <!-- 效率四卡片 -->
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
-              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">材料及时率</div>
-              <div style="font-size: 24px; font-weight: 700; color: ${avgMaterialTimeliness >= 90 ? 'var(--success)' : avgMaterialTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgMaterialTimeliness}%</div>
-              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
-                <div style="width: ${avgMaterialTimeliness}%; height: 100%; background: ${avgMaterialTimeliness >= 90 ? 'var(--success)' : avgMaterialTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">材料及时率</div>
+              <div style="font-size: 16px; font-weight: 700; color: ${avgMaterialTimeliness >= 90 ? 'var(--success)' : avgMaterialTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgMaterialTimeliness}%</div>
+              <div style="margin-top: 2px; height: 2px; background: var(--bg-page); border-radius: 1px; overflow: hidden;">
+                <div style="width: ${avgMaterialTimeliness}%; height: 100%; background: ${avgMaterialTimeliness >= 90 ? 'var(--success)' : avgMaterialTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 1px;"></div>
               </div>
             </div>
-            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
-              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">决议及时率</div>
-              <div style="font-size: 24px; font-weight: 700; color: ${avgResolutionTimeliness >= 90 ? 'var(--success)' : avgResolutionTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgResolutionTimeliness}%</div>
-              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
-                <div style="width: ${avgResolutionTimeliness}%; height: 100%; background: ${avgResolutionTimeliness >= 90 ? 'var(--success)' : avgResolutionTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">决议及时率</div>
+              <div style="font-size: 16px; font-weight: 700; color: ${avgResolutionTimeliness >= 90 ? 'var(--success)' : avgResolutionTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgResolutionTimeliness}%</div>
+              <div style="margin-top: 2px; height: 2px; background: var(--bg-page); border-radius: 1px; overflow: hidden;">
+                <div style="width: ${avgResolutionTimeliness}%; height: 100%; background: ${avgResolutionTimeliness >= 90 ? 'var(--success)' : avgResolutionTimeliness >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 1px;"></div>
               </div>
             </div>
-            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
-              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">行动闭环率</div>
-              <div style="font-size: 24px; font-weight: 700; color: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgActionClosure}%</div>
-              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
-                <div style="width: ${avgActionClosure}%; height: 100%; background: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">行动闭环率</div>
+              <div style="font-size: 16px; font-weight: 700; color: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgActionClosure}%</div>
+              <div style="margin-top: 2px; height: 2px; background: var(--bg-page); border-radius: 1px; overflow: hidden;">
+                <div style="width: ${avgActionClosure}%; height: 100%; background: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 1px;"></div>
               </div>
             </div>
-            <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light);">
-              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">会议满意度</div>
-              <div style="font-size: 24px; font-weight: 700; color: ${parseFloat(avgSatisfaction) >= 4.5 ? 'var(--success)' : parseFloat(avgSatisfaction) >= 4.0 ? 'var(--primary)' : 'var(--warning)'}">${avgSatisfaction}</div>
-              <div style="margin-top: 6px; height: 4px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
-                <div style="width: ${(parseFloat(avgSatisfaction) / 5 * 100)}%; height: 100%; background: ${parseFloat(avgSatisfaction) >= 4.5 ? 'var(--success)' : parseFloat(avgSatisfaction) >= 4.0 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+            <div style="padding: 8px 4px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light); text-align: center;">
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 2px;">满意度</div>
+              <div style="font-size: 16px; font-weight: 700; color: ${parseFloat(avgSatisfaction) >= 4.5 ? 'var(--success)' : parseFloat(avgSatisfaction) >= 4.0 ? 'var(--primary)' : 'var(--warning)'}">${avgSatisfaction}</div>
+              <div style="margin-top: 2px; height: 2px; background: var(--bg-page); border-radius: 1px; overflow: hidden;">
+                <div style="width: ${(parseFloat(avgSatisfaction) / 5 * 100)}%; height: 100%; background: ${parseFloat(avgSatisfaction) >= 4.5 ? 'var(--success)' : parseFloat(avgSatisfaction) >= 4.0 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 1px;"></div>
               </div>
             </div>
           </div>
@@ -2006,44 +2487,14 @@
 
           <!-- 日历视图（初始隐藏） -->
           <div id="meetings-calendar-container" style="display: none;">
-            <div class="card" style="margin-bottom: 16px;">
-              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="card-title">📅 日历视图</div>
-                <span style="font-size: 12px; color: var(--text-tertiary);">本月 ${totalMeetings} 场会议</span>
-              </div>
-              <div style="padding: 20px;">
-                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border-light); border-radius: 8px; overflow: hidden;">
-                  ${['日','一','二','三','四','五','六'].map(d => `<div style="text-align: center; padding: 8px 0; font-size: 12px; font-weight: 600; color: var(--text-secondary); background: var(--bg-card);">${d}</div>`).join('')}
-                  ${(() => {
-                    const today = new Date();
-                    const year = today.getFullYear();
-                    const month = today.getMonth();
-                    const firstDay = new Date(year, month, 1).getDay();
-                    const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    let html = '';
-                    for (let i = 0; i < firstDay; i++) {
-                      html += `<div style="min-height: 80px; padding: 8px; background: var(--bg-page); color: var(--text-disabled); font-size: 12px;"></div>`;
-                    }
-                    for (let d = 1; d <= daysInMonth; d++) {
-                      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                      const dayMeetings = meetings.filter(m => m.date === dateStr);
-                      const isToday = d === today.getDate();
-                      html += `<div style="min-height: 80px; padding: 8px; background: var(--bg-card); position: relative;">
-                        <div style="font-size: 12px; font-weight: ${isToday ? '700' : '400'}; color: ${isToday ? '#fff' : 'var(--text-primary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">${d}</div>
-                        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-                          ${dayMeetings.slice(0, 2).map(m => {
-                            const sc = SCENARIO_CONFIG[m.scenario] || { color: 'var(--text-secondary)' };
-                            return `<div onclick="openMeetingDetail('${m.id}')" style="padding: 2px 6px; border-radius: 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; background: ${sc.color}15; color: ${sc.color};">${m.title.slice(0, 8)}${m.title.length > 8 ? '...' : ''}</div>`;
-                          }).join('')}
-                          ${dayMeetings.length > 2 ? `<div style="font-size: 11px; color: var(--text-secondary);">+${dayMeetings.length - 2} 更多</div>` : ''}
-                        </div>
-                      </div>`;
-                    }
-                    return html;
-                  })()}
-                </div>
+            <div id="calendar-header" style="margin-bottom: 12px;">
+              <div style="display: flex; gap: 8px;">
+                <button onclick="switchCalendarView('month')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">月视图</button>
+                <button onclick="switchCalendarView('year')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">年视图</button>
               </div>
             </div>
+            <div id="calendar-body"></div>
+            <div id="calendar-footer" style="margin-top: 16px;"></div>
           </div>
 
           <!-- 会议纪要 -->
@@ -2285,8 +2736,25 @@
       function renderInsightsTopics() {
         // 数据层
         const STORAGE_KEY_INSIGHTS = 'dste_insights_v1';
-        const STORAGE_KEY_TOPICS = 'dste_strategy_topics_v1';
+        const STORAGE_KEY_TOPICS = 'dste_strategy_topics_v2';
+        const STORAGE_KEY_TOPICS_LEGACY = 'dste_strategy_topics_v1';
         const STORAGE_KEY_KNOWLEDGE = 'dste_knowledge_v1';
+
+        function migrateTopicsFromV1() {
+          try {
+            const legacy = localStorage.getItem(STORAGE_KEY_TOPICS_LEGACY);
+            if (!legacy) return false;
+            const topics = JSON.parse(legacy);
+            const migrated = topics.map(t => {
+              if (t.year) return t;
+              const year = t.startDate ? parseInt(t.startDate.split('-')[0], 10) : 2026;
+              return { ...t, year };
+            });
+            localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(migrated));
+            localStorage.removeItem(STORAGE_KEY_TOPICS_LEGACY);
+            return true;
+          } catch(e) { return false; }
+        }
 
         function loadInsights() {
           try {
@@ -2307,17 +2775,18 @@
         }
 
         function loadTopics() {
+          migrateTopicsFromV1();
           try {
             const data = localStorage.getItem(STORAGE_KEY_TOPICS);
             if (data) return JSON.parse(data);
           } catch(e) {}
           return [
-            { id: 'st_1', name: '海外市场拓展战略研究', type: 'expansion', dimension: '财务', priority: 'P0', status: 'execution', owner: '陈总监', startDate: '2026-01-01', endDate: '2026-12-31', progress: 65, budget: 500, actualCost: 200, milestones: [{id:'m1',name:'市场调研',date:'2026-03-01',status:'completed'},{id:'m2',name:'试点验证',date:'2026-06-01',status:'completed'},{id:'m3',name:'全面推广',date:'2026-09-01',status:'pending'},{id:'m4',name:'成果验收',date:'2026-12-01',status:'pending'}], insights: ['ins_5'], summary: '', createdAt: '2026-01-01', updatedAt: '2026-05-20' },
-            { id: 'st_2', name: '核心产品技术路线规划', type: 'transformation', dimension: '流程', priority: 'P0', status: 'design', owner: '王总监', startDate: '2026-03-01', endDate: '2026-09-30', progress: 40, budget: 300, actualCost: 80, milestones: [{id:'m1',name:'技术选型',date:'2026-04-01',status:'completed'},{id:'m2',name:'架构设计',date:'2026-05-15',status:'completed'},{id:'m3',name:'原型验证',date:'2026-07-01',status:'pending'}], insights: ['ins_1'], summary: '', createdAt: '2026-03-01', updatedAt: '2026-05-18' },
-            { id: 'st_3', name: '客户成功体系重构', type: 'innovation', dimension: '客户', priority: 'P1', status: 'insight', owner: '赵经理', startDate: '', endDate: '', progress: 0, budget: 0, actualCost: 0, milestones: [], insights: ['ins_2'], summary: '', createdAt: '2026-05-18', updatedAt: '2026-05-18' },
-            { id: 'st_4', name: '供应链韧性提升专项', type: 'efficiency', dimension: '流程', priority: 'P0', status: 'execution', owner: '张总监', startDate: '2026-02-01', endDate: '2026-08-31', progress: 80, budget: 200, actualCost: 150, milestones: [{id:'m1',name:'供应商评估',date:'2026-03-01',status:'completed'},{id:'m2',name:'备选方案',date:'2026-05-01',status:'completed'},{id:'m3',name:'切换实施',date:'2026-07-01',status:'pending'}], insights: [], summary: '', createdAt: '2026-02-01', updatedAt: '2026-05-15' },
-            { id: 'st_5', name: '人才梯队与组织能力升级', type: 'transformation', dimension: '学习成长', priority: 'P1', status: 'closed', owner: '李HRD', startDate: '2025-06-01', endDate: '2026-03-31', progress: 100, budget: 150, actualCost: 145, milestones: [{id:'m1',name:'能力模型',date:'2025-09-01',status:'completed'},{id:'m2',name:'培养体系',date:'2025-12-01',status:'completed'},{id:'m3',name:'评估验收',date:'2026-03-01',status:'completed'}], insights: [], summary: '完成全员能力评估，建立三级培养体系', createdAt: '2025-06-01', updatedAt: '2026-03-31' },
-            { id: 'st_6', name: '数字化转型顶层规划', type: 'transformation', dimension: '流程', priority: 'P0', status: 'review', owner: '刘CTO', startDate: '2026-01-01', endDate: '2026-10-31', progress: 55, budget: 800, actualCost: 350, milestones: [{id:'m1',name:'现状诊断',date:'2026-02-01',status:'completed'},{id:'m2',name:'蓝图设计',date:'2026-04-01',status:'completed'},{id:'m3',name:'方案评审',date:'2026-06-01',status:'pending'},{id:'m4',name:'分步实施',date:'2026-08-01',status:'pending'}], insights: ['ins_1','ins_4'], summary: '', createdAt: '2026-01-01', updatedAt: '2026-05-12' }
+            { id: 'st_1', name: '海外市场拓展战略研究', year: 2026, type: 'breakthrough', dimension: '财务', priority: 'P0', status: 'execution', owner: '陈总监', startDate: '2026-01-01', endDate: '2026-12-31', progress: 65, budget: 500, actualCost: 200, milestones: [{title:'市场调研',date:'2026-03-01',completed:true},{title:'试点验证',date:'2026-06-01',completed:true},{title:'全面推广',date:'2026-09-01',completed:false},{title:'成果验收',date:'2026-12-01',completed:false}], insights: ['ins_5'], summary: '', createdAt: '2026-01-01', updatedAt: '2026-05-20' },
+            { id: 'st_2', name: '核心产品技术路线规划', year: 2026, type: 'breakthrough', dimension: '流程', priority: 'P0', status: 'planning', owner: '王总监', startDate: '2026-03-01', endDate: '2026-09-30', progress: 40, budget: 300, actualCost: 80, milestones: [{title:'技术选型',date:'2026-04-01',completed:true},{title:'架构设计',date:'2026-05-15',completed:true},{title:'原型验证',date:'2026-07-01',completed:false}], insights: ['ins_1'], summary: '', createdAt: '2026-03-01', updatedAt: '2026-05-18' },
+            { id: 'st_3', name: '客户成功体系重构', year: 2026, type: 'incremental', dimension: '客户', priority: 'P1', status: 'insight', owner: '赵经理', startDate: '', endDate: '', progress: 0, budget: 0, actualCost: 0, milestones: [], insights: ['ins_2'], summary: '', createdAt: '2026-05-18', updatedAt: '2026-05-18' },
+            { id: 'st_4', name: '供应链韧性提升专项', year: 2026, type: 'incremental', dimension: '流程', priority: 'P0', status: 'execution', owner: '张总监', startDate: '2026-02-01', endDate: '2026-08-31', progress: 80, budget: 200, actualCost: 150, milestones: [{title:'供应商评估',date:'2026-03-01',completed:true},{title:'备选方案',date:'2026-05-01',completed:true},{title:'切换实施',date:'2026-07-01',completed:false}], insights: [], summary: '', createdAt: '2026-02-01', updatedAt: '2026-05-15' },
+            { id: 'st_5', name: '人才梯队与组织能力升级', year: 2025, type: 'breakthrough', dimension: '学习成长', priority: 'P1', status: 'closed', owner: '李HRD', startDate: '2025-06-01', endDate: '2026-03-31', progress: 100, budget: 150, actualCost: 145, milestones: [{title:'能力模型',date:'2025-09-01',completed:true},{title:'培养体系',date:'2025-12-01',completed:true},{title:'评估验收',date:'2026-03-01',completed:true}], insights: [], summary: '完成全员能力评估，建立三级培养体系', createdAt: '2025-06-01', updatedAt: '2026-03-31' },
+            { id: 'st_6', name: '数字化转型顶层规划', year: 2026, type: 'breakthrough', dimension: '流程', priority: 'P0', status: 'execution', owner: '刘CTO', startDate: '2026-01-01', endDate: '2026-10-31', progress: 55, budget: 800, actualCost: 350, milestones: [{title:'现状诊断',date:'2026-02-01',completed:true},{title:'蓝图设计',date:'2026-04-01',completed:true},{title:'方案评审',date:'2026-06-01',completed:false},{title:'分步实施',date:'2026-08-01',completed:false}], insights: ['ins_1','ins_4'], summary: '', createdAt: '2026-01-01', updatedAt: '2026-05-12' }
           ];
         }
 
@@ -2326,13 +2795,25 @@
         }
 
         const insights = loadInsights();
-        const topics = loadTopics();
+        const allTopics = loadTopics().filter(t => !t.deleted);
+        const currentYear = new Date().getFullYear();
+        const selectedYear = window._insightsSelectedYear || currentYear;
+        const topics = allTopics.filter(t => t.year === selectedYear);
 
-        // 统计
+        // 统计（基于当前选中年份）
         const activeTopics = topics.filter(t => t.status !== 'closed' && t.status !== 'insight');
         const completedTopics = topics.filter(t => t.status === 'closed');
         const avgProgress = topics.length > 0 ? Math.round(topics.reduce((sum, t) => sum + t.progress, 0) / topics.length) : 0;
         const highRiskTopics = topics.filter(t => t.progress < 50 && t.status === 'execution').length;
+
+        // 按年份分组（用于展示所有年份的专题）
+        const yearGroups = {};
+        allTopics.forEach(t => {
+          const y = t.year || currentYear;
+          if (!yearGroups[y]) yearGroups[y] = [];
+          yearGroups[y].push(t);
+        });
+        const sortedYears = Object.keys(yearGroups).map(Number).sort((a, b) => b - a);
 
         // 五看配置
         const fiveViews = [
@@ -2345,9 +2826,9 @@
 
         const impactColor = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
         const impactLabel = { high: '高', medium: '中', low: '低' };
-        const statusClass = { insight: 'status-default', design: 'status-primary', review: 'status-warning', execution: 'status-primary', closed: 'status-success' };
-        const statusLabel = { insight: '洞察期', design: '设计期', review: '论证期', execution: '执行期', closed: '已结项' };
-        const typeLabel = { transformation: '转型', expansion: '拓展', innovation: '创新', efficiency: '提效', other: '其他' };
+        const statusClass = { insight: 'status-default', planning: 'status-primary', execution: 'status-warning', closed: 'status-success' };
+        const statusLabel = { insight: '洞察阶段', planning: '规划阶段', execution: '执行阶段', closed: '已闭环' };
+        const typeLabel = { breakthrough: '突破型', incremental: '增量型', maintenance: '维持型' };
         const priorityIcon = { 'P0': '🔴', 'P1': '🟡', 'P2': '🟢' };
 
         // 渲染五看卡片
@@ -2420,6 +2901,7 @@
 
         // Tab切换脚本 - 使用全局函数避免嵌套script
         window.switchInsightsTab = function(tabName) {
+          window._insightsActiveTab = tabName;
           const container = document.getElementById('insights-topics-container');
           if (!container) return;
           const tabs = container.querySelectorAll('.insights-tab');
@@ -2438,6 +2920,315 @@
           panels.forEach(p => p.style.display = p.id === 'panel-' + tabName ? 'block' : 'none');
         };
 
+        window.filterTopicsByYear = function(year) {
+          window._insightsSelectedYear = parseInt(year, 10);
+          window._insightsActiveTab = 'topics';
+          navigate('sp/insights-topics');
+        };
+
+        // ===== 专题 CRUD 全局函数 =====
+
+        // 当前编辑/查看的专题ID
+        window._topicEditId = null;
+
+        // 加载专题数据
+        function loadTopics() {
+          try {
+            const data = localStorage.getItem(STORAGE_KEY_TOPICS);
+            if (data) return JSON.parse(data);
+          } catch(e) {}
+          return [];
+        }
+
+        // 保存专题数据
+        function saveTopics(topics) {
+          localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(topics));
+        }
+
+        // 获取未删除的专题
+        function getActiveTopics() {
+          return loadTopics().filter(t => !t.deleted);
+        }
+
+        // 查看专题详情
+        window.viewTopicDetail = function(topicId) {
+          const topics = getActiveTopics();
+          const topic = topics.find(t => t.id === topicId);
+          if (!topic) return;
+
+          const typeLabel = { breakthrough: '突破型', incremental: '增量型', maintenance: '维持型' };
+        const statusClass = { insight: 'status-default', planning: 'status-primary', execution: 'status-warning', closed: 'status-success' };
+        const statusLabel = { insight: '洞察阶段', planning: '规划阶段', execution: '执行阶段', closed: '已闭环' };
+
+          const milestonesHtml = (topic.milestones || []).map((m, idx) => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light);${idx === (topic.milestones || []).length - 1 ? 'border-bottom:none;' : ''}">
+              <span style="font-size:16px;">${m.completed ? '✅' : '○'}</span>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:500;">${m.title}</div>
+                <div style="font-size:12px;color:var(--text-tertiary);">${m.date || '未设定日期'}</div>
+              </div>
+              <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:${m.completed ? 'var(--success-bg)' : 'var(--bg-page)'};color:${m.completed ? 'var(--success)' : 'var(--text-secondary)'};">${m.completed ? '已完成' : '待办'}</span>
+            </div>
+          `).join('') || '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:13px;">暂无里程碑</div>';
+
+          const insightsData = loadInsights();
+          const linkedInsightsHtml = (topic.insights || []).map(insightId => {
+            const ins = insightsData.find(i => i.id === insightId);
+            if (!ins) return '';
+            return `<div style="padding:8px 12px;border-radius:6px;background:var(--bg-page);margin-bottom:6px;font-size:13px;"><strong>${ins.source}</strong>: ${ins.title}</div>`;
+          }).join('') || '<div style="padding:12px;text-align:center;color:var(--text-tertiary);font-size:13px;">未关联洞察</div>';
+
+          const overlay = document.createElement('div');
+          overlay.id = 'topic-detail-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+          overlay.innerHTML = `
+            <div id="topic-detail-modal" style="background:var(--bg-card);border-radius:12px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border-color);">
+                <h2 style="margin:0;font-size:18px;">专题详情</h2>
+                <button onclick="document.getElementById('topic-detail-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">×</button>
+              </div>
+              <div style="padding:24px;">
+                <div style="font-size:20px;font-weight:700;margin-bottom:4px;">${topic.name}</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">${topic.year}年 · ${typeLabel[topic.type] || topic.type} · ${priorityIcon[topic.priority]} ${topic.priority}</div>
+
+                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:16px;margin-bottom:20px;">
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人</div><div style="font-size:14px;font-weight:500;">${topic.owner}</div></div>
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度</div><div style="font-size:14px;font-weight:500;">${topic.dimension}</div></div>
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">阶段</div><div style="font-size:14px;font-weight:500;">${statusLabel[topic.status] || topic.status}</div></div>
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度</div><div style="font-size:14px;font-weight:500;">${topic.progress}%</div></div>
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">预算</div><div style="font-size:14px;font-weight:500;">${topic.budget || '未设定'}</div></div>
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">实际成本</div><div style="font-size:14px;font-weight:500;">${topic.actualCost || '未记录'}</div></div>
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</div><div style="font-size:14px;font-weight:500;">${topic.startDate}</div></div>
+                  <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">结束日期</div><div style="font-size:14px;font-weight:500;">${topic.endDate}</div></div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                  <div style="font-size:14px;font-weight:600;margin-bottom:10px;">📌 里程碑</div>
+                  <div style="border:1px solid var(--border-light);border-radius:8px;padding:0 12px;">${milestonesHtml}</div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                  <div style="font-size:14px;font-weight:600;margin-bottom:10px;">🔗 关联洞察</div>
+                  <div>${linkedInsightsHtml}</div>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border-color);">
+                  <button class="btn btn-secondary" onclick="document.getElementById('topic-detail-overlay').remove()">关闭</button>
+                  <button class="btn btn-primary" onclick="document.getElementById('topic-detail-overlay').remove(); window.openTopicEdit('${topic.id}')">编辑</button>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        };
+
+        // 打开编辑弹窗
+        window.openTopicEdit = function(topicId) {
+          const topics = getActiveTopics();
+          const topic = topics.find(t => t.id === topicId);
+          if (!topic) return;
+          window._topicEditId = topicId;
+
+          const insightsData = loadInsights();
+          const typeOptions = [['breakthrough','突破型'],['incremental','增量型'],['maintenance','维持型']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
+          const priorityOptions = [['P0','🔴 P0 - 最高'],['P1','🟡 P1 - 高'],['P2','🟢 P2 - 中']].map(([v,l]) => `<option value="${v}" ${topic.priority === v ? 'selected' : ''}>${l}</option>`).join('');
+          const statusOptions = [['insight','洞察阶段'],['planning','规划阶段'],['execution','执行阶段'],['closed','已闭环']].map(([v,l]) => `<option value="${v}" ${topic.status === v ? 'selected' : ''}>${l}</option>`).join('');
+
+          const milestoneRows = (topic.milestones || []).map((m, idx) => `
+            <div class="milestone-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+              <input type="checkbox" class="ms-completed" ${m.completed ? 'checked' : ''} style="width:16px;height:16px;">
+              <input type="text" class="ms-title" value="${m.title}" placeholder="里程碑标题" style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+              <input type="date" class="ms-date" value="${m.date || ''}" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+              <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;">×</button>
+            </div>
+          `).join('') || '';
+
+          const insightOptions = insightsData.map(i => `<option value="${i.id}" ${(topic.insights || []).includes(i.id) ? 'selected' : ''}>${i.source}: ${i.title}</option>`).join('');
+
+          const overlay = document.createElement('div');
+          overlay.id = 'topic-edit-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+          overlay.innerHTML = `
+            <div id="topic-edit-modal" style="background:var(--bg-card);border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border-color);">
+                <h2 style="margin:0;font-size:18px;">编辑专题</h2>
+                <button onclick="document.getElementById('topic-edit-overlay').remove(); window._topicEditId = null;" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">×</button>
+              </div>
+              <div style="padding:24px;">
+                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:16px;margin-bottom:16px;">
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">专题名称</label>
+                    <input type="text" id="edit-topic-name" value="${topic.name}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人</label>
+                    <input type="text" id="edit-topic-owner" value="${topic.owner}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度</label>
+                    <input type="text" id="edit-topic-dimension" value="${topic.dimension}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型</label>
+                    <select id="edit-topic-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${typeOptions}</select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">优先级</label>
+                    <select id="edit-topic-priority" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${priorityOptions}</select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">阶段</label>
+                    <select id="edit-topic-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${statusOptions}</select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label>
+                    <input type="date" id="edit-topic-startDate" value="${topic.startDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">结束日期</label>
+                    <input type="date" id="edit-topic-endDate" value="${topic.endDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">预算</label>
+                    <input type="text" id="edit-topic-budget" value="${topic.budget || ''}" placeholder="例如: 50万" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度 (%)</label>
+                    <input type="number" id="edit-topic-progress" value="${topic.progress}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">年份 (不可修改)</label>
+                  <input type="text" value="${topic.year}年" disabled style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-page);color:var(--text-tertiary);cursor:not-allowed;">
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-tertiary);">📌 里程碑</label>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="window.addMilestoneRow()">+ 添加里程碑</button>
+                  </div>
+                  <div id="edit-topic-milestones">${milestoneRows}</div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">🔗 关联洞察 (多选)</label>
+                  <select id="edit-topic-insights" multiple style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);min-height:80px;">${insightOptions}</select>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border-color);">
+                  <button class="btn btn-secondary" onclick="document.getElementById('topic-edit-overlay').remove(); window._topicEditId = null;">取消</button>
+                  <button class="btn btn-primary" onclick="window.saveTopicEdit()">保存</button>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); window._topicEditId = null; } });
+        };
+
+        // 删除里程碑（inline 调用，此处为测试兼容声明）
+        window.removeMilestone = function(rowEl) { if(rowEl) rowEl.remove(); };
+
+        // 添加里程碑行
+        window.addMilestoneRow = function() {
+          const container = document.getElementById('edit-topic-milestones');
+          if (!container) return;
+          const row = document.createElement('div');
+          row.className = 'milestone-row';
+          row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+          row.innerHTML = `
+            <input type="checkbox" class="ms-completed" style="width:16px;height:16px;">
+            <input type="text" class="ms-title" placeholder="里程碑标题" style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+            <input type="date" class="ms-date" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+            <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;">×</button>
+          `;
+          container.appendChild(row);
+        };
+
+        // 保存编辑
+        window.saveTopicEdit = function() {
+          const topicId = window._topicEditId;
+          if (!topicId) return;
+          const topics = loadTopics();
+          const idx = topics.findIndex(t => t.id === topicId);
+          if (idx === -1) return;
+
+          // 收集里程碑
+          const milestoneRows = document.querySelectorAll('#edit-topic-milestones .milestone-row');
+          const milestones = Array.from(milestoneRows).map(row => ({
+            title: row.querySelector('.ms-title').value.trim(),
+            date: row.querySelector('.ms-date').value,
+            completed: row.querySelector('.ms-completed').checked
+          })).filter(m => m.title);
+
+          // 收集关联洞察
+          const insightSelect = document.getElementById('edit-topic-insights');
+          const selectedInsights = insightSelect ? Array.from(insightSelect.selectedOptions).map(o => o.value) : [];
+
+          topics[idx] = {
+            ...topics[idx],
+            name: document.getElementById('edit-topic-name').value.trim() || topics[idx].name,
+            dimension: document.getElementById('edit-topic-dimension').value.trim() || topics[idx].dimension,
+            type: document.getElementById('edit-topic-type').value,
+            priority: document.getElementById('edit-topic-priority').value,
+            owner: document.getElementById('edit-topic-owner').value.trim() || topics[idx].owner,
+            status: document.getElementById('edit-topic-status').value,
+            startDate: document.getElementById('edit-topic-startDate').value,
+            endDate: document.getElementById('edit-topic-endDate').value,
+            budget: document.getElementById('edit-topic-budget').value.trim(),
+            progress: parseInt(document.getElementById('edit-topic-progress').value, 10) || 0,
+            milestones: milestones,
+            insights: selectedInsights,
+            updatedAt: new Date().toISOString().slice(0, 10)
+          };
+
+          saveTopics(topics);
+          window._topicEditId = null;
+          const overlay = document.getElementById('topic-edit-overlay');
+          if (overlay) overlay.remove();
+          navigate('sp/insights-topics');
+        };
+
+        // 删除确认
+        window.confirmDeleteTopic = function(topicId) {
+          const topics = getActiveTopics();
+          const topic = topics.find(t => t.id === topicId);
+          if (!topic) return;
+
+          const overlay = document.createElement('div');
+          overlay.id = 'delete-confirm-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+          overlay.innerHTML = `
+            <div id="delete-confirm-modal" style="background:var(--bg-card);border-radius:12px;max-width:400px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+              <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+              <h3 style="margin:0 0 8px;font-size:18px;">确认删除专题?</h3>
+              <p style="margin:0 0 20px;font-size:14px;color:var(--text-secondary);">「${topic.name}」将被标记为已删除，数据保留但不再显示。</p>
+              <div style="display:flex;gap:10px;justify-content:center;">
+                <button class="btn btn-secondary" onclick="document.getElementById('delete-confirm-overlay').remove()">取消</button>
+                <button class="btn btn-danger" onclick="window.executeDeleteTopic('${topicId}')">确认删除</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        };
+
+        // 执行软删除
+        window.executeDeleteTopic = function(topicId) {
+          const topics = loadTopics();
+          const idx = topics.findIndex(t => t.id === topicId);
+          if (idx > -1) {
+            topics[idx].deleted = true;
+            topics[idx].updatedAt = new Date().toISOString().slice(0, 10);
+            saveTopics(topics);
+          }
+          const overlay = document.getElementById('delete-confirm-overlay');
+          if (overlay) overlay.remove();
+          navigate('sp/insights-topics');
+        };
+
         const tabScript = '';
 
         return `
@@ -2452,13 +3243,13 @@
           <div id="insights-topics-container">
             <!-- Tab导航 -->
             <div style="display:flex;gap:0;border-bottom:1px solid var(--border-color);margin-bottom:20px;">
-              <button class="insights-tab" data-tab="insights" onclick="switchInsightsTab('insights')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);font-weight:600;cursor:pointer;font-size:14px;">🔭 洞察视图</button>
-              <button class="insights-tab" data-tab="topics" onclick="switchInsightsTab('topics')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-secondary);cursor:pointer;font-size:14px;">📋 专题列表</button>
-              <button class="insights-tab" data-tab="knowledge" onclick="switchInsightsTab('knowledge')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-secondary);cursor:pointer;font-size:14px;">📚 知识沉淀</button>
+              <button class="insights-tab" data-tab="insights" onclick="switchInsightsTab('insights')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid ${window._insightsActiveTab === 'topics' || window._insightsActiveTab === 'knowledge' ? 'transparent' : 'var(--primary)'};color:${window._insightsActiveTab === 'topics' || window._insightsActiveTab === 'knowledge' ? 'var(--text-secondary)' : 'var(--primary)'};font-weight:${window._insightsActiveTab === 'topics' || window._insightsActiveTab === 'knowledge' ? '500' : '600'};cursor:pointer;font-size:14px;">🔭 洞察视图</button>
+              <button class="insights-tab" data-tab="topics" onclick="switchInsightsTab('topics')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid ${window._insightsActiveTab === 'topics' ? 'var(--primary)' : 'transparent'};color:${window._insightsActiveTab === 'topics' ? 'var(--primary)' : 'var(--text-secondary)'};font-weight:${window._insightsActiveTab === 'topics' ? '600' : '500'};cursor:pointer;font-size:14px;">📋 专题列表</button>
+              <button class="insights-tab" data-tab="knowledge" onclick="switchInsightsTab('knowledge')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid ${window._insightsActiveTab === 'knowledge' ? 'var(--primary)' : 'transparent'};color:${window._insightsActiveTab === 'knowledge' ? 'var(--primary)' : 'var(--text-secondary)'};font-weight:${window._insightsActiveTab === 'knowledge' ? '600' : '500'};cursor:pointer;font-size:14px;">📚 知识沉淀</button>
             </div>
 
             <!-- 洞察视图 -->
-            <div id="panel-insights" class="insights-panel" style="display:block;">
+            <div id="panel-insights" class="insights-panel" style="display:${window._insightsActiveTab === 'topics' || window._insightsActiveTab === 'knowledge' ? 'none' : 'block'};">
               <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:12px;margin-bottom:20px;">
                 ${fiveViewsHtml}
               </div>
@@ -2473,7 +3264,20 @@
             </div>
 
             <!-- 专题列表 -->
-            <div id="panel-topics" class="insights-panel" style="display:none;">
+            <div id="panel-topics" class="insights-panel" style="display:${window._insightsActiveTab === 'topics' ? 'block' : 'none'};">
+              <!-- 年份选择器 -->
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:13px;color:var(--text-secondary);font-weight:500;">年份:</span>
+                  <select id="year-selector" class="year-selector" onchange="filterTopicsByYear(this.value)" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+                    ${sortedYears.map(y => `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}年</option>`).join('')}
+                    <option value="${currentYear + 1}">${currentYear + 1}年</option>
+                  </select>
+                  <span style="font-size:12px;color:var(--text-tertiary);">共 ${allTopics.length} 个专题</span>
+                </div>
+                <button class="btn btn-primary" id="btn-new-topic" style="padding:6px 16px;font-size:13px;">+ 新建专题</button>
+              </div>
+
               <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
                 <div class="kpi-card">
                   <div class="kpi-label">进行中</div>
@@ -2497,22 +3301,53 @@
                 </div>
               </div>
 
-              <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                  <h3 style="margin:0;font-size:16px;">战略专题</h3>
-                  <button class="btn btn-primary" id="btn-new-topic" style="padding:6px 16px;font-size:13px;">+ 新建专题</button>
-                </div>
-                <table class="data-table">
-                  <thead>
-                    <tr><th>专题名称</th><th>战略维度</th><th>类型</th><th>优先级</th><th>负责人</th><th>阶段</th><th>进度</th><th>更新</th><th>操作</th></tr>
-                  </thead>
-                  <tbody>${topicRows || '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
-                </table>
-              </div>
+              <!-- 按年份分组展示 -->
+              ${sortedYears.map(year => {
+                const yearTopics = yearGroups[year];
+                const yearActive = yearTopics.filter(t => t.status !== 'closed' && t.status !== 'insight').length;
+                const yearCompleted = yearTopics.filter(t => t.status === 'closed').length;
+                const yearRows = yearTopics.map(t => `
+                  <tr data-topic-id="${t.id}" data-year="${t.year}">
+                    <td><strong>${t.name}</strong></td>
+                    <td><span style="padding:2px 8px;border-radius:4px;background:var(--bg-page);font-size:12px;">${t.dimension}</span></td>
+                    <td>${typeLabel[t.type]}</td>
+                    <td>${priorityIcon[t.priority]} ${t.priority}</td>
+                    <td>${t.owner}</td>
+                    <td><span class="status-badge ${statusClass[t.status]}">${statusLabel[t.status]}</span></td>
+                    <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${t.progress < 50 && t.progress > 0 ? 'warning' : ''}" style="width:${t.progress}%"></div></div><span style="font-size:12px">${t.progress}%</span></div></td>
+                    <td style="font-size:12px;color:var(--text-tertiary)">${t.updatedAt}</td>
+                    <td>
+                      <button class="btn btn-sm btn-secondary view-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">查看</button>
+                      <button class="btn btn-sm btn-primary edit-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">编辑</button>
+                      <button class="btn btn-sm btn-danger delete-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">删除</button>
+                    </td>
+                  </tr>
+                `).join('');
+                return `
+                  <div class="card" style="margin-bottom:16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border-color);">
+                      <div style="display:flex;align-items:center;gap:10px;">
+                        <h3 style="margin:0;font-size:16px;">${year}年专题</h3>
+                        <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--primary);color:#fff;">${yearTopics.length}个</span>
+                      </div>
+                      <div style="display:flex;gap:12px;font-size:12px;color:var(--text-secondary);">
+                        <span>进行中: ${yearActive}</span>
+                        <span>已完成: ${yearCompleted}</span>
+                      </div>
+                    </div>
+                    <table class="data-table">
+                      <thead>
+                        <tr><th>专题名称</th><th>战略维度</th><th>类型</th><th>优先级</th><th>负责人</th><th>阶段</th><th>进度</th><th>更新</th><th>操作</th></tr>
+                      </thead>
+                      <tbody>${yearRows || '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
+                    </table>
+                  </div>
+                `;
+              }).join('')}
             </div>
 
             <!-- 知识沉淀 -->
-            <div id="panel-knowledge" class="insights-panel" style="display:none;">
+            <div id="panel-knowledge" class="insights-panel" style="display:${window._insightsActiveTab === 'knowledge' ? 'block' : 'none'};">
               <div class="card">
                 <div style="text-align:center;padding:60px;color:var(--text-tertiary);">
                   <div style="font-size:48px;margin-bottom:16px;">📚</div>
@@ -2764,7 +3599,7 @@
               changes: [
                 { type: 'Added', desc: 'iframe 嵌入模式（?embed=1）+ 自适应高度' },
                 { type: 'Added', desc: '通用嵌入架构：main.css 统一管理' },
-                { type: 'Added', desc: 'FineReport 弹窗模式（跨域 interim 方案）' },
+                { type: 'Added', desc: '报表中心：独立报表目录页面（开口设计）' },
                 { type: 'Fixed', desc: 'shell.css 404 导致导航栏错乱' }
               ]
             },
@@ -2881,13 +3716,13 @@
         const moduleStatusColor = { 'done': 'var(--success)', 'doing': 'var(--primary)', 'todo': 'var(--border-color)' };
         const moduleStatusLabel = { 'done': '已达成', 'doing': '攻坚中', 'todo': '战略必争' };
 
-        // ① 时间线轴
+        // ① 时间线轴（最新版本在左，向右递减）
         const timelineItems = roadmapData.versions.map((v, i) => {
           const color = v.status === 'released' ? 'var(--success)' : 'var(--warning)';
           const pulse = v.status === 'released' ? '' : 'animation: pulse 2s infinite;';
           const keyChanges = v.changes.slice(0, 2).map(c => `<span style="padding: 1px 6px; border-radius: 3px; font-size: 10px; background: ${typeColors[c.type]}18; color: ${typeColors[c.type]};">${c.desc.substring(0, 8)}${c.desc.length > 8 ? '...' : ''}</span>`).join('');
           return `
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 120px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" data-scroll-to="version-${v.version}" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+            <div class="timeline-node" style="display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 100px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" data-scroll-to="version-${v.version}" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
               <div style="width: 14px; height: 14px; border-radius: 50%; background: ${color}; box-shadow: 0 0 0 4px ${color}33; ${pulse}"></div>
               <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${v.version}</div>
               <div style="font-size: 11px; color: var(--text-tertiary);">${v.date}</div>
@@ -2901,7 +3736,7 @@
           if (i === timelineItems.length - 1) return item;
           const connectorColor = roadmapData.versions[i].status === 'released' ? 'var(--success)' : 'var(--border-color)';
           const connectorStyle = roadmapData.versions[i].status === 'released' ? 'solid' : 'dashed';
-          return item + `<div style="flex: 1; height: 2px; background: ${connectorColor}; margin-top: 6px; min-width: 40px; border-top: 2px ${connectorStyle} ${connectorColor};"></div>`;
+          return item + `<div style="flex: 1; height: 2px; background: ${connectorColor}; margin-top: 6px; min-width: 30px; border-top: 2px ${connectorStyle} ${connectorColor};"></div>`;
         }).join('');
 
         // 里程碑节点
@@ -3005,7 +3840,7 @@
 
           <!-- ① 时间线轴 -->
           <div class="card" style="margin-bottom: 16px; padding: 24px;">
-            <div style="display: flex; align-items: flex-start; justify-content: flex-start; gap: 0; overflow-x: auto; padding-bottom: 8px;">
+            <div id="dev-timeline" style="display: flex; align-items: flex-start; justify-content: flex-start; gap: 0; overflow-x: auto; padding-bottom: 8px;">
               ${timelineNodes}
               <div style="flex: 1; height: 2px; border-top: 2px dashed var(--border-color); margin-top: 6px; min-width: 40px;"></div>
               ${milestoneNode}
@@ -3122,6 +3957,10 @@
             @keyframes pulse {
               0%, 100% { box-shadow: 0 0 0 4px rgba(250,173,20,0.2); }
               50% { box-shadow: 0 0 0 8px rgba(250,173,20,0.05); }
+            }
+            @keyframes pulse-dot {
+              0%, 100% { box-shadow: 0 0 0 2px rgba(24,144,255,0.25); }
+              50% { box-shadow: 0 0 0 6px rgba(24,144,255,0.08); }
             }
           </style>
         `;
