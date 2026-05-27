@@ -17,26 +17,35 @@
 
 ---
 
-## [v0.4.0] - 2026-05-26
+## [v0.4.0] - 2026-05-27
 
-### Security
-- **事件委托改造**：移除 business-topics.html 中全部 79 个内联事件属性（onclick/onchange/oninput/onsubmit/ondrop/ondragover/ondragleave），改为统一的事件委托处理器
-- 消除 XSS 注入风险点，彻底摆脱对内联 `onclick` 的依赖
+### Added
+- **战略洞察与专题整合页面** (`sp/insights-topics`)：
+  - 战略洞察数据看板：市场趋势、竞争格局、内部能力评估
+  - 业务专题管理：专题 CRUD（查看/编辑/软删除）、ST/AT 议题关联
+  - AI 智能匹配：议题自动分类、关联推荐、全局分析报告
+- **经营分析会模块重构** (`exe/meetings`)：
+  - 会议列表卡片增强：议题数、决议数、材料审核状态、议题标签云
+  - 决议跟踪面板：编号、内容、负责人、截止日期、可视化进度条
+  - 日历视图：月度/季度切换、会议日期高亮、快捷跳转
+- **iframe 嵌入模式**（v0.3.5 功能纳入）：`?embed=1` 参数支持，自适应高度
 
 ### Changed
-- **CSS 抽离**：内联 1500 行样式迁移至 `src/pages/business-topics/style.css`，HTML 仅保留结构
-- **JS 模块化拆分**：内联 2614 行脚本按功能拆分为 4 个 ES 模块：
-  - `main.js`（1420 行）：核心逻辑（数据层、渲染、表单、筛选排序、事件委托、初始化）
-  - `issue-import.js`（360 行）：ST/AT 议题导入（CSV/Excel 解析、拖拽上传、数据校验）
-  - `ai-analysis.js`（740 行）：AI 智能匹配与全局分析报告
-  - `topic-issues.js`（141 行）：议题关联管理
-- `business-topics.html` 从 4326 行降至约 500 行（-88%），可维护性显著提升
-- Vite 自动打包 JS 模块为独立 chunk，首屏加载优化
+- **全局响应式自适应性改造**：
+  - Shell 框架级：4 断点体系（1280/1024/768/480px），汉堡菜单 + 遮罩层
+  - 页面级响应式：cockpit.html / reviewer.html / business-topics.html 全部适配
+  - 导航栏响应式优化：1024px 以下隐藏长标签，标题简化
+- **统一页面切换过渡效果**：所有页面共享 shell.css fadeIn 动画，消除切换跳变
+- **CSS 抽离**：business-topics 内联样式迁移至独立 style.css
+
+### Fixed
+- Road Map 时间线显示顺序修复：v0.3.5 默认可见
+- business-topics 事件委托容器修复
 
 ### Engineering
-- ESLint `max-lines` 警告消除（原 4326 行超标 → 最大模块 1420 行）
-- 测试更新：pytest 基线测试适配模块化结构（54 个全部通过）
-- Playwright E2E 测试全部通过（8 个）
+- 新增 Playwright E2E 测试（95 个全部通过）
+- reviewer.html 引用 shell.css，删除 100+ 行重复 CSS
+- Vite 构建配置：自动复制 shell.css 到 dist
 
 ---
 

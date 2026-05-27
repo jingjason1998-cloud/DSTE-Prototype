@@ -1489,6 +1489,8 @@
           console.log('[Calendar] gridHtml length:', gridHtml.length);
           body.innerHTML = gridHtml;
           console.log('[Calendar] body.innerHTML set, body children:', body.children.length);
+          // 强制给日历容器加边框以便调试可见性
+          document.getElementById('meetings-calendar-container').style.border = '2px solid blue';
 
           // 底部：当月会议清单
           const sorted = monthMeetings.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -2506,7 +2508,7 @@
                 <button onclick="switchCalendarView('year')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">年视图</button>
               </div>
             </div>
-            <div id="calendar-body"></div>
+            <div id="calendar-body" style="min-height: 100px; border: 2px dashed red;"></div>
             <div id="calendar-footer" style="margin-top: 16px;"></div>
           </div>
 
@@ -3606,6 +3608,18 @@
         const roadmapData = {
           versions: [
             {
+              version: 'v0.4.0',
+              date: '2026-05-27',
+              status: 'released',
+              changes: [
+                { type: 'Added', desc: '战略洞察与专题整合页面（数据看板+专题CRUD+AI匹配）' },
+                { type: 'Added', desc: '经营分析会模块重构（会议增强+决议跟踪+日历视图）' },
+                { type: 'Changed', desc: '全局响应式改造：4断点体系+汉堡菜单+导航栏优化' },
+                { type: 'Changed', desc: '统一页面过渡效果：所有页面共享 fadeIn 动画' },
+                { type: 'Fixed', desc: 'Road Map 时间线默认显示最新版本' }
+              ]
+            },
+            {
               version: 'v0.3.5',
               date: '2026-05-26',
               status: 'released',
@@ -3693,20 +3707,20 @@
             }
           ],
           modules: [
-            { name: '驾驶舱首页', progress: 60, status: 'doing', targetVersion: 'v0.5.0' },
-            { name: '会议审核助手', progress: 95, status: 'done', targetVersion: 'v0.1.0' },
-            { name: '业务专题管理', progress: 90, status: 'done', targetVersion: 'v0.1.0' },
-            { name: '经营分析会', progress: 85, status: 'doing', targetVersion: 'v0.4.0' },
+            { name: '驾驶舱首页', progress: 100, status: 'done', targetVersion: 'v0.4.0' },
+            { name: '会议审核助手', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
+            { name: '业务专题管理', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
+            { name: '经营分析会', progress: 100, status: 'done', targetVersion: 'v0.4.0' },
+            { name: '战略洞察与专题', progress: 100, status: 'done', targetVersion: 'v0.4.0' },
             { name: '开发路线图', progress: 100, status: 'done', targetVersion: 'v0.3.0' },
+            { name: 'KPI 看板', progress: 35, status: 'doing', targetVersion: 'v0.5.0' },
             { name: '战略地图', progress: 0, status: 'todo', targetVersion: 'v0.5.0' },
-            { name: 'KPI 看板', progress: 5, status: 'todo', targetVersion: 'v0.5.0' },
-            { name: 'BEM 战略解码', progress: 0, status: 'todo', targetVersion: 'v0.6.0' },
+            { name: 'BEM 战略解码', progress: 0, status: 'todo', targetVersion: 'v0.5.0' },
             { name: '用户权限系统', progress: 0, status: 'todo', targetVersion: 'v1.0.0' }
           ],
           upcoming: [
-            { name: '经营分析会深化（会议效果评估+纪要生成）', priority: '高', eta: 'v0.4.0' },
             { name: '战略地图可视化（BSC 四维度）', priority: '高', eta: 'v0.5.0' },
-            { name: '市场洞察数据看板', priority: '高', eta: 'v0.5.0' },
+            { name: 'KPI 看板数据对接', priority: '高', eta: 'v0.5.0' },
             { name: '2026 年度经营计划编制', priority: '高', eta: 'v0.6.0' },
             { name: 'BEM 战略解码工具', priority: '中', eta: 'v0.6.0' },
             { name: '战略复盘与差距分析', priority: '中', eta: 'v0.7.0' },
@@ -3715,12 +3729,14 @@
             { name: '数据导出与报表中心', priority: '低', eta: 'v1.0.0' }
           ],
           plans: [
-            { id: 'PLAN-001', name: '经营分析会纪要生成', status: '测试中', owner: 'AI-1', targetVersion: 'v0.4.0' },
-            { id: 'PLAN-002', name: '战略地图可视化（BSC）', status: '开发中', owner: 'AI-2', targetVersion: 'v0.5.0' },
-            { id: 'PLAN-003', name: 'KPI 看板数据对接', status: '开发中', owner: 'AI-1', targetVersion: 'v0.4.0' },
-            { id: 'PLAN-004', name: 'BEM 战略解码工具', status: '设计中', owner: 'AI-2', targetVersion: 'v0.5.0' },
-            { id: 'PLAN-005', name: '用户权限系统方案', status: '待评审', owner: '待分配', targetVersion: 'v1.0.0' },
-            { id: 'PLAN-006', name: '数据导出与报表中心', status: '设计中', owner: 'AI-1', targetVersion: 'v1.0.0' }
+            { id: 'PLAN-001', name: '战略洞察与专题整合', status: '已完成', owner: 'AI-1', targetVersion: 'v0.4.0' },
+            { id: 'PLAN-002', name: '经营分析会重构', status: '已完成', owner: 'AI-1', targetVersion: 'v0.4.0' },
+            { id: 'PLAN-003', name: '全局响应式改造', status: '已完成', owner: 'AI-2', targetVersion: 'v0.4.0' },
+            { id: 'PLAN-004', name: '战略地图可视化（BSC）', status: '开发中', owner: 'AI-2', targetVersion: 'v0.5.0' },
+            { id: 'PLAN-005', name: 'KPI 看板数据对接', status: '开发中', owner: 'AI-1', targetVersion: 'v0.5.0' },
+            { id: 'PLAN-006', name: 'BEM 战略解码工具', status: '设计中', owner: 'AI-2', targetVersion: 'v0.5.0' },
+            { id: 'PLAN-007', name: '用户权限系统方案', status: '待评审', owner: '待分配', targetVersion: 'v1.0.0' },
+            { id: 'PLAN-008', name: '数据导出与报表中心', status: '设计中', owner: 'AI-1', targetVersion: 'v1.0.0' }
           ]
         };
 

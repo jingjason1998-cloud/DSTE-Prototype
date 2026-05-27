@@ -1,6 +1,48 @@
 {
   "versions": [
     {
+      "version": "v0.4.0",
+      "date": "2026-05-27",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "**战略洞察与专题整合页面**：战略洞察数据看板 + 业务专题 CRUD + AI 智能匹配"
+        },
+        {
+          "type": "新增",
+          "desc": "**经营分析会模块重构**：会议列表增强 + 决议跟踪 + 日历视图"
+        },
+        {
+          "type": "变更",
+          "desc": "**全局响应式改造**：4 断点体系 + 汉堡菜单 + 导航栏优化"
+        },
+        {
+          "type": "变更",
+          "desc": "**统一页面过渡效果**：所有页面共享 fadeIn 动画"
+        },
+        {
+          "type": "修复",
+          "desc": "Road Map 时间线默认显示最新版本"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.5",
+      "date": "2026-05-26",
+      "status": "released",
+      "changes": [
+        {
+          "type": "新增",
+          "desc": "iframe 嵌入模式（?embed=1）+ 自适应高度"
+        },
+        {
+          "type": "新增",
+          "desc": "通用嵌入架构：main.css 统一管理"
+        }
+      ]
+    },
+    {
       "version": "v0.3.4",
       "date": "2026-05-23",
       "status": "released",
@@ -90,8 +132,8 @@
   "modules": [
     {
       "name": "驾驶舱首页",
-      "progress": 85,
-      "status": "doing",
+      "progress": 100,
+      "status": "done",
       "targetVersion": "v0.4.0",
       "owner": "AI-1"
     },
@@ -113,7 +155,14 @@
       "name": "经营分析会",
       "progress": 100,
       "status": "done",
-      "targetVersion": "v0.2.0",
+      "targetVersion": "v0.4.0",
+      "owner": "AI-1"
+    },
+    {
+      "name": "战略洞察与专题",
+      "progress": 100,
+      "status": "done",
+      "targetVersion": "v0.4.0",
       "owner": "AI-1"
     },
     {
@@ -124,18 +173,18 @@
       "owner": "AI-2"
     },
     {
+      "name": "KPI 看板",
+      "progress": 35,
+      "status": "doing",
+      "targetVersion": "v0.5.0",
+      "owner": "AI-2"
+    },
+    {
       "name": "战略地图",
       "progress": 0,
       "status": "todo",
       "targetVersion": "v0.5.0",
       "owner": "待分配"
-    },
-    {
-      "name": "KPI 看板",
-      "progress": 35,
-      "status": "doing",
-      "targetVersion": "v0.4.0",
-      "owner": "AI-2"
     },
     {
       "name": "BEM 战略解码",

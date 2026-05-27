@@ -1241,6 +1241,7 @@ async function init() {
 // ===================== Event Delegation =====================
 function bindDelegatedEvents() {
     const container = document.body;
+    console.log('[bindDelegatedEvents] binding to body');
 
     container.addEventListener('click', handleDelegatedClick);
     container.addEventListener('change', handleDelegatedChange);
@@ -1266,6 +1267,7 @@ function bindDelegatedEvents() {
 
 function handleDelegatedClick(e) {
     const target = e.target;
+    console.log('[handleDelegatedClick] target:', target.tagName, target.className);
 
     // Stop propagation marker
     if (target.closest('[data-stop-propagation]')) {
@@ -1282,6 +1284,8 @@ function handleDelegatedClick(e) {
         if (actionEl.hasAttribute('data-stop-propagation')) {
             e.stopPropagation();
         }
+
+        console.log('[handleDelegatedClick] data-action:', action);
 
         switch (action) {
             case 'export-topics':
@@ -1353,6 +1357,7 @@ function handleDelegatedClick(e) {
     // data-tab (tab switching)
     const tabEl = target.closest('[data-tab]');
     if (tabEl) {
+        console.log('[handleDelegatedClick] data-tab:', tabEl.dataset.tab);
         switchTab(tabEl.dataset.tab);
         return;
     }
@@ -1360,6 +1365,7 @@ function handleDelegatedClick(e) {
     // data-modal-close
     const modalCloseEl = target.closest('[data-modal-close]');
     if (modalCloseEl) {
+        console.log('[handleDelegatedClick] data-modal-close:', modalCloseEl.dataset.modalClose);
         closeModal(modalCloseEl.dataset.modalClose);
         return;
     }
@@ -1367,6 +1373,7 @@ function handleDelegatedClick(e) {
     // data-modal-action
     const modalActionEl = target.closest('[data-modal-action]');
     if (modalActionEl) {
+        console.log('[handleDelegatedClick] data-modal-action:', modalActionEl.dataset.modalAction);
         switch (modalActionEl.dataset.modalAction) {
             case 'confirm-delete':
                 confirmDeleteTopic();
@@ -1386,6 +1393,7 @@ function handleDelegatedClick(e) {
     // data-ms-action (milestones)
     const msEl = target.closest('[data-ms-action]');
     if (msEl) {
+        console.log('[handleDelegatedClick] data-ms-action:', msEl.dataset.msAction);
         switch (msEl.dataset.msAction) {
             case 'add':
                 addMilestoneRow();
@@ -1429,6 +1437,8 @@ function handleDelegatedClick(e) {
         toggleSort(sortEl.dataset.sortField);
         return;
     }
+
+    console.log('[handleDelegatedClick] no handler matched');
 }
 
 function handleDelegatedChange(e) {
