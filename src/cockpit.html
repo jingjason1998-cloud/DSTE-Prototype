@@ -498,7 +498,7 @@
         const container = document.getElementById('sidebar');
 
         // 报表中心页面：侧边栏显示报表分类
-        if (currentPage === 'report-center') {
+        if (currentPage === 'exe/report-center') {
           container.classList.remove('collapsed');
           let html = '<div class="sidebar-group"><div class="sidebar-group-title">📊 报表分类</div>';
           REPORT_CATALOG.forEach((cat, ci) => {
@@ -632,14 +632,14 @@
         }
       };
 
-      function renderReportCenterUI() {
+      window.renderReportCenterUI = function() {
         // 重新渲染 sidebar（分类/报表高亮状态变了）
         renderSidebar(currentPhase);
 
         // 重新渲染页面内容（分类切换时右侧内容变化）
         const contentEl = document.getElementById('page-content');
-        if (contentEl && currentPage === 'report-center') {
-          contentEl.innerHTML = PAGES['report-center']();
+        if (contentEl && currentPage === 'exe/report-center') {
+          contentEl.innerHTML = PAGES['exe/report-center']();
         }
       }
 
@@ -1424,10 +1424,16 @@
         window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
 
         function renderCalendarMonth(year, month) {
+          console.log('[Calendar] renderCalendarMonth called:', year, month);
           const header = document.getElementById('calendar-header');
           const body = document.getElementById('calendar-body');
           const footer = document.getElementById('calendar-footer');
-          if (!header || !body || !footer) return;
+          console.log('[Calendar] DOM elements:', { header: !!header, body: !!body, footer: !!footer });
+          if (!header || !body || !footer) {
+            const container = document.getElementById('meetings-calendar-container');
+            if (container) container.innerHTML = '<div style="padding:20px;color:var(--danger)">日历渲染错误：DOM元素未找到</div>';
+            return;
+          }
 
           const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
           const monthMeetings = meetings.filter(m => m.date && m.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`));
@@ -1480,7 +1486,9 @@
             </div>`;
           }
           gridHtml += `</div>`;
+          console.log('[Calendar] gridHtml length:', gridHtml.length);
           body.innerHTML = gridHtml;
+          console.log('[Calendar] body.innerHTML set, body children:', body.children.length);
 
           // 底部：当月会议清单
           const sorted = monthMeetings.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -1606,19 +1614,24 @@
         };
 
         window.toggleMeetingsView = function() {
+          console.log('[Calendar] toggleMeetingsView called, current mode:', window._meetingsViewMode);
           const btn = document.getElementById('btn-toggle-view');
+          const listContainer = document.getElementById('meetings-list-container');
+          const calContainer = document.getElementById('meetings-calendar-container');
+          console.log('[Calendar] containers:', { list: !!listContainer, cal: !!calContainer });
           if (window._meetingsViewMode === 'calendar') {
             window._meetingsViewMode = 'list';
             if (btn) btn.textContent = '📅 日历视图';
-            document.getElementById('meetings-list-container').style.display = 'block';
-            document.getElementById('meetings-calendar-container').style.display = 'none';
+            if (listContainer) listContainer.style.display = 'block';
+            if (calContainer) calContainer.style.display = 'none';
           } else {
             window._meetingsViewMode = 'calendar';
             if (btn) btn.textContent = '📋 列表视图';
-            document.getElementById('meetings-list-container').style.display = 'none';
-            document.getElementById('meetings-calendar-container').style.display = 'block';
+            if (listContainer) listContainer.style.display = 'none';
+            if (calContainer) calContainer.style.display = 'block';
             // 渲染日历
             const state = window._calendarState;
+            console.log('[Calendar] rendering calendar, state:', state);
             if (state.view === 'month') {
               renderCalendarMonth(state.year, state.month);
             } else {
@@ -2320,6 +2333,7 @@
             </div>
           </div>
 
+          <div id="meetings-list-container">
           <!-- 价值主张横幅 -->
           <div style="padding: 14px 20px; background: linear-gradient(135deg, var(--primary) 0%, #1a6fc4 50%, #0d4a8a 100%); border-radius: 10px; box-shadow: 0 2px 10px rgba(13, 74, 138, 0.2); margin-bottom: 14px; position: relative; overflow: hidden;">
             <div style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between;">
@@ -2425,7 +2439,6 @@
           </div>
 
           <!-- 主体：列表视图 / 日历视图 -->
-          <div id="meetings-list-container">
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
               <div class="card">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">

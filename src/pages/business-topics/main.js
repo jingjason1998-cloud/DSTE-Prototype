@@ -1240,7 +1240,7 @@ async function init() {
 
 // ===================== Event Delegation =====================
 function bindDelegatedEvents() {
-    const container = document.querySelector('.page-container') || document.body;
+    const container = document.body;
 
     container.addEventListener('click', handleDelegatedClick);
     container.addEventListener('change', handleDelegatedChange);
