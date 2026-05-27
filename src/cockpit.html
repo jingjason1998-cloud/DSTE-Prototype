@@ -121,8 +121,7 @@
         sp: [
           { type: 'group', title: '战略制定 (SP)', items: [
             { id: 'sp/strategy-map', icon: '🗺️', label: '战略地图' },
-            { id: 'sp/strategy-topics', icon: '📋', label: '战略专题' },
-            { id: 'sp/market-insight', icon: '🔭', label: '市场洞察' }
+            { id: 'sp/insights-topics', icon: '🔭', label: '战略洞察与专题' }
           ]},
           { type: 'quick', label: '快捷工具' },
           { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
@@ -164,8 +163,7 @@
         'dashboard': renderDashboard,
         'dashboard/roadmap': renderDevTimeline,
         'sp/strategy-map': () => renderPlaceholder('🗺️ 战略地图', '可视化展示企业战略地图，基于平衡计分卡四维度构建战略目标体系。'),
-        'sp/strategy-topics': renderStrategyTopics,
-        'sp/market-insight': () => renderPlaceholder('🔭 市场洞察', '市场趋势分析、竞争情报收集，为战略制定提供数据支撑。'),
+        'sp/insights-topics': renderInsightsTopics,
         'bp/kpi': () => renderPlaceholder('📈 KPI 指标体系', '企业级指标库管理，支持多层级 KPI 分解、自动计算、预警提醒。'),
         'bp/bem': () => renderPlaceholder('🔧 BEM 战略解码', '基于 BEM 六步解码法，将战略转化为可执行的行动计划。'),
         'bp/annual-plan': () => renderPlaceholder('📅 年度经营计划', '年度经营目标分解、资源配置、预算编制与执行跟踪。'),
@@ -298,7 +296,7 @@
         // 更新标题
         const pageNames = {
           'dashboard': '驾驶舱',
-          'sp/strategy-map': '战略地图', 'sp/strategy-topics': '战略专题', 'sp/market-insight': '市场洞察',
+          'sp/strategy-map': '战略地图', 'sp/insights-topics': '战略洞察与专题',
           'bp/kpi': 'KPI 指标体系', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
           'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meetings/edit': '编辑会议', 'exe/meeting-review': '会议材料审核',
           'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
@@ -2283,76 +2281,249 @@
         `;
       }
 
-      // ===== 战略专题页面 =====
-      function renderStrategyTopics() {
-        const topics = [
-          { name: '海外市场拓展战略研究', dimension: '财务', owner: '陈总监', priority: '高', phase: '进行中', progress: 65, status: 'normal', updated: '2026-04-10' },
-          { name: '核心产品技术路线规划', dimension: '流程', owner: '王总监', priority: '高', phase: '进行中', progress: 40, status: 'warning', updated: '2026-04-08' },
-          { name: '客户成功体系重构', dimension: '客户', owner: '赵经理', priority: '中', phase: '未开始', progress: 0, status: 'default', updated: '2026-04-05' },
-          { name: '供应链韧性提升专项', dimension: '流程', owner: '张总监', priority: '高', phase: '进行中', progress: 80, status: 'success', updated: '2026-04-12' },
-          { name: '人才梯队与组织能力升级', dimension: '学习成长', owner: '李HRD', priority: '中', phase: '已完成', progress: 100, status: 'success', updated: '2026-03-28' },
-          { name: '数字化转型顶层规划', dimension: '流程', owner: '刘CTO', priority: '高', phase: '进行中', progress: 55, status: 'normal', updated: '2026-04-11' },
-          { name: '新兴市场渠道模式探索', dimension: '客户', owner: '孙经理', priority: '低', phase: '未开始', progress: 0, status: 'default', updated: '2026-04-01' },
-          { name: 'ESG 战略与可持续发展', dimension: '学习成长', owner: '周总监', priority: '中', phase: '已归档', progress: 100, status: 'archived', updated: '2026-02-15' }
-        ];
-        const priorityIcon = { '高': '🔴', '中': '🟡', '低': '🟢' };
-        const statusClass = { 'normal': 'status-primary', 'success': 'status-success', 'warning': 'status-warning', 'danger': 'status-danger', 'default': 'status-default', 'archived': 'status-archived' };
-        const statusLabel = { 'normal': '进行中', 'success': '已完成', 'warning': '有风险', 'danger': '已延期', 'default': '未开始', 'archived': '已归档' };
-        const phaseColor = { '未开始': 'var(--text-disabled)', '进行中': 'var(--primary)', '已完成': 'var(--success)', '已归档': 'var(--text-tertiary)' };
+      // ===== 战略洞察与专题（整合页面） =====
+      function renderInsightsTopics() {
+        // 数据层
+        const STORAGE_KEY_INSIGHTS = 'dste_insights_v1';
+        const STORAGE_KEY_TOPICS = 'dste_strategy_topics_v1';
+        const STORAGE_KEY_KNOWLEDGE = 'dste_knowledge_v1';
 
-        const rows = topics.map(t => `
-          <tr>
+        function loadInsights() {
+          try {
+            const data = localStorage.getItem(STORAGE_KEY_INSIGHTS);
+            if (data) return JSON.parse(data);
+          } catch(e) {}
+          return [
+            { id: 'ins_1', type: 'trend', title: '云原生技术成熟', content: 'Kubernetes生态已成熟，Service Mesh进入主流采用阶段', source: 'Gartner 2026', confidence: 90, impact: 'high', createdAt: '2026-05-20', linkedTopicId: null },
+            { id: 'ins_2', type: 'customer', title: '大客户定制化需求增长', content: 'Top20客户中60%提出深度定制需求', source: 'CRM数据分析', confidence: 85, impact: 'high', createdAt: '2026-05-18', linkedTopicId: null },
+            { id: 'ins_3', type: 'competitor', title: '竞品A推出低代码平台', content: '竞品A发布低代码BI产品，定价为我方60%', source: '市场调研', confidence: 80, impact: 'medium', createdAt: '2026-05-15', linkedTopicId: null },
+            { id: 'ins_4', type: 'self', title: '研发效能提升空间大', content: '需求交付周期平均45天，行业标杆为30天', source: '内部度量', confidence: 95, impact: 'high', createdAt: '2026-05-10', linkedTopicId: null },
+            { id: 'ins_5', type: 'opportunity', title: '东南亚市场窗口期', content: '印尼/越南数字化转型政策红利，本地化需求旺盛', source: '行业报告', confidence: 75, impact: 'high', createdAt: '2026-05-12', linkedTopicId: null }
+          ];
+        }
+
+        function saveInsights(insights) {
+          localStorage.setItem(STORAGE_KEY_INSIGHTS, JSON.stringify(insights));
+        }
+
+        function loadTopics() {
+          try {
+            const data = localStorage.getItem(STORAGE_KEY_TOPICS);
+            if (data) return JSON.parse(data);
+          } catch(e) {}
+          return [
+            { id: 'st_1', name: '海外市场拓展战略研究', type: 'expansion', dimension: '财务', priority: 'P0', status: 'execution', owner: '陈总监', startDate: '2026-01-01', endDate: '2026-12-31', progress: 65, budget: 500, actualCost: 200, milestones: [{id:'m1',name:'市场调研',date:'2026-03-01',status:'completed'},{id:'m2',name:'试点验证',date:'2026-06-01',status:'completed'},{id:'m3',name:'全面推广',date:'2026-09-01',status:'pending'},{id:'m4',name:'成果验收',date:'2026-12-01',status:'pending'}], insights: ['ins_5'], summary: '', createdAt: '2026-01-01', updatedAt: '2026-05-20' },
+            { id: 'st_2', name: '核心产品技术路线规划', type: 'transformation', dimension: '流程', priority: 'P0', status: 'design', owner: '王总监', startDate: '2026-03-01', endDate: '2026-09-30', progress: 40, budget: 300, actualCost: 80, milestones: [{id:'m1',name:'技术选型',date:'2026-04-01',status:'completed'},{id:'m2',name:'架构设计',date:'2026-05-15',status:'completed'},{id:'m3',name:'原型验证',date:'2026-07-01',status:'pending'}], insights: ['ins_1'], summary: '', createdAt: '2026-03-01', updatedAt: '2026-05-18' },
+            { id: 'st_3', name: '客户成功体系重构', type: 'innovation', dimension: '客户', priority: 'P1', status: 'insight', owner: '赵经理', startDate: '', endDate: '', progress: 0, budget: 0, actualCost: 0, milestones: [], insights: ['ins_2'], summary: '', createdAt: '2026-05-18', updatedAt: '2026-05-18' },
+            { id: 'st_4', name: '供应链韧性提升专项', type: 'efficiency', dimension: '流程', priority: 'P0', status: 'execution', owner: '张总监', startDate: '2026-02-01', endDate: '2026-08-31', progress: 80, budget: 200, actualCost: 150, milestones: [{id:'m1',name:'供应商评估',date:'2026-03-01',status:'completed'},{id:'m2',name:'备选方案',date:'2026-05-01',status:'completed'},{id:'m3',name:'切换实施',date:'2026-07-01',status:'pending'}], insights: [], summary: '', createdAt: '2026-02-01', updatedAt: '2026-05-15' },
+            { id: 'st_5', name: '人才梯队与组织能力升级', type: 'transformation', dimension: '学习成长', priority: 'P1', status: 'closed', owner: '李HRD', startDate: '2025-06-01', endDate: '2026-03-31', progress: 100, budget: 150, actualCost: 145, milestones: [{id:'m1',name:'能力模型',date:'2025-09-01',status:'completed'},{id:'m2',name:'培养体系',date:'2025-12-01',status:'completed'},{id:'m3',name:'评估验收',date:'2026-03-01',status:'completed'}], insights: [], summary: '完成全员能力评估，建立三级培养体系', createdAt: '2025-06-01', updatedAt: '2026-03-31' },
+            { id: 'st_6', name: '数字化转型顶层规划', type: 'transformation', dimension: '流程', priority: 'P0', status: 'review', owner: '刘CTO', startDate: '2026-01-01', endDate: '2026-10-31', progress: 55, budget: 800, actualCost: 350, milestones: [{id:'m1',name:'现状诊断',date:'2026-02-01',status:'completed'},{id:'m2',name:'蓝图设计',date:'2026-04-01',status:'completed'},{id:'m3',name:'方案评审',date:'2026-06-01',status:'pending'},{id:'m4',name:'分步实施',date:'2026-08-01',status:'pending'}], insights: ['ins_1','ins_4'], summary: '', createdAt: '2026-01-01', updatedAt: '2026-05-12' }
+          ];
+        }
+
+        function saveTopics(topics) {
+          localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(topics));
+        }
+
+        const insights = loadInsights();
+        const topics = loadTopics();
+
+        // 统计
+        const activeTopics = topics.filter(t => t.status !== 'closed' && t.status !== 'insight');
+        const completedTopics = topics.filter(t => t.status === 'closed');
+        const avgProgress = topics.length > 0 ? Math.round(topics.reduce((sum, t) => sum + t.progress, 0) / topics.length) : 0;
+        const highRiskTopics = topics.filter(t => t.progress < 50 && t.status === 'execution').length;
+
+        // 五看配置
+        const fiveViews = [
+          { type: 'trend', label: '看趋势', icon: '📈', color: '#1677FF', desc: '宏观环境、行业趋势' },
+          { type: 'customer', label: '看客户', icon: '👥', color: '#52C41A', desc: '客户需求、痛点、价值' },
+          { type: 'competitor', label: '看竞争', icon: '⚔️', color: '#FAAD14', desc: '竞争对手战略、能力' },
+          { type: 'self', label: '看自己', icon: '🔍', color: '#722ED1', desc: '内部能力、资源、差距' },
+          { type: 'opportunity', label: '看机会', icon: '💡', color: '#13C2C2', desc: '市场机会、战略机会点' }
+        ];
+
+        const impactColor = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
+        const impactLabel = { high: '高', medium: '中', low: '低' };
+        const statusClass = { insight: 'status-default', design: 'status-primary', review: 'status-warning', execution: 'status-primary', closed: 'status-success' };
+        const statusLabel = { insight: '洞察期', design: '设计期', review: '论证期', execution: '执行期', closed: '已结项' };
+        const typeLabel = { transformation: '转型', expansion: '拓展', innovation: '创新', efficiency: '提效', other: '其他' };
+        const priorityIcon = { 'P0': '🔴', 'P1': '🟡', 'P2': '🟢' };
+
+        // 渲染五看卡片
+        const fiveViewsHtml = fiveViews.map(v => {
+          const count = insights.filter(i => i.type === v.type).length;
+          return `
+            <div class="insight-card" data-view="${v.type}" style="cursor:pointer;border-radius:8px;padding:16px;background:var(--bg-card);border:1px solid var(--border-color);transition:all 0.2s;" onmouseover="this.style.borderColor='${v.color}';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.transform='translateY(0)'">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                <div style="width:40px;height:40px;border-radius:8px;background:${v.color}15;display:flex;align-items:center;justify-content:center;font-size:20px;">${v.icon}</div>
+                <div>
+                  <div style="font-weight:600;font-size:15px;">${v.label}</div>
+                  <div style="font-size:12px;color:var(--text-tertiary);">${v.desc}</div>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:24px;font-weight:700;color:${v.color};">${count}</span>
+                <span style="font-size:12px;color:var(--text-tertiary);">条洞察</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // 渲染洞察列表
+        const insightsHtml = insights.map(i => {
+          const linkedTopic = topics.find(t => t.id === i.linkedTopicId);
+          return `
+            <div class="insight-item" data-insight-id="${i.id}" style="padding:12px;border-radius:6px;background:var(--bg-page);margin-bottom:8px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='var(--bg-page)'">
+              <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;">
+                <div style="flex:1;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="font-size:12px;padding:2px 6px;border-radius:4px;background:${impactColor[i.impact]}15;color:${impactColor[i.impact]};font-weight:500;">${impactLabel[i.impact]}影响</span>
+                    <span style="font-size:12px;color:var(--text-tertiary);">置信度 ${i.confidence}%</span>
+                    <span style="font-size:12px;color:var(--text-tertiary);">${i.createdAt}</span>
+                  </div>
+                  <div style="font-weight:600;margin-bottom:4px;">${i.title}</div>
+                  <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">${i.content}</div>
+                  <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px;">来源: ${i.source}</div>
+                  ${linkedTopic ? `<div style="margin-top:6px;">
+                    <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--primary);color:#fff;">已生成专题: ${linkedTopic.name}</span>
+                  </div>` : ''}
+                </div>
+                <div style="display:flex;gap:4px;flex-shrink:0;">
+                  ${!linkedTopic ? `<button class="btn btn-sm btn-primary generate-topic-btn" data-insight-id="${i.id}" style="padding:4px 12px;font-size:12px;white-space:nowrap;">生成专题</button>` : ''}
+                  <button class="btn btn-sm btn-secondary edit-insight-btn" data-insight-id="${i.id}" style="padding:4px 8px;font-size:12px;">编辑</button>
+                  <button class="btn btn-sm btn-danger delete-insight-btn" data-insight-id="${i.id}" style="padding:4px 8px;font-size:12px;">删除</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // 渲染专题表格
+        const topicRows = topics.map(t => `
+          <tr data-topic-id="${t.id}">
             <td><strong>${t.name}</strong></td>
             <td><span style="padding:2px 8px;border-radius:4px;background:var(--bg-page);font-size:12px;">${t.dimension}</span></td>
-            <td>${t.owner}</td>
+            <td>${typeLabel[t.type]}</td>
             <td>${priorityIcon[t.priority]} ${t.priority}</td>
-            <td style="color:${phaseColor[t.phase]};font-weight:500;">${t.phase}</td>
-            <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${t.progress < 50 && t.progress > 0 ? 'warning' : ''}" style="width:${t.progress}%"></div></div><span style="font-size:12px">${t.progress}%</span></div></td>
+            <td>${t.owner}</td>
             <td><span class="status-badge ${statusClass[t.status]}">${statusLabel[t.status]}</span></td>
-            <td style="font-size:12px;color:var(--text-tertiary)">${t.updated}</td>
+            <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${t.progress < 50 && t.progress > 0 ? 'warning' : ''}" style="width:${t.progress}%"></div></div><span style="font-size:12px">${t.progress}%</span></div></td>
+            <td style="font-size:12px;color:var(--text-tertiary)">${t.updatedAt}</td>
+            <td>
+              <button class="btn btn-sm btn-secondary view-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">查看</button>
+              <button class="btn btn-sm btn-primary edit-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">编辑</button>
+              <button class="btn btn-sm btn-danger delete-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">删除</button>
+            </td>
           </tr>
         `).join('');
 
+        // Tab切换脚本 - 使用全局函数避免嵌套script
+        window.switchInsightsTab = function(tabName) {
+          const container = document.getElementById('insights-topics-container');
+          if (!container) return;
+          const tabs = container.querySelectorAll('.insights-tab');
+          const panels = container.querySelectorAll('.insights-panel');
+          tabs.forEach(t => {
+            if (t.dataset.tab === tabName) {
+              t.style.borderBottom = '2px solid var(--primary)';
+              t.style.color = 'var(--primary)';
+              t.style.fontWeight = '600';
+            } else {
+              t.style.borderBottom = '2px solid transparent';
+              t.style.color = 'var(--text-secondary)';
+              t.style.fontWeight = '500';
+            }
+          });
+          panels.forEach(p => p.style.display = p.id === 'panel-' + tabName ? 'block' : 'none');
+        };
+
+        const tabScript = '';
+
         return `
-          ${renderBreadcrumb('战略专题')}
+          ${renderBreadcrumb('战略洞察与专题')}
           <div class="page-header">
-            <h1 class="page-title">战略专题</h1>
+            <h1 class="page-title">战略洞察与专题</h1>
             <div class="page-actions">
-              <button class="btn btn-secondary">🔍 筛选</button>
-              <button class="btn btn-primary">+ 新建专题</button>
+              <button class="btn btn-primary" id="btn-new-insight">+ 新增洞察</button>
             </div>
           </div>
 
-          <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
-            <div class="kpi-card">
-              <div class="kpi-label">进行中</div>
-              <div class="kpi-value" style="color: var(--primary);">4</div>
-              <div class="kpi-trend up"><span>↑</span><span>较上月 +1</span></div>
+          <div id="insights-topics-container">
+            <!-- Tab导航 -->
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--border-color);margin-bottom:20px;">
+              <button class="insights-tab" data-tab="insights" onclick="switchInsightsTab('insights')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);font-weight:600;cursor:pointer;font-size:14px;">🔭 洞察视图</button>
+              <button class="insights-tab" data-tab="topics" onclick="switchInsightsTab('topics')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-secondary);cursor:pointer;font-size:14px;">📋 专题列表</button>
+              <button class="insights-tab" data-tab="knowledge" onclick="switchInsightsTab('knowledge')" style="padding:12px 24px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-secondary);cursor:pointer;font-size:14px;">📚 知识沉淀</button>
             </div>
-            <div class="kpi-card">
-              <div class="kpi-label">已完成</div>
-              <div class="kpi-value" style="color: var(--success);">2</div>
-              <div class="kpi-trend"><span>—</span><span>本季度累计</span></div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">平均进度</div>
-              <div class="kpi-value" style="color: var(--warning);">55%</div>
-              <div class="kpi-trend warning"><span>→</span><span>目标 70%</span></div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">高风险</div>
-              <div class="kpi-value" style="color: var(--danger);">1</div>
-              <div class="kpi-trend down"><span>↓</span><span>需重点关注</span></div>
-            </div>
-          </div>
 
-          <div class="card">
-            <table class="data-table">
-              <thead>
-                <tr><th>专题名称</th><th>战略维度</th><th>负责人</th><th>优先级</th><th>阶段</th><th>进度</th><th>状态</th><th>最后更新</th></tr>
-              </thead>
-              <tbody>${rows}</tbody>
-            </table>
+            <!-- 洞察视图 -->
+            <div id="panel-insights" class="insights-panel" style="display:block;">
+              <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:12px;margin-bottom:20px;">
+                ${fiveViewsHtml}
+              </div>
+
+              <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                  <h3 style="margin:0;font-size:16px;">全部洞察</h3>
+                  <span style="font-size:13px;color:var(--text-tertiary);">共 ${insights.length} 条</span>
+                </div>
+                ${insightsHtml || '<div style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无洞察，点击"新增洞察"开始记录</div>'}
+              </div>
+            </div>
+
+            <!-- 专题列表 -->
+            <div id="panel-topics" class="insights-panel" style="display:none;">
+              <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
+                <div class="kpi-card">
+                  <div class="kpi-label">进行中</div>
+                  <div class="kpi-value" style="color: var(--primary);">${activeTopics.length}</div>
+                  <div class="kpi-trend"><span>活跃专题</span></div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">已完成</div>
+                  <div class="kpi-value" style="color: var(--success);">${completedTopics.length}</div>
+                  <div class="kpi-trend"><span>本季度累计</span></div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">平均进度</div>
+                  <div class="kpi-value" style="color: var(--warning);">${avgProgress}%</div>
+                  <div class="kpi-trend"><span>目标 70%</span></div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">高风险</div>
+                  <div class="kpi-value" style="color: var(--danger);">${highRiskTopics}</div>
+                  <div class="kpi-trend"><span>需重点关注</span></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                  <h3 style="margin:0;font-size:16px;">战略专题</h3>
+                  <button class="btn btn-primary" id="btn-new-topic" style="padding:6px 16px;font-size:13px;">+ 新建专题</button>
+                </div>
+                <table class="data-table">
+                  <thead>
+                    <tr><th>专题名称</th><th>战略维度</th><th>类型</th><th>优先级</th><th>负责人</th><th>阶段</th><th>进度</th><th>更新</th><th>操作</th></tr>
+                  </thead>
+                  <tbody>${topicRows || '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 知识沉淀 -->
+            <div id="panel-knowledge" class="insights-panel" style="display:none;">
+              <div class="card">
+                <div style="text-align:center;padding:60px;color:var(--text-tertiary);">
+                  <div style="font-size:48px;margin-bottom:16px;">📚</div>
+                  <div style="font-size:16px;font-weight:600;margin-bottom:8px;">知识沉淀区</div>
+                  <div style="font-size:13px;">专题完成后，复盘报告、方法论模板将在此沉淀</div>
+                  <div style="margin-top:16px;font-size:13px;">
+                    <span style="padding:4px 12px;border-radius:4px;background:var(--bg-page);">已完成专题: ${completedTopics.length} 个</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="related-links">
@@ -2363,6 +2534,8 @@
               <a class="related-link" href="#bp/kpi" data-navigate="bp/kpi">📈 KPI 看板</a>
             </div>
           </div>
+
+          ${tabScript}
         `;
       }
 
@@ -2586,7 +2759,27 @@
           versions: [
             {
               version: 'v0.3.5',
+              date: '2026-05-26',
+              status: 'released',
+              changes: [
+                { type: 'Added', desc: 'iframe 嵌入模式（?embed=1）+ 自适应高度' },
+                { type: 'Added', desc: '通用嵌入架构：main.css 统一管理' },
+                { type: 'Added', desc: 'FineReport 弹窗模式（跨域 interim 方案）' },
+                { type: 'Fixed', desc: 'shell.css 404 导致导航栏错乱' }
+              ]
+            },
+            {
+              version: 'v0.3.4',
               date: '2026-05-25',
+              status: 'released',
+              changes: [
+                { type: 'Fixed', desc: 'Road Map 版本历史记录补全' },
+                { type: 'Fixed', desc: '版本标识统一为语义化版本 v0.3.4' }
+              ]
+            },
+            {
+              version: 'v0.3.3',
+              date: '2026-05-23',
               status: 'released',
               changes: [
                 { type: 'Added', desc: 'reviewer 6维度述职场景（SP战略关联度+态度与反思）' },
@@ -2812,7 +3005,7 @@
 
           <!-- ① 时间线轴 -->
           <div class="card" style="margin-bottom: 16px; padding: 24px;">
-            <div style="display: flex; align-items: flex-start; justify-content: center; gap: 0;">
+            <div style="display: flex; align-items: flex-start; justify-content: flex-start; gap: 0; overflow-x: auto; padding-bottom: 8px;">
               ${timelineNodes}
               <div style="flex: 1; height: 2px; border-top: 2px dashed var(--border-color); margin-top: 6px; min-width: 40px;"></div>
               ${milestoneNode}

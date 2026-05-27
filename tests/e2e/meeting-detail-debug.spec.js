@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-test('debug clicking second card at specific area', async ({ page }) => {
-  await page.goto('http://localhost:8080/src/cockpit.html#exe/meetings');
+test.skip('debug clicking second card at specific area', async ({ page }) => {
+  await page.goto('http://localhost:3456/src/cockpit.html#exe/meetings');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(800);
 

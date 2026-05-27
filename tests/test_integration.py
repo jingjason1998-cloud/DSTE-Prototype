@@ -39,10 +39,10 @@ def test_reviewer_html_theme_sync():
 
 
 def test_cockpit_has_strategy_topics_renderer():
-    """驾驶舱包含战略专题渲染函数"""
+    """驾驶舱包含战略洞察与专题渲染函数"""
     content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "function renderStrategyTopics()" in content, "缺少 renderStrategyTopics"
-    assert "'sp/strategy-topics': renderStrategyTopics" in content, "PAGES未映射战略专题"
+    assert "function renderInsightsTopics()" in content, "缺少 renderInsightsTopics"
+    assert "'sp/insights-topics': renderInsightsTopics" in content, "PAGES未映射战略洞察与专题"
 
 
 def test_cockpit_has_business_topics_link():
@@ -85,10 +85,10 @@ def test_navigation_arch_document_updated():
 def test_no_placeholder_for_topics():
     """专题管理不再是占位页面"""
     content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "'sp/strategy-topics': renderStrategyTopics," in content
+    assert "'sp/insights-topics': renderInsightsTopics," in content
     # 业务专题现在是独立页面，通过外部映射跳转
     assert "'exe/business-topics': 'business-topics.html'" in content
-    page_lines = [l for l in content.splitlines() if "'sp/strategy-topics'" in l or "'exe/business-topics'" in l]
+    page_lines = [l for l in content.splitlines() if "'sp/insights-topics'" in l or "'exe/business-topics'" in l]
     for line in page_lines:
         assert "renderPlaceholder" not in line, f"专题管理仍是占位页: {line.strip()}"
 

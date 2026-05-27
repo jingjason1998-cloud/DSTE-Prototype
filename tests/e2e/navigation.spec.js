@@ -27,7 +27,7 @@ test.describe('Navigation', () => {
     await page.locator('.top-nav-item[data-phase="sp"]').click();
     await expect(page.locator('#sidebar')).toContainText('战略制定');
     await expect(page.locator('#sidebar')).toContainText('战略地图');
-    await expect(page.locator('#sidebar')).toContainText('市场洞察');
+    await expect(page.locator('#sidebar')).toContainText('战略洞察与专题');
   });
 
   test('theme toggle works', async ({ page }) => {

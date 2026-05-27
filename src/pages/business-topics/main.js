@@ -362,7 +362,6 @@ function safeId(id) {
 }
 
 // ===================== Phase 1: Issue Data Layer (v2.1) =====================
-const ISSUE_STORAGE_KEY = 'dste_issues_v1';
 
 function migrateV1ToV2() {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -406,33 +405,6 @@ function simpleHash(str) {
     }
     return hash.toString(16);
 }
-
-function loadIssues(sourceSystem) {
-    const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    try {
-        const data = JSON.parse(raw);
-        if (!Array.isArray(data)) return [];
-        return data;
-    } catch {
-        return [];
-    }
-}
-
-function saveIssues(issues, sourceSystem) {
-    const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
-    localStorage.setItem(key, JSON.stringify(issues || []));
-    // 同步到云端（合并 ST + AT）
-    const allIssues = [...loadIssues('ST'), ...loadIssues('AT')];
-    apiSave('/api/issues', allIssues);
-}
-
-function loadAllIssues() {
-    return [...loadIssues('ST'), ...loadIssues('AT')];
-}
-
-
 
 
 

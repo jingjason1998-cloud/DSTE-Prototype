@@ -1,0 +1,349 @@
+{
+  "versions": [
+    {
+      "version": "v0.1.0",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**驾驶舱首页** (`cockpit.html`)：6 阶段顶部导航 + 左侧边栏 + SPA 路由系统"
+        },
+        {
+          "type": "Added",
+          "desc": "**会议材料审核助手** (`reviewer.html`)：智能审核、摘要生成、雷达图、批量审核、历史记录、版本对比"
+        },
+        {
+          "type": "Added",
+          "desc": "**业务专题管理** (`business-topics.html`)：CRUD 管理、ST/AT 议题导入（拖拽 Excel/CSV/粘贴）、里程碑跟踪"
+        },
+        {
+          "type": "Added",
+          "desc": "**统一主题系统**：Light/Dark 双主题，跨页面 `localStorage` 同步"
+        },
+        {
+          "type": "Added",
+          "desc": "**登录页** (`index.html`)：科技感网格背景 + 扫描线动画"
+        },
+        {
+          "type": "Added",
+          "desc": "**全局导航统一**：所有页面共用 6 阶段导航 + 侧边栏布局 + 面包屑"
+        },
+        {
+          "type": "Added",
+          "desc": "**pytest 回归测试**：30 个测试用例覆盖结构、导航、主题、安全"
+        },
+        {
+          "type": "Added",
+          "desc": "**生产部署**：nginx SSL 配置 + assets 路径映射 + 域名重定向"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复 Light 模式下 CSS 变量被 `@media` 错误嵌套导致全部失效的 bug"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复会议审核 XSS 漏洞（新增 `sanitizeUrl` 协议白名单）"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复会议审核空矩阵崩溃（新增 `Array.isArray` 守卫）"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复移动端响应式布局错位"
+        },
+        {
+          "type": "Security",
+          "desc": "会议材料 URL 输入增加协议校验（仅允许 http/https）"
+        }
+      ]
+    },
+    {
+      "version": "v0.2.0",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**经营分析会页面全面升级**："
+        },
+        {
+          "type": "Added",
+          "desc": "会议卡片悬停动效（translateX 滑动）"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.0",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**开发路线图 Road Map 页面**："
+        },
+        {
+          "type": "Added",
+          "desc": "系统管理侧边栏分组"
+        },
+        {
+          "type": "Added",
+          "desc": "面包屑支持 dashboard 子页面"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.1",
+      "date": "2026-05-21",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**Road Map 交互增强**："
+        }
+      ]
+    },
+    {
+      "version": "v0.3.2",
+      "date": "2026-05-22",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**reviewer.html 场景维度卡片缺失**：切换述职类场景时对应评价维度卡片动态渲染"
+        },
+        {
+          "type": "Fixed",
+          "desc": "通用议题评审保留原有4维度作为默认（目标-解决方案对齐度、决策支撑度、行动具体化、材料规范度）"
+        },
+        {
+          "type": "Fixed",
+          "desc": "垂直细分客群述职新增4维度：完整性、差距与根因分析、业绩预测达成概率分析、下一步计划"
+        },
+        {
+          "type": "Added",
+          "desc": "数据迁移工具页面 `migrate-data.html`（本地 → Cloudflare Worker KV 同步）"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.3",
+      "date": "2026-05-23",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**reviewer 6维度述职场景**：vertical-segment-review 从4维度扩展为6维度"
+        },
+        {
+          "type": "Added",
+          "desc": "**SonarCloud 代码质量监控**：GitHub Actions 自动扫描，每次 push/PR 触发"
+        },
+        {
+          "type": "Fixed",
+          "desc": "vertical-segment-review 维度配置与测试用例同步"
+        },
+        {
+          "type": "Fixed",
+          "desc": "6维度解析函数正则匹配满分值提取"
+        },
+        {
+          "type": "Security",
+          "desc": "GitHub Actions CI 强制门禁（SonarCloud + 测试通过率检查）"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.4",
+      "date": "2026-05-25",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "Road Map 页面补全 v0.3.1 / v0.3.2 版本历史记录（数据完整性修复）"
+        },
+        {
+          "type": "Fixed",
+          "desc": "版本标识统一为语义化版本 v0.3.4"
+        }
+      ]
+    },
+    {
+      "version": "v0.3.5",
+      "date": "2026-05-26",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**iframe 嵌入模式**：`?embed=1` 参数支持，隐藏导航栏/侧边栏/面包屑"
+        },
+        {
+          "type": "Added",
+          "desc": "**iframe 自适应高度**：`postMessage` 双向通信，ResizeObserver + 防抖，内容变化自动伸缩"
+        },
+        {
+          "type": "Added",
+          "desc": "**通用嵌入架构**：`main.css` 统一管理嵌入样式，新增页面只需 copy 3 行检测脚本"
+        },
+        {
+          "type": "Changed",
+          "desc": "嵌入模式下 `.app` / `.content-area` 去除 `overflow: hidden`，允许内容自然撑开"
+        }
+      ]
+    },
+    {
+      "version": "v0.4.0",
+      "date": "2026-05-26",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Security",
+          "desc": "**事件委托改造**：移除 business-topics.html 中全部 79 个内联事件属性（onclick/onchange/oninput/onsubmit/ondrop/ondragover/ondragleave），改为统一的事件委托处理器"
+        },
+        {
+          "type": "Security",
+          "desc": "消除 XSS 注入风险点，彻底摆脱对内联 `onclick` 的依赖"
+        },
+        {
+          "type": "Changed",
+          "desc": "**CSS 抽离**：内联 1500 行样式迁移至 `src/pages/business-topics/style.css`，HTML 仅保留结构"
+        },
+        {
+          "type": "Changed",
+          "desc": "**JS 模块化拆分**：内联 2614 行脚本按功能拆分为 4 个 ES 模块："
+        },
+        {
+          "type": "Changed",
+          "desc": "`business-topics.html` 从 4326 行降至约 500 行（-88%），可维护性显著提升"
+        },
+        {
+          "type": "Changed",
+          "desc": "Vite 自动打包 JS 模块为独立 chunk，首屏加载优化"
+        }
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "name": "驾驶舱首页",
+      "progress": 60,
+      "status": "doing",
+      "targetVersion": "v0.5.0"
+    },
+    {
+      "name": "会议审核助手",
+      "progress": 95,
+      "status": "done",
+      "targetVersion": "v0.1.0"
+    },
+    {
+      "name": "业务专题管理",
+      "progress": 90,
+      "status": "done",
+      "targetVersion": "v0.1.0"
+    },
+    {
+      "name": "经营分析会",
+      "progress": 85,
+      "status": "doing",
+      "targetVersion": "v0.4.0"
+    },
+    {
+      "name": "开发路线图",
+      "progress": 100,
+      "status": "done",
+      "targetVersion": "v0.3.0"
+    },
+    {
+      "name": "战略地图",
+      "progress": 0,
+      "status": "todo",
+      "targetVersion": "v0.5.0"
+    },
+    {
+      "name": "KPI 看板",
+      "progress": 5,
+      "status": "todo",
+      "targetVersion": "v0.5.0"
+    },
+    {
+      "name": "BEM 战略解码",
+      "progress": 0,
+      "status": "todo",
+      "targetVersion": "v0.6.0"
+    },
+    {
+      "name": "用户权限系统",
+      "progress": 0,
+      "status": "todo",
+      "targetVersion": "v1.0.0"
+    }
+  ],
+  "upcoming": [
+    {
+      "name": "战略地图可视化页面（BSC 四维度）",
+      "priority": "中",
+      "eta": "待定"
+    },
+    {
+      "name": "KPI 详情下钻",
+      "priority": "中",
+      "eta": "待定"
+    },
+    {
+      "name": "用户权限系统（替换当前模拟登录）",
+      "priority": "中",
+      "eta": "待定"
+    },
+    {
+      "name": "ST/AT 议题 Excel 模板下载",
+      "priority": "中",
+      "eta": "待定"
+    }
+  ],
+  "plans": [
+    {
+      "id": "PLAN-001",
+      "name": "经营分析会纪要生成",
+      "status": "测试中",
+      "owner": "AI-1",
+      "targetVersion": "v0.4.0"
+    },
+    {
+      "id": "PLAN-002",
+      "name": "战略地图可视化（BSC）",
+      "status": "开发中",
+      "owner": "AI-2",
+      "targetVersion": "v0.5.0"
+    },
+    {
+      "id": "PLAN-003",
+      "name": "KPI 看板数据对接",
+      "status": "开发中",
+      "owner": "AI-1",
+      "targetVersion": "v0.4.0"
+    },
+    {
+      "id": "PLAN-004",
+      "name": "BEM 战略解码工具",
+      "status": "设计中",
+      "owner": "AI-2",
+      "targetVersion": "v0.5.0"
+    },
+    {
+      "id": "PLAN-005",
+      "name": "用户权限系统方案",
+      "status": "待评审",
+      "owner": "待分配",
+      "targetVersion": "v1.0.0"
+    },
+    {
+      "id": "PLAN-006",
+      "name": "数据导出与报表中心",
+      "status": "设计中",
+      "owner": "AI-1",
+      "targetVersion": "v1.0.0"
+    }
+  ]
+}

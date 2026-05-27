@@ -16,15 +16,15 @@ test.describe('Roadmap 页面', () => {
     await expect(page.locator('.page-title')).toContainText('开发路线图');
   });
 
-  test('显示真实版本数据（v0.3.4 最新）', async ({ page }) => {
+  test('显示真实版本数据（v0.3.5 最新）', async ({ page }) => {
     // 时间线轴应显示最新版本
-    const timeline = page.locator('.card', { hasText: /v0\.3\.4/ }).first();
+    const timeline = page.locator('.card', { hasText: /v0\.3\.5/ }).first();
     await expect(timeline).toBeVisible();
   });
 
   test('版本详情卡片显示 CHANGELOG 内容', async ({ page }) => {
-    // 应能看到 v0.3.4 的变更列表
-    const versionCard = page.locator('[id="version-v0.3.4"]');
+    // 应能看到 v0.3.5 的变更列表
+    const versionCard = page.locator('[id="version-v0.3.5"]');
     await expect(versionCard).toBeVisible();
     // 至少包含一个 Added/Fixed/Security 标签
     await expect(versionCard).toContainText('新增');

@@ -28,8 +28,7 @@ export const SIDEBAR_CONFIG = {
   sp: [
     { type: 'group', title: '战略制定 (SP)', items: [
       { id: 'sp/strategy-map', icon: '🗺️', label: '战略地图' },
-      { id: 'sp/strategy-topics', icon: '📋', label: '战略专题' },
-      { id: 'sp/market-insight', icon: '🔭', label: '市场洞察' }
+      { id: 'sp/insights-topics', icon: '🔭', label: '战略洞察与专题' }
     ]},
     { type: 'quick', label: '快捷工具' },
     { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
@@ -74,8 +73,7 @@ export const EXTERNAL_PAGES = {
 export const PAGE_NAMES = {
   'dashboard': '驾驶舱',
   'sp/strategy-map': '战略地图',
-  'sp/strategy-topics': '战略专题',
-  'sp/market-insight': '市场洞察',
+  'sp/insights-topics': '战略洞察与专题',
   'bp/kpi': 'KPI 指标体系',
   'bp/bem': 'BEM 战略解码',
   'bp/annual-plan': '年度经营计划',
