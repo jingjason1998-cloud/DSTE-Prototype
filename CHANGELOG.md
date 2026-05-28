@@ -17,6 +17,23 @@
 
 ---
 
+## [v0.4.1] - 2026-05-28
+
+### Added
+- **帆软 CAS 通行证单点登录**：
+  - 登录页 (`index.html`)：生产环境强制跳转帆软 CAS (`passport.fanruan.com`)，本地开发保留快速入口
+  - 登录回调处理：自动提取 CAS ticket，换取应用 token 并存储
+  - 用户状态持久化：token 存储于 localStorage，支持页面刷新后保持登录
+  - 用户下拉菜单：顶部导航头像点击展开，显示用户名与「退出登录」
+  - 登出功能：清除 token 并调用后端登出 API
+  - 嵌入模式免登录：`business-topics.html` 在 `?embed=1` iframe 模式下不强制跳转 CAS
+- **API 鉴权准备**：所有 API 请求（`cockpit.html` / `business-topics.html` / `main.js`）统一携带 `Authorization: Bearer token`，401 时自动跳转 CAS
+
+### Security
+- 生产环境禁用本地模拟登录，必须通过帆软 CAS 认证
+
+---
+
 ## [v0.4.0] - 2026-05-27
 
 ### Added

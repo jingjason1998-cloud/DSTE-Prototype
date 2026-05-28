@@ -62,6 +62,164 @@
             });
         })();
     </script>
+    <script>
+    (function() {
+        'use strict';
+
+        // ===== 配置 =====
+        const API_BASE = (() => {
+            const host = window.location.hostname;
+            if (host === 'localhost' || host === '127.0.0.1') {
+                return localStorage.getItem('dste_api_base') || '';
+            }
+            return 'https://dste-api.jasonxspace.workers.dev';
+        })();
+
+        const isEmbed = new URLSearchParams(location.search).get('embed') === '1';
+        const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+        // CAS 登录跳转
+        function redirectToCasLogin() {
+            const service = encodeURIComponent(window.location.origin + window.location.pathname);
+            window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
+        }
+
+        // CAS 回调处理
+        async function handleCasCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ticket = urlParams.get('ticket');
+            if (!ticket) return false;
+
+            const cleanUrl = window.location.pathname + window.location.hash;
+            history.replaceState(null, '', cleanUrl);
+
+            try {
+                const service = encodeURIComponent(window.location.origin + window.location.pathname);
+                const resp = await fetch(`${API_BASE}/api/auth/cas/login?ticket=${encodeURIComponent(ticket)}&service=${service}`);
+                const json = await resp.json();
+                if (json.success && json.token) {
+                    localStorage.setItem('dste-token', json.token);
+                    localStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+                    sessionStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+                    updateUserUI();
+                    return true;
+                }
+            } catch (e) {
+                console.error('CAS callback failed:', e);
+            }
+            return false;
+        }
+
+        // 检查登录状态
+        async function checkLoginStatus() {
+            const token = localStorage.getItem('dste-token');
+            if (!token) return false;
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resp.ok) {
+                    const json = await resp.json();
+                    if (json.success && json.user) {
+                        localStorage.setItem('dste-user', json.user.name || json.user.username || '');
+                        sessionStorage.setItem('dste-user', json.user.name || json.user.username || '');
+                        updateUserUI();
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Login status check failed:', e);
+            }
+
+            localStorage.removeItem('dste-token');
+            localStorage.removeItem('dste-user');
+            sessionStorage.removeItem('dste-user');
+            return false;
+        }
+
+        // 更新用户 UI
+        function updateUserUI() {
+            const user = localStorage.getItem('dste-user') || sessionStorage.getItem('dste-user') || '张';
+            const avatar = document.getElementById('user-avatar');
+            const dropdownName = document.getElementById('user-dropdown-name');
+            if (avatar) avatar.textContent = user.charAt(0);
+            if (dropdownName) dropdownName.textContent = user;
+        }
+
+        // 登出
+        async function logout() {
+            const token = localStorage.getItem('dste-token');
+            if (token) {
+                try {
+                    await fetch(`${API_BASE}/api/auth/logout`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch (e) {
+                    console.warn('Logout API failed:', e);
+                }
+            }
+            localStorage.removeItem('dste-token');
+            localStorage.removeItem('dste-user');
+            sessionStorage.removeItem('dste-user');
+            window.location.reload();
+        }
+
+        // 初始化认证
+        async function initAuth() {
+            // 嵌入模式下不强制登录（iframe 内由父页面控制）
+            if (isEmbed) {
+                updateUserUI();
+                initUserDropdown();
+                return;
+            }
+
+            // 1. 处理 CAS 回调
+            const casHandled = await handleCasCallback();
+
+            // 2. 检查登录状态
+            if (!casHandled) {
+                const isLoggedIn = await checkLoginStatus();
+                if (!isLoggedIn && !isLocalDev) {
+                    redirectToCasLogin();
+                    return;
+                }
+            }
+
+            updateUserUI();
+            initUserDropdown();
+        }
+
+        // 用户下拉菜单事件
+        function initUserDropdown() {
+            const avatar = document.getElementById('user-avatar');
+            const dropdown = document.getElementById('user-dropdown');
+            const logoutBtn = document.getElementById('user-logout');
+            if (avatar && dropdown) {
+                avatar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('open');
+                });
+                document.addEventListener('click', (e) => {
+                    if (!avatar.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.remove('open');
+                    }
+                });
+            }
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+            }
+        }
+
+        // 页面加载时初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAuth);
+        } else {
+            initAuth();
+        }
+    })();
+    </script>
     <link rel="stylesheet" href="./pages/business-topics/style.css">
 </head>
 <body>
@@ -86,7 +244,12 @@
             <div class="top-nav-actions">
                 <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
                 <button class="icon-btn" title="通知">🔔</button>
-                <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;">张</div>
+                <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;position:relative;cursor:pointer;">张</div>
+                <div class="user-dropdown" id="user-dropdown">
+                    <div class="user-dropdown-name" id="user-dropdown-name">张总</div>
+                    <div class="user-dropdown-divider"></div>
+                    <button class="user-dropdown-item" id="user-logout">🚪 退出登录</button>
+                </div>
             </div>
         </nav>
 
@@ -227,7 +390,7 @@
     <!-- 新建/编辑弹窗 -->
     <div class="modal-overlay" id="formModal">
         <div class="modal-content" style="max-width: min(720px, calc(100vw - 32px)); width: 100%;">
-            <button class="modal-close" data-modal-close="formModal">×</button>
+            <button class="modal-close" onclick="window._dste.closeModal('formModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="formTitle">新建业务专题</div>
                 <div class="modal-subtitle">填写专题基本信息与里程碑</div>
@@ -302,11 +465,11 @@
                         <div class="milestone-list" id="formMilestones">
                             <!-- JS rendered -->
                         </div>
-                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 8px;" data-ms-action="add">+ 添加里程碑</button>
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 8px;" onclick="window._dste.addMilestoneRow()">+ 添加里程碑</button>
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-ghost" data-modal-close="formModal">取消</button>
+                    <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('formModal')">取消</button>
                     <button type="submit" class="btn btn-primary">保存</button>
                 </div>
             </form>
@@ -322,8 +485,8 @@
                 删除后不可恢复，关联的里程碑数据也将一并清除。
             </div>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button class="btn btn-ghost" data-modal-close="deleteModal">取消</button>
-                <button class="btn btn-primary" style="background: var(--danger);" data-modal-action="confirm-delete">确认删除</button>
+                <button class="btn btn-ghost" onclick="window._dste.closeModal('deleteModal')">取消</button>
+                <button class="btn btn-primary" style="background: var(--danger);" onclick="window._dste.confirmDeleteTopic()">确认删除</button>
             </div>
         </div>
     </div>
@@ -331,7 +494,7 @@
     <!-- 详情弹窗 -->
     <div class="modal-overlay" id="bizTopicModal">
         <div class="modal-content">
-            <button class="modal-close" data-modal-close="bizTopicModal">×</button>
+            <button class="modal-close" onclick="window._dste.closeModal('bizTopicModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="detailTitle">🎯 专题详情</div>
                 <div class="modal-subtitle" id="detailSubtitle">加载中...</div>
@@ -340,7 +503,7 @@
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
-                <button type="button" class="btn btn-ghost" data-modal-close="bizTopicModal">关闭</button>
+                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('bizTopicModal')">关闭</button>
                 <button type="button" class="btn btn-primary" id="detailEditBtn">编辑</button>
             </div>
         </div>
@@ -349,7 +512,7 @@
     <!-- 导入议题弹窗 -->
     <div class="modal-overlay" id="importModal">
         <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-            <button class="modal-close" data-modal-close="importModal">×</button>
+            <button class="modal-close" onclick="window._dste.closeModal('importModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title">📋 导入 ST/AT 议题</div>
                 <div class="modal-subtitle">粘贴表格数据、拖拽 Excel/CSV 文件或点击上传</div>
@@ -389,8 +552,8 @@
             </div>
             <div id="importErrorArea" style="margin-top: 12px; color: var(--danger); font-size: 13px; display: none;"></div>
             <div class="form-actions">
-                <button type="button" class="btn btn-ghost" data-modal-close="importModal">取消</button>
-                <button type="button" class="btn btn-primary" data-modal-action="confirm-import">确认导入</button>
+                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('importModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="window._dste.confirmImport()">确认导入</button>
             </div>
         </div>
     </div>
@@ -398,7 +561,7 @@
     <!-- 议题详情弹窗 -->
     <div class="modal-overlay" id="issueDetailModal">
         <div class="modal-content" style="max-width: 640px;">
-            <button class="modal-close" data-modal-close="issueDetailModal">×</button>
+            <button class="modal-close" onclick="window._dste.closeModal('issueDetailModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="issueDetailTitle">📋 议题详情</div>
                 <div class="modal-subtitle" id="issueDetailSubtitle"></div>
@@ -407,7 +570,7 @@
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
-                <button type="button" class="btn btn-ghost" data-modal-close="issueDetailModal">关闭</button>
+                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('issueDetailModal')">关闭</button>
             </div>
         </div>
     </div>
@@ -415,7 +578,7 @@
     <!-- 关联议题选择弹窗 -->
     <div class="modal-overlay" id="linkIssuesModal">
         <div class="modal-content" style="max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;">
-            <button class="modal-close" data-modal-close="linkIssuesModal">×</button>
+            <button class="modal-close" onclick="window._dste.closeModal('linkIssuesModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title">🔗 关联议题</div>
                 <div class="modal-subtitle" id="linkIssuesSubtitle">选择要关联的议题</div>
@@ -433,8 +596,8 @@
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-                <button type="button" class="btn btn-ghost" data-modal-close="linkIssuesModal">取消</button>
-                <button type="button" class="btn btn-primary" data-modal-action="save-links">保存关联</button>
+                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('linkIssuesModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="window._dste.saveTopicLinks()">保存关联</button>
             </div>
         </div>
     </div>
@@ -442,7 +605,7 @@
     <!-- AI 智能匹配建议弹窗 -->
     <div class="modal-overlay" id="aiMatchModal">
         <div class="modal-content" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
-            <button class="modal-close" data-modal-close="aiMatchModal">×</button>
+            <button class="modal-close" onclick="window._dste.closeModal('aiMatchModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title">🤖 AI 智能关联建议</div>
                 <div class="modal-subtitle" id="aiMatchSubtitle">基于部门、关键词、KPI、时间窗口等维度分析</div>
@@ -464,8 +627,8 @@
                 <div style="font-size: 12px; margin-top: 8px;">建议导入更多议题数据，或检查专题信息是否完整</div>
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
-                <button type="button" class="btn btn-ghost" data-modal-close="aiMatchModal">关闭</button>
-                <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" data-modal-action="apply-ai-matches" style="display:none;">✅ 关联选中建议</button>
+                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('aiMatchModal')">关闭</button>
+                <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" onclick="window._dste.applyAiMatches()" style="display:none;">✅ 关联选中建议</button>
             </div>
         </div>
     </div>
@@ -473,7 +636,7 @@
     <!-- AI 全局报告弹窗 -->
     <div class="modal-overlay" id="aiReportModal">
         <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-            <button class="modal-close" data-modal-close="aiReportModal">×</button>
+            <button class="modal-close" onclick="window._dste.closeModal('aiReportModal')">×</button>
             <div class="modal-header">
                 <div class="modal-title" id="aiReportTitle">🤖 AI 全局分析报告</div>
                 <div class="modal-subtitle" id="aiReportSubtitle"></div>
@@ -482,7 +645,7 @@
                 <!-- JS rendered -->
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
-                <button type="button" class="btn btn-ghost" data-modal-close="aiReportModal">关闭</button>
+                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('aiReportModal')">关闭</button>
                 <button type="button" class="btn btn-primary" data-action="regenerate-report">🔄 重新生成</button>
             </div>
         </div>

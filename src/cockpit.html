@@ -138,7 +138,12 @@
       <div class="top-nav-actions">
         <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
         <button class="icon-btn" title="通知">🔔</button>
-        <div class="user-avatar" id="user-avatar">张</div>
+        <div class="user-avatar" id="user-avatar" style="position:relative;">张</div>
+        <div class="user-dropdown" id="user-dropdown">
+          <div class="user-dropdown-name" id="user-dropdown-name">张总</div>
+          <div class="user-dropdown-divider"></div>
+          <button class="user-dropdown-item" id="user-logout">🚪 退出登录</button>
+        </div>
       </div>
     </nav>
 
@@ -181,21 +186,122 @@
         }
         if (!API_BASE) return;
         try {
-          await fetch(API_BASE + endpoint, {
+          const token = localStorage.getItem('dste-token');
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const resp = await fetch(API_BASE + endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data),
           });
+          if (resp.status === 401) {
+            redirectToCasLogin();
+            return;
+          }
         } catch (e) {
           console.warn('API save failed:', e.message);
         }
+      }
+
+      // CAS 登录跳转
+      function redirectToCasLogin() {
+        const service = encodeURIComponent(window.location.origin + window.location.pathname);
+        window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
+      }
+
+      // CAS 回调处理：从 URL 提取 ticket，调用后端换取 token
+      async function handleCasCallback() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ticket = urlParams.get('ticket');
+        if (!ticket) return false;
+
+        const cleanUrl = window.location.pathname + window.location.hash;
+        history.replaceState(null, '', cleanUrl);
+
+        try {
+          const service = encodeURIComponent(window.location.origin + window.location.pathname);
+          const resp = await fetch(`${API_BASE}/api/auth/cas/login?ticket=${encodeURIComponent(ticket)}&service=${service}`);
+          const json = await resp.json();
+          if (json.success && json.token) {
+            localStorage.setItem('dste-token', json.token);
+            localStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+            sessionStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+            updateUserUI();
+            return true;
+          }
+        } catch (e) {
+          console.error('CAS callback failed:', e);
+        }
+        return false;
+      }
+
+      // 检查登录状态：验证 token 是否有效
+      async function checkLoginStatus() {
+        const token = localStorage.getItem('dste-token');
+        if (!token) return false;
+
+        try {
+          const resp = await fetch(`${API_BASE}/api/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json.success && json.user) {
+              localStorage.setItem('dste-user', json.user.name || json.user.username || '');
+              sessionStorage.setItem('dste-user', json.user.name || json.user.username || '');
+              updateUserUI();
+              return true;
+            }
+          }
+        } catch (e) {
+          console.warn('Login status check failed:', e);
+        }
+
+        localStorage.removeItem('dste-token');
+        localStorage.removeItem('dste-user');
+        sessionStorage.removeItem('dste-user');
+        return false;
+      }
+
+      // 更新用户 UI（头像、下拉菜单名）
+      function updateUserUI() {
+        const user = localStorage.getItem('dste-user') || sessionStorage.getItem('dste-user') || '张';
+        const avatar = document.getElementById('user-avatar');
+        const dropdownName = document.getElementById('user-dropdown-name');
+        if (avatar) avatar.textContent = user.charAt(0);
+        if (dropdownName) dropdownName.textContent = user;
+      }
+
+      // 登出
+      async function logout() {
+        const token = localStorage.getItem('dste-token');
+        if (token) {
+          try {
+            await fetch(`${API_BASE}/api/auth/logout`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+          } catch (e) {
+            console.warn('Logout API failed:', e);
+          }
+        }
+        localStorage.removeItem('dste-token');
+        localStorage.removeItem('dste-user');
+        sessionStorage.removeItem('dste-user');
+        window.location.reload();
       }
 
       async function apiLoad(endpoint) {
         let apiData = null;
         if (API_BASE) {
           try {
-            const resp = await fetch(API_BASE + endpoint);
+            const token = localStorage.getItem('dste-token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const resp = await fetch(API_BASE + endpoint, { headers });
+            if (resp.status === 401) {
+              redirectToCasLogin();
+              return null;
+            }
             const json = await resp.json();
             if (json.success && json.data) apiData = json.data;
           } catch (e) {
@@ -307,6 +413,20 @@
 
       // ===== 初始化 =====
       async function init() {
+        // 1. 优先处理 CAS 回调（URL 中有 ticket）
+        const casHandled = await handleCasCallback();
+
+        // 2. 检查登录状态（无回调时）
+        if (!casHandled) {
+          const isLoggedIn = await checkLoginStatus();
+          // 本地开发环境可免登录
+          const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+          if (!isLoggedIn && !isLocalDev) {
+            redirectToCasLogin();
+            return;
+          }
+        }
+
         renderTopNav();
 
         // 加载会议数据：优先 API，其次 localStorage（由 apiLoad 处理），最后由 renderMeetings 创建 mock
@@ -320,8 +440,26 @@
         window.addEventListener('hashchange', () => navigate(window.location.hash.slice(1), false));
 
         // 显示用户名
-        const user = sessionStorage.getItem('dste-user') || '张';
-        document.getElementById('user-avatar').textContent = user.charAt(0);
+        updateUserUI();
+
+        // 用户下拉菜单
+        const avatar = document.getElementById('user-avatar');
+        const dropdown = document.getElementById('user-dropdown');
+        const logoutBtn = document.getElementById('user-logout');
+        if (avatar && dropdown) {
+          avatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+          });
+          document.addEventListener('click', (e) => {
+            if (!avatar.contains(e.target) && !dropdown.contains(e.target)) {
+              dropdown.classList.remove('open');
+            }
+          });
+        }
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', logout);
+        }
 
         // 移动端汉堡菜单切换
         const menuToggle = document.getElementById('mobile-menu-toggle');

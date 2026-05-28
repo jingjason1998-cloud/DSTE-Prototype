@@ -933,6 +933,50 @@
       // 自动聚焦
       setTimeout(() => usernameInput.focus(), 800);
 
+      // CAS 登录跳转
+      function redirectToCasLogin() {
+        const service = encodeURIComponent(window.location.origin + '/src/cockpit.html');
+        window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
+      }
+
+      // 本地开发快速登录（仅 localhost）
+      function devQuickLogin(username) {
+        sessionStorage.setItem('dste-logged-in', 'true');
+        sessionStorage.setItem('dste-user', username);
+        window.location.href = 'src/cockpit.html';
+      }
+
+      // 检查是否已登录（有有效 token）
+      async function checkAlreadyLoggedIn() {
+        const token = localStorage.getItem('dste-token');
+        if (!token) return false;
+        const API_BASE = (() => {
+          const host = window.location.hostname;
+          if (host === 'localhost' || host === '127.0.0.1') {
+            return localStorage.getItem('dste_api_base') || '';
+          }
+          return 'https://dste-api.jasonxspace.workers.dev';
+        })();
+        try {
+          const resp = await fetch(`${API_BASE}/api/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json.success && json.user) {
+              window.location.href = 'src/cockpit.html';
+              return true;
+            }
+          }
+        } catch (e) {}
+        localStorage.removeItem('dste-token');
+        localStorage.removeItem('dste-user');
+        return false;
+      }
+
+      // 页面加载时检查是否已有有效登录
+      checkAlreadyLoggedIn();
+
       form.addEventListener('submit', function(e) {
         e.preventDefault();
         hideError();
@@ -956,19 +1000,21 @@
         usernameInput.classList.remove('error');
         passwordInput.classList.remove('error');
 
+        // 生产环境强制走 CAS，本地开发允许快速登录
+        const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        if (!isLocalDev) {
+          redirectToCasLogin();
+          return;
+        }
+
+        // 本地开发快速登录（仅用于开发测试）
         if (rememberCheckbox.checked) {
           localStorage.setItem('dste-remember-user', username);
         } else {
           localStorage.removeItem('dste-remember-user');
         }
-
         setLoading(true);
-        setTimeout(() => {
-          sessionStorage.setItem('dste-logged-in', 'true');
-          sessionStorage.setItem('dste-user', username);
-          sessionStorage.setItem('dste-p', password);
-          window.location.href = 'cockpit.html';
-        }, 900);
+        setTimeout(() => devQuickLogin(username), 300);
       });
 
       [usernameInput, passwordInput].forEach(input => {
@@ -978,17 +1024,11 @@
         });
       });
 
-      // SSO
+      // SSO 按钮：全部走 CAS 登录
       document.querySelectorAll('.war-sso-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          const provider = btn.dataset.sso;
           setLoading(true);
-          setTimeout(() => {
-            sessionStorage.setItem('dste-logged-in', 'true');
-            sessionStorage.setItem('dste-user', 'SSO用户');
-            sessionStorage.setItem('dste-sso', provider);
-            window.location.href = 'cockpit.html';
-          }, 700);
+          redirectToCasLogin();
         });
       });
 

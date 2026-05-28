@@ -43,6 +43,79 @@ const KEYS = {
   meetings: 'dste_meetings_v1',
 };
 
+// CAS 配置
+const CAS_CONFIG = {
+  server: 'https://passport.fanruan.com',
+  service: 'https://dste.fineres.com',
+};
+
+// Token 有效期（秒）
+const TOKEN_TTL = 7200; // 2 小时
+
+// 生成随机 Token
+function generateToken() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 32; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
+// 从请求中提取 Token
+function extractToken(request) {
+  const auth = request.headers.get('Authorization') || '';
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1] : null;
+}
+
+// CAS Ticket 验证
+async function validateCasTicket(ticket, service) {
+  const validateUrl = `${CAS_CONFIG.server}/cas/serviceValidate?service=${encodeURIComponent(service)}&ticket=${encodeURIComponent(ticket)}`;
+  const response = await fetch(validateUrl, { method: 'GET' });
+  const text = await response.text();
+
+  // 尝试 JSON 解析（通行证可能返回 JSON）
+  try {
+    const json = JSON.parse(text);
+    if (json.serviceResponse?.authenticationSuccess) {
+      const success = json.serviceResponse.authenticationSuccess;
+      const attrs = success.attributes || {};
+      return {
+        valid: true,
+        user: {
+          id: String(success.user || attrs.id?.[0] || ''),
+          username: attrs.username?.[0] || success.user || '',
+          name: attrs.name?.[0] || attrs.username?.[0] || success.user || '',
+          email: attrs.email?.[0] || '',
+          mobile: attrs.mobile?.[0] || '',
+          department: attrs.department?.[0] || '',
+        },
+      };
+    }
+  } catch (e) {
+    // JSON 解析失败，可能是 XML 响应
+  }
+
+  // 简单 XML 解析（提取 user 和 attributes）
+  const userMatch = text.match(/<cas:user>([^<]+)<\/cas:user>/);
+  if (userMatch) {
+    return {
+      valid: true,
+      user: {
+        id: userMatch[1],
+        username: userMatch[1],
+        name: userMatch[1],
+        email: '',
+        mobile: '',
+        department: '',
+      },
+    };
+  }
+
+  return { valid: false };
+}
+
 // 默认数据（首次使用）
 const DEFAULTS = {
   topics: '[]',
@@ -65,6 +138,73 @@ export default {
     }
 
     try {
+      // --- CAS 登录 ---
+      if (path === '/api/auth/cas/login') {
+        const ticket = url.searchParams.get('ticket');
+        const redirect = url.searchParams.get('redirect') || '/';
+        // 前端传来的 service URL（必须与传给 CAS 的一致）
+        const serviceUrl = url.searchParams.get('service') || CAS_CONFIG.service;
+
+        if (!ticket) {
+          return errorResponse('Missing ticket', 400, request);
+        }
+
+        // 验证 ticket
+        const casResult = await validateCasTicket(ticket, serviceUrl);
+        if (!casResult.valid) {
+          return errorResponse('Invalid CAS ticket', 401, request);
+        }
+
+        // 生成应用 Token
+        const token = generateToken();
+        const tokenKey = `token:${token}`;
+        const userKey = `user:${casResult.user.id}`;
+
+        // 存储到 KV（TTL 2小时）
+        await env.DSTE_KV.put(tokenKey, JSON.stringify(casResult.user), { expirationTtl: TOKEN_TTL });
+        await env.DSTE_KV.put(userKey, token, { expirationTtl: TOKEN_TTL });
+
+        return jsonResponse({
+          success: true,
+          token,
+          user: casResult.user,
+          redirect,
+        }, 200, request);
+      }
+
+      // --- 获取当前用户信息 ---
+      if (path === '/api/auth/me') {
+        const token = extractToken(request);
+        if (!token) {
+          return errorResponse('Unauthorized', 401, request);
+        }
+
+        const userJson = await env.DSTE_KV.get(`token:${token}`);
+        if (!userJson) {
+          return errorResponse('Token expired', 401, request);
+        }
+
+        return jsonResponse({
+          success: true,
+          user: JSON.parse(userJson),
+        }, 200, request);
+      }
+
+      // --- 登出 ---
+      if (path === '/api/auth/logout') {
+        const token = extractToken(request);
+        if (token) {
+          const userJson = await env.DSTE_KV.get(`token:${token}`);
+          if (userJson) {
+            const user = JSON.parse(userJson);
+            await env.DSTE_KV.delete(`user:${user.id}`);
+          }
+          await env.DSTE_KV.delete(`token:${token}`);
+        }
+
+        return jsonResponse({ success: true, message: 'Logged out' }, 200, request);
+      }
+
       // --- 业务专题 API ---
       if (path === '/api/topics') {
         if (method === 'GET') {

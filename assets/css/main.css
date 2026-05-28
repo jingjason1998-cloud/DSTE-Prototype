@@ -228,6 +228,54 @@ body {
   color: white;
   font-weight: 600;
   cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+/* 用户下拉菜单 */
+.user-dropdown {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 180px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 8px 0;
+  z-index: 200;
+  display: none;
+}
+.user-dropdown.open {
+  display: block;
+}
+.user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  background: none;
+  width: 100%;
+}
+.user-dropdown-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.user-dropdown-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 6px 12px;
+}
+.user-dropdown-name {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* ===== 主内容区 ===== */

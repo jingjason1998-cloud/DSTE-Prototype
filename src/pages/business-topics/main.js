@@ -38,14 +38,27 @@ const API_BASE = (() => {
     return 'https://dste-api.jasonxspace.workers.dev';
 })();
 
+// CAS 登录跳转
+function redirectToCasLogin() {
+    const service = encodeURIComponent(window.location.origin + window.location.pathname);
+    window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
+}
+
 async function apiSave(endpoint, data) {
     if (!API_BASE) return;
     try {
-        await fetch(API_BASE + endpoint, {
+        const token = localStorage.getItem('dste-token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch(API_BASE + endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data),
         });
+        if (resp.status === 401) {
+            redirectToCasLogin();
+            return;
+        }
     } catch (e) {
         console.warn('API save failed (offline?), data kept in localStorage:', e.message);
     }
@@ -54,7 +67,13 @@ async function apiSave(endpoint, data) {
 async function apiLoad(endpoint) {
     if (!API_BASE) return null;
     try {
-        const resp = await fetch(API_BASE + endpoint);
+        const token = localStorage.getItem('dste-token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const resp = await fetch(API_BASE + endpoint, { headers });
+        if (resp.status === 401) {
+            redirectToCasLogin();
+            return null;
+        }
         const json = await resp.json();
         return json.success ? json.data : null;
     } catch (e) {
@@ -1241,8 +1260,6 @@ async function init() {
 // ===================== Event Delegation =====================
 function bindDelegatedEvents() {
     const container = document.body;
-    console.log('[bindDelegatedEvents] binding to body');
-
     container.addEventListener('click', handleDelegatedClick);
     container.addEventListener('change', handleDelegatedChange);
     container.addEventListener('input', handleDelegatedInput);
@@ -1267,7 +1284,6 @@ function bindDelegatedEvents() {
 
 function handleDelegatedClick(e) {
     const target = e.target;
-    console.log('[handleDelegatedClick] target:', target.tagName, target.className);
 
     // Stop propagation marker
     if (target.closest('[data-stop-propagation]')) {
@@ -1285,7 +1301,6 @@ function handleDelegatedClick(e) {
             e.stopPropagation();
         }
 
-        console.log('[handleDelegatedClick] data-action:', action);
 
         switch (action) {
             case 'export-topics':
@@ -1357,7 +1372,6 @@ function handleDelegatedClick(e) {
     // data-tab (tab switching)
     const tabEl = target.closest('[data-tab]');
     if (tabEl) {
-        console.log('[handleDelegatedClick] data-tab:', tabEl.dataset.tab);
         switchTab(tabEl.dataset.tab);
         return;
     }
@@ -1365,7 +1379,6 @@ function handleDelegatedClick(e) {
     // data-modal-close
     const modalCloseEl = target.closest('[data-modal-close]');
     if (modalCloseEl) {
-        console.log('[handleDelegatedClick] data-modal-close:', modalCloseEl.dataset.modalClose);
         closeModal(modalCloseEl.dataset.modalClose);
         return;
     }
@@ -1373,7 +1386,6 @@ function handleDelegatedClick(e) {
     // data-modal-action
     const modalActionEl = target.closest('[data-modal-action]');
     if (modalActionEl) {
-        console.log('[handleDelegatedClick] data-modal-action:', modalActionEl.dataset.modalAction);
         switch (modalActionEl.dataset.modalAction) {
             case 'confirm-delete':
                 confirmDeleteTopic();
@@ -1393,7 +1405,6 @@ function handleDelegatedClick(e) {
     // data-ms-action (milestones)
     const msEl = target.closest('[data-ms-action]');
     if (msEl) {
-        console.log('[handleDelegatedClick] data-ms-action:', msEl.dataset.msAction);
         switch (msEl.dataset.msAction) {
             case 'add':
                 addMilestoneRow();
@@ -1438,7 +1449,6 @@ function handleDelegatedClick(e) {
         return;
     }
 
-    console.log('[handleDelegatedClick] no handler matched');
 }
 
 function handleDelegatedChange(e) {
@@ -1530,5 +1540,32 @@ function handleDelegatedInput(e) {
         }
     });
 })();
+
+// Expose key functions to global scope for inline onclick handlers
+window._dste = {
+    closeModal,
+    openDetailModal,
+    openFormModal,
+    openDeleteModal,
+    confirmDeleteTopic,
+    addMilestoneRow,
+    toggleMsStatus,
+    removeMilestoneRow,
+    saveTopic,
+    saveTopicLinks,
+    applyAiMatches,
+    openImportModal,
+    confirmImport,
+    openLinkIssuesModal,
+    openAiMatchModal,
+    openAiReportModal,
+    regenerateAiReport,
+    unlinkIssueFromTopic,
+    linkIssueToTopic,
+    openIssueDetailModal,
+    toggleAI,
+    askAI,
+    sendAI
+};
 
 init();
