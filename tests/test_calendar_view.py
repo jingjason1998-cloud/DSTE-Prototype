@@ -60,13 +60,14 @@ def test_calendar_view_mode_buttons_exist():
 
 
 def test_calendar_header_is_compact():
-    """日历视图头部精简，不包含 Banner/场景卡/统计条"""
+    """日历视图采用局部切换：头部始终显示，只切换中间主体区域"""
     content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    # toggleMeetingsView 切换到 calendar 时，应隐藏 meetings-list-container
     toggle_section = content.split("window.toggleMeetingsView = function(")[1] if "window.toggleMeetingsView = function(" in content else ""
-    # 日历视图下不应显示 Banner/场景卡/统计条（通过隐藏 list container 实现）
+    # 局部切换：只切换 meetings-list-container 和 meetings-calendar-container
     assert "meetings-list-container" in toggle_section, "toggleMeetingsView 未处理 meetings-list-container"
     assert "meetings-calendar-container" in toggle_section, "toggleMeetingsView 未处理 meetings-calendar-container"
+    # 头部区域始终显示，不在 toggle 中处理
+    assert "card-header" in content, "缺少 card-header 头部区域"
 
 
 def test_calendar_meeting_list_footer_exists():
