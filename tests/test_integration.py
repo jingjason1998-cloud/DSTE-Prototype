@@ -23,7 +23,7 @@ def test_reviewer_html_has_dste_nav():
     """审核页面包含DSTE导航条"""
     content = (SRC / "reviewer.html").read_text(encoding="utf-8")
     assert "DSTE 战略管理平台" in content, "缺少DSTE品牌标识"
-    assert ".top-nav" in content, "缺少统一顶部导航"
+    assert 'class="top-nav"' in content, "缺少统一顶部导航"
     assert "会议材料审核" in content, "缺少侧边栏当前页"
     assert "cockpit.html" in content, "缺少驾驶舱返回链接"
     assert "../assets/css/main.css" in content, "未引入DSTE主样式"
