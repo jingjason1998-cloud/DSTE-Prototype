@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/generate-roadmap.cjs && vite build",
     "preview": "vite preview",
     "check:scope": "node scripts/check-onclick-scope.js src/cockpit.html && node scripts/check-onclick-scope.js src/business-topics.html",
     "health:check": "node scripts/health-check.cjs",

@@ -7,7 +7,8 @@ const fs = require('fs');
 const path = require('path');
 
 const CHANGELOG_PATH = path.join(__dirname, '..', 'CHANGELOG.md');
-const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'roadmap-data.json');
+const OUTPUT_PATH_PUBLIC = path.join(__dirname, '..', 'public', 'roadmap-data.json');
+const OUTPUT_PATH_SRC = path.join(__dirname, '..', 'src', 'data', 'roadmap-data.json');
 
 function parseChangelog(content) {
   const versions = [];
@@ -87,14 +88,15 @@ function main() {
     ]
   };
   
-  // 确保 public 目录存在
-  const publicDir = path.dirname(OUTPUT_PATH);
-  if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true });
-  }
-  
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(data, null, 2));
-  console.log(`Generated ${OUTPUT_PATH} with ${versions.length} versions`);
+  // 确保目录存在
+  [OUTPUT_PATH_PUBLIC, OUTPUT_PATH_SRC].forEach(outputPath => {
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(outputPath, JSON.stringify(data, null, 2));
+    console.log(`Generated ${outputPath} with ${versions.length} versions`);
+  });
 }
 
 main();

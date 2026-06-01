@@ -25,6 +25,7 @@ export default defineConfig({
   server: {
     port: 3456,
     open: '/src/cockpit.html',
+    hmr: false,
   },
   preview: {
     port: 3456,

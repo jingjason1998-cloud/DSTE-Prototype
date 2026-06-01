@@ -31,3 +31,4 @@ playwright/.cache/
 # Vite
 .vite/
 vite-preview.log
+reports/

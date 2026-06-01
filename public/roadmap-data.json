@@ -194,32 +194,59 @@
     },
     {
       "version": "v0.4.0",
-      "date": "2026-05-26",
+      "date": "2026-05-27",
       "status": "released",
       "changes": [
         {
+          "type": "Added",
+          "desc": "**战略洞察与专题整合页面** (`sp/insights-topics`)："
+        },
+        {
+          "type": "Added",
+          "desc": "**经营分析会模块重构** (`exe/meetings`)："
+        },
+        {
+          "type": "Added",
+          "desc": "**iframe 嵌入模式**（v0.3.5 功能纳入）：`?embed=1` 参数支持，自适应高度"
+        },
+        {
+          "type": "Changed",
+          "desc": "**全局响应式自适应性改造**："
+        },
+        {
+          "type": "Changed",
+          "desc": "**统一页面切换过渡效果**：所有页面共享 shell.css fadeIn 动画，消除切换跳变"
+        },
+        {
+          "type": "Changed",
+          "desc": "**CSS 抽离**：business-topics 内联样式迁移至独立 style.css"
+        },
+        {
+          "type": "Fixed",
+          "desc": "Road Map 时间线显示顺序修复：v0.3.5 默认可见"
+        },
+        {
+          "type": "Fixed",
+          "desc": "business-topics 事件委托容器修复"
+        }
+      ]
+    },
+    {
+      "version": "v0.4.1",
+      "date": "2026-05-28",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**帆软 CAS 通行证单点登录**："
+        },
+        {
+          "type": "Added",
+          "desc": "**API 鉴权准备**：所有 API 请求（`cockpit.html` / `business-topics.html` / `main.js`）统一携带 `Authorization: Bearer token`，401 时自动跳转 CAS"
+        },
+        {
           "type": "Security",
-          "desc": "**事件委托改造**：移除 business-topics.html 中全部 79 个内联事件属性（onclick/onchange/oninput/onsubmit/ondrop/ondragover/ondragleave），改为统一的事件委托处理器"
-        },
-        {
-          "type": "Security",
-          "desc": "消除 XSS 注入风险点，彻底摆脱对内联 `onclick` 的依赖"
-        },
-        {
-          "type": "Changed",
-          "desc": "**CSS 抽离**：内联 1500 行样式迁移至 `src/pages/business-topics/style.css`，HTML 仅保留结构"
-        },
-        {
-          "type": "Changed",
-          "desc": "**JS 模块化拆分**：内联 2614 行脚本按功能拆分为 4 个 ES 模块："
-        },
-        {
-          "type": "Changed",
-          "desc": "`business-topics.html` 从 4326 行降至约 500 行（-88%），可维护性显著提升"
-        },
-        {
-          "type": "Changed",
-          "desc": "Vite 自动打包 JS 模块为独立 chunk，首屏加载优化"
+          "desc": "生产环境禁用本地模拟登录，必须通过帆软 CAS 认证"
         }
       ]
     }
