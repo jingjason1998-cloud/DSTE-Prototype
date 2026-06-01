@@ -3742,148 +3742,13 @@
       }
 
       // ===== 开发路线图页面 =====
-      function renderDevTimeline() {
-        const roadmapData = {
-          versions: [
-            {
-              version: 'v0.4.0',
-              date: '2026-05-27',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: '战略洞察与专题整合页面（数据看板+专题CRUD+AI匹配）' },
-                { type: 'Added', desc: '经营分析会模块重构（会议增强+决议跟踪+日历视图）' },
-                { type: 'Changed', desc: '全局响应式改造：4断点体系+汉堡菜单+导航栏优化' },
-                { type: 'Changed', desc: '统一页面过渡效果：所有页面共享 fadeIn 动画' },
-                { type: 'Fixed', desc: 'Road Map 时间线默认显示最新版本' }
-              ]
-            },
-            {
-              version: 'v0.3.5',
-              date: '2026-05-26',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: 'iframe 嵌入模式（?embed=1）+ 自适应高度' },
-                { type: 'Added', desc: '通用嵌入架构：main.css 统一管理' },
-                { type: 'Added', desc: '报表中心：独立报表目录页面（开口设计）' },
-                { type: 'Fixed', desc: 'shell.css 404 导致导航栏错乱' }
-              ]
-            },
-            {
-              version: 'v0.3.4',
-              date: '2026-05-25',
-              status: 'released',
-              changes: [
-                { type: 'Fixed', desc: 'Road Map 版本历史记录补全' },
-                { type: 'Fixed', desc: '版本标识统一为语义化版本 v0.3.4' }
-              ]
-            },
-            {
-              version: 'v0.3.3',
-              date: '2026-05-23',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: 'reviewer 6维度述职场景（SP战略关联度+态度与反思）' },
-                { type: 'Added', desc: 'SonarCloud 代码质量自动监控' },
-                { type: 'Fixed', desc: 'vertical-segment-review 维度配置升级' },
-                { type: 'Security', desc: 'GitHub Actions CI 强制门禁' }
-              ]
-            },
-            {
-              version: 'v0.3.2',
-              date: '2026-05-22',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: '数据迁移工具页面 migrate-data.html' },
-                { type: 'Fixed', desc: 'reviewer.html 场景维度卡片缺失修复' }
-              ]
-            },
-            {
-              version: 'v0.3.1',
-              date: '2026-05-21',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: 'Road Map 交互增强' }
-              ]
-            },
-            {
-              version: 'v0.3.0',
-              date: '2026-05-21',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: '新增开发路线图 Road Map 页面' },
-                { type: 'Added', desc: '系统管理侧边栏分组' },
-                { type: 'Added', desc: '版本时间线轴 + 甘特图 + 统计面板' },
-                { type: 'Added', desc: '模块进度筛选功能' }
-              ]
-            },
-            {
-              version: 'v0.2.0',
-              date: '2026-05-21',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: '经营分析会页面全面升级' },
-                { type: 'Added', desc: '新增决议跟踪面板（6条决议+进度条）' },
-                { type: 'Added', desc: '会议列表增强（议题标签+材料状态）' },
-                { type: 'Added', desc: '顶部筛选栏（季度/状态）' },
-                { type: 'Fixed', desc: '修复 Light 模式 CSS 变量被 @media 错误嵌套' }
-              ]
-            },
-            {
-              version: 'v0.1.0',
-              date: '2026-05-21',
-              status: 'released',
-              changes: [
-                { type: 'Added', desc: '驾驶舱首页（6阶段导航+侧边栏+SPA路由）' },
-                { type: 'Added', desc: '会议材料审核助手（智能审核+雷达图+批量）' },
-                { type: 'Added', desc: '业务专题管理（CRUD+ST/AT议题导入）' },
-                { type: 'Added', desc: '统一主题系统（Light/Dark跨页面同步）' },
-                { type: 'Added', desc: '登录页（科技感网格背景）' },
-                { type: 'Added', desc: 'pytest 回归测试 30 个用例' },
-                { type: 'Security', desc: '会议审核 XSS 防护（sanitizeUrl协议白名单）' },
-                { type: 'Security', desc: '空矩阵守卫（Array.isArray校验）' }
-              ]
-            }
-          ],
-          modules: [
-            { name: '驾驶舱首页', progress: 100, status: 'done', targetVersion: 'v0.4.0' },
-            { name: '会议审核助手', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
-            { name: '业务专题管理', progress: 100, status: 'done', targetVersion: 'v0.1.0' },
-            { name: '经营分析会', progress: 100, status: 'done', targetVersion: 'v0.4.0' },
-            { name: '战略洞察与专题', progress: 100, status: 'done', targetVersion: 'v0.4.0' },
-            { name: '开发路线图', progress: 100, status: 'done', targetVersion: 'v0.3.0' },
-            { name: 'KPI 看板', progress: 35, status: 'doing', targetVersion: 'v0.5.0' },
-            { name: '战略地图', progress: 0, status: 'todo', targetVersion: 'v0.5.0' },
-            { name: 'BEM 战略解码', progress: 0, status: 'todo', targetVersion: 'v0.5.0' },
-            { name: '用户权限系统', progress: 0, status: 'todo', targetVersion: 'v1.0.0' }
-          ],
-          upcoming: [
-            { name: '战略地图可视化（BSC 四维度）', priority: '高', eta: 'v0.5.0' },
-            { name: 'KPI 看板数据对接', priority: '高', eta: 'v0.5.0' },
-            { name: '2026 年度经营计划编制', priority: '高', eta: 'v0.6.0' },
-            { name: 'BEM 战略解码工具', priority: '中', eta: 'v0.6.0' },
-            { name: '战略复盘与差距分析', priority: '中', eta: 'v0.7.0' },
-            { name: '干部管理与继任计划', priority: '中', eta: 'v0.7.0' },
-            { name: '用户权限与角色管理', priority: '中', eta: 'v1.0.0' },
-            { name: '数据导出与报表中心', priority: '低', eta: 'v1.0.0' }
-          ],
-          plans: [
-            { id: 'PLAN-001', name: '战略洞察与专题整合', status: '已完成', owner: 'AI-1', targetVersion: 'v0.4.0' },
-            { id: 'PLAN-002', name: '经营分析会重构', status: '已完成', owner: 'AI-1', targetVersion: 'v0.4.0' },
-            { id: 'PLAN-003', name: '全局响应式改造', status: '已完成', owner: 'AI-2', targetVersion: 'v0.4.0' },
-            { id: 'PLAN-004', name: '战略地图可视化（BSC）', status: '开发中', owner: 'AI-2', targetVersion: 'v0.5.0' },
-            { id: 'PLAN-005', name: 'KPI 看板数据对接', status: '开发中', owner: 'AI-1', targetVersion: 'v0.5.0' },
-            { id: 'PLAN-006', name: 'BEM 战略解码工具', status: '设计中', owner: 'AI-2', targetVersion: 'v0.5.0' },
-            { id: 'PLAN-007', name: '用户权限系统方案', status: '待评审', owner: '待分配', targetVersion: 'v1.0.0' },
-            { id: 'PLAN-008', name: '数据导出与报表中心', status: '设计中', owner: 'AI-1', targetVersion: 'v1.0.0' }
-          ]
-        };
-
+      // 渲染路线图内容（接收从 JSON 加载的数据）
+      function renderRoadmapContent(roadmapData) {
         const typeColors = { 'Added': 'var(--success)', 'Fixed': 'var(--primary)', 'Changed': 'var(--warning)', 'Security': 'var(--danger)' };
         const typeLabels = { 'Added': '新增', 'Fixed': '修复', 'Changed': '变更', 'Security': '安全' };
         const moduleStatusColor = { 'done': 'var(--success)', 'doing': 'var(--primary)', 'todo': 'var(--border-color)' };
         const moduleStatusLabel = { 'done': '已达成', 'doing': '攻坚中', 'todo': '战略必争' };
 
-        // ① 时间线轴（最新版本在左，向右递减）
         const timelineItems = roadmapData.versions.map((v, i) => {
           const color = v.status === 'released' ? 'var(--success)' : 'var(--warning)';
           const pulse = v.status === 'released' ? '' : 'animation: pulse 2s infinite;';
@@ -3906,7 +3771,6 @@
           return item + `<div style="flex: 1; height: 2px; background: ${connectorColor}; margin-top: 6px; min-width: 30px; border-top: 2px ${connectorStyle} ${connectorColor};"></div>`;
         }).join('');
 
-        // 里程碑节点
         const milestoneNode = `
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 100px;">
             <div style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--primary); background: transparent;"></div>
@@ -3916,7 +3780,6 @@
           </div>
         `;
 
-        // ② 甘特图
         const ganttRows = roadmapData.modules.map(m => `
           <div data-module-status="${m.status}" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
             <div style="width: 120px; font-size: 13px; color: var(--text-secondary); font-weight: 500;">${m.name}</div>
@@ -3933,15 +3796,13 @@
           </div>
         `).join('');
 
-        // ③ 统计
         const releasedCount = roadmapData.versions.filter(v => v.status === 'released').length;
         const featureCount = roadmapData.versions.reduce((sum, v) => sum + v.changes.filter(c => c.type === 'Added').length, 0);
         const fixCount = roadmapData.versions.reduce((sum, v) => sum + v.changes.filter(c => c.type === 'Fixed').length, 0);
         const todoCount = roadmapData.upcoming.length;
 
-        // ④ 版本详情
         const versionCards = roadmapData.versions.map(v => `
-          <div id="version-${v.version}" style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${v.status === 'released' ? 'var(--success)' : 'var(--warning)'};">
+          <div id="version-${v.version}" style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${v.status === 'released' ? 'var(--success)' : 'var(--warning)'}">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">${v.version}</div>
               <div style="font-size: 12px; color: var(--text-tertiary);">${v.date}</div>
@@ -3957,17 +3818,16 @@
           </div>
         `).join('');
 
-        // 战略必争
         const upcomingCard = `
           <div style="padding: 16px; border-radius: 8px; border: 1px dashed var(--border-color); background: var(--bg-page);">
             <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">🎯 战略必争</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
               ${roadmapData.upcoming.map(u => `
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-secondary); padding-left: 8px; border-left: 3px solid ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-secondary); padding-left: 8px; border-left: 3px solid ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'}">
                   <span>${u.name}</span>
                   <div style="display: flex; gap: 8px; align-items: center;">
                     <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: var(--bg-page); color: var(--text-tertiary);">${u.eta}</span>
-                    <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'}22; color: ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'};">${u.priority}</span>
+                    <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)')}22; color: ${u.priority === '高' ? 'var(--danger)' : u.priority === '中' ? 'var(--warning)' : 'var(--success)'}">${u.priority}</span>
                   </div>
                 </div>
               `).join('')}
@@ -3987,7 +3847,6 @@
             </div>
           </div>
 
-          <!-- 战略态势横幅 -->
           <div class="card" style="margin-bottom: 16px; padding: 16px 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 12px;">
@@ -4005,7 +3864,6 @@
             </div>
           </div>
 
-          <!-- ① 时间线轴 -->
           <div class="card" style="margin-bottom: 16px; padding: 24px;">
             <div id="dev-timeline" style="display: flex; align-items: flex-start; justify-content: flex-start; gap: 0; overflow-x: auto; padding-bottom: 8px;">
               ${timelineNodes}
@@ -4014,7 +3872,6 @@
             </div>
           </div>
 
-          <!-- ② 甘特图 + ③ 统计 -->
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="card">
               <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
@@ -4066,7 +3923,6 @@
             </div>
           </div>
 
-          <!-- ④ 版本详情 -->
           <div class="card" style="margin-bottom: 16px;">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
               <div class="card-title">📝 版本详情</div>
@@ -4078,7 +3934,6 @@
             </div>
           </div>
 
-          <!-- ⑤ 开发计划看板 -->
           ${(() => {
             const kanbanColumns = ['待评审', '设计中', '开发中', '测试中'];
             const kanbanIcons = { '待评审': '📥', '设计中': '🎨', '开发中': '💻', '测试中': '🧪' };
@@ -4133,6 +3988,41 @@
         `;
       }
 
+      // 异步加载 Roadmap 数据
+      function renderDevTimeline() {
+        setTimeout(() => {
+          fetch('roadmap-data.json')
+            .then(r => r.json())
+            .then(data => {
+              const container = document.getElementById('roadmap-container');
+              if (container) {
+                container.innerHTML = renderRoadmapContent(data);
+                const tl = document.getElementById('dev-timeline');
+                if (tl) tl.scrollLeft = 0;
+              }
+            })
+            .catch(err => {
+              console.error('Roadmap load failed:', err);
+              const container = document.getElementById('roadmap-container');
+              if (container) {
+                container.innerHTML = '<div class="card" style="padding:40px;text-align:center;color:var(--danger);">❌ 路线图数据加载失败，请刷新重试</div>';
+              }
+            });
+        }, 0);
+
+        return `
+          <div id="roadmap-container">
+            ${renderBreadcrumb('开发路线图 Road Map')}
+            <div class="page-header">
+              <h1 class="page-title">开发路线图 Road Map</h1>
+            </div>
+            <div class="card" style="padding: 60px; text-align: center; color: var(--text-tertiary);">
+              <div style="font-size: 32px; margin-bottom: 16px;">⏳</div>
+              <div style="font-size: 16px;">加载路线图中...</div>
+            </div>
+          </div>
+        `;
+      }
       function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
