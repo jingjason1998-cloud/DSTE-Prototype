@@ -12,25 +12,25 @@ SRC = PROJECT_ROOT / "src"
 
 def test_calendar_month_renderer_exists():
     """驾驶舱包含月视图渲染函数"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     assert "function renderCalendarMonth(" in content or "window.renderCalendarMonth = function(" in content, "缺少 renderCalendarMonth 函数"
 
 
 def test_calendar_year_renderer_exists():
     """驾驶舱包含年视图渲染函数"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     assert "function renderCalendarYear(" in content or "window.renderCalendarYear = function(" in content, "缺少 renderCalendarYear 函数"
 
 
 def test_calendar_view_switcher_exists():
     """驾驶舱包含日历视图切换函数（月/年）"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     assert "window.switchCalendarView = function(" in content or "function switchCalendarView(" in content, "缺少 switchCalendarView 函数"
 
 
 def test_calendar_month_navigation_exists():
     """月视图包含月份导航按钮（上一月/下一月/今天）"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     calendar_section = content.split("function renderCalendarMonth(")[1] if "function renderCalendarMonth(" in content else ""
     if not calendar_section:
         calendar_section = content.split("window.renderCalendarMonth = function(")[1] if "window.renderCalendarMonth = function(" in content else ""
@@ -42,7 +42,7 @@ def test_calendar_month_navigation_exists():
 
 def test_calendar_year_navigation_exists():
     """年视图包含年份导航按钮（上一年/下一年/今天）"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     calendar_section = content.split("function renderCalendarYear(")[1] if "function renderCalendarYear(" in content else ""
     if not calendar_section:
         calendar_section = content.split("window.renderCalendarYear = function(")[1] if "window.renderCalendarYear = function(" in content else ""
@@ -53,7 +53,7 @@ def test_calendar_year_navigation_exists():
 
 def test_calendar_view_mode_buttons_exist():
     """日历视图头部包含月视图/年视图切换按钮"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     calendar_container = content.split('id="meetings-calendar-container"')[1] if 'id="meetings-calendar-container"' in content else ""
     assert "月视图" in calendar_container or "month" in calendar_container, "日历视图缺少月视图切换按钮"
     assert "年视图" in calendar_container or "year" in calendar_container, "日历视图缺少年视图切换按钮"
@@ -61,7 +61,7 @@ def test_calendar_view_mode_buttons_exist():
 
 def test_calendar_header_is_compact():
     """日历视图采用局部切换：头部始终显示，只切换中间主体区域"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     toggle_section = content.split("window.toggleMeetingsView = function(")[1] if "window.toggleMeetingsView = function(" in content else ""
     # 局部切换：只切换 meetings-list-container 和 meetings-calendar-container
     assert "meetings-list-container" in toggle_section, "toggleMeetingsView 未处理 meetings-list-container"
@@ -72,7 +72,7 @@ def test_calendar_header_is_compact():
 
 def test_calendar_meeting_list_footer_exists():
     """月视图底部包含当月会议清单区域"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     calendar_section = content.split("function renderCalendarMonth(")[1] if "function renderCalendarMonth(" in content else ""
     if not calendar_section:
         calendar_section = content.split("window.renderCalendarMonth = function(")[1] if "window.renderCalendarMonth = function(" in content else ""
@@ -82,7 +82,7 @@ def test_calendar_meeting_list_footer_exists():
 
 def test_calendar_meeting_color_bar():
     """日历日期格子中用场景色显示会议"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     calendar_section = content.split("function renderCalendarMonth(")[1] if "function renderCalendarMonth(" in content else ""
     if not calendar_section:
         calendar_section = content.split("window.renderCalendarMonth = function(")[1] if "window.renderCalendarMonth = function(" in content else ""
@@ -93,7 +93,7 @@ def test_calendar_meeting_color_bar():
 
 def test_calendar_year_mini_calendar_grid():
     """年视图包含 12 个迷你月历网格"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     calendar_section = content.split("function renderCalendarYear(")[1] if "function renderCalendarYear(" in content else ""
     if not calendar_section:
         calendar_section = content.split("window.renderCalendarYear = function(")[1] if "window.renderCalendarYear = function(" in content else ""

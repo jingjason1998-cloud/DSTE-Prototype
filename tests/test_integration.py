@@ -60,7 +60,7 @@ def test_cockpit_has_external_page_mapping():
 
 def test_cockpit_meetings_has_review_link():
     """经营分析会页面包含审核入口"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     assert "待审核材料" in content, "经营分析会缺少待审核材料统计"
     assert "审核会议材料" in content or "reviewer.html" in content, "经营分析会缺少审核链接"
 
