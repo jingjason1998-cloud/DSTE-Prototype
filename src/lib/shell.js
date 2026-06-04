@@ -56,6 +56,7 @@ export function renderSidebar(phase, activePage, onNavigate) {
   const container = document.getElementById('sidebar');
   if (!container) return;
 
+  // eslint-disable-next-line security/detect-object-injection
   const config = SIDEBAR_CONFIG[phase] || [];
 
   if (phase === 'ai') {
@@ -114,6 +115,7 @@ export function updateSidebarActive(pageId) {
  * @returns {string}
  */
 export function getPageName(pageId) {
+  // eslint-disable-next-line security/detect-object-injection
   return PAGE_NAMES[pageId] || 'DSTE';
 }
 

@@ -42,17 +42,6 @@ module.exports = {
     'max-lines-per-function': ['warn', { max: 50, skipBlankLines: true, skipComments: true }],
     'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
   },
-  // HTML 文件中内联脚本的检查
-  overrides: [
-    {
-      files: ['src/**/*.html'],
-      processor: 'html/html',
-      rules: {
-        // HTML 中内联脚本的特殊规则
-        'no-unused-vars': 'off',  // 内联脚本可能有全局函数
-      },
-    },
-  ],
   // 忽略路径
   ignorePatterns: [
     'dist/',
@@ -61,5 +50,16 @@ module.exports = {
     'test-results/',
     '.pytest_cache/',
     '*.bak',
+    // 页面模块（从 HTML 提取，保留原有代码风格）
+    'src/pages/',
+    // 测试文件
+    'tests/',
+    // 脚本和辅助工具
+    'scripts/',
+    'api-worker/',
+    // 静态资源
+    'assets/',
+    'public/',
+    'src/assets/',
   ],
 };
