@@ -45,9 +45,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "dist/*"
+          source: "dist/"
           target: "/var/www/dste/"
-          strip_components: 1
           rm: true
 
       - name: Restart nginx
