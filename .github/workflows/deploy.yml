@@ -43,50 +43,75 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
+            set -e
             echo "=== 开始部署 DSTE v0.4.3 ==="
-            
+            echo "Node版本: $(node -v)"
+            echo "NPM版本: $(npm -v)"
+
             # 进入项目目录
             cd /var/www/DSTE-Prototype
-            
+            echo "当前目录: $(pwd)"
+
             # 备份当前版本（以防回滚）
             BACKUP_DIR="/var/www/backups/dste-$(date +%Y%m%d-%H%M%S)"
             mkdir -p "$BACKUP_DIR"
             cp -r dist "$BACKUP_DIR/" 2>/dev/null || true
             echo "✅ 备份完成: $BACKUP_DIR"
-            
+
             # 拉取最新代码
             git fetch origin
             git reset --hard origin/main
-            
+            echo "✅ 代码已更新到: $(git rev-parse --short HEAD)"
+
             # 安装依赖
             npm ci
-            
+            echo "✅ 依赖安装完成"
+
             # 构建
+            echo "开始构建..."
             npm run build
-            
+            echo "✅ 构建完成"
+
+            # 诊断: 列出 dist 目录内容
+            echo "--- dist 目录内容 ---"
+            ls -la dist/
+            echo "--- dist 根目录文件 ---"
+            ls -1 dist/ | head -20
+
             # 验证构建产物
             if [ ! -f dist/index.html ]; then
-              echo "❌ 构建失败: index.html 不存在"
+              echo "❌ 构建失败: dist/index.html 不存在"
               exit 1
             fi
-            
-            # 复制到 web 目录（根据您的实际路径调整）
-            # 方式1: 直接复制到 nginx 目录
-            # sudo cp -r dist/* /usr/share/nginx/html/
-            
-            # 方式2: 如果 nginx 配置指向项目 dist 目录，无需复制
-            # 只需确保 nginx 配置正确
-            
-            # 方式3: 使用 rsync 同步
-            sudo rsync -av --delete dist/ /var/www/dste/ 2>/dev/null || \
-            sudo cp -r dist/* /var/www/dste/ 2>/dev/null || \
-            echo "⚠️ 请手动配置 web 目录路径"
-            
+            echo "✅ dist/index.html 存在 ($(stat -c%s dist/index.html 2>/dev/null || stat -f%z dist/index.html) bytes)"
+
+            # 复制到 web 目录
+            echo "开始同步到 /var/www/dste/ ..."
+            if sudo rsync -av --delete dist/ /var/www/dste/; then
+              echo "✅ rsync 同步成功"
+            elif sudo cp -r dist/* /var/www/dste/; then
+              echo "✅ cp 复制成功"
+            else
+              echo "❌ 文件同步失败"
+              exit 1
+            fi
+
+            # 验证 web 目录
+            echo "--- /var/www/dste/ 目录内容 ---"
+            ls -la /var/www/dste/ | head -20
+            if [ ! -f /var/www/dste/index.html ]; then
+              echo "❌ 同步后 /var/www/dste/index.html 不存在"
+              exit 1
+            fi
+            echo "✅ /var/www/dste/index.html 存在"
+
             # 重启 nginx
+            echo "重启 nginx..."
             sudo systemctl restart nginx || sudo nginx -s reload
-            
+            echo "✅ nginx 重启完成"
+
             echo "✅ 部署完成"
-            echo "版本: $(git describe --tags --always)"
+            echo "版本: $(git describe --tags --always 2>/dev/null || echo 'unknown')"
             echo "时间: $(date)"
 
       - name: Verify Deployment
