@@ -3,7 +3,7 @@ import {
     checkStorageCapacity, parseCSV, buildIssueFromRow, importIssuesFromPaste,
     openImportModal, handleDragOver, handleDragLeave, handleFileDrop,
     handleFileSelect, processImportFile, isIssueClosed, importIssuesFromRows,
-    updateImportPreview, confirmImport
+    updateImportPreview, confirmImport, ISSUE_STORAGE_KEY
 } from './issue-import.js';
 
 import {
