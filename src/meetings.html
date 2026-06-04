@@ -386,7 +386,82 @@
         ai: []
       };
 
+      // ===== 外部页面映射 =====
+      const EXTERNAL_PAGES = {
+        'exe/meeting-review': 'reviewer.html',
+        'exe/business-topics': 'business-topics.html',
+        'exe/meetings': 'meetings.html'
+      };
+
       // ===== 页面内容 =====
+
+      // ===== 渲染顶部导航 =====
+      function renderTopNav(activePhase) {
+        const container = document.getElementById('top-nav-links');
+        container.innerHTML = TOP_NAV.map(item => `
+          <li><a href="${EXTERNAL_PAGES[item.defaultPage] || (item.defaultPage === 'dashboard' ? 'cockpit.html' : '#')}" data-phase="${item.id}" class="top-nav-item ${item.id === activePhase ? 'active' : ''}">
+            <span>${item.icon}</span>
+            <span>${item.label}</span>
+            <span class="nav-full-label">${item.full}</span>
+          </a></li>
+        `).join('');
+      }
+
+      // ===== 面包屑 =====
+      function renderBreadcrumb(pageName) {
+        return `
+          <div class="breadcrumb">
+            <a href="cockpit.html">驾驶舱</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="meetings.html">战略执行</a>
+            <span class="breadcrumb-separator">/</span>
+            <span>${pageName}</span>
+          </div>
+        `;
+      }
+
+      // ===== 渲染左侧栏 =====
+      function renderSidebar(activePhase, activePage) {
+        const container = document.getElementById('sidebar');
+        const config = SIDEBAR_CONFIG[activePhase] || [];
+        container.classList.remove('collapsed');
+
+        let html = '';
+        config.forEach(item => {
+          if (item.type === 'item') {
+            const target = EXTERNAL_PAGES[item.id] || '#' + item.id;
+            html += `<a class="sidebar-item ${item.id === activePage ? 'active' : ''}" data-page="${item.id}" href="${target}">
+              <span class="icon">${item.icon}</span><span>${item.label}</span>
+            </a>`;
+          } else if (item.type === 'quick') {
+            html += `<div class="sidebar-quick">${item.label}</div>`;
+          } else if (item.type === 'group') {
+            html += `<div class="sidebar-group">
+              <div class="sidebar-group-title">${item.title}</div>
+              ${item.items.map(sub => {
+                const target = EXTERNAL_PAGES[sub.id] || '#' + sub.id;
+                return `<a class="sidebar-item ${sub.id === activePage ? 'active' : ''}" data-page="${sub.id}" href="${target}">
+                  <span class="icon">${sub.icon}</span><span>${sub.label}</span>
+                </a>`;
+              }).join('')}
+            </div>`;
+          }
+        });
+        container.innerHTML = html;
+
+        container.querySelectorAll('.sidebar-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const page = item.dataset.page;
+            if (EXTERNAL_PAGES[page]) {
+              window.location.href = EXTERNAL_PAGES[page];
+            } else if (page === 'exe/meetings') {
+              document.getElementById('page-content').innerHTML = renderMeetings();
+              bindPageEvents(document.getElementById('page-content'));
+            }
+          });
+        });
+      }
 
       // ===== 事件委托（替代内联 onclick）=====
       function bindPageEvents(container) {
