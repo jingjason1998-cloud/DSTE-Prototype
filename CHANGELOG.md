@@ -17,6 +17,16 @@
 
 ---
 
+## [v0.4.2] - 2026-06-04
+
+### Fixed
+- **业务专题管理 CRUD 修复**：
+  - 修复 `issue-import.js` 中 `loadIssues` / `saveIssues` / `loadAllIssues` 未导出导致的运行时错误
+  - 修复 `ai-analysis.js` 中 `escapeHtml` 未定义导致的渲染错误
+  - 修复议题详情查看、编辑、删除功能不可用的问题
+
+---
+
 ## [v0.4.1] - 2026-05-28
 
 ### Added
