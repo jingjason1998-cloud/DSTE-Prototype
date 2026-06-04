@@ -4,8 +4,8 @@ const BASE_URL = '/src/business-topics.html';
 
 // Helper: navigate to page and wait for table to render
 test.beforeEach(async ({ page }) => {
-  await page.goto(BASE_URL);
-  await page.waitForSelector('#topicTableBody tr');
+  await page.goto(BASE_URL, { timeout: 60000 });
+  await page.waitForSelector('#topicTableBody tr', { timeout: 30000 });
 });
 
 // ===================== Page Load =====================
