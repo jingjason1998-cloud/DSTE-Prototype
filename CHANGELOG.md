@@ -17,6 +17,13 @@
 
 ---
 
+## [v0.4.5] - 2026-06-04
+
+### Fixed
+- **业务专题模块构建修复**：修复 `ISSUE_STORAGE_KEY` 未导出导致 Vite 构建失败的问题
+  - `issue-import.js`: 添加 `export` 并加注释防止 linter 误删
+  - `main.js`: 导入 `ISSUE_STORAGE_KEY`
+
 ## [v0.4.3] - 2026-06-04
 
 ### Changed

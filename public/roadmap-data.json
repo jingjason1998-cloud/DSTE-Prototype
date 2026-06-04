@@ -275,6 +275,17 @@
           "desc": "**cockpit.html scope 修复**："
         }
       ]
+    },
+    {
+      "version": "v0.4.5",
+      "date": "2026-06-04",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**业务专题模块构建修复**：修复 `ISSUE_STORAGE_KEY` 未导出导致 Vite 构建失败的问题"
+        }
+      ]
     }
   ],
   "modules": [
