@@ -1,4 +1,5 @@
-const ISSUE_STORAGE_KEY = 'dste_issues_v1';
+// 被 main.js 导入，请勿删除 export
+export const ISSUE_STORAGE_KEY = 'dste_issues_v1';
 
 // 局部工具函数（避免跨模块依赖）
 function escapeHtml(str) {
