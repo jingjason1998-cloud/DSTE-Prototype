@@ -38,36 +38,31 @@ jobs:
           fi
           echo "✅ dist/index.html 存在"
 
-      - name: Deploy dist to server via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          source: "dist/"
-          target: "/opt/dste-v042/"
-          rm: true
+      - name: Deploy dist to server via rsync
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/dste-v042/
 
       - name: Restart nginx
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script: |
-            echo "=== 验证部署文件 ==="
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            echo '=== 验证部署文件 ==='
             ls -la /opt/dste-v042/ | head -15
             if [ ! -f /opt/dste-v042/index.html ]; then
-              echo "❌ /opt/dste-v042/index.html 不存在"
+              echo '❌ /opt/dste-v042/index.html 不存在'
               exit 1
             fi
-            echo "✅ /opt/dste-v042/index.html 存在"
-            echo "重启 nginx..."
+            echo '✅ /opt/dste-v042/index.html 存在'
+            echo '重启 nginx...'
             sudo systemctl restart nginx || sudo nginx -s reload
-            echo "✅ nginx 重启完成"
-            echo "✅ 部署完成: $(date)"
+            echo '✅ nginx 重启完成'
+            echo '✅ 部署完成: $(date)'
+          "
 
       - name: Verify Deployment
         run: |
