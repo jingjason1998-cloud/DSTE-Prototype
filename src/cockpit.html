@@ -607,15 +607,6 @@
             if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
           }
-          // data-edit-meeting: 会议列表编辑按钮
-          const editBtn = e.target.closest('[data-edit-meeting]');
-          if (editBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            window._editMeetingId = editBtn.dataset.editId;
-            navigate('exe/meetings/edit');
-            return;
-          }
         });
       }
 

@@ -1,8 +1,36 @@
 import { loadIssues, loadAllIssues } from './issue-import.js';
 
+let _currentReportType = null;
+
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36).substring(0, 8);
+}
+
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.remove('active');
+        document.body.style.overflow = '';
+    }
 }
 
 export function extractKeywords(text) {
@@ -343,6 +371,60 @@ export function findHighPriorityIssues(issues) {
 
 export function findIssuesWithoutActionItems(issues) {
     return issues.filter(i => !(i.actionItems && i.actionItems.length > 0));
+}
+
+// Stub functions for missing analysis helpers
+function findStuckIssues(issues) {
+    return issues.filter(i => i.processStatus === '进行中' && i.node === '初审');
+}
+
+function findNoConclusionIssues(issues) {
+    return issues.filter(i => !i.conclusion || i.conclusion.trim() === '');
+}
+
+function findDeadlineRisk(issues) {
+    return issues.filter(i => i.deadline && new Date(i.deadline) < new Date(Date.now() + 7 * 86400000));
+}
+
+function findTypeDistribution(issues) {
+    const dist = {};
+    issues.forEach(i => { dist[i.issueType || '未知'] = (dist[i.issueType || '未知'] || 0) + 1; });
+    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
+}
+
+function findProcessDistribution(issues) {
+    const dist = {};
+    issues.forEach(i => { dist[i.node || '未知'] = (dist[i.node || '未知'] || 0) + 1; });
+    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
+}
+
+function findStatusDistribution(issues) {
+    const dist = {};
+    issues.forEach(i => { dist[i.processStatus || '未知'] = (dist[i.processStatus || '未知'] || 0) + 1; });
+    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
+}
+
+function findNodeDistribution(issues) {
+    const dist = {};
+    issues.forEach(i => { dist[i.node || '未知'] = (dist[i.node || '未知'] || 0) + 1; });
+    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
+}
+
+function findProposerActivity(issues) {
+    const dist = {};
+    issues.forEach(i => { dist[i.proposer || '未知'] = (dist[i.proposer || '未知'] || 0) + 1; });
+    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
+}
+
+function findHandlerActivity(issues) {
+    const dist = {};
+    issues.forEach(i => { dist[i.handler || '未知'] = (dist[i.handler || '未知'] || 0) + 1; });
+    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
+}
+
+function computeAvgProcessDays(issues) {
+    const withDays = issues.filter(i => i.processDays && i.processDays > 0);
+    return withDays.length > 0 ? Math.round(withDays.reduce((s, i) => s + i.processDays, 0) / withDays.length) : 0;
 }
 
 export function analyzeDistribution(issues) {

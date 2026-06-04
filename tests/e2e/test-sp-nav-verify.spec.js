@@ -4,7 +4,7 @@ test('线上 SP 标签修复验证', async ({ page }) => {
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
 
-  await page.goto('https://Dste.fineres.com/cockpit.html');
+  await page.goto('/src/cockpit.html');
   await page.waitForTimeout(3000);
 
   console.log('Errors after load:', errors);

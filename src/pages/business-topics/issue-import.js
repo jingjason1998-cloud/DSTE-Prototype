@@ -1,4 +1,28 @@
 const ISSUE_STORAGE_KEY = 'dste_issues_v1';
+
+// 局部工具函数（避免跨模块依赖）
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+let _importRows = null;
+let _importFileName = null;
 export function loadIssues(sourceSystem) {
     const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
     const raw = localStorage.getItem(key);

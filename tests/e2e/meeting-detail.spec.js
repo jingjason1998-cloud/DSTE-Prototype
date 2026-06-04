@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Meeting Detail View', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:3456/src/cockpit.html#exe/meetings');
+    await page.goto('/src/meetings.html');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(800);
   });

@@ -399,7 +399,7 @@
       function renderTopNav(activePhase) {
         const container = document.getElementById('top-nav-links');
         container.innerHTML = TOP_NAV.map(item => `
-          <li><a href="${EXTERNAL_PAGES[item.defaultPage] || (item.defaultPage === 'dashboard' ? 'cockpit.html' : '#')}" data-phase="${item.id}" class="top-nav-item ${item.id === activePhase ? 'active' : ''}">
+          <li><a href="${EXTERNAL_PAGES[item.defaultPage] || (item.defaultPage === 'dashboard' ? 'cockpit.html' : 'cockpit.html')}" data-phase="${item.id}" class="top-nav-item ${item.id === activePhase ? 'active' : ''}">
             <span>${item.icon}</span>
             <span>${item.label}</span>
             <span class="nav-full-label">${item.full}</span>
@@ -456,8 +456,11 @@
             if (EXTERNAL_PAGES[page]) {
               window.location.href = EXTERNAL_PAGES[page];
             } else if (page === 'exe/meetings') {
-              document.getElementById('page-content').innerHTML = renderMeetings();
-              bindPageEvents(document.getElementById('page-content'));
+              const content = document.getElementById('page-content');
+              content.innerHTML = renderMeetings();
+              bindPageEvents(content);
+            } else {
+              window.location.href = 'cockpit.html#' + page;
             }
           });
         });
@@ -817,7 +820,7 @@
             <div style="margin-top: 12px;" class="meeting-tabs" data-meeting="${m.id}">
               <div style="display: flex; gap: 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 8px;">
                 ${Object.entries(tabLabels).map(([key, label]) => `
-                  <button type="button" onclick="switchMeetingTab('${m.id}', '${key}'); event.stopPropagation();" class="mtab-btn-${m.id} mtab-${key}" style="padding: 6px 12px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
+                  <button type="button" onclick="switchMeetingCardTab('${m.id}', '${key}'); event.stopPropagation();" class="mtab-btn-${m.id} mtab-${key}" style="padding: 6px 12px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
                 `).join('')}
               </div>
               <div class="mtab-content-${m.id} mtab-panel-minutes">${tabContents.minutes}</div>
@@ -829,7 +832,7 @@
             </div>
           `;
         }
-        window.switchMeetingTab = function(meetingId, tabKey) {
+        window.switchMeetingCardTab = function(meetingId, tabKey) {
           document.querySelectorAll('.mtab-content-' + meetingId).forEach(el => el.style.display = 'none');
           document.querySelectorAll('.mtab-btn-' + meetingId).forEach(el => { el.style.color = 'var(--text-tertiary)'; el.style.borderBottomColor = 'transparent'; });
           const panel = document.querySelector('.mtab-panel-' + tabKey + '.mtab-content-' + meetingId);
@@ -1302,15 +1305,16 @@
           window._currentDetailMeetingId = null;
         };
         window.openEditorFromDetail = function() {
+          const id = window._currentDetailMeetingId;
           closeMeetingDetail();
-          if (window._currentDetailMeetingId) {
+          if (id) {
             // 和列表页编辑按钮走相同流程（路由导航），更稳定
-            window._editMeetingId = window._currentDetailMeetingId;
+            window._editMeetingId = id;
             navigate('exe/meetings/edit');
           }
         };
         window._currentMeetingTab = '纪要';
-        window.switchMeetingTab = function(tab) {
+        window.switchMeetingDetailTab = function(tab) {
           window._currentMeetingTab = tab;
           document.querySelectorAll('.meeting-tab-btn').forEach(btn => {
             const isActive = btn.dataset.tab === tab;
@@ -1525,7 +1529,7 @@
                   ${['📄 纪要', '✅ 行动(TODO)', '📋 决策', '🔗 会议链'].map(t => {
                     const tabKey = t.replace(/[📄✅🔗] /g, '');
                     const isActive = window._currentMeetingTab === tabKey;
-                    return `<button class="meeting-tab-btn" data-tab="${tabKey}" onclick="switchMeetingTab('${tabKey}')" style="padding: 12px 20px; font-size: 14px; font-weight: ${isActive ? '600' : '500'}; color: ${isActive ? 'var(--primary)' : 'var(--text-secondary)'}; cursor: pointer; border: none; background: none; border-bottom: 2px solid ${isActive ? 'var(--primary)' : 'transparent'}; transition: all 0.2s;">${t}</button>`;
+                    return `<button class="meeting-tab-btn" data-tab="${tabKey}" onclick="switchMeetingDetailTab('${tabKey}')" style="padding: 12px 20px; font-size: 14px; font-weight: ${isActive ? '600' : '500'}; color: ${isActive ? 'var(--primary)' : 'var(--text-secondary)'}; cursor: pointer; border: none; background: none; border-bottom: 2px solid ${isActive ? 'var(--primary)' : 'transparent'}; transition: all 0.2s;">${t}</button>`;
                   }).join('')}
                 </div>
                 ${minutesTab}

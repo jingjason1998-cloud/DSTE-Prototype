@@ -148,7 +148,7 @@ test.describe('Business Topics - Create', () => {
     await page.locator('#fDepartment').fill('测试部');
 
     // Add a milestone
-    await page.locator('[data-ms-action="add"]').click();
+    await page.locator('button:has-text("添加里程碑")').click();
     await page.waitForTimeout(200);
     await page.locator('#formMilestones .milestone-row .ms-name').fill('E2E里程碑1');
     await page.locator('#formMilestones .milestone-row .ms-date').fill('2025-06-30');
@@ -223,7 +223,7 @@ test.describe('Business Topics - Detail View', () => {
     await expect(page.locator('#bizTopicModal')).toContainText('里程碑');
     await expect(page.locator('#bizTopicModal')).toContainText('专题目标');
 
-    await page.locator('[data-modal-close="bizTopicModal"]').first().click();
+    await page.locator('#bizTopicModal .modal-close').first().click();
     await page.waitForTimeout(300);
     await expect(page.locator('#bizTopicModal')).not.toBeVisible();
   });
@@ -252,7 +252,7 @@ test.describe('Business Topics - Delete', () => {
 
     await expect(page.locator('#deleteModal')).toBeVisible();
 
-    await page.locator('[data-modal-action="confirm-delete"]').click();
+    await page.locator('button:has-text("确认删除")').click();
     await page.waitForTimeout(500);
 
     await expect(page.locator('#deleteModal')).not.toBeVisible();
@@ -273,13 +273,13 @@ test.describe('Business Topics - Milestone Management', () => {
     await page.locator('#fOwner').fill('测试负责人');
 
     // Add 2 milestones
-    await page.locator('[data-ms-action="add"]').click();
+    await page.locator('button:has-text("添加里程碑")').click();
     await page.waitForTimeout(200);
     const rows = page.locator('#formMilestones .milestone-row');
     await rows.nth(0).locator('.ms-name').fill('里程碑A');
     await rows.nth(0).locator('.ms-date').fill('2025-03-01');
 
-    await page.locator('[data-ms-action="add"]').click();
+    await page.locator('button:has-text("添加里程碑")').click();
     await page.waitForTimeout(200);
     await rows.nth(1).locator('.ms-name').fill('里程碑B');
     await rows.nth(1).locator('.ms-date').fill('2025-06-01');
@@ -306,7 +306,7 @@ test.describe('Business Topics - Milestone Management', () => {
     await page.locator('[data-action="new-topic"]').click();
     await page.waitForTimeout(300);
 
-    await page.locator('[data-ms-action="add"]').click();
+    await page.locator('button:has-text("添加里程碑")').click();
     await page.waitForTimeout(200);
     await page.locator('#formMilestones .milestone-row .ms-name').fill('待删除里程碑');
 
@@ -420,7 +420,7 @@ test.describe('Business Topics - Issue Import', () => {
     await expect(page.locator('#importModal')).toBeVisible();
     await expect(page.locator('#importModal')).toContainText('导入 ST/AT 议题');
 
-    await page.locator('[data-modal-close="importModal"]').first().click();
+    await page.locator('#importModal .modal-close').first().click();
     await page.waitForTimeout(300);
     await expect(page.locator('#importModal')).not.toBeVisible();
   });
@@ -454,7 +454,7 @@ test.describe('Business Topics - AI Report', () => {
     await expect(page.locator('#aiReportModal')).toBeVisible();
     await expect(page.locator('#aiReportModal')).toContainText('全局分析报告');
 
-    await page.locator('[data-modal-close="aiReportModal"]').first().click();
+    await page.locator('#aiReportModal .modal-close').first().click();
     await page.waitForTimeout(300);
     await expect(page.locator('#aiReportModal')).not.toBeVisible();
   });

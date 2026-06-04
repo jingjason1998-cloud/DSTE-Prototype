@@ -16,7 +16,7 @@ test('trace with debug logs', async ({ page }) => {
   });
 
   // Click close button
-  await page.locator('[data-modal-close="formModal"]').first().click();
+  await page.locator('#formModal .modal-close').click();
   await page.waitForTimeout(500);
 
   console.log('All logs:', logs);

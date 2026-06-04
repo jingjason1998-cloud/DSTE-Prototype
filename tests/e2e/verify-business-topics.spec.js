@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * 验证 ai-analysis.js 和 issue-import.js 的修复是否生效
  */
 
-const BASE_URL = 'http://localhost:4173/src/business-topics.html';
+const BASE_URL = '/src/business-topics.html';
 
 test.describe('业务专题管理修复验证', () => {
 
