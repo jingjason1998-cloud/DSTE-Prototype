@@ -239,10 +239,15 @@ def test_meeting_list_has_edit_button():
 
 
 def test_meeting_edit_page_route_exists():
-    """驾驶舱 PAGES 路由包含独立编辑页面"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "'exe/meetings/edit': renderMeetingEditPage" in content, "PAGES 缺少 exe/meetings/edit 路由"
+    """经营分析会独立页面存在且包含编辑功能"""
+    # 经营分析会已提取为独立页面 meetings.html
+    meetings_file = SRC / "meetings.html"
+    assert meetings_file.exists(), "meetings.html 独立页面不存在"
+    content = meetings_file.read_text(encoding="utf-8")
     assert "function renderMeetingEditPage()" in content, "缺少 renderMeetingEditPage 函数"
+    # cockpit 中应通过 EXTERNAL_PAGES 映射到独立页面
+    cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    assert "'exe/meetings': 'meetings.html'" in cockpit_content, "cockpit 未映射 meetings 到独立页面"
 
 
 def test_meeting_edit_page_has_form():

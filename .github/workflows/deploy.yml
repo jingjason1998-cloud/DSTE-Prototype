@@ -43,7 +43,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            echo "=== 开始部署 DSTE v0.3.3 ==="
+            echo "=== 开始部署 DSTE v0.4.3 ==="
             
             # 进入项目目录
             cd /var/www/DSTE-Prototype
@@ -99,5 +99,5 @@ jobs:
         if: success()
         run: |
           echo "🎉 DSTE 生产环境部署成功！"
-          echo "版本: v0.3.3"
+          echo "版本: v0.4.3"
           echo "时间: $(date)"

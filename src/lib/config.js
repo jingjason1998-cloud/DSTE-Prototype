@@ -67,7 +67,8 @@ export const SIDEBAR_CONFIG = {
 
 export const EXTERNAL_PAGES = {
   'exe/meeting-review': 'reviewer.html',
-  'exe/business-topics': 'business-topics.html'
+  'exe/business-topics': 'business-topics.html',
+  'exe/meetings': 'meetings.html'
 };
 
 export const PAGE_NAMES = {

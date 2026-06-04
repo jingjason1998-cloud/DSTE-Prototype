@@ -17,6 +17,21 @@
 
 ---
 
+## [v0.4.3] - 2026-06-04
+
+### Changed
+- **reviewer.html 代码重构**：
+  - 提取 1412 行内联 CSS 到 `src/pages/reviewer/style.css`
+  - 提取 2407 行内联 JS 到 `src/pages/reviewer/main.js`
+  - reviewer.html 从 4229 行降至 408 行
+  - 保持所有功能和 onclick 绑定不变
+
+### Fixed
+- **cockpit.html scope 修复**：
+  - `renderCalendarMonth` 添加 `window.renderCalendarMonth` 全局暴露，修复 scope check 报错
+
+---
+
 ## [v0.4.2] - 2026-06-04
 
 ### Fixed

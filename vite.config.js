@@ -19,6 +19,7 @@ export default defineConfig({
         cockpit: resolve(__dirname, 'src/cockpit.html'),
         reviewer: resolve(__dirname, 'src/reviewer.html'),
         'business-topics': resolve(__dirname, 'src/business-topics.html'),
+        meetings: resolve(__dirname, 'src/meetings.html'),
       },
     },
   },
@@ -35,13 +36,16 @@ export default defineConfig({
   assetsInclude: ['assets/**/*.{png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot,mp4,webm}'],
   plugins: [
     {
-      name: 'copy-shell-css',
+      name: 'copy-static-files',
       closeBundle() {
         try {
           mkdirSync('dist/src/styles', { recursive: true });
           copyFileSync('src/styles/shell.css', 'dist/src/styles/shell.css');
+          // Copy reviewer main.js (non-module script, Vite won't bundle it)
+          mkdirSync('dist/src/pages/reviewer', { recursive: true });
+          copyFileSync('src/pages/reviewer/main.js', 'dist/src/pages/reviewer/main.js');
         } catch (e) {
-          console.error('Failed to copy shell.css:', e.message);
+          console.error('Failed to copy static files:', e.message);
         }
       }
     }

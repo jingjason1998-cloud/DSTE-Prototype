@@ -6,11 +6,10 @@ function checkFile(filePath) {
     const ext = path.extname(filePath);
     if (ext !== '.js' && ext !== '.cjs') return;
 
-    const content = fs.readFileSync(filePath, 'utf-8');
     try {
-        new Function(content);
+        require('child_process').execSync(`node --check "${filePath}"`, { stdio: 'pipe' });
     } catch (e) {
-        console.error(`Syntax error in ${filePath}: ${e.message}`);
+        console.error(`Syntax error in ${filePath}: ${e.stderr || e.message}`);
         process.exit(1);
     }
 }

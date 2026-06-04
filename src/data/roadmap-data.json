@@ -249,6 +249,32 @@
           "desc": "生产环境禁用本地模拟登录，必须通过帆软 CAS 认证"
         }
       ]
+    },
+    {
+      "version": "v0.4.2",
+      "date": "2026-06-04",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**业务专题管理 CRUD 修复**："
+        }
+      ]
+    },
+    {
+      "version": "v0.4.3",
+      "date": "2026-06-04",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Changed",
+          "desc": "**reviewer.html 代码重构**："
+        },
+        {
+          "type": "Fixed",
+          "desc": "**cockpit.html scope 修复**："
+        }
+      ]
     }
   ],
   "modules": [
