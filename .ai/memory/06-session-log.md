@@ -3,18 +3,21 @@
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
 ## 2026-06-04
-- **主题**：经营分析会模块独立页面提取
+- **主题**：经营分析会模块独立页面提取 + 死代码清理
 - **操作**：
   - 将 cockpit.html 中约 1800 行经营分析会代码提取到 `src/meetings.html`
   - 注册 vite.config.js 构建入口
   - 更新 config.js 和 cockpit.html 的 EXTERNAL_PAGES，实现点击跳转
   - 添加独立页面内部路由（bindPageEvents + 简化 navigate）
-  - 更新 pytest 测试（25+ 个测试改为检查 meetings.html）
+  - 修复独立页面运行时白屏（补充 renderTopNav/renderSidebar/EXTERNAL_PAGES/renderBreadcrumb）
+  - 清理 cockpit.html 中约 1800 行已不用的经营分析会死代码
+  - 更新 pytest 测试（test_calendar_view.py + test_integration.py）以检查 meetings.html
   - 将 meetings.html 加入 check:scope
 - **验证**：
-  - `npm run build` 构建通过
+  - `npm run build` 构建通过，cockpit.html 产物从 261KB 降至 129KB
   - `npm run check:scope` 通过
   - pytest 91 通过 / 5 失败（ reviewer 历史遗留）
+  - 浏览器自动化验证：会议列表、详情、日历视图、新建会议全部正常
 - **状态**：complete
 
 ## 2026-06-02 09:51
