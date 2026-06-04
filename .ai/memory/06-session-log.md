@@ -2,6 +2,31 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-04 20:00
+- **主题**：项目诊断 + v0.4.4 升级 + GitHub Actions 自动部署修复
+- **操作**：
+  - 项目全面诊断：测试覆盖（pytest 91/96、vitest 全失败）、代码质量（957 内联 style、249 硬编码颜色）、构建产物分析
+  - 经营分析会模块增强并升级 v0.4.4：
+    - 新增决策编辑功能（会议弹窗内添加/编辑/删除决议）
+    - 新增待闭环行动抽屉（右侧滑出面板聚合所有待办）
+    - 一报一会流程交互优化 + 保存数据完整性修复
+    - 4 个 Playwright E2E 测试覆盖新功能
+  - 版本号升级 0.4.3 → 0.4.4，commit 并 push
+  - GitHub Actions 部署失败排查与修复：
+    - 诊断：服务器 `/root/.ssh/authorized_keys` 为空，`SSH_HOST`/`SSH_USER` Secrets 从未配置
+    - 生成 RSA 密钥对，公钥添加到服务器，私钥更新到 GitHub Secrets
+    - deploy.yml 改用 `rsync + ssh` 替代 `appleboy/scp-action@v0.1.7`
+    - 配置缺失的 `SSH_HOST`（47.101.197.187）和 `SSH_USER`（root）Secrets
+    - Run #23 首次成功自动部署
+  - 手动部署作为 fallback 确保生产环境及时更新
+- **验证**：
+  - scope check 通过（28/28 onclick 全局可访问）
+  - pytest 91 passed / 5 failed（reviewer 历史遗留）
+  - `npm run build` 构建通过
+  - 生产环境 https://dste.fineres.com/ 返回 200，meetings.html 171KB
+  - GitHub Actions Run #23 状态 success
+- **状态**：complete
+
 ## 2026-06-04 16:30
 - **主题**：v0.4.3 部署修复 + E2E 测试修复 + 生产环境首页 403 修复
 - **操作**：
