@@ -1543,6 +1543,7 @@
 
         // ---- 一报一会流程交互 ----
         window.togglePipelineStep = function(meetingId, stepKey) {
+          if (typeof event !== 'undefined') event.stopPropagation();
           const meeting = meetings.find(m => m.id === meetingId);
           if (!meeting || !meeting.pipeline) return;
           const newValue = !meeting.pipeline[stepKey];
@@ -1564,6 +1565,8 @@
                   meeting.pipeline[PIPELINE_STEPS[j].key] = false;
                 }
                 apiSave('/api/meetings', meetings);
+                document.getElementById('page-content').innerHTML = renderMeetings();
+                bindPageEvents(document.getElementById('page-content'));
                 openMeetingDetail(meetingId);
                 return;
               }
@@ -1571,6 +1574,8 @@
           }
           meeting.pipeline[stepKey] = newValue;
           apiSave('/api/meetings', meetings);
+          document.getElementById('page-content').innerHTML = renderMeetings();
+          bindPageEvents(document.getElementById('page-content'));
           openMeetingDetail(meetingId);
         };
 
@@ -1741,6 +1746,7 @@
           document.getElementById('edit-status').value = d.status || 'planned';
           renderAgendaList();
           renderActionList();
+          renderDecisionList();
 
           // 草稿自动保存：表单变化实时同步到 _meetingEditData
           const fieldMap = {
@@ -1867,6 +1873,48 @@
           renderActionList();
         };
 
+        // ---- 决策编辑 ----
+        function renderDecisionList() {
+          const d = window._meetingEditData;
+          const container = document.getElementById('edit-decision-list');
+          if (!d || !container) return;
+          const list = d.decisions || [];
+          if (list.length === 0) {
+            container.innerHTML = '<div style="font-size: 12px; color: var(--text-tertiary); padding: 8px 0;">暂无决议，点击上方按钮添加</div>';
+            return;
+          }
+          container.innerHTML = list.map((item, idx) => `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <input type="text" value="${item.content}" onchange="updateDecisionContent(${idx}, this.value)" placeholder="决议内容" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <input type="text" value="${item.owner}" onchange="updateDecisionOwner(${idx}, this.value)" placeholder="决策人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <input type="date" value="${item.deadline}" onchange="updateDecisionDeadline(${idx}, this.value)" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              <select onchange="updateDecisionStatus(${idx}, this.value)" style="width: 100px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
+                <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>待审批</option>
+                <option value="approved" ${item.status === 'approved' ? 'selected' : ''}>已批准</option>
+                <option value="implemented" ${item.status === 'implemented' ? 'selected' : ''}>已执行</option>
+                <option value="rejected" ${item.status === 'rejected' ? 'selected' : ''}>已驳回</option>
+              </select>
+              <button type="button" onclick="removeDecisionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+            </div>
+          `).join('');
+        }
+        window.updateDecisionContent = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].content = val; };
+        window.updateDecisionOwner = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].owner = val; };
+        window.updateDecisionDeadline = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].deadline = val; };
+        window.updateDecisionStatus = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].status = val; };
+        window.addDecisionItem = function() {
+          if (!window._meetingEditData) return;
+          if (!window._meetingEditData.decisions) window._meetingEditData.decisions = [];
+          const today = new Date().toISOString().split('T')[0];
+          window._meetingEditData.decisions.push({ content: '', owner: '', deadline: today, status: 'pending' });
+          renderDecisionList();
+        };
+        window.removeDecisionItem = function(idx) {
+          if (!window._meetingEditData?.decisions) return;
+          window._meetingEditData.decisions.splice(idx, 1);
+          renderDecisionList();
+        };
+
         window.saveMeeting = function() {
           const d = window._meetingEditData;
           if (!d) return;
@@ -1920,6 +1968,15 @@
             meetings[idx].status = statusVal;
             meetings[idx].agenda_items = (d.agenda_items || []).filter(a => a.title.trim());
             if (meetings[idx].agenda_items.length === 0) meetings[idx].agenda_items = [{ type: 'financial_review', title: '未设置议程', duration: 15, owner: '' }];
+            meetings[idx].actions = d.actions || [];
+            meetings[idx].decisions = d.decisions || [];
+            meetings[idx].pipeline = d.pipeline || {};
+            meetings[idx].upstreamMeeting = d.upstreamMeeting || null;
+            meetings[idx].downstreamMeeting = d.downstreamMeeting || null;
+            meetings[idx].hasMinutes = d.hasMinutes || false;
+            meetings[idx].minutesStatus = d.minutesStatus || null;
+            meetings[idx].metrics = d.metrics || { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 };
+            meetings[idx].effectiveness = d.effectiveness || null;
             const editorOverlay = document.getElementById('meeting-editor-overlay');
             if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
             apiSave('/api/meetings', meetings);
@@ -1936,6 +1993,24 @@
           const editorOverlay = document.getElementById('meeting-editor-overlay');
           if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
           navigate('exe/meetings');
+        };
+
+        const pendingItems = meetings.flatMap(m =>
+          (m.actions || [])
+            .filter(a => a.status === 'pending' || a.status === 'in_progress')
+            .map(a => ({ ...a, meetingTitle: m.title, meetingId: m.id, meetingDate: m.date }))
+        );
+        window.openPendingActionsDrawer = function() {
+          const overlay = document.getElementById('pending-actions-overlay');
+          const drawer = document.getElementById('pending-actions-drawer');
+          if (overlay) overlay.style.display = 'block';
+          if (drawer) drawer.style.display = 'flex';
+        };
+        window.closePendingActionsDrawer = function() {
+          const overlay = document.getElementById('pending-actions-overlay');
+          const drawer = document.getElementById('pending-actions-drawer');
+          if (overlay) overlay.style.display = 'none';
+          if (drawer) drawer.style.display = 'none';
         };
 
         return `
@@ -2076,7 +2151,7 @@
                     <div style="font-size: 28px; font-weight: 700; color: var(--success);">${Math.round((doneDecisions / Math.max(1, allDecisions.length)) * 100)}%</div>
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">决议闭环率</div>
                   </div>
-                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
+                  <div data-stat="pending-actions" onclick="openPendingActionsDrawer()" style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-page)'">
                     <div style="font-size: 28px; font-weight: 700; color: var(--warning);">${allActions.filter(a => a.status === 'pending' || a.status === 'in_progress').length}</div>
                     <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待闭环行动</div>
                   </div>
@@ -2110,6 +2185,30 @@
                 <div class="card-header"><div class="card-title">🔔 待办提醒</div></div>
                 <div>${todoListHtml}</div>
               </div>
+            </div>
+          </div>
+
+          <!-- 待闭环行动抽屉 -->
+          <div id="pending-actions-overlay" onclick="closePendingActionsDrawer()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 2999;"></div>
+          <div id="pending-actions-drawer" style="display: none; position: fixed; top: 0; right: 0; width: 420px; height: 100vh; background: var(--bg-card); z-index: 3000; flex-direction: column; box-shadow: -4px 0 20px rgba(0,0,0,0.1);">
+            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+              <h3 style="margin: 0; font-size: 16px;">🔔 待闭环行动 (${pendingItems.length})</h3>
+              <button onclick="closePendingActionsDrawer()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; padding: 16px 20px;">
+              ${pendingItems.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🎉 暂无待闭环行动</div>' : pendingItems.map((a, i) => `
+                <div data-pending-action="${i}" style="padding: 14px; background: var(--bg-page); border-radius: 8px; margin-bottom: 12px; border-left: 3px solid ${a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'};">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${a.meetingTitle}</span>
+                    <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${a.status === 'in_progress' ? 'var(--primary-light)' : 'var(--warning)'}15; color: ${a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'};">${a.status === 'in_progress' ? '进行中' : '待办'}</span>
+                  </div>
+                  <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">${a.content}</div>
+                  <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary);">
+                    <span>👤 ${a.owner || '待定'}</span>
+                    <span>📅 ${a.deadline || '未设置'}</span>
+                  </div>
+                </div>
+              `).join('')}
             </div>
           </div>
 
@@ -2259,6 +2358,12 @@
                 </div>
                 <div id="edit-action-list" style="margin-bottom: 10px;"></div>
                 <button type="button" onclick="addActionItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--success); border-radius: 6px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500;">+ 添加行动项</button>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px;">
+                  <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">决议</div>
+                </div>
+                <div id="edit-decision-list" style="margin-bottom: 10px;"></div>
+                <button type="button" onclick="addDecisionItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed #f59e0b; border-radius: 6px; background: rgba(245,158,11,0.08); color: #f59e0b; cursor: pointer; font-weight: 500;">+ 添加决议</button>
               </div>
             </div>
             <div style="padding: 12px 32px; border-top: 1px solid var(--border-light); background: var(--bg-card); display: flex; justify-content: space-between; align-items: center; position: sticky; bottom: 0;">
@@ -2348,6 +2453,12 @@
               </div>
               <div id="edit-action-list" style="margin-bottom: 10px;"></div>
               <button type="button" onclick="addActionItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--success); border-radius: 6px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500;">+ 添加行动项</button>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">决议</div>
+              </div>
+              <div id="edit-decision-list" style="margin-bottom: 10px;"></div>
+              <button type="button" onclick="addDecisionItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed #f59e0b; border-radius: 6px; background: rgba(245,158,11,0.08); color: #f59e0b; cursor: pointer; font-weight: 500;">+ 添加决议</button>
             </div>
           </div>
           <div style="max-width: 960px; margin: 16px auto 0; padding: 12px 24px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center;">
