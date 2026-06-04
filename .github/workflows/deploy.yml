@@ -46,7 +46,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           source: "dist/"
-          target: "/var/www/dste/"
+          target: "/opt/dste-v042/"
           rm: true
 
       - name: Restart nginx
@@ -58,12 +58,12 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             echo "=== 验证部署文件 ==="
-            ls -la /var/www/dste/ | head -15
-            if [ ! -f /var/www/dste/index.html ]; then
-              echo "❌ /var/www/dste/index.html 不存在"
+            ls -la /opt/dste-v042/ | head -15
+            if [ ! -f /opt/dste-v042/index.html ]; then
+              echo "❌ /opt/dste-v042/index.html 不存在"
               exit 1
             fi
-            echo "✅ /var/www/dste/index.html 存在"
+            echo "✅ /opt/dste-v042/index.html 存在"
             echo "重启 nginx..."
             sudo systemctl restart nginx || sudo nginx -s reload
             echo "✅ nginx 重启完成"
