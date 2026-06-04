@@ -3,13 +3,19 @@
 > 更新时间: 2026-06-02 10:00
 
 ## 状态
-rollback-complete — v0.4.2 生产回滚已完成，系统恢复稳定
+meetings-extracted — 经营分析会已提取为独立页面 meetings.html
 
 ## 刚完成
-- v0.4.2 cockpit.html 代码拆分导致生产白屏，已回滚到 v0.3.5 稳定版本
-- 备份文件重命名为 `dste-stable-v0.3.5-backup-20260601.tar.gz`
-- 损坏状态存档为 `dste-broken-v0.4.2-backup-20260602-095713.tar.gz`
+- 将经营分析会模块从 cockpit.html 提取到独立的 `src/meetings.html`
+- 注册 `meetings` 入口到 `vite.config.js`
+- 更新 `src/lib/config.js` 和 cockpit.html 的 `EXTERNAL_PAGES`，点击经营分析会跳转独立页面
+- 更新驾驶舱首页快捷入口，链接到 `meetings.html`
+- 为 meetings.html 添加 `bindPageEvents` 和简化版 `navigate()`，支持独立页面内部路由
+- 更新相关 pytest 测试，使其检查 meetings.html 而非 cockpit.html
+- 将 meetings.html 加入 `check:scope`
+- 构建通过，scope check 通过，91 个 pytest 通过（5 个 reviewer 测试为历史遗留失败）
 
 ## 下一步
 - T010 需求管理中心 — 需求池列表页（任务配方在 .ai/tasks/active/T010-requirement-pool.md）
-- 或先修复 v0.4.2 的构建/部署问题（确保 src/js/ 被打包进 dist），再重新部署
+- 或清理 cockpit.html 中遗留的经营分析会死代码（约 1800 行，当前已无用但尚未删除）
+- 或修复 reviewer.html 相关测试（5 个历史遗留失败）

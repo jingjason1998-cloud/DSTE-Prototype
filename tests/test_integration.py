@@ -221,7 +221,7 @@ def test_meeting_edit_page_route_exists():
     content = meetings_file.read_text(encoding="utf-8")
     assert "function renderMeetingEditPage()" in content, "缺少 renderMeetingEditPage 函数"
     # cockpit 中应通过 EXTERNAL_PAGES 映射到独立页面
-    cockpit_content = (SRC / "meetings.html").read_text(encoding="utf-8")
+    cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
     assert "'exe/meetings': 'meetings.html'" in cockpit_content, "cockpit 未映射 meetings 到独立页面"
 
 def test_meeting_edit_page_has_form():

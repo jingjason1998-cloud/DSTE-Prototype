@@ -2,6 +2,21 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-04
+- **主题**：经营分析会模块独立页面提取
+- **操作**：
+  - 将 cockpit.html 中约 1800 行经营分析会代码提取到 `src/meetings.html`
+  - 注册 vite.config.js 构建入口
+  - 更新 config.js 和 cockpit.html 的 EXTERNAL_PAGES，实现点击跳转
+  - 添加独立页面内部路由（bindPageEvents + 简化 navigate）
+  - 更新 pytest 测试（25+ 个测试改为检查 meetings.html）
+  - 将 meetings.html 加入 check:scope
+- **验证**：
+  - `npm run build` 构建通过
+  - `npm run check:scope` 通过
+  - pytest 91 通过 / 5 失败（ reviewer 历史遗留）
+- **状态**：complete
+
 ## 2026-06-02 09:51
 - **主题**：生产环境回滚
 - **操作**：

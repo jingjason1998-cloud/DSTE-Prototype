@@ -387,6 +387,66 @@
       };
 
       // ===== 页面内容 =====
+
+      // ===== 事件委托（替代内联 onclick）=====
+      function bindPageEvents(container) {
+        container.addEventListener('click', (e) => {
+          // data-navigate: 面包屑/相关链接导航
+          const navLink = e.target.closest('[data-navigate]');
+          if (navLink) {
+            e.preventDefault();
+            const page = navLink.dataset.navigate;
+            if (page === 'exe/meetings') {
+              document.getElementById('page-content').innerHTML = renderMeetings();
+              bindPageEvents(document.getElementById('page-content'));
+            } else if (EXTERNAL_PAGES[page]) {
+              window.location.href = EXTERNAL_PAGES[page];
+            }
+            return;
+          }
+          // data-edit-meeting: 会议列表编辑按钮
+          const editBtn = e.target.closest('[data-edit-meeting]');
+          if (editBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            window._editMeetingId = editBtn.dataset.editId;
+            const m = window._meetingsData?.find(x => x.id === window._editMeetingId);
+            if (!m) {
+              document.getElementById('page-content').innerHTML = renderMeetings();
+              bindPageEvents(document.getElementById('page-content'));
+            } else {
+              window._meetingEditData = JSON.parse(JSON.stringify(m));
+              document.getElementById('page-content').innerHTML = renderMeetingEditPage();
+              renderEditorForm();
+              bindPageEvents(document.getElementById('page-content'));
+            }
+            return;
+          }
+        });
+      }
+
+      // ===== 简化导航（独立页面内部路由）=====
+      function navigate(pageId) {
+        if (pageId === 'exe/meetings') {
+          const content = document.getElementById('page-content');
+          content.innerHTML = renderMeetings();
+          bindPageEvents(content);
+        } else if (pageId === 'exe/meetings/edit') {
+          const m = window._meetingsData?.find(x => x.id === window._editMeetingId);
+          if (!m) {
+            navigate('exe/meetings');
+            return;
+          }
+          window._meetingEditData = JSON.parse(JSON.stringify(m));
+          const content = document.getElementById('page-content');
+          content.innerHTML = renderMeetingEditPage();
+          renderEditorForm();
+          bindPageEvents(content);
+        } else if (EXTERNAL_PAGES[pageId]) {
+          window.location.href = EXTERNAL_PAGES[pageId];
+        }
+      }
+
       // ===== 经营分析会页面 =====
 
       function renderMeetings() {

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "node scripts/generate-roadmap.cjs && vite build",
     "preview": "vite preview",
-    "check:scope": "node scripts/check-onclick-scope.js src/cockpit.html && node scripts/check-onclick-scope.js src/business-topics.html",
+    "check:scope": "node scripts/check-onclick-scope.js src/cockpit.html && node scripts/check-onclick-scope.js src/business-topics.html && node scripts/check-onclick-scope.js src/meetings.html",
     "health:check": "node scripts/health-check.cjs",
     "lint": "eslint .",
     "lint:security": "eslint . --format json --output-file eslint-report.json",
