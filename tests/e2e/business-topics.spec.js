@@ -2,10 +2,13 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = '/src/business-topics.html';
 
-// Helper: navigate to page and wait for table to render
+// Helper: navigate to page, reset filters, and wait for table to render
 test.beforeEach(async ({ page }) => {
   await page.goto(BASE_URL, { timeout: 60000 });
   await page.waitForSelector('#topicTableBody tr', { timeout: 30000 });
+  // Reset year filter to "all" since the UI defaults to current year
+  await page.selectOption('#filterYear', '');
+  await page.waitForTimeout(200);
 });
 
 // ===================== Page Load =====================
@@ -236,7 +239,7 @@ test.describe('Business Topics - Detail View', () => {
 
     await expect(page.locator('#detailTitle')).toContainText(firstTopicName);
     await expect(page.locator('#bizTopicModal')).toContainText('整体进度');
-    await expect(page.locator('#bizTopicModal')).toContainText('预算');
+    await expect(page.locator('#bizTopicModal')).toContainText('剩余天数');
   });
 });
 

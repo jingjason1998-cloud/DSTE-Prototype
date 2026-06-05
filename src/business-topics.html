@@ -313,11 +313,12 @@
             </div>
 
             <div class="filter-bar" style="margin-bottom: 20px;">
-                <select id="filterYear" class="form-select" style="min-width: 120px;" data-filter>
-                    <option value="">全部年度</option>
-                    <option value="2024">2024</option>
-                    <option value="2025">2025</option>
-                </select>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <select id="filterYear" class="form-select" style="min-width: 100px;" data-filter>
+                        <option value="">全部年度</option>
+                    </select>
+                    <button type="button" class="btn btn-ghost btn-sm" data-action="manage-years" title="管理年度">⚙️</button>
+                </div>
                 <select id="filterDept" class="form-select" style="min-width: 140px;" data-filter>
                     <option value="">全部部门</option>
                 </select>
@@ -437,6 +438,12 @@
                         <input type="text" id="fDepartment" class="form-input" placeholder="如：财务部">
                     </div>
                     <div class="form-group">
+                        <label class="form-label">年度 <span class="required">*</span></label>
+                        <select id="fYear" class="form-select">
+                            <option value="">选择年度</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">开始日期</label>
                         <input type="date" id="fStartDate" class="form-input">
                     </div>
@@ -444,17 +451,13 @@
                         <label class="form-label">结束日期</label>
                         <input type="date" id="fEndDate" class="form-input">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">预算（万元）</label>
-                        <input type="number" id="fBudget" class="form-input" min="0" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">实际成本（万元）</label>
-                        <input type="number" id="fActualCost" class="form-input" min="0" placeholder="0">
-                    </div>
                     <div class="form-group full">
                         <label class="form-label">标签（用逗号分隔）</label>
                         <input type="text" id="fTags" class="form-input" placeholder="大客户, 营收, Q3">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">🔗 KMS 链接</label>
+                        <input type="url" id="fKmsLink" class="form-input" placeholder="https://kms.fineres.com/...">
                     </div>
                     <div class="form-group full">
                         <label class="form-label">📝 结项总结</label>
@@ -538,13 +541,13 @@
 
             <div class="form-group full">
                 <label class="form-label">粘贴表格数据（从 Excel 复制，作为备选方式）</label>
-                <textarea id="importPasteArea" class="form-textarea" rows="4" placeholder="会议名称,会议日期,议题编号,议题标题,议题类型,主责部门,提案人,议题内容,决议内容,行动项,关联KPI,状态,优先级&#10;片联ST-2026-Q1,2026-01-20,ST-2026-Q1-001,渠道下沉策略,战略,销售部,销售总监,简要描述...,决定...,项1|负责人|2026-02-15|已完成,KPI-001,已决议,P0" data-import-preview></textarea>
+                <textarea id="importPasteArea" class="form-textarea" rows="4" placeholder="议题自动编号,片联议题类型,议题主题,议题描述,团队负责人审核结论,结论,议题状态,提交人姓名,提交时间&#10;01373,人力资源,把数据治理证书纳入报销范围,目前PMP和软考高级证书可以报销...,转入片联议题讨论,,跟进,dallas-章鹏,2026-05-19" data-import-preview></textarea>
             </div>
             <div id="importPreviewArea" style="margin-top: 16px; display: none;">
                 <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">预览（前 5 条）</div>
                 <div class="table-container" style="max-height: 200px; overflow-y: auto;">
                     <table class="data-table" id="importPreviewTable">
-                        <thead><tr><th>议题编号</th><th>议题标题</th><th>状态</th><th>验证结果</th></tr></thead>
+                         <thead><tr><th>编号</th><th>议题主题</th><th>类型</th><th>状态</th><th>验证</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -647,6 +650,28 @@
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
                 <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('aiReportModal')">关闭</button>
                 <button type="button" class="btn btn-primary" data-action="regenerate-report">🔄 重新生成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 年份管理弹窗 -->
+    <div class="modal-overlay" id="yearManageModal">
+        <div class="modal-content" style="max-width: min(520px, calc(100vw - 32px)); width: 100%;">
+            <button class="modal-close" onclick="window._dste.closeModal('yearManageModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-title">📅 年度管理</div>
+                <div class="modal-subtitle">增删年度选项，管理专题分类</div>
+            </div>
+            <div id="yearManageList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 320px; overflow-y: auto;">
+                <!-- JS rendered -->
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="newYearInput" class="form-input" placeholder="输入年份，如 2027" style="flex: 1;">
+                <button type="button" class="btn btn-primary" data-action="add-year">+ 添加</button>
+            </div>
+            <div id="yearManageError" style="color: var(--danger); font-size: 13px; display: none; margin-bottom: 12px;"></div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('yearManageModal')">关闭</button>
             </div>
         </div>
     </div>

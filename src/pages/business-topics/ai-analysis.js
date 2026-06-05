@@ -142,7 +142,7 @@ export function computeAiMatchScore(topic, issue) {
 
 export function openAiMatchModal() {
     _aiMatchTopicId = _currentLinkTopicId;
-    const topic = loadTopics().find(t => t.id === _aiMatchTopicId);
+    const topic = window.loadTopics().find(t => t.id === _aiMatchTopicId);
     if (!topic) return;
 
     document.getElementById('aiMatchSubtitle').textContent = '「' + topic.name + '」— 基于部门、关键词、KPI、时间窗口等维度分析';
@@ -788,7 +788,7 @@ export function openIssueDetailModal(issueId) {
     if (!issue) return;
 
     document.getElementById('issueDetailTitle').textContent = (issue.sourceSystem === 'ST' ? '🏛️ ' : '🏢 ') + escapeHtml(issue.issueId);
-    document.getElementById('issueDetailSubtitle').textContent = escapeHtml(issue.meetingName) + ' · ' + escapeHtml(issue.meetingDate);
+    document.getElementById('issueDetailSubtitle').textContent = escapeHtml(issue.issueType || issue.department || '未分类') + ' · ' + escapeHtml(issue.proposer || '未指定') + ' · ' + escapeHtml(issue.status);
 
     let actionItemsHtml = '';
     if (issue.actionItems && issue.actionItems.length > 0) {
@@ -813,14 +813,15 @@ export function openIssueDetailModal(issueId) {
 
     document.getElementById('issueDetailContent').innerHTML =
         '<div style="display: grid; gap: 12px;">' +
-        '<div class="detail-row"><span class="detail-label">议题标题</span><span class="detail-value">' + escapeHtml(issue.issueTitle) + '</span></div>' +
-        '<div class="detail-row"><span class="detail-label">议题类型</span><span class="detail-value"><span class="tag ' + getPriorityTagClass(issue.priority) + '">' + escapeHtml(issue.issueType) + '</span></span></div>' +
-        '<div class="detail-row"><span class="detail-label">主责部门</span><span class="detail-value">' + escapeHtml(issue.department) + '</span></div>' +
-        '<div class="detail-row"><span class="detail-label">提案人</span><span class="detail-value">' + escapeHtml(issue.proposer) + '</span></div>' +
-        '<div class="detail-row"><span class="detail-label">状态</span><span class="detail-value">' + escapeHtml(issue.status) + '</span></div>' +
-        '<div class="detail-row"><span class="detail-label">优先级</span><span class="detail-value">' + escapeHtml(issue.priority) + '</span></div>' +
-        (issue.content ? '<div class="detail-row" style="align-items: flex-start;"><span class="detail-label">议题内容</span><span class="detail-value">' + escapeHtml(issue.content).replace(/\n/g, '<br>') + '</span></div>' : '') +
-        (issue.decision ? '<div class="detail-row" style="align-items: flex-start;"><span class="detail-label">决议内容</span><span class="detail-value">' + escapeHtml(issue.decision).replace(/\n/g, '<br>') + '</span></div>' : '') +
+        '<div class="detail-row"><span class="detail-label">议题主题</span><span class="detail-value">' + escapeHtml(issue.issueTitle) + '</span></div>' +
+        '<div class="detail-row"><span class="detail-label">片联议题类型</span><span class="detail-value"><span class="tag ' + getPriorityTagClass(issue.priority) + '">' + escapeHtml(issue.issueType || '未分类') + '</span></span></div>' +
+        '<div class="detail-row"><span class="detail-label">议题状态</span><span class="detail-value">' + escapeHtml(issue.status) + '</span></div>' +
+        '<div class="detail-row"><span class="detail-label">提交人</span><span class="detail-value">' + escapeHtml(issue.proposer || '未指定') + '</span></div>' +
+        (issue.currentNode ? '<div class="detail-row"><span class="detail-label">当前节点</span><span class="detail-value">' + escapeHtml(issue.currentNode) + '</span></div>' : '') +
+        (issue.currentOwner ? '<div class="detail-row"><span class="detail-label">当前负责人</span><span class="detail-value">' + escapeHtml(issue.currentOwner) + '</span></div>' : '') +
+        (issue.content ? '<div class="detail-row" style="align-items: flex-start;"><span class="detail-label">议题描述</span><span class="detail-value">' + escapeHtml(issue.content).replace(/\n/g, '<br>') + '</span></div>' : '') +
+        (issue.decision ? '<div class="detail-row" style="align-items: flex-start;"><span class="detail-label">结论</span><span class="detail-value">' + escapeHtml(issue.decision).replace(/\n/g, '<br>') + '</span></div>' : '') +
+        (issue.submitTime ? '<div class="detail-row"><span class="detail-label">提交时间</span><span class="detail-value">' + escapeHtml(String(issue.submitTime).slice(0, 10)) + '</span></div>' : '') +
         actionItemsHtml + kpisHtml + qualityHtml +
         '</div>';
 

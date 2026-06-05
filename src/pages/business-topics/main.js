@@ -3,7 +3,7 @@ import {
     checkStorageCapacity, parseCSV, buildIssueFromRow, importIssuesFromPaste,
     openImportModal, handleDragOver, handleDragLeave, handleFileDrop,
     handleFileSelect, processImportFile, isIssueClosed, importIssuesFromRows,
-    updateImportPreview, confirmImport, ISSUE_STORAGE_KEY
+    updateImportPreview, confirmImport, ISSUE_STORAGE_KEY, loadAllIssues
 } from './issue-import.js';
 
 import {
@@ -87,7 +87,19 @@ function loadTopics() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     try {
-        _cachedTopics = JSON.parse(raw);
+        let topics = JSON.parse(raw);
+        // 数据迁移：为没有 year 字段的旧数据补 year
+        let migrated = false;
+        topics.forEach(t => {
+            if (!t.year && t.startDate) {
+                t.year = t.startDate.slice(0, 4);
+                migrated = true;
+            }
+        });
+        if (migrated) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
+        }
+        _cachedTopics = topics;
         return [..._cachedTopics];
     } catch {
         return [];
@@ -113,12 +125,12 @@ function initDefaultData(shouldSave = true) {
             owner: "财务总监",
             department: "财务部",
             progress: 50,
+            year: "2024",
             startDate: "2024-03-01",
             endDate: "2024-12-31",
-            budget: 120,
-            actualCost: 80,
             milestones: [{id: "ms_1", name: "预测模型搭建", date: "2024-05-31", status: "completed"}, {id: "ms_2", name: "数据源整合", date: "2024-08-31", status: "completed"}, {id: "ms_3", name: "试点运行与调优", date: "2024-10-31", status: "in_progress"}, {id: "ms_4", name: "全面推广", date: "2024-12-31", status: "pending"}],
             tags: ["预测", "财务", "风险"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -133,12 +145,12 @@ function initDefaultData(shouldSave = true) {
             owner: "战略VP",
             department: "战略部",
             progress: 50,
+            year: "2024",
             startDate: "2024-01-01",
             endDate: "2024-12-31",
-            budget: 200,
-            actualCost: 150,
             milestones: [{id: "ms_1", name: "方法论调研与设计", date: "2024-03-31", status: "completed"}, {id: "ms_2", name: "模板开发与验证", date: "2024-06-30", status: "completed"}, {id: "ms_3", name: "TOP20客户群试点", date: "2024-09-30", status: "in_progress"}, {id: "ms_4", name: "全量推广与固化", date: "2024-12-31", status: "pending"}],
             tags: ["项目群", "战略", "客户"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -153,12 +165,12 @@ function initDefaultData(shouldSave = true) {
             owner: "产品总监",
             department: "产品部",
             progress: 50,
+            year: "2024",
             startDate: "2024-04-01",
             endDate: "2024-11-30",
-            budget: 150,
-            actualCost: 90,
             milestones: [{id: "ms_1", name: "折扣现状分析", date: "2024-05-15", status: "completed"}, {id: "ms_2", name: "审批流程设计", date: "2024-07-31", status: "completed"}, {id: "ms_3", name: "系统开发与上线", date: "2024-10-15", status: "pending"}, {id: "ms_4", name: "效果评估", date: "2024-11-30", status: "pending"}],
             tags: ["折扣", "价格", "盈利"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -173,12 +185,12 @@ function initDefaultData(shouldSave = true) {
             owner: "法务经理",
             department: "法务部",
             progress: 0,
+            year: "2024",
             startDate: "2024-09-01",
             endDate: "2025-03-31",
-            budget: 80,
-            actualCost: 20,
             milestones: [{id: "ms_1", name: "评分标准制定", date: "2024-10-15", status: "in_progress"}, {id: "ms_2", name: "历史合同质量盘点", date: "2024-12-15", status: "pending"}, {id: "ms_3", name: "评审流程优化", date: "2025-02-15", status: "pending"}],
             tags: ["合同", "法务", "质量"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -193,12 +205,12 @@ function initDefaultData(shouldSave = true) {
             owner: "运营经理",
             department: "运营部",
             progress: 50,
+            year: "2024",
             startDate: "2024-06-01",
             endDate: "2024-12-31",
-            budget: 60,
-            actualCost: 35,
             milestones: [{id: "ms_1", name: "授权现状梳理", date: "2024-07-15", status: "completed"}, {id: "ms_2", name: "流程标准化设计", date: "2024-09-30", status: "completed"}, {id: "ms_3", name: "预警机制上线", date: "2024-11-15", status: "pending"}, {id: "ms_4", name: "全量推广", date: "2024-12-31", status: "pending"}],
             tags: ["授权", "运营", "风控"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -213,12 +225,12 @@ function initDefaultData(shouldSave = true) {
             owner: "财务总监",
             department: "财务部",
             progress: 75,
+            year: "2024",
             startDate: "2024-02-01",
             endDate: "2024-12-31",
-            budget: 100,
-            actualCost: 70,
             milestones: [{id: "ms_1", name: "应收账龄分析", date: "2024-04-15", status: "completed"}, {id: "ms_2", name: "催收机制建立", date: "2024-06-30", status: "completed"}, {id: "ms_3", name: "DSO监控看板上线", date: "2024-09-15", status: "completed"}, {id: "ms_4", name: "效果验收", date: "2024-12-31", status: "in_progress"}],
             tags: ["应收", "回款", "财务"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -233,12 +245,12 @@ function initDefaultData(shouldSave = true) {
             owner: "项目总监",
             department: "项目管理部",
             progress: 50,
+            year: "2024",
             startDate: "2024-01-01",
             endDate: "2025-06-30",
-            budget: 180,
-            actualCost: 120,
             milestones: [{id: "ms_1", name: "四算方法论设计", date: "2024-04-30", status: "completed"}, {id: "ms_2", name: "系统功能开发", date: "2024-08-31", status: "completed"}, {id: "ms_3", name: "试点项目验证", date: "2024-12-31", status: "in_progress"}, {id: "ms_4", name: "全量推广", date: "2025-06-30", status: "pending"}],
             tags: ["四算", "项目", "成本"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -253,12 +265,12 @@ function initDefaultData(shouldSave = true) {
             owner: "财务经理",
             department: "财务部",
             progress: 100,
+            year: "2024",
             startDate: "2024-01-01",
             endDate: "2024-08-31",
-            budget: 90,
-            actualCost: 85,
             milestones: [{id: "ms_1", name: "费用现状分析", date: "2024-02-28", status: "completed"}, {id: "ms_2", name: "预警规则配置", date: "2024-04-30", status: "completed"}, {id: "ms_3", name: "系统上线运行", date: "2024-06-30", status: "completed"}, {id: "ms_4", name: "效果评估与优化", date: "2024-08-31", status: "completed"}],
             tags: ["费控", "预算", "成本"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -273,12 +285,12 @@ function initDefaultData(shouldSave = true) {
             owner: "财务经理",
             department: "财务部",
             progress: 50,
+            year: "2024",
             startDate: "2024-05-01",
             endDate: "2024-12-31",
-            budget: 70,
-            actualCost: 45,
             milestones: [{id: "ms_1", name: "现行规则梳理", date: "2024-06-30", status: "completed"}, {id: "ms_2", name: "规则文档编写", date: "2024-08-31", status: "completed"}, {id: "ms_3", name: "流程标准化", date: "2024-10-31", status: "pending"}, {id: "ms_4", name: "培训与宣贯", date: "2024-12-31", status: "pending"}],
             tags: ["收入", "财务", "规则"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -293,12 +305,12 @@ function initDefaultData(shouldSave = true) {
             owner: "战略经理",
             department: "战略部",
             progress: 0,
+            year: "2024",
             startDate: "2024-10-01",
             endDate: "2025-06-30",
-            budget: 100,
-            actualCost: 15,
             milestones: [{id: "ms_1", name: "指标现状调研", date: "2024-11-30", status: "in_progress"}, {id: "ms_2", name: "制衡矩阵设计", date: "2025-02-28", status: "pending"}, {id: "ms_3", name: "评估模型开发", date: "2025-04-30", status: "pending"}, {id: "ms_4", name: "试点验证", date: "2025-06-30", status: "pending"}],
             tags: ["制衡", "指标", "战略"],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-19T17:24:00.297250",
             updatedAt: "2026-05-19T17:24:00.297250",
@@ -313,12 +325,12 @@ function initDefaultData(shouldSave = true) {
             owner: "方朱穆睿",
             department: "",
             progress: 0,
+            year: "2026",
             startDate: "2026-03-27",
             endDate: "2026-06-30",
-            budget: 0,
-            actualCost: 0,
             milestones: [{id: "ms_1779433586058_286", name: "方案提交片联AT会议决策", date: "2026-06-03", status: "pending"}, {id: "ms_1779433604521_319", name: "管理制度正式发布与执行", date: "2026-06-30", status: "pending"}],
             tags: [],
+            kmsLink: '',
             summary: '',
             createdAt: "2026-05-22T07:07:24.768Z",
             updatedAt: "2026-05-22T07:07:24.768Z",
@@ -514,16 +526,13 @@ function getFilteredTopics() {
     if (dept) topics = topics.filter(t => t.department === dept);
     if (priority) topics = topics.filter(t => t.priority === priority);
     if (year) {
-        topics = topics.filter(t => {
-            const y = (t.startDate || '').slice(0, 4);
-            return y === year;
-        });
+        topics = topics.filter(t => t.year === year);
     }
 
     // Search
     if (search) {
         topics = topics.filter(t => {
-            const fields = [t.name, t.description, t.owner, t.department].filter(Boolean).join(' ').toLowerCase();
+            const fields = [t.name, t.description, t.owner, t.department, t.kmsLink].filter(Boolean).join(' ').toLowerCase();
             return fields.includes(search);
         });
     }
@@ -765,6 +774,29 @@ function applyFilters() {
     renderTable();
 }
 
+function getAllYears() {
+    const topics = loadTopics();
+    const years = new Set();
+    topics.forEach(t => {
+        if (t.year) years.add(t.year);
+    });
+    return Array.from(years).sort().reverse();
+}
+
+function populateYearFilter() {
+    const select = document.getElementById('filterYear');
+    if (!select) return;
+    const currentVal = select.value;
+    const years = getAllYears();
+    const currentYear = new Date().getFullYear().toString();
+    if (!years.includes(currentYear)) years.unshift(currentYear);
+    // 默认选中当年度（首次加载时 currentVal 为空）
+    const defaultVal = currentVal || currentYear;
+    select.innerHTML = '<option value="">全部年度</option>' + years.map(y =>
+        `<option value="${y}" ${y === defaultVal ? 'selected' : ''}>${y}</option>`
+    ).join('');
+}
+
 function toggleSort(field) {
     if (_sortConfig.field === field) {
         _sortConfig.direction = _sortConfig.direction === 'asc' ? 'desc' : 'asc';
@@ -791,10 +823,22 @@ function updateSortIndicators() {
 }
 
 // ===================== Form Modal =====================
+function populateYearOptions(selectEl, selectedYear) {
+    const years = getAllYears();
+    const currentYear = new Date().getFullYear().toString();
+    if (!years.includes(currentYear)) years.unshift(currentYear);
+    years.sort().reverse();
+    selectEl.innerHTML = '<option value="">选择年度</option>' + years.map(y =>
+        `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`
+    ).join('');
+}
+
 function openFormModal(id) {
     const isEdit = !!id;
     document.getElementById('formTitle').textContent = isEdit ? '编辑业务专题' : '新建业务专题';
     document.getElementById('formTopicId').value = id || '';
+
+    populateYearOptions(document.getElementById('fYear'), '');
 
     if (isEdit) {
         const topic = loadTopics().find(t => t.id === id);
@@ -806,12 +850,12 @@ function openFormModal(id) {
         document.getElementById('fStatus').value = topic.status || 'preparing';
         document.getElementById('fOwner').value = topic.owner || '';
         document.getElementById('fDepartment').value = topic.department || '';
+        document.getElementById('fYear').value = topic.year || '';
         document.getElementById('fStartDate').value = topic.startDate || '';
         document.getElementById('fEndDate').value = topic.endDate || '';
-        document.getElementById('fBudget').value = topic.budget || '';
-        document.getElementById('fActualCost').value = topic.actualCost || '';
         document.getElementById('fTags').value = (topic.tags || []).join(', ');
         document.getElementById('fSummary').value = topic.summary || '';
+        document.getElementById('fKmsLink').value = topic.kmsLink || '';
         renderFormMilestones(topic.milestones || []);
     } else {
         document.getElementById('topicForm').reset();
@@ -823,6 +867,82 @@ function openFormModal(id) {
     openModal('formModal');
 }
 
+// ===================== Year Management =====================
+function openYearManageModal() {
+    renderYearManageList();
+    document.getElementById('newYearInput').value = '';
+    document.getElementById('yearManageError').style.display = 'none';
+    openModal('yearManageModal');
+}
+
+function renderYearManageList() {
+    const container = document.getElementById('yearManageList');
+    const years = getAllYears();
+    const currentYear = new Date().getFullYear().toString();
+    if (!years.includes(currentYear)) years.unshift(currentYear);
+
+    if (!years.length) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">暂无年度数据</div>';
+        return;
+    }
+
+    const topics = loadTopics();
+    container.innerHTML = years.map(y => {
+        const count = topics.filter(t => t.year === y).length;
+        return `
+            <div class="year-manage-item" data-year="${y}">
+                <div style="display:flex; align-items:center; gap:8px;"
+                <span style="font-size:16px; font-weight:600; color:var(--text-primary);">${y}</span>
+                <span style="font-size:12px; color:var(--text-muted);">${count} 个专题</span>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" data-year-action="remove" data-year="${y}" ${count > 0 ? 'disabled' : ''} title="${count > 0 ? '该年度下有专题，不可删除' : '删除'}"><span style="color:var(--danger);">删除</span></button>
+            </div>
+        `;
+    }).join('');
+}
+
+function addYear() {
+    const input = document.getElementById('newYearInput');
+    const errorEl = document.getElementById('yearManageError');
+    const val = input.value.trim();
+    if (!val) {
+        errorEl.textContent = '请输入年份';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (!/^\d{4}$/.test(val)) {
+        errorEl.textContent = '年份格式不正确，请输入4位数字（如 2027）';
+        errorEl.style.display = 'block';
+        return;
+    }
+    const year = val;
+    const years = getAllYears();
+    const currentYear = new Date().getFullYear().toString();
+    if (!years.includes(currentYear)) years.unshift(currentYear);
+    if (years.includes(year)) {
+        errorEl.textContent = `年份 ${year} 已存在`;
+        errorEl.style.display = 'block';
+        return;
+    }
+    errorEl.style.display = 'none';
+    input.value = '';
+    // Add to filter and form options
+    populateYearFilter();
+    renderYearManageList();
+}
+
+function removeYear(year) {
+    const topics = loadTopics();
+    const count = topics.filter(t => t.year === year).length;
+    if (count > 0) {
+        alert(`该年度下有 ${count} 个专题，请先修改这些专题的年度后再删除。`);
+        return;
+    }
+    if (!confirm(`确认删除年份 ${year}？`)) return;
+    populateYearFilter();
+    renderYearManageList();
+}
+
 function renderFormMilestones(milestones) {
     const container = document.getElementById('formMilestones');
     if (!milestones.length) {
@@ -831,12 +951,17 @@ function renderFormMilestones(milestones) {
     }
     container.innerHTML = milestones.map((m, idx) => `
         <div class="milestone-row" data-msid="${m.id || generateMsId()}">
+            <div class="ms-move-group">
+                <button type="button" class="ms-move" data-ms-action="move-up" title="上移">▲</button>
+                <button type="button" class="ms-move" data-ms-action="move-down" title="下移">▼</button>
+            </div>
             <input type="text" class="ms-name" value="${escapeHtml(m.name)}" placeholder="里程碑名称" required>
             <input type="date" class="ms-date" value="${m.date || ''}">
-            <span class="milestone-status ${m.status}" data-ms-action="toggle">${m.status === 'completed' ? '✓ 已完成' : '○ 未完成'}</span>
+            <span class="milestone-status ${m.status}" data-ms-action="toggle" title="点击切换状态">${m.status === 'completed' ? '✓ 已完成' : '○ 未完成'}</span>
             <button type="button" class="milestone-remove" data-ms-action="remove">×</button>
         </div>
     `).join('');
+    updateMilestoneMoveButtons();
 }
 
 function addMilestoneRow() {
@@ -848,12 +973,17 @@ function addMilestoneRow() {
     row.className = 'milestone-row';
     row.dataset.msid = generateMsId();
     row.innerHTML = `
+        <div class="ms-move-group">
+            <button type="button" class="ms-move" data-ms-action="move-up" title="上移">▲</button>
+            <button type="button" class="ms-move" data-ms-action="move-down" title="下移">▼</button>
+        </div>
         <input type="text" class="ms-name" placeholder="里程碑名称" required>
         <input type="date" class="ms-date">
-        <span class="milestone-status pending" data-ms-action="toggle">○ 未完成</span>
+        <span class="milestone-status pending" data-ms-action="toggle" title="点击切换状态">○ 未完成</span>
         <button type="button" class="milestone-remove" data-ms-action="remove">×</button>
     `;
     container.appendChild(row);
+    updateMilestoneMoveButtons();
 }
 
 function removeMilestoneRow(btn) {
@@ -861,6 +991,8 @@ function removeMilestoneRow(btn) {
     const container = document.getElementById('formMilestones');
     if (!container.querySelector('.milestone-row')) {
         container.innerHTML = '<div class="milestone-placeholder" style="font-size:12px; color:var(--text-muted); padding:8px 0;">暂无里程碑，点击下方按钮添加</div>';
+    } else {
+        updateMilestoneMoveButtons();
     }
 }
 
@@ -874,6 +1006,31 @@ function toggleMsStatus(el) {
         el.classList.add('completed');
         el.textContent = '✓ 已完成';
     }
+}
+
+function moveMilestoneRow(btn, direction) {
+    const row = btn.closest('.milestone-row');
+    if (!row) return;
+    const container = document.getElementById('formMilestones');
+    const rows = Array.from(container.querySelectorAll('.milestone-row'));
+    const idx = rows.indexOf(row);
+    if (direction === 'up' && idx > 0) {
+        container.insertBefore(row, rows[idx - 1]);
+    } else if (direction === 'down' && idx < rows.length - 1) {
+        container.insertBefore(row, rows[idx + 1].nextSibling);
+    }
+    updateMilestoneMoveButtons();
+}
+
+function updateMilestoneMoveButtons() {
+    const container = document.getElementById('formMilestones');
+    const rows = container.querySelectorAll('.milestone-row');
+    rows.forEach((row, idx) => {
+        const upBtn = row.querySelector('[data-ms-action="move-up"]');
+        const downBtn = row.querySelector('[data-ms-action="move-down"]');
+        if (upBtn) upBtn.disabled = idx === 0;
+        if (downBtn) downBtn.disabled = idx === rows.length - 1;
+    });
 }
 
 function collectFormMilestones() {
@@ -911,10 +1068,10 @@ function saveTopic() {
         owner,
         department: document.getElementById('fDepartment').value.trim(),
         summary: document.getElementById('fSummary').value.trim(),
+        kmsLink: document.getElementById('fKmsLink').value.trim(),
+        year: document.getElementById('fYear').value || (document.getElementById('fStartDate').value || '').slice(0, 4),
         startDate: document.getElementById('fStartDate').value,
         endDate: document.getElementById('fEndDate').value,
-        budget: parseFloat(document.getElementById('fBudget').value) || 0,
-        actualCost: parseFloat(document.getElementById('fActualCost').value) || 0,
         progress,
         milestones,
         tags,
@@ -985,7 +1142,7 @@ function openDetailModal(id) {
                     <div class="issue-icon ${iconClass}">${icon}</div>
                     <div style="flex: 1; min-width: 0; padding-right: 8px;">
                         <div class="issue-title">${escapeHtml(li.issueId)} ${escapeHtml(li.issueTitle)}</div>
-                        <div class="issue-meta">${escapeHtml(li.meetingName)} · ${escapeHtml(li.meetingDate)} · ${escapeHtml(li.sourceSystem)}</div>
+                        <div class="issue-meta">${escapeHtml(li.issueType || li.department || '未分类')} · ${escapeHtml(li.proposer || '未指定')} · ${escapeHtml(li.status)}${li.currentNode ? ' · ' + escapeHtml(li.currentNode) : ''}</div>
                     </div>
                 </div>
                 <div class="issue-actions">
@@ -1045,14 +1202,6 @@ function openDetailModal(id) {
                 <div class="detail-kpi-value" style="color:${progressColor};">${topic.progress}%</div>
             </div>
             <div class="detail-kpi">
-                <div class="detail-kpi-label">预算</div>
-                <div class="detail-kpi-value">¥${topic.budget || 0}万</div>
-            </div>
-            <div class="detail-kpi">
-                <div class="detail-kpi-label">实际成本</div>
-                <div class="detail-kpi-value">¥${topic.actualCost || 0}万</div>
-            </div>
-            <div class="detail-kpi">
                 <div class="detail-kpi-label">剩余天数</div>
                 <div class="detail-kpi-value" style="color:${daysLeft !== null && daysLeft < 0 ? 'var(--danger)' : 'var(--text-primary)'};">${daysLeft !== null ? (daysLeft < 0 ? '已逾期 ' + Math.abs(daysLeft) + ' 天' : daysLeft + ' 天') : '-'}</div>
             </div>
@@ -1069,6 +1218,10 @@ function openDetailModal(id) {
             <div class="detail-section-title">🏷️ 标签</div>
             ${tagsHtml}
         </div>
+        ${topic.kmsLink ? `<div class="detail-section">
+            <div class="detail-section-title">🔗 KMS 链接</div>
+            <a href="${escapeHtml(topic.kmsLink)}" target="_blank" rel="noopener noreferrer" style="font-size:13px; color:var(--accent-indigo); word-break:break-all;">${escapeHtml(topic.kmsLink)}</a>
+        </div>` : ''}
         <div class="detail-section">
             <div class="detail-section-title" style="display:flex; justify-content:space-between; align-items:center;">
                 <span>🔗 关联议题</span>
@@ -1250,6 +1403,7 @@ async function init() {
     renderTable();
     renderStats();
     renderDeptFilter();
+    populateYearFilter(); // 动态填充年度筛选
     updateAiReportCards(); // v2.1: update AI report entry cards
 
     bindDelegatedEvents();
@@ -1366,6 +1520,23 @@ function handleDelegatedClick(e) {
             case 'send-ai':
                 sendAI();
                 return;
+            case 'manage-years':
+                openYearManageModal();
+                return;
+            case 'add-year':
+                addYear();
+                return;
+        }
+    }
+
+    // data-year-action (year management)
+    const yearActionEl = target.closest('[data-year-action]');
+    if (yearActionEl) {
+        const action = yearActionEl.dataset.yearAction;
+        const year = yearActionEl.dataset.year;
+        if (action === 'remove' && year) {
+            removeYear(year);
+            return;
         }
     }
 
@@ -1415,6 +1586,12 @@ function handleDelegatedClick(e) {
             case 'remove':
                 removeMilestoneRow(msEl);
                 return;
+            case 'move-up':
+                moveMilestoneRow(msEl, 'up');
+                return;
+            case 'move-down':
+                moveMilestoneRow(msEl, 'down');
+                return;
         }
     }
 
@@ -1457,6 +1634,18 @@ function handleDelegatedChange(e) {
     // data-filter selects
     if (target.hasAttribute('data-filter')) {
         applyFilters();
+        return;
+    }
+
+    // startDate change: auto-populate year if not set
+    if (target.id === 'fStartDate') {
+        const yearEl = document.getElementById('fYear');
+        if (target.value && !yearEl.value) {
+            const year = target.value.slice(0, 4);
+            if (year) {
+                populateYearOptions(yearEl, year);
+            }
+        }
         return;
     }
 
@@ -1541,6 +1730,18 @@ function handleDelegatedInput(e) {
     });
 })();
 
+// Expose helper functions needed by imported modules (topic-issues.js, etc.)
+window.loadTopics = loadTopics;
+window.saveTopics = saveTopics;
+window.loadAllIssues = loadAllIssues;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.renderTable = renderTable;
+window.renderStats = renderStats;
+window.CURRENT_USER = CURRENT_USER;
+window.escapeHtml = escapeHtml;
+window.apiSave = apiSave;
+
 // Expose key functions to global scope for inline onclick handlers
 window._dste = {
     closeModal,
@@ -1551,6 +1752,8 @@ window._dste = {
     addMilestoneRow,
     toggleMsStatus,
     removeMilestoneRow,
+    moveMilestoneRow,
+    updateMilestoneMoveButtons,
     saveTopic,
     saveTopicLinks,
     applyAiMatches,
@@ -1565,7 +1768,10 @@ window._dste = {
     openIssueDetailModal,
     toggleAI,
     askAI,
-    sendAI
+    sendAI,
+    openYearManageModal,
+    addYear,
+    removeYear
 };
 
 init();

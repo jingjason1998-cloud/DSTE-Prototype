@@ -1388,16 +1388,23 @@
         .form-textarea { resize: vertical; min-height: 80px; }
         .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
         .milestone-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-        .milestone-row { display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px 12px; }
+        .milestone-row { display: flex; align-items: center; gap: 6px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px 10px; }
         .milestone-row input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 13px; }
         .milestone-row input:focus { outline: none; }
         .milestone-row input[type="date"] { flex: 0 0 130px; color: var(--text-secondary); font-family: inherit; }
-        .milestone-status { cursor: pointer; font-size: 12px; padding: 2px 8px; border-radius: 4px; white-space: nowrap; user-select: none; }
-        .milestone-status.completed { background: rgba(16,185,129,0.15); color: #10b981; }
-        .milestone-status.pending { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .ms-move-group { display: flex; flex-direction: column; gap: 1px; }
+        .ms-move { cursor: pointer; color: var(--text-muted); font-size: 10px; background: none; border: none; line-height: 1; padding: 1px 3px; border-radius: 3px; transition: all 0.15s; }
+        .ms-move:hover:not(:disabled) { color: var(--primary); background: var(--bg-hover); }
+        .ms-move:disabled { opacity: 0.2; cursor: not-allowed; }
+        .milestone-status { cursor: pointer; font-size: 12px; padding: 3px 10px; border-radius: 4px; white-space: nowrap; user-select: none; font-weight: 500; transition: all 0.15s; border: 1px solid transparent; }
+        .milestone-status:hover { transform: scale(1.05); }
+        .milestone-status.completed { background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3); }
+        .milestone-status.pending { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.3); }
         .milestone-remove { cursor: pointer; color: var(--text-muted); font-size: 18px; background: none; border: none; line-height: 1; }
         .milestone-remove:hover { color: var(--danger); }
         .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .year-manage-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; transition: all 0.15s; }
+        .year-manage-item:hover { border-color: var(--border-standard); }
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
         .search-input {
             background: var(--bg-surface); border: 1px solid var(--border-standard); border-radius: 8px;

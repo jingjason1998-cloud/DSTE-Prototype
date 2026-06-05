@@ -7,6 +7,13 @@ function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function apiSave(endpoint, data) {
+    if (typeof window !== 'undefined' && window.apiSave) {
+        return window.apiSave(endpoint, data);
+    }
+    // 静默失败，保持离线兼容
+}
+
 function openModal(id) {
     const el = document.getElementById(id);
     if (el) {
@@ -54,24 +61,30 @@ export function validateIssueRow(row, sourceSystem) {
     const warnings = [];
     const cleanedRow = { ...row };
 
-    // 检测导入格式：新格式（真实Excel列）vs 旧格式（预设模板列）
-    const isNewFormat = cleanedRow['议题主题'] !== undefined || cleanedRow['片联议题类型'] !== undefined;
+    // 检测导入格式（ST: 片联议题类型 / AT: 议题分类）
+    const isRealFormat = cleanedRow['议题主题'] !== undefined || cleanedRow['片联议题类型'] !== undefined || cleanedRow['议题分类'] !== undefined;
     const isOldFormat = cleanedRow['议题标题'] !== undefined || cleanedRow['议题编号'] !== undefined;
 
-    if (!isNewFormat && !isOldFormat) {
-        errors.push('无法识别导入格式：缺少必要的列（议题主题/片联议题类型 或 议题标题/议题编号）');
+    if (!isRealFormat && !isOldFormat) {
+        errors.push('无法识别导入格式：缺少必要的列（议题主题/片联议题类型/议题分类 或 议题标题/议题编号）');
     }
 
-    // 新格式必填校验
-    if (isNewFormat) {
-        if (!cleanedRow['议题主题'] || String(cleanedRow['议题主题']).trim() === '') {
-            errors.push('议题主题不能为空');
+    // 必填校验
+    if (isRealFormat) {
+        const hasTitle = cleanedRow['议题主题'] && String(cleanedRow['议题主题']).trim() !== '';
+        const hasDesc = cleanedRow['议题描述'] && String(cleanedRow['议题描述']).trim() !== '';
+        if (!hasTitle && !hasDesc) {
+            errors.push('议题主题和议题描述不能同时为空');
+        }
+    } else if (isOldFormat) {
+        if (!cleanedRow['议题标题'] || String(cleanedRow['议题标题']).trim() === '') {
+            errors.push('议题标题不能为空');
         }
     }
 
-    // CSV 注入防护（覆盖新旧格式的文本字段）
-    const textFields = isNewFormat
-        ? ['议题主题', '议题描述', '结论', '团队负责人审核结论']
+    // CSV 注入防护（兼容 ST/AT 字段名）
+    const textFields = isRealFormat
+        ? ['议题主题', '议题描述', '结论', '团队负责人审核结论', '讨论&跟进&总结', '片联议题类型', '议题分类', '提交人姓名', '发起人姓名']
         : ['议题标题', '议题内容', '决议内容', '行动项'];
     textFields.forEach(field => {
         if (cleanedRow[field] && hasCsvFormulaInjection(cleanedRow[field])) {
@@ -164,6 +177,11 @@ export function parseCSV(text, delimiter) {
 }
 
 export function buildIssueFromRow(row, sourceSystem, index) {
+    // 兼容两种 Excel 格式：
+    // 1. 真实导出格式（帆软 ST/AT 议题收集表）
+    // 2. 旧模板格式（会议名称/议题标题/主责部门...）
+    const isRealFormat = row['议题主题'] !== undefined || row['片联议题类型'] !== undefined;
+
     const parseActionItems = (text) => {
         if (!text) return [];
         return text.split(';').filter(s => s.trim()).map(item => {
@@ -175,25 +193,64 @@ export function buildIssueFromRow(row, sourceSystem, index) {
         if (!text) return [];
         return text.split(',').map(s => s.trim()).filter(Boolean);
     };
-    let issueId = row['议题编号'];
+
+    let issueId, issueTitle, issueType, proposer, content, decision, status, department;
+
+    if (isRealFormat) {
+        // 真实导出格式
+        issueId = row['议题自动编号'] || row['标题'] || '';
+        // 议题主题为空时，用描述前30字作为后备标题
+        const rawTitle = row['议题主题'] || '';
+        const rawDesc = row['议题描述'] || '';
+        issueTitle = rawTitle.trim() || (rawDesc.trim() ? rawDesc.trim().slice(0, 30) + (rawDesc.trim().length > 30 ? '...' : '') : '未命名议题');
+        // 兼容 ST（片联议题类型）和 AT（议题分类）的字段名差异
+        issueType = row['片联议题类型'] || row['议题分类'] || '未分类';
+        proposer = row['提交人姓名'] || row['发起人姓名'] || '未指定';
+        content = row['议题描述'] || '';
+        // 结论优先取「结论」，其次「团队负责人审核结论」，AT 用「讨论&跟进&总结」
+        decision = row['结论'] || row['团队负责人审核结论'] || row['讨论&跟进&总结'] || '';
+        status = row['议题状态'] || '跟进';
+        department = row['议题归类'] || row['片联议题类型'] || row['议题分类'] || '未指定';
+    } else {
+        // 旧模板格式
+        issueId = row['议题编号'] || '';
+        issueTitle = row['议题标题'] || '未命名议题';
+        issueType = row['议题类型'] || '经营';
+        proposer = row['提案人'] || '未指定';
+        content = row['议题内容'] || '';
+        decision = row['决议内容'] || '';
+        status = row['状态'] || '已创建';
+        department = row['主责部门'] || '未指定';
+    }
+
     if (!issueId || String(issueId).trim() === '') {
         issueId = sourceSystem + '-AUTO-' + Date.now() + '-' + (index || 0);
     }
+
     return {
         issueId: issueId,
         sourceSystem: sourceSystem,
         meetingName: row['会议名称'] || '未指定',
         meetingDate: row['会议日期'] || '',
-        issueTitle: row['议题标题'] || '未命名议题',
-        issueType: row['议题类型'] || '经营',
-        department: row['主责部门'] || '未指定',
-        proposer: row['提案人'] || '未指定',
-        content: row['议题内容'] || '',
-        decision: row['决议内容'] || '',
+        issueTitle: issueTitle,
+        issueType: issueType,
+        department: department,
+        proposer: proposer,
+        content: content,
+        decision: decision,
         actionItems: parseActionItems(row['行动项']),
         relatedKpis: parseRelatedKpis(row['关联KPI']),
-        status: row['状态'] || '已创建',
-        priority: row['优先级'] || 'P2'
+        status: status,
+        priority: row['优先级'] || 'P2',
+        // 真实格式特有字段（保留原始信息）
+        submitTime: row['提交时间'] || '',
+        updateTime: row['更新时间'] || '',
+        flowStatus: row['流程状态'] || '',
+        currentNode: row['当前节点'] || '',
+        currentOwner: row['当前负责人'] || '',
+        followUpOwner: row['跟进负责人'] || '',
+        isInstitutionalized: row['是否沉淀为制度'] || '',
+        isSatisfied: row['提问人是否满意'] || ''
     };
 }
 
@@ -310,22 +367,20 @@ export function processImportFile(file) {
 }
 
 export function isIssueClosed(row) {
-    const status = String(row['状态'] || '').trim();
+    const status = String(row['议题状态'] || row['状态'] || '').trim();
     return status === '已关闭' || status === '关闭';
 }
 
 export function importIssuesFromRows(rows, sourceSystem) {
-    const filteredRows = rows.filter(row => !isIssueClosed(row));
-    const skippedCount = rows.length - filteredRows.length;
-    const results = { success: [], errors: [], warnings: [], total: rows.length, skipped: skippedCount };
-    const existing = loadIssues(sourceSystem);
-    filteredRows.forEach((row, rowIdx) => {
+    // 全部导入，不过滤关闭状态
+    const results = { success: [], errors: [], warnings: [], total: rows.length, skipped: 0 };
+    const existing = [];
+    rows.forEach((row, rowIdx) => {
         const validated = validateIssueRow(row, sourceSystem);
         if (!validated.isValid) { results.errors.push({ row, errors: validated.errors }); return; }
         const issue = buildIssueFromRow(validated.cleanedRow, sourceSystem, rowIdx);
         issue.importQuality = { hasWarnings: validated.warnings.length > 0, warnings: validated.warnings, importedAt: new Date().toISOString() };
-        const existingIdx = existing.findIndex(i => i.issueId === issue.issueId);
-        if (existingIdx >= 0) existing[existingIdx] = issue; else existing.push(issue);
+        existing.push(issue);
         results.success.push(issue);
         results.warnings.push(...validated.warnings);
     });
@@ -350,27 +405,34 @@ export function updateImportPreview() {
     }
 
     const sourceSystem = document.querySelector('input[name="importSource"]:checked').value;
-    const filteredRows = rows.filter(row => !isIssueClosed(row));
-    const skippedCount = rows.length - filteredRows.length;
     const tbody = document.querySelector('#importPreviewTable tbody');
     tbody.innerHTML = '';
 
     let validCount = 0, errorCount = 0;
-    filteredRows.slice(0, 5).forEach(row => {
+    rows.slice(0, 5).forEach(row => {
         const validated = validateIssueRow(row, sourceSystem);
         const tr = document.createElement('tr');
-        tr.innerHTML = '<td>' + escapeHtml(row['议题编号'] || '-') + '</td>' +
-            '<td>' + escapeHtml(row['议题标题'] || '-') + '</td>' +
-            '<td>' + escapeHtml(row['状态'] || '-') + '</td>' +
-            '<td>' + (validated.isValid ? '<span style="color:var(--success)">✅ 有效</span>' : '<span style="color:var(--danger)">❌ ' + escapeHtml(validated.errors[0]) + '</span>') + '</td>';
+        const isRealFormat = row['议题主题'] !== undefined || row['片联议题类型'] !== undefined;
+        if (isRealFormat) {
+            tr.innerHTML = '<td>' + escapeHtml(row['议题自动编号'] || row['标题'] || '-') + '</td>' +
+                '<td>' + escapeHtml(row['议题主题'] || '-') + '</td>' +
+                '<td>' + escapeHtml(row['片联议题类型'] || '-') + '</td>' +
+                '<td>' + escapeHtml(row['议题状态'] || '-') + '</td>' +
+                '<td>' + (validated.isValid ? '<span style="color:var(--success)">✅ 有效</span>' : '<span style="color:var(--danger)">❌ ' + escapeHtml(validated.errors[0]) + '</span>') + '</td>';
+        } else {
+            tr.innerHTML = '<td>' + escapeHtml(row['议题编号'] || '-') + '</td>' +
+                '<td>' + escapeHtml(row['议题标题'] || '-') + '</td>' +
+                '<td>' + escapeHtml(row['议题类型'] || '-') + '</td>' +
+                '<td>' + escapeHtml(row['状态'] || '-') + '</td>' +
+                '<td>' + (validated.isValid ? '<span style="color:var(--success)">✅ 有效</span>' : '<span style="color:var(--danger)">❌ ' + escapeHtml(validated.errors[0]) + '</span>') + '</td>';
+        }
         tbody.appendChild(tr);
         if (validated.isValid) validCount++; else errorCount++;
     });
 
     let statsText = '共 ' + rows.length + ' 条';
-    if (skippedCount > 0) statsText += ' · 自动过滤已关闭 ' + skippedCount + ' 条';
-    statsText += ' · 待导入 ' + filteredRows.length + ' 条 · 有效 ' + validCount + ' · 错误 ' + errorCount;
-    if (filteredRows.length > 5) statsText += '（仅预览前5条）';
+    statsText += ' · 待导入 ' + rows.length + ' 条 · 有效 ' + validCount + ' · 错误 ' + errorCount;
+    if (rows.length > 5) statsText += '（仅预览前5条）';
     document.getElementById('importStats').textContent = statsText;
     previewArea.style.display = 'block';
     errorArea.style.display = 'none';
@@ -400,9 +462,7 @@ export function confirmImport() {
         return;
     }
 
-    let msg = '导入成功！';
-    if (result.skipped > 0) msg += '自动过滤已关闭 ' + result.skipped + ' 条，';
-    msg += '实际导入 ' + result.success.length + ' 条议题';
+    let msg = '导入成功！共导入 ' + result.success.length + ' 条议题';
     if (result.errors.length > 0) msg += '，' + result.errors.length + ' 条失败';
     if (result.warnings.length > 0) msg += '，' + result.warnings.length + ' 条警告';
     alert(msg);

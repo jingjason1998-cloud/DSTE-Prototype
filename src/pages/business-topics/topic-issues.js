@@ -1,3 +1,5 @@
+let _currentLinkTopicId = null;
+
 export function linkIssueToTopic(topicId, issueId, relationType) {
     const topics = loadTopics();
     const topic = topics.find(t => t.id === topicId);
@@ -54,7 +56,7 @@ export function openLinkIssuesModal(topicId) {
     const topic = loadTopics().find(t => t.id === topicId);
     document.getElementById('linkIssuesSubtitle').textContent = topic ? '「' + topic.name + '」' : '';
     document.getElementById('linkIssuesSearch').value = '';
-    _linkIssuesFilter = 'all';
+    window._linkIssuesFilter = 'all';
     renderLinkIssuesList();
     openModal('linkIssuesModal');
 }
@@ -68,8 +70,8 @@ export function renderLinkIssuesList() {
     const linkedMap = new Map((topic?.linkedIssues || []).map(li => [li.issueId, li]));
 
     let filtered = allIssues;
-    if (_linkIssuesFilter !== 'all') {
-        filtered = filtered.filter(i => i.sourceSystem === _linkIssuesFilter);
+    if (window._linkIssuesFilter !== 'all') {
+        filtered = filtered.filter(i => i.sourceSystem === window._linkIssuesFilter);
     }
     if (search) {
         filtered = filtered.filter(i =>
@@ -99,7 +101,7 @@ export function renderLinkIssuesList() {
                     <span style="font-weight: 600; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(issue.issueId)} ${escapeHtml(issue.issueTitle)}</span>
                     ${isLinked ? `<span class="link-issue-badge ${relBadgeClass}">${relLabel}</span>` : ''}
                 </div>
-                <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(issue.meetingName)} · ${escapeHtml(issue.department)} · ${escapeHtml(issue.status)}${issue.priority ? ' · ' + issue.priority : ''}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(issue.issueType || issue.department || '未分类')} · ${escapeHtml(issue.proposer || '未指定')} · ${escapeHtml(issue.status)}${issue.currentNode ? ' · ' + escapeHtml(issue.currentNode) : ''}</div>
             </div>
             <select id="link_rel_${issue.issueId}" style="font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-standard); display: ${isLinked ? 'inline-block' : 'none'}; background: var(--bg-surface); color: var(--text-primary); min-width: 90px;">
                 <option value="direct" ${relationType === 'direct' ? 'selected' : ''}>直接驱动</option>

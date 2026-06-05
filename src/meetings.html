@@ -482,6 +482,14 @@
             }
             return;
           }
+          // data-clone-meeting: 会议列表复制按钮
+          const cloneBtn = e.target.closest('[data-clone-meeting]');
+          if (cloneBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            cloneMeeting(cloneBtn.dataset.cloneId);
+            return;
+          }
           // data-edit-meeting: 会议列表编辑按钮
           const editBtn = e.target.closest('[data-edit-meeting]');
           if (editBtn) {
@@ -527,42 +535,187 @@
 
       // ===== 经营分析会页面 =====
 
+      const SCENARIO_CONFIG = {
+        union_quarterly: { label: '片联季度会议', color: '#8b5cf6', icon: '🏛️', pipelineEnabled: false },
+        hq_routine:      { label: '营销本部月/双周会', color: '#3b82f6', icon: '📅', pipelineEnabled: false },
+        region_routine:  { label: '战区月度经营分析会', color: '#0ea5e9', icon: '🗺️', pipelineEnabled: true },
+        lagging_region:  { label: '落后战区业绩承诺会', color: '#dc2626', icon: '🚨', pipelineEnabled: true },
+        lagging_vertical:{ label: '落后垂直客群经分会', color: '#ef4444', icon: '⚠️', pipelineEnabled: true }
+      };
+      const STATUS_CONFIG = {
+        completed:   { label: '已完成', badgeClass: 'status-success', color: 'var(--success)' },
+        planned:     { label: '规划中', badgeClass: 'status-default', color: 'var(--text-disabled)' },
+        in_progress: { label: '准备中', badgeClass: 'status-warning', color: 'var(--warning)' },
+        cancelled:   { label: '已取消', badgeClass: 'status-archived', color: 'var(--text-tertiary)' }
+      };
+      const AGENDA_TYPE_LABELS = {
+        goal_management: '目标管理',
+        key_task_management: '重点工作管理',
+        budget_finance: '预算与财经',
+        human_resources: '人力资源',
+        business_special: '业务专项',
+        other: '其他'
+      };
+      const AGENDA_TYPE_COLORS = {
+        goal_management: 'var(--primary)',
+        key_task_management: 'var(--primary)',
+        budget_finance: 'var(--warning)',
+        human_resources: 'var(--warning)',
+        business_special: 'var(--success)',
+        other: 'var(--text-secondary)'
+      };
+      const PIPELINE_STEPS = [
+        { key: 'reportGenerated', label: '报告生成', icon: '📝' },
+        { key: 'preReviewDone',   label: '会前评审', icon: '👀' },
+        { key: 'meetingHeld',     label: '会议召开', icon: '🎯' },
+        { key: 'minutesDrafted',  label: '纪要起草', icon: '📄' },
+        { key: 'minutesApproved', label: '纪要定稿', icon: '✅' },
+        { key: 'actionsTracked',  label: '行动追踪', icon: '📊' }
+      ];
+
+      function getMockMeetings() {
+        return [
+          {
+            id: '20260415', title: '片联一季度经营分析会', date: '2026-04-15', month: '2026-04',
+          level: 'L1', scope: 'union', scenario: 'union_quarterly',
+          status: 'completed', location: '总部大会议室', host: '陈总裁', recorder: 'Jason.Jing',
+          pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: true },
+          meeting_link: 'https://kms.example.com/docs/Q1-review-2026',
+          upstreamMeeting: null, downstreamMeeting: '20260515',
+          agenda_items: [
+            { type: 'budget_finance', title: 'Q1 财务整体复盘', duration: 45, owner: 'CFO' },
+            { type: 'goal_management', title: 'KPI 达成追踪', duration: 30, owner: '运营部' },
+            { type: 'business_special', title: '市场洞察与竞争分析', duration: 30, owner: '市场部' },
+            { type: 'business_special', title: '风险预警与应对', duration: 20, owner: '风控部' }
+          ],
+          actions: [
+            { id: 'A001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'in_progress' },
+            { id: 'A002', content: '海外渠道新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
+          ],
+          decisions: [
+            { id: 'D001', content: 'Q2 营收目标 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'approved' },
+            { id: 'D002', content: '海外渠道扩张计划', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
+          ],
+          hasMinutes: true, minutesStatus: 'final',
+          metrics: { materialTimeliness: 98, resolutionTimeliness: 92, actionClosure: 85, satisfaction: 4.5 },
+          effectiveness: { overallScore: 92, dimensions: { preparation: 95, discussion: 90, decision: 95, execution: 88 }, feedback: ['议程安排合理', '数据准备充分', '决议责任明确'] }
+        },
+        {
+          id: '20260315', title: '4月营销本部经营分析会', date: '2026-03-15', month: '2026-03',
+          level: 'L2', scope: 'hq', scenario: 'hq_routine',
+          status: 'completed', location: '会议室 A', host: '张总', recorder: 'Jason.Jing',
+          pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: false },
+          meeting_link: 'https://kms.example.com/docs/apr-hq-meeting',
+          upstreamMeeting: '20260215', downstreamMeeting: '20260415',
+          agenda_items: [
+            { type: 'budget_finance', title: '3月财务复盘', duration: 30, owner: '财务部' },
+            { type: 'goal_management', title: 'KPI 达成分析', duration: 25, owner: '运营部' },
+            { type: 'key_task_management', title: '上月行动项复盘', duration: 20, owner: '各负责人' }
+          ],
+          actions: [
+            { id: 'A003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'in_progress' }
+          ],
+          decisions: [
+            { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'approved' }
+          ],
+          hasMinutes: true, minutesStatus: 'final',
+          metrics: { materialTimeliness: 95, resolutionTimeliness: 88, actionClosure: 72, satisfaction: 4.2 },
+          effectiveness: { overallScore: 88, dimensions: { preparation: 90, discussion: 85, decision: 92, execution: 85 }, feedback: ['时间控制良好', '数据充分', '落地路径清晰'] }
+        },
+        {
+          id: '20260520', title: '华东战区 5 月经营分析会', date: '2026-05-20', month: '2026-05',
+          level: 'L2', scope: 'region_east', scenario: 'region_routine',
+          status: 'in_progress', location: '上海办公室', host: '刘战区总', recorder: '王小明',
+          pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+          meeting_link: 'https://kms.example.com/docs/may-region-east',
+          upstreamMeeting: '20260415', downstreamMeeting: null,
+          agenda_items: [
+            { type: 'budget_finance', title: '5月财务复盘', duration: 30, owner: '财务组' },
+            { type: 'business_special', title: '客户满意度分析', duration: 25, owner: '客户成功组' },
+            { type: 'key_task_management', title: '行动项跟踪', duration: 20, owner: '运营组' }
+          ],
+          actions: [
+            { id: 'A004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'in_progress' }
+          ],
+          decisions: [
+            { id: 'D004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'approved' }
+          ],
+          hasMinutes: false, minutesStatus: null,
+          metrics: { materialTimeliness: 90, resolutionTimeliness: 0, actionClosure: 60, satisfaction: 0 },
+          effectiveness: null
+        },
+        {
+          id: '20260525', title: '华南战区业绩承诺会暨经分会', date: '2026-05-25', month: '2026-05',
+          level: 'L3', scope: 'region_south', scenario: 'lagging_region',
+          status: 'planned', location: '深圳办公室', host: '赵战区总', recorder: '李小红',
+          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+          meeting_link: 'https://kms.example.com/docs/Q2-union-review',
+          upstreamMeeting: null, downstreamMeeting: null,
+          agenda_items: [
+            { type: 'budget_finance', title: '业绩差距根因分析', duration: 40, owner: '财务组' },
+            { type: 'business_special', title: '风险预警与整改', duration: 30, owner: '风控组' },
+            { type: 'key_task_management', title: '整改承诺与跟踪', duration: 30, owner: '各负责人' }
+          ],
+          actions: [],
+          decisions: [],
+          hasMinutes: false, minutesStatus: null,
+          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+          effectiveness: null
+        },
+        {
+          id: '20260601', title: '金融行业客群经分会', date: '2026-06-01', month: '2026-06',
+          level: 'L3', scope: 'vertical_finance', scenario: 'lagging_vertical',
+          status: 'planned', location: '北京办公室', host: '孙行业总', recorder: '周小华',
+          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+          upstreamMeeting: null, downstreamMeeting: null,
+          agenda_items: [
+            { type: 'budget_finance', title: '客群财务分析', duration: 35, owner: '财务组' },
+            { type: 'business_special', title: '客户流失分析', duration: 25, owner: '客户组' },
+            { type: 'business_special', title: '产品路线调整', duration: 20, owner: '产品组' }
+          ],
+          actions: [],
+          decisions: [],
+          hasMinutes: false, minutesStatus: null,
+          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+          effectiveness: null
+        },
+        {
+          id: '20260615', title: '片联二季度经营分析会', date: '2026-06-15', month: '2026-06',
+          level: 'L1', scope: 'union', scenario: 'union_quarterly',
+          status: 'planned', location: '总部大会议室', host: '陈总裁', recorder: '待定',
+          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+          upstreamMeeting: null, downstreamMeeting: null,
+          agenda_items: [
+            { type: 'budget_finance', title: 'Q2 财务复盘', duration: 45, owner: 'CFO' },
+            { type: 'goal_management', title: '半年 KPI 追踪', duration: 30, owner: '运营部' }
+          ],
+          actions: [],
+          decisions: [],
+          hasMinutes: false, minutesStatus: null,
+          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+          effectiveness: null
+        },
+        {
+          id: '20260701', title: '7月营销本部经营分析会', date: '2026-07-01', month: '2026-07',
+          level: 'L2', scope: 'hq', scenario: 'hq_routine',
+          status: 'planned', location: '会议室 B', host: '张总', recorder: '待定',
+          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
+          upstreamMeeting: '20260615', downstreamMeeting: null,
+          agenda_items: [
+            { type: 'budget_finance', title: '6月财务复盘', duration: 30, owner: '财务部' },
+            { type: 'goal_management', title: 'KPI 达成分析', duration: 25, owner: '运营部' }
+          ],
+          actions: [],
+          decisions: [],
+          hasMinutes: false, minutesStatus: null,
+          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+          effectiveness: null
+        }
+      ];
+      }
+
       function renderMeetings() {
         // ---- 场景配置 ----
-        const SCENARIO_CONFIG = {
-          union_quarterly: { label: '片联季度会议', color: '#8b5cf6', icon: '🏛️', pipelineEnabled: false },
-          hq_routine:      { label: '营销本部月/双周会', color: '#3b82f6', icon: '📅', pipelineEnabled: false },
-          region_routine:  { label: '战区月度经营分析会', color: '#0ea5e9', icon: '🗺️', pipelineEnabled: true },
-          lagging_region:  { label: '落后战区业绩承诺会', color: '#dc2626', icon: '🚨', pipelineEnabled: true },
-          lagging_vertical:{ label: '落后垂直客群经分会', color: '#ef4444', icon: '⚠️', pipelineEnabled: true }
-        };
-        const STATUS_CONFIG = {
-          completed:   { label: '已完成', badgeClass: 'status-success', color: 'var(--success)' },
-          planned:     { label: '规划中', badgeClass: 'status-default', color: 'var(--text-disabled)' },
-          in_progress: { label: '准备中', badgeClass: 'status-warning', color: 'var(--warning)' },
-          cancelled:   { label: '已取消', badgeClass: 'status-archived', color: 'var(--text-tertiary)' }
-        };
-        const AGENDA_TYPE_LABELS = {
-          financial_review: '财务复盘', kpi_tracking: 'KPI 追踪', market_insight: '市场洞察',
-          risk_warning: '风险预警', org_review: '组织复盘', resource_allocation: '资源调配',
-          action_review: '行动复盘', customer_success: '客户成功', product_roadmap: '产品路线',
-          cost_optimization: '成本优化', talent_development: '人才发展', digital_transform: '数字化',
-          esg_sustainability: 'ESG'
-        };
-        const AGENDA_TYPE_COLORS = {
-          financial_review: 'var(--primary)', kpi_tracking: 'var(--primary)', digital_transform: 'var(--primary)',
-          market_insight: 'var(--warning)', talent_development: 'var(--warning)', org_review: 'var(--warning)', product_roadmap: 'var(--warning)',
-          resource_allocation: 'var(--success)', action_review: 'var(--success)', customer_success: 'var(--success)', cost_optimization: 'var(--success)',
-          risk_warning: '#dc2626', esg_sustainability: '#10b981'
-        };
-        const PIPELINE_STEPS = [
-          { key: 'reportGenerated', label: '报告生成', icon: '📝' },
-          { key: 'preReviewDone',   label: '会前评审', icon: '👀' },
-          { key: 'meetingHeld',     label: '会议召开', icon: '🎯' },
-          { key: 'minutesDrafted',  label: '纪要起草', icon: '📄' },
-          { key: 'minutesApproved', label: '纪要定稿', icon: '✅' },
-          { key: 'actionsTracked',  label: '行动追踪', icon: '📊' }
-        ];
 
         // ---- 数据模型 ----
         if (!window._meetingsData) {
@@ -576,144 +729,7 @@
           }
         }
         if (!window._meetingsData) {
-          window._meetingsData = [
-            {
-              id: '20260415', title: '片联一季度经营分析会', date: '2026-04-15', month: '2026-04',
-            level: 'L1', scope: 'union', scenario: 'union_quarterly',
-            status: 'completed', location: '总部大会议室', host: '陈总裁', recorder: 'Jason.Jing',
-            pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: true },
-            meeting_link: 'https://kms.example.com/docs/Q1-review-2026',
-            upstreamMeeting: null, downstreamMeeting: '20260515',
-            agenda_items: [
-              { type: 'financial_review', title: 'Q1 财务整体复盘', duration: 45, owner: 'CFO' },
-              { type: 'kpi_tracking', title: 'KPI 达成追踪', duration: 30, owner: '运营部' },
-              { type: 'market_insight', title: '市场洞察与竞争分析', duration: 30, owner: '市场部' },
-              { type: 'risk_warning', title: '风险预警与应对', duration: 20, owner: '风控部' }
-            ],
-            actions: [
-              { id: 'A001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'in_progress' },
-              { id: 'A002', content: '海外渠道新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
-            ],
-            decisions: [
-              { id: 'D001', content: 'Q2 营收目标 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'approved' },
-              { id: 'D002', content: '海外渠道扩张计划', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
-            ],
-            hasMinutes: true, minutesStatus: 'final',
-            metrics: { materialTimeliness: 98, resolutionTimeliness: 92, actionClosure: 85, satisfaction: 4.5 },
-            effectiveness: { overallScore: 92, dimensions: { preparation: 95, discussion: 90, decision: 95, execution: 88 }, feedback: ['议程安排合理', '数据准备充分', '决议责任明确'] }
-          },
-          {
-            id: '20260315', title: '4月营销本部经营分析会', date: '2026-03-15', month: '2026-03',
-            level: 'L2', scope: 'hq', scenario: 'hq_routine',
-            status: 'completed', location: '会议室 A', host: '张总', recorder: 'Jason.Jing',
-            pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: false },
-            meeting_link: 'https://kms.example.com/docs/apr-hq-meeting',
-            upstreamMeeting: '20260215', downstreamMeeting: '20260415',
-            agenda_items: [
-              { type: 'financial_review', title: '3月财务复盘', duration: 30, owner: '财务部' },
-              { type: 'kpi_tracking', title: 'KPI 达成分析', duration: 25, owner: '运营部' },
-              { type: 'action_review', title: '上月行动项复盘', duration: 20, owner: '各负责人' }
-            ],
-            actions: [
-              { id: 'A003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'in_progress' }
-            ],
-            decisions: [
-              { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'approved' }
-            ],
-            hasMinutes: true, minutesStatus: 'final',
-            metrics: { materialTimeliness: 95, resolutionTimeliness: 88, actionClosure: 72, satisfaction: 4.2 },
-            effectiveness: { overallScore: 88, dimensions: { preparation: 90, discussion: 85, decision: 92, execution: 85 }, feedback: ['时间控制良好', '数据充分', '落地路径清晰'] }
-          },
-          {
-            id: '20260520', title: '华东战区 5 月经营分析会', date: '2026-05-20', month: '2026-05',
-            level: 'L2', scope: 'region_east', scenario: 'region_routine',
-            status: 'in_progress', location: '上海办公室', host: '刘战区总', recorder: '王小明',
-            pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-            meeting_link: 'https://kms.example.com/docs/may-region-east',
-            upstreamMeeting: '20260415', downstreamMeeting: null,
-            agenda_items: [
-              { type: 'financial_review', title: '5月财务复盘', duration: 30, owner: '财务组' },
-              { type: 'customer_success', title: '客户满意度分析', duration: 25, owner: '客户成功组' },
-              { type: 'action_review', title: '行动项跟踪', duration: 20, owner: '运营组' }
-            ],
-            actions: [
-              { id: 'A004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'in_progress' }
-            ],
-            decisions: [
-              { id: 'D004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'approved' }
-            ],
-            hasMinutes: false, minutesStatus: null,
-            metrics: { materialTimeliness: 90, resolutionTimeliness: 0, actionClosure: 60, satisfaction: 0 },
-            effectiveness: null
-          },
-          {
-            id: '20260525', title: '华南战区业绩承诺会暨经分会', date: '2026-05-25', month: '2026-05',
-            level: 'L3', scope: 'region_south', scenario: 'lagging_region',
-            status: 'planned', location: '深圳办公室', host: '赵战区总', recorder: '李小红',
-            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-            meeting_link: 'https://kms.example.com/docs/Q2-union-review',
-            upstreamMeeting: null, downstreamMeeting: null,
-            agenda_items: [
-              { type: 'financial_review', title: '业绩差距根因分析', duration: 40, owner: '财务组' },
-              { type: 'risk_warning', title: '风险预警与整改', duration: 30, owner: '风控组' },
-              { type: 'action_review', title: '整改承诺与跟踪', duration: 30, owner: '各负责人' }
-            ],
-            actions: [],
-            decisions: [],
-            hasMinutes: false, minutesStatus: null,
-            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-            effectiveness: null
-          },
-          {
-            id: '20260601', title: '金融行业客群经分会', date: '2026-06-01', month: '2026-06',
-            level: 'L3', scope: 'vertical_finance', scenario: 'lagging_vertical',
-            status: 'planned', location: '北京办公室', host: '孙行业总', recorder: '周小华',
-            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-            upstreamMeeting: null, downstreamMeeting: null,
-            agenda_items: [
-              { type: 'financial_review', title: '客群财务分析', duration: 35, owner: '财务组' },
-              { type: 'customer_success', title: '客户流失分析', duration: 25, owner: '客户组' },
-              { type: 'product_roadmap', title: '产品路线调整', duration: 20, owner: '产品组' }
-            ],
-            actions: [],
-            decisions: [],
-            hasMinutes: false, minutesStatus: null,
-            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-            effectiveness: null
-          },
-          {
-            id: '20260615', title: '片联二季度经营分析会', date: '2026-06-15', month: '2026-06',
-            level: 'L1', scope: 'union', scenario: 'union_quarterly',
-            status: 'planned', location: '总部大会议室', host: '陈总裁', recorder: '待定',
-            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-            upstreamMeeting: null, downstreamMeeting: null,
-            agenda_items: [
-              { type: 'financial_review', title: 'Q2 财务复盘', duration: 45, owner: 'CFO' },
-              { type: 'kpi_tracking', title: '半年 KPI 追踪', duration: 30, owner: '运营部' }
-            ],
-            actions: [],
-            decisions: [],
-            hasMinutes: false, minutesStatus: null,
-            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-            effectiveness: null
-          },
-          {
-            id: '20260701', title: '7月营销本部经营分析会', date: '2026-07-01', month: '2026-07',
-            level: 'L2', scope: 'hq', scenario: 'hq_routine',
-            status: 'planned', location: '会议室 B', host: '张总', recorder: '待定',
-            pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-            upstreamMeeting: '20260615', downstreamMeeting: null,
-            agenda_items: [
-              { type: 'financial_review', title: '6月财务复盘', duration: 30, owner: '财务部' },
-              { type: 'kpi_tracking', title: 'KPI 达成分析', duration: 25, owner: '运营部' }
-            ],
-            actions: [],
-            decisions: [],
-            hasMinutes: false, minutesStatus: null,
-            metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-            effectiveness: null
-          }
-        ];
+        window._meetingsData = getMockMeetings();
         }
         window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
         const meetings = window._meetingsData.slice(); // 复制数组避免修改原始数据
@@ -946,6 +962,7 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span class="status-badge ${st.badgeClass}">${st.label}</span>
+                  <button type="button" data-clone-meeting data-clone-id="${m.id}" style="padding: 2px 8px; font-size: 11px; border: none; border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500;">📋 复制</button>
                   <button type="button" data-edit-meeting data-edit-id="${m.id}" style="padding: 2px 8px; font-size: 11px; border: none; border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">✏️ 编辑</button>
                 </div>
               </div>
@@ -1055,8 +1072,9 @@
           const footer = document.getElementById('calendar-footer');
           console.log('[Calendar] DOM elements:', { header: !!header, body: !!body, footer: !!footer });
           if (!header || !body || !footer) {
-            const container = document.getElementById('meetings-calendar-container');
-            if (container) container.innerHTML = '<div style="padding:20px;color:var(--danger)">日历渲染错误：DOM元素未找到</div>';
+            const panel = document.getElementById('meetings-calendar-panel');
+            const body = document.getElementById('calendar-body');
+            if (body) body.innerHTML = '<div style="padding:20px;color:var(--danger)">日历渲染错误：DOM元素未找到</div>';
             return;
           }
 
@@ -1103,8 +1121,32 @@
               <div style="font-size: 12px; font-weight: ${isToday ? '700' : '400'}; color: ${isToday ? '#fff' : 'var(--text-primary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 4px;">${d}</div>
               <div style="display: flex; flex-direction: column; gap: 3px;">
                 ${dayMeetings.slice(0, 2).map(m => {
-                  const sc = SCENARIO_CONFIG[m.scenario] || { color: 'var(--text-secondary)' };
-                  return `<div onclick="openMeetingDetail('${m.id}')" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" style="padding: 2px 5px; border-radius: 3px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; background: ${sc.color}18; color: ${sc.color}; border-left: 3px solid ${sc.color};">${m.title.slice(0, 10)}${m.title.length > 10 ? '...' : ''}</div>`;
+                  const sc = SCENARIO_CONFIG[m.scenario] || { color: 'var(--text-secondary)', icon: '📋' };
+                  const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
+                  const title = m.title.slice(0, 12) + (m.title.length > 12 ? '...' : '');
+                  const location = m.location ? m.location.slice(0, 6) + (m.location.length > 6 ? '...' : '') : '';
+                  const actionCount = (m.actions || []).length;
+                  const decisionCount = (m.decisions || []).length;
+                  return `<div data-calendar-meeting onclick="openMeetingDetail('${m.id}')" onmouseenter="showMeetingTooltip(this, true)" onmouseleave="showMeetingTooltip(this, false)" style="position: relative; padding: 2px 5px; border-radius: 3px; font-size: 10px; cursor: pointer; background: ${sc.color}18; color: ${sc.color}; border-left: 3px solid ${sc.color};">
+                    <span style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      <span data-status-dot style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${st.color}; margin-right: 3px; vertical-align: middle;"></span>
+                      <span style="vertical-align: middle;">${sc.icon} ${title}${location ? ' · ' + location : ''}</span>
+                    </span>
+                    <div class="meeting-tooltip" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 100; width: max-content; max-width: 280px; padding-top: 4px;">
+                      <div style="padding: 10px 14px; background: var(--bg-page); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); font-size: 12px; white-space: normal; line-height: 1.5; position: relative;">
+                        <div style="position: absolute; top: -5px; left: 14px; width: 8px; height: 8px; background: var(--bg-page); border-left: 1px solid var(--border-color); border-top: 1px solid var(--border-color); transform: rotate(45deg);"></div>
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">${m.title}</div>
+                        <div style="color: var(--text-tertiary);">
+                          <div>📅 ${m.date} · ${sc.icon} ${sc.label}</div>
+                          <div>📍 ${m.location || '待定'} · 👤 ${m.host || '待定'}</div>
+                          <div>📊 ${st.label}${decisionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
+                        </div>
+                        <div style="margin-top: 8px; border-top: 1px solid var(--border-light); padding-top: 8px;">
+                          <button type="button" onclick="event.stopPropagation(); cloneMeeting('${m.id}');" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500; pointer-events: auto;">📋 复制此会议</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>`;
                 }).join('')}
                 ${dayMeetings.length > 2 ? `<div style="font-size: 10px; color: var(--text-tertiary); padding-left: 4px;">+${dayMeetings.length - 2}</div>` : ''}
               </div>
@@ -1114,8 +1156,7 @@
           console.log('[Calendar] gridHtml length:', gridHtml.length);
           body.innerHTML = gridHtml;
           console.log('[Calendar] body.innerHTML set, body children:', body.children.length);
-          // 强制给日历容器加边框以便调试可见性
-          document.getElementById('meetings-calendar-container').style.border = '2px solid blue';
+          // 日历渲染完成
 
           // 底部：当月会议清单
           const sorted = monthMeetings.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -1129,11 +1170,16 @@
                 ${sorted.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 20px;">本月暂无会议</div>' : sorted.map(m => {
                   const sc = SCENARIO_CONFIG[m.scenario] || { label: m.scenario, color: 'var(--text-tertiary)', icon: '📋' };
                   const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
+                  const actionCount = (m.actions || []).length;
+                  const decisionCount = (m.decisions || []).length;
                   return `<div onclick="openMeetingDetail('${m.id}')" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s; border-left: 3px solid ${sc.color};">
                     <span style="font-size: 12px; color: var(--text-tertiary); min-width: 60px;">${m.date.slice(5)}</span>
-                    <span style="font-size: 13px; font-weight: 500; flex: 1; color: var(--text-primary);">${m.title}</span>
-                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: ${sc.color}15; color: ${sc.color};">${sc.icon} ${sc.label}</span>
-                    <span class="status-badge ${st.badgeClass}" style="font-size: 11px;">${st.label}</span>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.title}</div>
+                      <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">📍 ${m.location || '待定'} · 👤 ${m.host || '待定'}${actionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
+                    </div>
+                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: ${sc.color}15; color: ${sc.color}; white-space: nowrap;">${sc.icon} ${sc.label}</span>
+                    <span class="status-badge ${st.badgeClass}" style="font-size: 11px; white-space: nowrap;">${st.label}</span>
                   </div>`;
                 }).join('')}
               </div>
@@ -1241,22 +1287,27 @@
           }
         };
 
+        window.showMeetingTooltip = function(el, show) {
+          const tooltip = el.querySelector('.meeting-tooltip');
+          if (tooltip) tooltip.style.display = show ? 'block' : 'none';
+        };
+
         window.toggleMeetingsView = function() {
           console.log('[Calendar] toggleMeetingsView called, current mode:', window._meetingsViewMode);
           const btn = document.getElementById('btn-toggle-view');
-          const listContainer = document.getElementById('meetings-list-container');
-          const calContainer = document.getElementById('meetings-calendar-container');
-          console.log('[Calendar] containers:', { list: !!listContainer, cal: !!calContainer });
+          const listPanel = document.getElementById('meetings-list-panel');
+          const calPanel = document.getElementById('meetings-calendar-panel');
+          console.log('[Calendar] panels:', { list: !!listPanel, cal: !!calPanel });
           if (window._meetingsViewMode === 'calendar') {
             window._meetingsViewMode = 'list';
             if (btn) btn.textContent = '📅 日历视图';
-            if (listContainer) listContainer.style.display = 'block';
-            if (calContainer) calContainer.style.display = 'none';
+            if (listPanel) listPanel.style.display = 'block';
+            if (calPanel) calPanel.style.display = 'none';
           } else {
             window._meetingsViewMode = 'calendar';
             if (btn) btn.textContent = '📋 列表视图';
-            if (listContainer) listContainer.style.display = 'none';
-            if (calContainer) calContainer.style.display = 'block';
+            if (listPanel) listPanel.style.display = 'none';
+            if (calPanel) calPanel.style.display = 'block';
             // 渲染日历
             const state = window._calendarState;
             console.log('[Calendar] rendering calendar, state:', state);
@@ -1276,12 +1327,40 @@
             status: 'planned', location: '', host: '', recorder: '',
             pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
             meeting_link: '', upstreamMeeting: null, downstreamMeeting: null,
-            agenda_items: [{ type: 'financial_review', title: '', duration: 30, owner: '', material_link: '' }],
+            agenda_items: [{ type: 'goal_management', title: '', duration: 30, owner: '', material_link: '' }],
             actions: [], decisions: [], hasMinutes: false, minutesStatus: null,
             metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
             effectiveness: null
           };
           window._meetingEditData = JSON.parse(JSON.stringify(newMeeting));
+          renderEditorForm();
+          const ov = document.getElementById('meeting-editor-overlay');
+          if (ov) {
+            ov.style.display = 'flex';
+            ov.dataset.isNew = 'true';
+          }
+        };
+
+        window.cloneMeeting = function(id) {
+          const source = meetings.find(m => m.id === id);
+          if (!source) { alert('会议不存在'); return; }
+          const cloned = JSON.parse(JSON.stringify(source));
+          cloned.id = 'new_' + Date.now();
+          cloned.title = (cloned.title || '未命名会议') + '（复制）';
+          cloned.date = new Date().toISOString().split('T')[0];
+          cloned.month = cloned.date.slice(0, 7);
+          cloned.status = 'planned';
+          cloned.pipeline = { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false };
+          cloned.actions = [];
+          cloned.decisions = [];
+          cloned.hasMinutes = false;
+          cloned.minutesStatus = null;
+          cloned.metrics = { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 };
+          cloned.effectiveness = null;
+          cloned.upstreamMeeting = null;
+          cloned.downstreamMeeting = null;
+          cloned.meeting_link = '';
+          window._meetingEditData = cloned;
           renderEditorForm();
           const ov = document.getElementById('meeting-editor-overlay');
           if (ov) {
@@ -1844,7 +1923,7 @@
         window.addAgendaItem = function() {
           if (!window._meetingEditData) return;
           if (!window._meetingEditData.agenda_items) window._meetingEditData.agenda_items = [];
-          window._meetingEditData.agenda_items.push({ type: 'financial_review', title: '新议程项', duration: 15, owner: '' });
+          window._meetingEditData.agenda_items.push({ type: 'goal_management', title: '新议程项', duration: 15, owner: '' });
           renderAgendaList();
         };
         window.removeAgendaItem = function(idx) {
@@ -1894,7 +1973,7 @@
           if (!window._meetingEditData) return;
           if (!window._meetingEditData.actions) window._meetingEditData.actions = [];
           const today = new Date().toISOString().split('T')[0];
-          window._meetingEditData.actions.push({ content: '', owner: '', deadline: today, status: 'pending' });
+          window._meetingEditData.actions.push({ id: 'A' + Date.now() + '_' + Math.floor(Math.random() * 1000), content: '', owner: '', deadline: today, status: 'pending' });
           renderActionList();
         };
         window.removeActionItem = function(idx) {
@@ -1936,7 +2015,7 @@
           if (!window._meetingEditData) return;
           if (!window._meetingEditData.decisions) window._meetingEditData.decisions = [];
           const today = new Date().toISOString().split('T')[0];
-          window._meetingEditData.decisions.push({ content: '', owner: '', deadline: today, status: 'pending' });
+          window._meetingEditData.decisions.push({ id: 'D' + Date.now() + '_' + Math.floor(Math.random() * 1000), content: '', owner: '', deadline: today, status: 'pending' });
           renderDecisionList();
         };
         window.removeDecisionItem = function(idx) {
@@ -1982,7 +2061,7 @@
                 metrics: d.metrics || { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
                 effectiveness: d.effectiveness || null
               };
-              if (newMeeting.agenda_items.length === 0) newMeeting.agenda_items = [{ type: 'financial_review', title: '未设置议程', duration: 15, owner: '' }];
+              if (newMeeting.agenda_items.length === 0) newMeeting.agenda_items = [{ type: 'goal_management', title: '未设置议程', duration: 15, owner: '' }];
               meetings.push(newMeeting);
               const editorOverlay = document.getElementById('meeting-editor-overlay');
               if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
@@ -2000,7 +2079,7 @@
               meetings[idx].level = document.getElementById('edit-level').value;
               meetings[idx].status = statusVal;
               meetings[idx].agenda_items = (d.agenda_items || []).filter(a => a.title.trim());
-              if (meetings[idx].agenda_items.length === 0) meetings[idx].agenda_items = [{ type: 'financial_review', title: '未设置议程', duration: 15, owner: '' }];
+              if (meetings[idx].agenda_items.length === 0) meetings[idx].agenda_items = [{ type: 'goal_management', title: '未设置议程', duration: 15, owner: '' }];
               meetings[idx].actions = d.actions || [];
               meetings[idx].decisions = d.decisions || [];
               meetings[idx].pipeline = d.pipeline || {};
@@ -2225,13 +2304,30 @@
 
           <!-- 主体：列表视图 / 日历视图 -->
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
-              <div class="card">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                  <div class="card-title">📋 会议列表</div>
-                  <span class="meeting-list-count" style="font-size: 12px; color: var(--text-tertiary);">共 ${totalMeetings} 场</span>
+              <div>
+                <div id="meetings-list-panel" class="card">
+                  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="card-title">📋 会议列表</div>
+                    <span class="meeting-list-count" style="font-size: 12px; color: var(--text-tertiary);">共 ${totalMeetings} 场</span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 12px;">
+                    ${meetingCards}
+                  </div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                  ${meetingCards}
+                <div id="meetings-calendar-panel" class="card" style="display: none;">
+                  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="card-title">📅 日历</div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div id="calendar-header" style="margin-bottom: 12px;">
+                      <div style="display: flex; gap: 8px;">
+                        <button onclick="switchCalendarView('month')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">月视图</button>
+                        <button onclick="switchCalendarView('year')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">年视图</button>
+                      </div>
+                    </div>
+                    <div id="calendar-body" style="min-height: 100px;"></div>
+                    <div id="calendar-footer" style="margin-top: 16px;"></div>
+                  </div>
                 </div>
               </div>
             <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -2320,17 +2416,6 @@
             </div>
           </div>
 
-          <!-- 日历视图（初始隐藏） -->
-          <div id="meetings-calendar-container" style="display: none;">
-            <div id="calendar-header" style="margin-bottom: 12px;">
-              <div style="display: flex; gap: 8px;">
-                <button onclick="switchCalendarView('month')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">月视图</button>
-                <button onclick="switchCalendarView('year')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">年视图</button>
-              </div>
-            </div>
-            <div id="calendar-body" style="min-height: 100px; border: 2px dashed red;"></div>
-            <div id="calendar-footer" style="margin-top: 16px;"></div>
-          </div>
 
           <!-- 会议纪要 -->
           <div class="card" style="margin-bottom: 16px;">

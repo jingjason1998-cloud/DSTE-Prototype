@@ -54,19 +54,19 @@ def test_calendar_year_navigation_exists():
 def test_calendar_view_mode_buttons_exist():
     """日历视图头部包含月视图/年视图切换按钮"""
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    calendar_container = content.split('id="meetings-calendar-container"')[1] if 'id="meetings-calendar-container"' in content else ""
-    assert "月视图" in calendar_container or "month" in calendar_container, "日历视图缺少月视图切换按钮"
-    assert "年视图" in calendar_container or "year" in calendar_container, "日历视图缺少年视图切换按钮"
+    calendar_panel = content.split('id="meetings-calendar-panel"')[1] if 'id="meetings-calendar-panel"' in content else ""
+    assert "月视图" in calendar_panel or "month" in calendar_panel, "日历视图缺少月视图切换按钮"
+    assert "年视图" in calendar_panel or "year" in calendar_panel, "日历视图缺少年视图切换按钮"
 
 
 def test_calendar_header_is_compact():
-    """日历视图采用局部切换：头部始终显示，只切换中间主体区域"""
+    """日历视图采用局部切换：只替换左侧会议列表面板，右侧模块保留"""
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
     toggle_section = content.split("window.toggleMeetingsView = function(")[1] if "window.toggleMeetingsView = function(" in content else ""
-    # 局部切换：只切换 meetings-list-container 和 meetings-calendar-container
-    assert "meetings-list-container" in toggle_section, "toggleMeetingsView 未处理 meetings-list-container"
-    assert "meetings-calendar-container" in toggle_section, "toggleMeetingsView 未处理 meetings-calendar-container"
-    # 头部区域始终显示，不在 toggle 中处理
+    # 局部切换：只切换 meetings-list-panel 和 meetings-calendar-panel
+    assert "meetings-list-panel" in toggle_section, "toggleMeetingsView 未处理 meetings-list-panel"
+    assert "meetings-calendar-panel" in toggle_section, "toggleMeetingsView 未处理 meetings-calendar-panel"
+    # 右侧模块（执行概览、决议执行趋势、待办提醒）始终显示
     assert "card-header" in content, "缺少 card-header 头部区域"
 
 
