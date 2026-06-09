@@ -53,6 +53,7 @@ export function updateTopicIssueStats(topic) {
 
 export function openLinkIssuesModal(topicId) {
     _currentLinkTopicId = topicId;
+    if (typeof window !== 'undefined') window._currentLinkTopicId = topicId;
     const topic = loadTopics().find(t => t.id === topicId);
     document.getElementById('linkIssuesSubtitle').textContent = topic ? '「' + topic.name + '」' : '';
     document.getElementById('linkIssuesSearch').value = '';

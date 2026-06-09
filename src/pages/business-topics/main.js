@@ -795,6 +795,10 @@ function populateYearFilter() {
     select.innerHTML = '<option value="">全部年度</option>' + years.map(y =>
         `<option value="${y}" ${y === defaultVal ? 'selected' : ''}>${y}</option>`
     ).join('');
+    // 填充后触发筛选，确保默认年度生效
+    if (!currentVal && defaultVal) {
+        applyFilters();
+    }
 }
 
 function toggleSort(field) {
@@ -1741,6 +1745,10 @@ window.renderStats = renderStats;
 window.CURRENT_USER = CURRENT_USER;
 window.escapeHtml = escapeHtml;
 window.apiSave = apiSave;
+window.linkIssueToTopic = linkIssueToTopic;
+window.unlinkIssueFromTopic = unlinkIssueFromTopic;
+window._currentLinkTopicId = _currentLinkTopicId;
+window.renderLinkIssuesList = renderLinkIssuesList;
 
 // Expose key functions to global scope for inline onclick handlers
 window._dste = {

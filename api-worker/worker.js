@@ -244,6 +244,37 @@ export default {
         }
       }
 
+      // --- 企业微信通知代理 ---
+      if (path === '/api/notify/proxy') {
+        if (method !== 'POST') {
+          return errorResponse('Method not allowed', 405, request);
+        }
+        const body = await request.json();
+        const webhookUrl = body.webhookUrl;
+        const message = body.message;
+
+        if (!webhookUrl || !message) {
+          return errorResponse('Missing webhookUrl or message', 400, request);
+        }
+
+        // 安全校验：只允许企业微信 Webhook URL
+        if (!webhookUrl.startsWith('https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=')) {
+          return errorResponse('Invalid webhook URL', 400, request);
+        }
+
+        try {
+          const resp = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ msgtype: 'text', text: { content: message } }),
+          });
+          const result = await resp.json();
+          return jsonResponse({ success: result.errcode === 0, errcode: result.errcode, errmsg: result.errmsg }, 200, request);
+        } catch (err) {
+          return errorResponse('Webhook request failed: ' + err.message, 502, request);
+        }
+      }
+
       // --- 健康检查 ---
       if (path === '/api/health') {
         return jsonResponse({

@@ -137,7 +137,8 @@
       <ul class="top-nav-links" id="top-nav-links"></ul>
       <div class="top-nav-actions">
         <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
-        <button class="icon-btn" title="通知">🔔</button>
+        <button class="icon-btn" title="通知" onclick="openNotificationCenter()">🔔</button>
+        <button class="icon-btn" title="通知配置" onclick="openNotificationConfig()">⚙️</button>
         <div class="user-avatar" id="user-avatar" style="position:relative;">张</div>
         <div class="user-dropdown" id="user-dropdown">
           <div class="user-dropdown-name" id="user-dropdown-name">张总</div>
@@ -170,7 +171,7 @@
       const API_BASE = (() => {
         const host = window.location.hostname;
         if (host === 'localhost' || host === '127.0.0.1') {
-          return localStorage.getItem('dste_api_base') || '';
+          return localStorage.getItem('dste_api_base') || 'https://dste-api.jasonxspace.workers.dev';
         }
         return 'https://dste-api.jasonxspace.workers.dev';
       })();
@@ -597,6 +598,7 @@
             { id: 'D002', content: '海外渠道扩张计划', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
           ],
           hasMinutes: true, minutesStatus: 'final',
+          minutes_content: '1. Q1 营收达成 3.1 亿，同比增长 15%。\\n2. 海外市场拓展顺利，新增 3 个区域代理。\\n3. 产品 V2.5 版本按期上线，用户满意度提升至 4.5 分。\\n4. 下季度重点：渠道下沉 + 产品线扩展。',
           metrics: { materialTimeliness: 98, resolutionTimeliness: 92, actionClosure: 85, satisfaction: 4.5 },
           effectiveness: { overallScore: 92, dimensions: { preparation: 95, discussion: 90, decision: 95, execution: 88 }, feedback: ['议程安排合理', '数据准备充分', '决议责任明确'] }
         },
@@ -619,6 +621,7 @@
             { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'approved' }
           ],
           hasMinutes: true, minutesStatus: 'final',
+          minutes_content: '1. 3月营收 1.2 亿，环比提升 8%。\\n2. 产品 V3.0 开发进度 80%，预计 5 月底上线。\\n3. 华东区签约目标上调至 8000 万。\\n4. 客户满意度调研结果：4.2 分，需重点关注售后响应速度。',
           metrics: { materialTimeliness: 95, resolutionTimeliness: 88, actionClosure: 72, satisfaction: 4.2 },
           effectiveness: { overallScore: 88, dimensions: { preparation: 90, discussion: 85, decision: 92, execution: 85 }, feedback: ['时间控制良好', '数据充分', '落地路径清晰'] }
         },
@@ -944,7 +947,7 @@
           const sc = SCENARIO_CONFIG[m.scenario] || { label: m.scenario, color: 'var(--text-tertiary)', icon: '📋' };
           const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
           const agendaTags = (m.agenda_items || []).slice(0, 4).map(a => {
-            const label = AGENDA_TYPE_LABELS[a.type] || a.type;
+            const label = AGENDA_TYPE_LABELS[a.type] || '其他';
             const hasMaterial = a.material_link ? ' 🔗' : '';
             return `<span style="padding: 2px 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">${label}${hasMaterial}</span>`;
           }).join('');
@@ -1328,7 +1331,7 @@
             pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
             meeting_link: '', upstreamMeeting: null, downstreamMeeting: null,
             agenda_items: [{ type: 'goal_management', title: '', duration: 30, owner: '', material_link: '' }],
-            actions: [], decisions: [], hasMinutes: false, minutesStatus: null,
+            actions: [], decisions: [], hasMinutes: false, minutesStatus: null, minutes_content: '',
             metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
             effectiveness: null
           };
@@ -1355,6 +1358,7 @@
           cloned.decisions = [];
           cloned.hasMinutes = false;
           cloned.minutesStatus = null;
+          cloned.minutes_content = '';
           cloned.metrics = { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 };
           cloned.effectiveness = null;
           cloned.upstreamMeeting = null;
@@ -1397,6 +1401,14 @@
           if (ov) ov.style.display = 'none';
           window._currentDetailMeetingId = null;
         };
+        window.toggleDetailSection = function(id) {
+          const el = document.getElementById(id);
+          const toggle = document.getElementById(id + '-toggle');
+          if (!el || !toggle) return;
+          const isHidden = el.style.display === 'none';
+          el.style.display = isHidden ? 'block' : 'none';
+          toggle.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+        };
         window.openEditorFromDetail = function() {
           const id = window._currentDetailMeetingId;
           closeMeetingDetail();
@@ -1406,19 +1418,7 @@
             navigate('exe/meetings/edit');
           }
         };
-        window._currentMeetingTab = '纪要';
-        window.switchMeetingDetailTab = function(tab) {
-          window._currentMeetingTab = tab;
-          document.querySelectorAll('.meeting-tab-btn').forEach(btn => {
-            const isActive = btn.dataset.tab === tab;
-            btn.style.color = isActive ? 'var(--primary)' : 'var(--text-secondary)';
-            btn.style.borderBottomColor = isActive ? 'var(--primary)' : 'transparent';
-            btn.style.fontWeight = isActive ? '600' : '500';
-          });
-          document.querySelectorAll('.meeting-tab-panel').forEach(panel => {
-            panel.style.display = panel.dataset.tab === tab ? 'block' : 'none';
-          });
-        };
+
 
         function renderMeetingDetail(m) {
           const sc = SCENARIO_CONFIG[m.scenario] || {};
@@ -1434,55 +1434,60 @@
             <span class="status-badge ${st.badgeClass}">${st.label}</span>
           `;
 
-          // 左侧信息面板
+          // 左侧信息面板（紧凑化）
+          const pipelineSummary = m.pipeline ? (() => {
+            const done = PIPELINE_STEPS.filter(s => m.pipeline[s.key]).length;
+            return `<div style="display: flex; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px dashed var(--border-light);">
+              <span style="font-size: 12px; color: var(--text-secondary); min-width: 48px; flex-shrink: 0;">📊 流程</span>
+              <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                <div style="flex: 1; height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden;">
+                  <div style="width: ${Math.round(done/PIPELINE_STEPS.length*100)}%; height: 100%; background: ${done === PIPELINE_STEPS.length ? 'var(--success)' : 'var(--primary)'}; border-radius: 2px;"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-secondary);">${done}/${PIPELINE_STEPS.length}</span>
+              </div>
+            </div>`;
+          })() : '';
           const infoPanel = `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 16px; height: fit-content;">
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 12px; height: fit-content;">
               ${[
                 ['📅', '日期', m.date],
-                ['📍', '地点', m.location],
-                ['👤', '主持人', m.host],
-                ['📝', '记录人', m.recorder],
+                ['📍', '地点', m.location || '待确认'],
+                ['👤', '主持人', m.host || '待定'],
+                ['📝', '记录人', m.recorder || '待定'],
                 ['🏢', '层级', m.level],
                 ['📊', '状态', `<span class="status-badge ${st.badgeClass}">${st.label}</span>`],
-                ['🔗', 'KMS 链接', m.meeting_link ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 13px;">${m.meeting_link}</a>` : '<span style="font-size: 13px; color: var(--text-tertiary);">未设置</span>']
+                ['🔗', 'KMS', m.meeting_link ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 140px;">${m.meeting_link.replace(/^https?:\/\//, '')}</a>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未设置</span>']
               ].map(([icon, label, value]) => `
-                <div style="display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border-light);">
-                  <span style="font-size: 12px; color: var(--text-secondary); min-width: 48px; flex-shrink: 0;">${icon} ${label}</span>
-                  <span style="font-size: 13px; color: var(--text-primary); font-weight: 500;">${value}</span>
+                <div style="display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--border-light);">
+                  <span style="font-size: 11px; color: var(--text-secondary); min-width: 40px; flex-shrink: 0;">${icon} ${label}</span>
+                  <span style="font-size: 12px; color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${value}</span>
                 </div>
               `).join('')}
+              ${pipelineSummary}
             </div>
           `;
 
-          // 一报一会流程段（交互版）
+          // 一报一会流程（紧凑横向步骤条）
           const pipelineHtml = m.pipeline && (m.scenario === 'region_routine' || m.scenario === 'lagging_region' || m.scenario === 'lagging_vertical') ? (() => {
             const total = PIPELINE_STEPS.length;
             const doneCount = PIPELINE_STEPS.filter(s => m.pipeline[s.key]).length;
-            const pct = Math.round((doneCount / total) * 100);
             const currentIdx = PIPELINE_STEPS.findIndex(s => !m.pipeline[s.key]);
             return `
-              <div style="margin-bottom: 16px; padding: 14px 18px; background: linear-gradient(90deg, var(--primary-light) 0%, var(--bg-card) 100%); border-radius: 10px; border-left: 3px solid var(--primary);">
+              <div style="padding: 12px 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                  <div style="font-size: 14px; font-weight: 600;">📊 一报一会流程</div>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="width: 80px; height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden;">
-                      <div style="width: ${pct}%; height: 100%; background: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
-                    </div>
-                    <span style="font-size: 12px; color: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total}</span>
-                  </div>
+                  <span style="font-size: 13px; font-weight: 600;">📊 一报一会流程</span>
+                  <span style="font-size: 11px; color: ${doneCount === total ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total}</span>
                 </div>
-                <div style="display: flex; align-items: flex-start; justify-content: space-between; position: relative; padding: 0 4px;">
-                  <!-- 连接线 -->
-                  <div style="position: absolute; top: 10px; left: 24px; right: 24px; height: 2px; background: linear-gradient(90deg, var(--success) 0%, var(--success) ${Math.max(0, doneCount > 0 ? ((doneCount - 0.5) / (total - 1)) * 100 : 0)}%, var(--border-light) ${Math.max(0, doneCount > 0 ? ((doneCount - 0.5) / (total - 1)) * 100 : 0)}%, var(--border-light) 100%); border-radius: 1px; z-index: 0;"></div>
+                <div style="display: flex; align-items: center; justify-content: space-between; position: relative; padding: 0 2px;">
+                  <div style="position: absolute; top: 8px; left: 16px; right: 16px; height: 2px; background: var(--border-light); border-radius: 1px; z-index: 0;"></div>
                   ${PIPELINE_STEPS.map((step, i) => {
                     const isDone = m.pipeline[step.key];
                     const isCurrent = i === currentIdx;
                     return `
                       <div onclick="togglePipelineStep('${m.id}', '${step.key}')" title="点击切换状态"
-                        onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"
-                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; position: relative; z-index: 1; transition: transform 0.15s; user-select: none; flex: 1; max-width: 70px;">
-                        <span style="width: 20px; height: 20px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : '#fff'}; color: ${isDone ? '#fff' : isCurrent ? '#fff' : 'var(--text-tertiary)'}; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 2px solid ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border-light)'}; ${isCurrent ? 'box-shadow: 0 0 0 3px var(--primary-light); animation: pulse-dot 2s infinite;' : ''}">${isDone ? '✓' : step.icon}</span>
-                        <span style="font-size: 11px; color: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight: ${isCurrent ? '600' : '400'}; text-align: center; line-height: 1.2;">${step.label}</span>
+                        style="display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; position: relative; z-index: 1; flex: 1; max-width: 60px;">
+                        <span style="width: 16px; height: 16px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : '#fff'}; color: ${isDone ? '#fff' : isCurrent ? '#fff' : 'var(--text-tertiary)'}; display: flex; align-items: center; justify-content: center; font-size: 9px; border: 2px solid ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border-light)'};">${isDone ? '✓' : step.icon}</span>
+                        <span style="font-size: 10px; color: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight: ${isCurrent ? '600' : '400'}; text-align: center; line-height: 1.2;">${step.label}</span>
                       </div>
                     `;
                   }).join('')}
@@ -1491,66 +1496,80 @@
             `;
           })() : '';
 
-          // 纪要标签内容
+          // 议程（紧凑列表，始终展开）
           const agendaTotalMinutes = (m.agenda_items || []).reduce((s, a) => s + (a.duration || 0), 0);
-          const minutesTab = `
-            <div class="meeting-tab-panel" data-tab="纪要" style="display: ${window._currentMeetingTab === '纪要' ? 'block' : 'none'};">
-              ${pipelineHtml}
-              <div style="background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-page) 100%); border-radius: 12px; padding: 24px; border: 1px solid var(--border-light);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                  <div>
-                    <div style="font-size: 16px; font-weight: 700;">📋 会议议程</div>
-                    <div style="font-size: 13px; color: var(--text-secondary);">共 ${m.agenda_items?.length || 0} 项 · 预计总时长 ${agendaTotalMinutes} 分钟</div>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 13px;">已完成 0 / ${m.agenda_items?.length || 0}</span>
-                    <svg width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--border-light)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" stroke-width="3" stroke-dasharray="0 94"/></svg>
-                  </div>
+          const agendaSection = `
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div>
+                  <span style="font-size: 15px; font-weight: 700;">📋 会议议程</span>
+                  <span style="font-size: 12px; color: var(--text-secondary); margin-left: 8px;">共 ${m.agenda_items?.length || 0} 项 · ${agendaTotalMinutes} 分钟</span>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 16px;">
-                  ${(m.agenda_items || []).map((a, i) => `
-                    <div style="display: flex; gap: 16px; padding: 16px 20px; background: var(--bg-page); border-radius: 10px; border-left: 4px solid ${AGENDA_TYPE_COLORS[a.type] || 'var(--text-secondary)'}; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                      <div style="display: flex; flex-direction: column; align-items: center; min-width: 60px;">
-                        <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">${a.start_time || '09:00'}</span>
-                        <span style="font-size: 11px; color: var(--text-secondary);">~</span>
-                        <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">${a.end_time || '09:30'}</span>
-                        <span style="font-size: 11px; color: var(--primary); background: var(--primary-light); border-radius: 4px; padding: 2px 6px; margin-top: 4px;">${a.duration}分钟</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 12px; color: var(--text-secondary);">已完成 0 / ${m.agenda_items?.length || 0}</span>
+                  <svg width="28" height="28" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--border-light)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" stroke-width="3" stroke-dasharray="0 94"/></svg>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                ${(m.agenda_items || []).length === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 16px; font-size: 13px;">暂无议程</div>' : (m.agenda_items || []).map((a, i) => `
+                  <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${AGENDA_TYPE_COLORS[a.type] || 'var(--text-secondary)'};">
+                    <div style="display: flex; flex-direction: column; align-items: center; min-width: 52px;">
+                      <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${a.start_time || '09:00'}</span>
+                      <span style="font-size: 10px; color: var(--text-secondary);">~</span>
+                      <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${a.end_time || '09:30'}</span>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
+                        <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${a.title}</span>
+                        <span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: var(--bg-page); border: 1px solid var(--border-light); color: var(--text-secondary);">${AGENDA_TYPE_LABELS[a.type] || '其他'}</span>
+                        ${(() => { const s = getMaterialScore(a.material_link); return s === null ? '' : `<span style="font-size: 10px; font-weight: 600; color: ${getScoreColor(s)};">⭐ ${s}分</span>`; })()}
                       </div>
-                      <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                          <span style="font-size: 15px; font-weight: 600; color: var(--text-primary);">${a.title}</span>
-                          <span style="padding: 1px 6px; border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-secondary);">${AGENDA_TYPE_LABELS[a.type] || a.type}</span>
-                          ${(() => {
-                            const s = getMaterialScore(a.material_link);
-                            if (s === null) return '';
-                            return `<span style="font-size: 11px; font-weight: 600; color: ${getScoreColor(s)};">⭐ ${s}分</span>`;
-                          })()}
-                        </div>
-                        <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary);">
-                          ${a.speaker ? `<span>👤 主持人：${a.speaker}</span>` : ''}
-                          ${a.material_link ? `<span>📎 <a href="${a.material_link}" target="_blank" style="color: var(--primary); text-decoration: underline;">会议材料</a></span>` : ''}
-                          ${a.purpose ? `<span>🎯 ${a.purpose}</span>` : ''}
-                        </div>
+                      <div style="display: flex; gap: 12px; font-size: 11px; color: var(--text-secondary); flex-wrap: wrap;">
+                        ${a.speaker ? `<span>👤 ${a.speaker}</span>` : ''}
+                        ${a.material_link ? `<span>📎 <a href="${a.material_link}" target="_blank" style="color: var(--primary);">材料</a></span>` : ''}
+                        ${a.purpose ? `<span>🎯 ${a.purpose}</span>` : ''}
+                        <span style="color: var(--primary);">${a.duration}分钟</span>
                       </div>
                     </div>
-                  `).join('')}
-                </div>
+                  </div>
+                `).join('')}
               </div>
             </div>
           `;
 
-          // 行动(TODO)标签内容
-          const todoTab = `
-            <div class="meeting-tab-panel" data-tab="行动(TODO)" style="display: ${window._currentMeetingTab === '行动(TODO)' ? 'block' : 'none'};">
-              <div style="background: var(--bg-card); border-radius: 10px; padding: 20px; border: 1px solid var(--border-light);">
-                <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">✅ 行动(TODO)</div>
-                ${(m.actions || []).length === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无行动(TODO)项</div>' : `
+          // 纪要（可折叠，默认展开，有内容时显示）
+          const minutesSection = `
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
+              <div onclick="toggleDetailSection('detail-minutes')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px; font-weight: 600;">📄 纪要</span>
+                  ${m.minutesStatus ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: ${m.minutesStatus === 'final' ? 'var(--success-light)' : 'var(--warning-light)'}; color: ${m.minutesStatus === 'final' ? 'var(--success)' : 'var(--warning)'};">${m.minutesStatus === 'final' ? '已定稿' : '起草中'}</span>` : ''}
+                </div>
+                <span id="detail-minutes-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+              </div>
+              <div id="detail-minutes" style="padding: 0 16px 12px;">
+                ${m.minutes_content ? `<div style="font-size: 13px; color: var(--text-primary); line-height: 1.7; white-space: pre-wrap; background: var(--bg-page); border-radius: 6px; padding: 12px;">${m.minutes_content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : '<div style="text-align: center; color: var(--text-secondary); padding: 12px; font-size: 13px;">暂无纪要</div>'}
+              </div>
+            </div>
+          `;
+
+          // 行动项（可折叠，默认展开）
+          const actionCount = (m.actions || []).length;
+          const actionsSection = `
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
+              <div onclick="toggleDetailSection('detail-actions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
+                <span style="font-size: 14px; font-weight: 600;">✅ 行动项${actionCount > 0 ? '（' + actionCount + '项）' : ''}</span>
+                <span id="detail-actions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+              </div>
+              <div id="detail-actions" style="padding: 0 16px 12px;">
+                ${actionCount === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 12px; font-size: 13px;">暂无行动项</div>' : `
                   <div style="display: flex; flex-direction: column;">
-                    ${(m.actions || []).map(a => `
-                      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-light);">
-                        <span style="font-size: 16px;">${a.status === 'completed' || a.status === 'implemented' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
-                        <span style="flex: 1; font-size: 14px; color: var(--text-primary);">${a.content}</span>
-                        <span style="font-size: 12px; color: var(--text-secondary);">${a.owner} · ${a.deadline}</span>
+                    ${(m.actions || []).map((a, idx, arr) => `
+                      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
+                        <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
+                        <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.content}</span>
+                        <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${a.owner || '待定'} · ${a.deadline || '未定'}</span>
+                        <button type="button" onclick="event.stopPropagation(); pushTodoReminder('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0;">⏰ 提醒</button>
                       </div>
                     `).join('')}
                   </div>
@@ -1559,18 +1578,23 @@
             </div>
           `;
 
-          // 决策标签内容
-          const decisionTab = `
-            <div class="meeting-tab-panel" data-tab="决策" style="display: ${window._currentMeetingTab === '决策' ? 'block' : 'none'};">
-              <div style="background: var(--bg-card); border-radius: 10px; padding: 20px; border: 1px solid var(--border-light);">
-                <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">📋 决议</div>
-                ${(m.decisions || []).length === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无决议</div>' : `
+          // 决议（可折叠，默认展开）
+          const decisionCount = (m.decisions || []).length;
+          const decisionsSection = `
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
+              <div onclick="toggleDetailSection('detail-decisions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
+                <span style="font-size: 14px; font-weight: 600;">📋 决议${decisionCount > 0 ? '（' + decisionCount + '项）' : ''}</span>
+                <span id="detail-decisions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+              </div>
+              <div id="detail-decisions" style="padding: 0 16px 12px;">
+                ${decisionCount === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 12px; font-size: 13px;">暂无决议</div>' : `
                   <div style="display: flex; flex-direction: column;">
-                    ${(m.decisions || []).map(d => `
-                      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-light);">
-                        <span style="font-size: 16px;">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
-                        <span style="flex: 1; font-size: 14px; color: var(--text-primary);">${d.content}</span>
-                        <span style="font-size: 12px; color: var(--text-secondary);">${d.owner || d.decider || ''} · ${d.deadline || d.decision_date || ''}</span>
+                    ${(m.decisions || []).map((d, idx, arr) => `
+                      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
+                        <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
+                        <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.content}</span>
+                        <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${d.owner || d.decider || '待定'} · ${d.deadline || d.decision_date || '未定'}</span>
+                        <button type="button" onclick="event.stopPropagation(); pushResolution('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; flex-shrink: 0;">📢 推送</button>
                       </div>
                     `).join('')}
                   </div>
@@ -1579,56 +1603,53 @@
             </div>
           `;
 
-          // 会议链标签内容
-          const chainTab = `
-            <div class="meeting-tab-panel" data-tab="会议链" style="display: ${window._currentMeetingTab === '会议链' ? 'block' : 'none'};">
-              <div style="background: var(--bg-card); border-radius: 10px; padding: 20px; border: 1px solid var(--border-light);">
-                ${m.upstreamMeeting ? (() => {
-                  const um = meetings.find(x => x.id === m.upstreamMeeting);
-                  if (!um) return '<div style="margin-bottom: 16px; color: var(--text-secondary);">⬆️ 上游：关联会议未找到</div>';
-                  return `<div style="margin-bottom: 16px;">
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">⬆️ 上游会议</div>
-                    <div onclick="openMeetingDetail('${um.id}')" style="padding: 12px 16px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light);">
-                      <div style="font-size: 14px; font-weight: 600;">${um.title}</div>
-                      <div style="font-size: 12px; color: var(--text-secondary);">${um.date}</div>
-                    </div>
-                  </div>`;
-                })() : '<div style="margin-bottom: 16px; color: var(--text-secondary);">无上游关联会议</div>'}
-                <div style="text-align: center; padding: 12px; background: var(--primary-light); border-radius: 8px; border: 2px solid var(--primary); margin-bottom: 16px;">
-                  <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">📍 当前会议</div>
-                  <div style="font-size: 14px; font-weight: 600;">${m.title}</div>
-                  <div style="font-size: 12px; color: var(--text-secondary);">${m.date}</div>
+          // 会议链（可折叠，横向迷你卡片）
+          const chainSection = `
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
+              <div onclick="toggleDetailSection('detail-chain')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
+                <span style="font-size: 14px; font-weight: 600;">🔗 会议链</span>
+                <span id="detail-chain-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+              </div>
+              <div id="detail-chain" style="padding: 0 16px 12px;">
+                <div style="display: flex; align-items: stretch; gap: 8px;">
+                  ${m.upstreamMeeting ? (() => {
+                    const um = meetings.find(x => x.id === m.upstreamMeeting);
+                    if (!um) return '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-secondary);">⬆️ 上游未找到</div>';
+                    return `<div onclick="openMeetingDetail('${um.id}')" style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light); text-align: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-light)'">
+                      <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">⬆️ 上游</div>
+                      <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${um.title}</div>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${um.date}</div>
+                    </div>`;
+                  })() : '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-tertiary);">⬆️ 无上游</div>'}
+                  <div style="flex: 1; padding: 10px; background: var(--primary-light); border-radius: 8px; border: 1.5px solid var(--primary); text-align: center;">
+                    <div style="font-size: 10px; color: var(--primary); margin-bottom: 4px;">📍 当前</div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.title}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${m.date}</div>
+                  </div>
+                  ${m.downstreamMeeting ? (() => {
+                    const dm = meetings.find(x => x.id === m.downstreamMeeting);
+                    if (!dm) return '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-secondary);">⬇️ 下游未找到</div>';
+                    return `<div onclick="openMeetingDetail('${dm.id}')" style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light); text-align: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-light)'">
+                      <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">⬇️ 下游</div>
+                      <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${dm.title}</div>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${dm.date}</div>
+                    </div>`;
+                  })() : '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-tertiary);">⬇️ 无下游</div>'}
                 </div>
-                ${m.downstreamMeeting ? (() => {
-                  const dm = meetings.find(x => x.id === m.downstreamMeeting);
-                  if (!dm) return '<div style="color: var(--text-secondary);">⬇️ 下游：关联会议未找到</div>';
-                  return `<div>
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">⬇️ 下游会议</div>
-                    <div onclick="openMeetingDetail('${dm.id}')" style="padding: 12px 16px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light);">
-                      <div style="font-size: 14px; font-weight: 600;">${dm.title}</div>
-                      <div style="font-size: 12px; color: var(--text-secondary);">${dm.date}</div>
-                    </div>
-                  </div>`;
-                })() : '<div style="color: var(--text-secondary);">无下游关联会议</div>'}
               </div>
             </div>
           `;
 
           content.innerHTML = `
-            <div style="display: grid; grid-template-columns: 280px 1fr; gap: 24px;">
+            <div style="display: grid; grid-template-columns: 260px 1fr; gap: 20px;">
               ${infoPanel}
-              <div style="min-width: 0;">
-                <div style="display: flex; gap: 0; border-bottom: 1px solid var(--border-light); margin-bottom: 20px;">
-                  ${['📄 纪要', '✅ 行动(TODO)', '📋 决策', '🔗 会议链'].map(t => {
-                    const tabKey = t.replace(/[📄✅🔗] /g, '');
-                    const isActive = window._currentMeetingTab === tabKey;
-                    return `<button class="meeting-tab-btn" data-tab="${tabKey}" onclick="switchMeetingDetailTab('${tabKey}')" style="padding: 12px 20px; font-size: 14px; font-weight: ${isActive ? '600' : '500'}; color: ${isActive ? 'var(--primary)' : 'var(--text-secondary)'}; cursor: pointer; border: none; background: none; border-bottom: 2px solid ${isActive ? 'var(--primary)' : 'transparent'}; transition: all 0.2s;">${t}</button>`;
-                  }).join('')}
-                </div>
-                ${minutesTab}
-                ${todoTab}
-                ${decisionTab}
-                ${chainTab}
+              <div style="min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                ${pipelineHtml}
+                ${agendaSection}
+                ${minutesSection}
+                ${actionsSection}
+                ${decisionsSection}
+                ${chainSection}
               </div>
             </div>
           `;
@@ -1670,6 +1691,218 @@
           document.getElementById('page-content').innerHTML = renderMeetings();
           bindPageEvents(document.getElementById('page-content'));
           openMeetingDetail(meetingId);
+        };
+
+        // ---- 企业微信通知体系 ----
+        const NOTIF_CONFIG_KEY = 'dste_notification_config';
+        const NOTIF_DEFAULT = { webhooks: [], enabledTypes: { resolution: true, todo: true, alert: true }, mentionAll: false, lastSent: [] };
+
+        window.loadNotificationConfig = function() {
+          let cfg;
+          try { cfg = JSON.parse(localStorage.getItem(NOTIF_CONFIG_KEY) || JSON.stringify(NOTIF_DEFAULT)); }
+          catch (e) { cfg = JSON.parse(JSON.stringify(NOTIF_DEFAULT)); }
+          // 兼容旧配置：单 webhookUrl 迁移为 webhooks 数组
+          if (cfg.webhookUrl && (!cfg.webhooks || cfg.webhooks.length === 0)) {
+            cfg.webhooks = [{ id: '1', name: '默认群', url: cfg.webhookUrl }];
+            delete cfg.webhookUrl;
+            saveNotificationConfig(cfg);
+          }
+          if (!Array.isArray(cfg.webhooks)) cfg.webhooks = [];
+          return cfg;
+        };
+        window.saveNotificationConfig = function(cfg) {
+          localStorage.setItem(NOTIF_CONFIG_KEY, JSON.stringify(cfg));
+        };
+        window.renderNotificationMessage = function(type, data) {
+          switch (type) {
+            case 'resolution':
+              return `📋 【决议推送】${data.meetingTitle}\n━━━━━━━━━━━━━━\n${data.content}\n负责人：${data.owner || '待定'}\n截止日期：${data.deadline || '未定'}\n状态：${data.status === 'approved' ? '已批准' : data.status === 'implemented' ? '已执行' : '待审批'}\n━━━━━━━━━━━━━━`;
+            case 'todo':
+              return `⏰ 【待办提醒】${data.meetingTitle}\n━━━━━━━━━━━━━━\n${data.content}\n负责人：${data.owner || '待定'}\n截止日期：${data.deadline || '未定'}\n━━━━━━━━━━━━━━\n距截止还有 ${data.daysLeft !== undefined ? data.daysLeft + ' 天' : '若干天'}`;
+            case 'alert-meeting':
+              return `⚠️ 【预警】${data.meetingTitle}\n━━━━━━━━━━━━━━\n${data.stepLabel} 尚未完成，已逾期 ${data.daysOverdue} 天\n会议日期：${data.meetingDate}\n━━━━━━━━━━━━━━\n请尽快推进！`;
+            case 'alert-action':
+              return `⚠️ 【预警】${data.meetingTitle}\n━━━━━━━━━━━━━━\n行动项：${data.content}\n负责人：${data.owner || '待定'}\n截止日期：${data.deadline}\n━━━━━━━━━━━━━━\n距截止仅剩 ${data.daysLeft} 天，请尽快闭环！`;
+            default:
+              return '';
+          }
+        };
+        window.sendWeComNotification = async function(type, payload, webhookUrl) {
+          const cfg = loadNotificationConfig();
+          if (!webhookUrl) { alert('请先选择发送目标群'); return { success: false, msg: '未选择发送目标' }; }
+          const enabledKey = type.startsWith('alert') ? 'alert' : type;
+          if (!cfg.enabledTypes[enabledKey]) return { success: false, msg: '该类型推送已禁用' };
+          const msg = renderNotificationMessage(type, payload);
+          if (!msg) return { success: false, msg: '消息内容为空' };
+          const message = msg + (cfg.mentionAll ? '\n@所有人' : '');
+          try {
+            const res = await fetch(API_BASE + '/api/notify/proxy', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ webhookUrl, message }),
+            });
+            const result = await res.json();
+            const entry = { type, content: msg.slice(0, 100), sentAt: new Date().toISOString(), status: result.success ? 'success' : 'failed', error: result.errmsg || '' };
+            cfg.lastSent = [entry, ...cfg.lastSent].slice(0, 20);
+            saveNotificationConfig(cfg);
+            return { success: result.success, msg: result.errmsg || '发送成功' };
+          } catch (e) {
+            const entry = { type, content: msg.slice(0, 100), sentAt: new Date().toISOString(), status: 'failed', error: e.message };
+            cfg.lastSent = [entry, ...cfg.lastSent].slice(0, 20);
+            saveNotificationConfig(cfg);
+            return { success: false, msg: e.message };
+          }
+        };
+        window._webhookSelectorPayload = null;
+        window.resolvePushWithWebhook = async function() {
+          const payload = window._webhookSelectorPayload;
+          if (!payload) return;
+          const selected = document.querySelector('input[name="webhook-select"]:checked');
+          if (!selected) { alert('请选择一个发送目标'); return; }
+          const webhookUrl = selected.value;
+          closeWebhookSelector();
+          const res = await sendWeComNotification(payload.type, payload.data, webhookUrl);
+          alert(res.success ? '发送成功 ✅' : '发送失败：' + res.msg);
+        };
+        window.openWebhookSelector = function(type, data) {
+          const cfg = loadNotificationConfig();
+          if (!cfg.webhooks || cfg.webhooks.length === 0) { alert('请先配置企业微信群 Webhook'); openNotificationConfig(); return; }
+          if (cfg.webhooks.length === 1) {
+            sendWeComNotification(type, data, cfg.webhooks[0].url).then(res => {
+              alert(res.success ? '发送成功 ✅' : '发送失败：' + res.msg);
+            });
+            return;
+          }
+          window._webhookSelectorPayload = { type, data };
+          const listHtml = cfg.webhooks.map((w, i) => `
+            <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer; margin-bottom: 8px;">
+              <input type="radio" name="webhook-select" value="${w.url}" ${i === 0 ? 'checked' : ''} style="cursor: pointer;">
+              <div>
+                <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${w.name || '未命名'}</div>
+                <div style="font-size: 11px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px;">${w.url}</div>
+              </div>
+            </label>
+          `).join('');
+          document.getElementById('webhook-selector-list').innerHTML = listHtml;
+          document.getElementById('webhook-selector-overlay').style.display = 'flex';
+        };
+        window.closeWebhookSelector = function() {
+          window._webhookSelectorPayload = null;
+          document.getElementById('webhook-selector-overlay').style.display = 'none';
+        };
+        window.pushResolution = function(meetingId, idx) {
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m || !m.decisions || !m.decisions[idx]) return;
+          const d = m.decisions[idx];
+          openWebhookSelector('resolution', { meetingTitle: m.title, content: d.content, owner: d.owner, deadline: d.deadline, status: d.status });
+        };
+        window.pushTodoReminder = function(meetingId, idx) {
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m || !m.actions || !m.actions[idx]) return;
+          const a = m.actions[idx];
+          const daysLeft = a.deadline ? Math.ceil((new Date(a.deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000) : null;
+          openWebhookSelector('todo', { meetingTitle: m.title, content: a.content, owner: a.owner, deadline: a.deadline, daysLeft });
+        };
+        window.pushAlert = function(meetingId, alertType, data) {
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m) return;
+          openWebhookSelector(alertType, { ...data, meetingTitle: m.title });
+        };
+        window.openNotificationCenter = function() {
+          const cfg = loadNotificationConfig();
+          const logs = cfg.lastSent || [];
+          const listHtml = logs.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">暂无推送记录</div>' : logs.map(l => `
+            <div style="padding: 12px; background: var(--bg-page); border-radius: 8px; margin-bottom: 8px; border-left: 3px solid ${l.status === 'success' ? 'var(--success)' : 'var(--danger)'}">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 13px; font-weight: 600;">${l.type === 'resolution' ? '📋 决议推送' : l.type === 'todo' ? '⏰ 待办提醒' : '⚠️ 预警'}</span>
+                <span style="font-size: 11px; color: var(--text-tertiary);">${new Date(l.sentAt).toLocaleString()}</span>
+              </div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${l.content}</div>
+              <div style="font-size: 11px; color: ${l.status === 'success' ? 'var(--success)' : 'var(--danger)'}">${l.status === 'success' ? '✅ 成功' : '❌ ' + (l.error || '失败')}</div>
+            </div>
+          `).join('');
+          const ov = document.getElementById('notification-center-overlay');
+          const listEl = document.getElementById('notification-center-list');
+          if (listEl) listEl.innerHTML = listHtml;
+          if (ov) ov.style.display = 'flex';
+        };
+        window.closeNotificationCenter = function() {
+          const ov = document.getElementById('notification-center-overlay');
+          if (ov) ov.style.display = 'none';
+        };
+        window.renderWebhookConfigList = function(webhooks) {
+          const container = document.getElementById('notif-webhooks-list');
+          if (!container) return;
+          const items = webhooks && webhooks.length > 0 ? webhooks : [];
+          container.innerHTML = items.map((w, idx) => `
+            <div class="webhook-row" data-idx="${idx}" style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 8px; background: var(--bg-page);">
+              <div style="display: flex; gap: 8px;">
+                <input type="text" class="webhook-name" placeholder="群名称" value="${w.name || ''}" style="flex: 1; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; background: var(--bg-card); color: var(--text-primary);">
+                <button type="button" onclick="removeWebhookRow(this)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); color: var(--danger); cursor: pointer;">删除</button>
+              </div>
+              <input type="url" class="webhook-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." value="${w.url || ''}" style="width: 100%; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+            </div>
+          `).join('');
+          if (items.length === 0) container.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 16px 0; font-size: 13px;">暂无 Webhook，点击下方按钮添加</div>';
+        };
+        window.addWebhookRow = function() {
+          const container = document.getElementById('notif-webhooks-list');
+          const emptyTip = container.querySelector('.webhook-row') === null;
+          if (emptyTip) container.innerHTML = '';
+          const div = document.createElement('div');
+          div.className = 'webhook-row';
+          div.style.cssText = 'display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 8px; background: var(--bg-page);';
+          div.innerHTML = `
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="webhook-name" placeholder="群名称" style="flex: 1; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; background: var(--bg-card); color: var(--text-primary);">
+              <button type="button" onclick="removeWebhookRow(this)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); color: var(--danger); cursor: pointer;">删除</button>
+            </div>
+            <input type="url" class="webhook-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." style="width: 100%; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+          `;
+          container.appendChild(div);
+        };
+        window.removeWebhookRow = function(btn) {
+          const row = btn.closest('.webhook-row');
+          if (row) row.remove();
+          const container = document.getElementById('notif-webhooks-list');
+          if (container.querySelectorAll('.webhook-row').length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 16px 0; font-size: 13px;">暂无 Webhook，点击下方按钮添加</div>';
+          }
+        };
+        window.openNotificationConfig = function() {
+          const cfg = loadNotificationConfig();
+          renderWebhookConfigList(cfg.webhooks);
+          document.getElementById('notif-enable-resolution').checked = cfg.enabledTypes?.resolution !== false;
+          document.getElementById('notif-enable-todo').checked = cfg.enabledTypes?.todo !== false;
+          document.getElementById('notif-enable-alert').checked = cfg.enabledTypes?.alert !== false;
+          document.getElementById('notif-mention-all').checked = cfg.mentionAll || false;
+          const ov = document.getElementById('notification-config-overlay');
+          if (ov) ov.style.display = 'flex';
+        };
+        window.closeNotificationConfig = function() {
+          const ov = document.getElementById('notification-config-overlay');
+          if (ov) ov.style.display = 'none';
+        };
+        window.saveNotificationConfigFromUI = function() {
+          const webhooks = [];
+          document.querySelectorAll('#notif-webhooks-list .webhook-row').forEach(row => {
+            const name = row.querySelector('.webhook-name')?.value.trim() || '';
+            const url = row.querySelector('.webhook-url')?.value.trim() || '';
+            if (url) webhooks.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2, 7), name: name || '未命名', url });
+          });
+          const cfg = {
+            webhooks,
+            enabledTypes: {
+              resolution: document.getElementById('notif-enable-resolution')?.checked || false,
+              todo: document.getElementById('notif-enable-todo')?.checked || false,
+              alert: document.getElementById('notif-enable-alert')?.checked || false,
+            },
+            mentionAll: document.getElementById('notif-mention-all')?.checked || false,
+            lastSent: loadNotificationConfig().lastSent || [],
+          };
+          saveNotificationConfig(cfg);
+          closeNotificationConfig();
+          alert('通知配置已保存 ✅');
         };
 
         // ---- 编辑弹窗函数 ----
@@ -1800,7 +2033,7 @@
             const hasRealAgenda = agendaList.some(a => a.title && a.title.trim());
             if (!hasRealAgenda) {
               const templateItems = source.agenda_items.map(a => ({
-                type: a.type || 'financial_review', title: '',
+                type: a.type || 'budget_finance', title: '',
                 duration: a.duration || 30, owner: '', material_link: ''
               }));
               if (window._meetingEditData) window._meetingEditData.agenda_items = templateItems;
@@ -1839,6 +2072,8 @@
           document.getElementById('edit-status').value = d.status || 'planned';
           const kmsInput = document.getElementById('edit-kms-link');
           if (kmsInput) kmsInput.value = d.meeting_link || '';
+          const minutesInput = document.getElementById('edit-minutes-content');
+          if (minutesInput) minutesInput.value = d.minutes_content || '';
           renderAgendaList();
           renderActionList();
           renderDecisionList();
@@ -1861,7 +2096,7 @@
           const fieldMap = {
             'edit-title': 'title', 'edit-date': 'date', 'edit-location': 'location',
             'edit-host': 'host', 'edit-recorder': 'recorder',
-            'edit-scenario': 'scenario', 'edit-level': 'level', 'edit-status': 'status', 'edit-kms-link': 'meeting_link'
+            'edit-scenario': 'scenario', 'edit-level': 'level', 'edit-status': 'status', 'edit-kms-link': 'meeting_link', 'edit-minutes-content': 'minutes_content'
           };
           // 追踪用户手动编辑的字段（autoFill 不覆盖用户手改的值）
           window._userEditedFields = window._userEditedFields || new Set();
@@ -2047,6 +2282,9 @@
                 host: document.getElementById('edit-host').value.trim() || '待定',
                 recorder: document.getElementById('edit-recorder').value.trim() || '待定',
                 meeting_link: document.getElementById('edit-kms-link')?.value.trim() || '',
+                minutes_content: document.getElementById('edit-minutes-content')?.value.trim() || '',
+                hasMinutes: !!document.getElementById('edit-minutes-content')?.value.trim(),
+                minutesStatus: document.getElementById('edit-minutes-content')?.value.trim() ? 'draft' : null,
                 scenario: scenarioVal,
                 level: document.getElementById('edit-level').value,
                 status: statusVal,
@@ -2075,6 +2313,9 @@
               meetings[idx].host = document.getElementById('edit-host').value.trim() || '待定';
               meetings[idx].recorder = document.getElementById('edit-recorder').value.trim() || '待定';
               meetings[idx].meeting_link = document.getElementById('edit-kms-link')?.value.trim() || '';
+              meetings[idx].minutes_content = document.getElementById('edit-minutes-content')?.value.trim() || '';
+              meetings[idx].hasMinutes = !!document.getElementById('edit-minutes-content')?.value.trim();
+              meetings[idx].minutesStatus = document.getElementById('edit-minutes-content')?.value.trim() ? 'draft' : null;
               meetings[idx].scenario = scenarioVal;
               meetings[idx].level = document.getElementById('edit-level').value;
               meetings[idx].status = statusVal;
@@ -2400,11 +2641,24 @@
               <button onclick="closePendingActionsDrawer()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
             </div>
             <div style="flex: 1; overflow-y: auto; padding: 16px 20px;">
-              ${pendingItems.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🎉 暂无待闭环行动</div>' : pendingItems.map((a, i) => `
+              ${pendingItems.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🎉 暂无待闭环行动</div>' : pendingItems.map((a, i) => {
+                const _daysLeft = a.deadline ? Math.ceil((new Date(a.deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000) : null;
+                let _timeTag = '';
+                if (_daysLeft !== null) {
+                  if (_daysLeft < 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">⚠️ 已逾期 ${Math.abs(_daysLeft)} 天</span>`;
+                  else if (_daysLeft === 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">🔥 今天到期</span>`;
+                  else if (_daysLeft <= 3) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,34,45,0.12); color: var(--danger); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
+                  else if (_daysLeft <= 7) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,158,11,0.12); color: var(--warning); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
+                  else _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(34,197,94,0.12); color: var(--success); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
+                }
+                return `
                 <div data-pending-action="${i}" style="padding: 14px; background: var(--bg-page); border-radius: 8px; margin-bottom: 12px; border-left: 3px solid ${a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'};">
                   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                     <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${a.meetingTitle}</span>
-                    <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${a.status === 'in_progress' ? 'var(--primary-light)' : 'var(--warning)'}15; color: ${a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'};">${a.status === 'in_progress' ? '进行中' : '待办'}</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      ${_timeTag}
+                      <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${a.status === 'in_progress' ? 'var(--primary-light)' : 'var(--warning)'}15; color: ${a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'}">${a.status === 'in_progress' ? '进行中' : '待办'}</span>
+                    </div>
                   </div>
                   <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">${a.content}</div>
                   <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary);">
@@ -2412,7 +2666,7 @@
                     <span>📅 ${a.deadline || '未设置'}</span>
                   </div>
                 </div>
-              `).join('')}
+              `;}).join('')}
             </div>
           </div>
 
@@ -2543,6 +2797,11 @@
                   </div>
                 </div>
 
+                <div style="margin-bottom: 12px;">
+                  <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">📄 纪要正文</div>
+                  <textarea id="edit-minutes-content" placeholder="在此输入会议纪要内容..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box; min-height: 120px; resize: vertical; line-height: 1.6;"></textarea>
+                </div>
+
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                   <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">议程项</div>
                   <div id="edit-agenda-total" style="font-size: 12px; color: var(--text-tertiary);">总时长：0 分钟</div>
@@ -2658,6 +2917,11 @@
                   <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">KMS 链接</label>
                   <input type="url" id="edit-kms-link" placeholder="https://kms.example.com/docs/..." style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
                 </div>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">📄 纪要正文</div>
+                <textarea id="edit-minutes-content" placeholder="在此输入会议纪要内容..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box; min-height: 120px; resize: vertical; line-height: 1.6;"></textarea>
               </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -2804,5 +3068,67 @@
       if (el) el.textContent = 'v' + v;
     })();
   </script>
+
+  <!-- 通知配置浮层 -->
+  <div id="notification-config-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3100; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); width: 480px; max-width: 90vw; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.15);">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🔧 通知配置</h3>
+        <button onclick="closeNotificationConfig()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div style="padding: 20px;">
+        <div style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="font-size: 12px; color: var(--text-tertiary);">企业微信群 Webhook</label>
+            <button type="button" onclick="addWebhookRow()" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">+ 添加</button>
+          </div>
+          <div id="notif-webhooks-list" style="max-height: 220px; overflow-y: auto;"></div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">推送类型</label>
+          <div style="display: flex; gap: 16px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-enable-resolution" style="cursor: pointer;"> 📋 决议推送</label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-enable-todo" style="cursor: pointer;"> ⏰ 待办提醒</label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-enable-alert" style="cursor: pointer;"> ⚠️ 预警提醒</label>
+          </div>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-mention-all" style="cursor: pointer;"> @所有人</label>
+        </div>
+        <button type="button" onclick="saveNotificationConfigFromUI()" style="width: 100%; padding: 10px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">💾 保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Webhook 选择浮层 -->
+  <div id="webhook-selector-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3200; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); width: 360px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.15);">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">选择发送目标</h3>
+        <button onclick="closeWebhookSelector()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div style="padding: 16px 20px;">
+        <div id="webhook-selector-list" style="max-height: 260px; overflow-y: auto; margin-bottom: 16px;"></div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" onclick="closeWebhookSelector()" style="flex: 1; padding: 10px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">取消</button>
+          <button type="button" onclick="resolvePushWithWebhook()" style="flex: 1; padding: 10px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通知中心面板 -->
+  <div id="notification-center-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3100; justify-content: flex-end;">
+    <div style="background: var(--bg-card); border-left: 1px solid var(--border-light); width: 380px; max-width: 90vw; height: 100vh; display: flex; flex-direction: column; box-shadow: -4px 0 20px rgba(0,0,0,0.1);">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🔔 通知中心</h3>
+        <button onclick="closeNotificationCenter()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div id="notification-center-list" style="flex: 1; overflow-y: auto; padding: 16px 20px;"></div>
+      <div style="padding: 12px 20px; border-top: 1px solid var(--border-light); flex-shrink: 0;">
+        <button type="button" onclick="localStorage.setItem('dste_notification_config', JSON.stringify({...JSON.parse(localStorage.getItem('dste_notification_config')||'{}'), lastSent: []})); openNotificationCenter();" style="width: 100%; padding: 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">清除记录</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

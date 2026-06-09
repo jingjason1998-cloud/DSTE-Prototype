@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>DSTE 战略管理平台</title>
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="./styles/shell.css">
@@ -111,6 +114,212 @@
     }
     .table-scroll-wrapper table {
       min-width: 600px;
+    }
+
+    /* ===== KPI 指标树 — 卡片式层级视图 ===== */
+    /* ===== Canvas 自由画布 KPI 树 ===== */
+    .omp-kpi-canvas {
+      position: relative;
+      width: 100%;
+      height: 700px;
+      overflow: hidden;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      cursor: grab;
+      user-select: none;
+    }
+    .omp-kpi-canvas:active { cursor: grabbing; }
+    .omp-kpi-canvas-inner {
+      position: absolute;
+      top: 0; left: 0;
+      transform-origin: 0 0;
+    }
+    /* SVG 连接线层 */
+    .omp-canvas-svg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .omp-canvas-svg path {
+      fill: none;
+      stroke: #D0D0D0;
+      stroke-width: 2;
+      transition: d 0.2s ease;
+    }
+    /* 画布节点卡片 */
+    .omp-canvas-node {
+      position: absolute;
+      min-width: 160px;
+      min-height: 90px;
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid #E8E8E8;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: grab;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      transition: box-shadow 0.2s, border-color 0.2s;
+      overflow: hidden;
+      resize: both;
+    }
+    .omp-canvas-node:active { cursor: grabbing; }
+    .omp-canvas-node:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .omp-canvas-node.selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
+    /* 维度角标 */
+    .omp-dim-badge {
+      position: absolute;
+      top: -1px; right: -1px;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 24px 24px 0;
+      border-color: transparent;
+    }
+    .omp-dim-badge.financial { border-right-color: #1E3A5F; }
+    .omp-dim-badge.customer { border-right-color: #2E8B57; }
+    .omp-dim-badge.internal { border-right-color: #D4A017; }
+    .omp-dim-badge.learning { border-right-color: #6B4C9A; }
+    /* 顶部状态色条 */
+    .omp-canvas-node.status-achieved { border-top: 3px solid #22C55E; }
+    .omp-canvas-node.status-warning { border-top: 3px solid #F59E0B; }
+    .omp-canvas-node.status-lagging { border-top: 3px solid #EF4444; }
+    .canvas-node-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.4;
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+    .canvas-node-dept {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+    }
+    .canvas-node-metric {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .canvas-node-metric strong { color: var(--text-primary); font-size: 13px; }
+    .canvas-node-progress {
+      margin-top: auto;
+      padding-top: 6px;
+    }
+    .canvas-node-progress-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: #E5E7EB;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .canvas-node-progress-bar > div {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .canvas-node-progress-bar > div.achieved { background: #22C55E; }
+    .canvas-node-progress-bar > div.warning { background: #F59E0B; }
+    .canvas-node-progress-bar > div.lagging { background: #EF4444; }
+    .canvas-node-progress-text {
+      font-size: 11px;
+      font-weight: 600;
+      text-align: right;
+    }
+    .canvas-node-progress-text.achieved { color: #16A34A; }
+    .canvas-node-progress-text.warning { color: #D97706; }
+    .canvas-node-progress-text.lagging { color: #DC2626; }
+    /* 展开折叠按钮 */
+    .canvas-node-expand {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      font-size: 14px;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      line-height: 1;
+      z-index: 3;
+    }
+    /* 画布工具栏 */
+    .omp-canvas-toolbar {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      padding: 6px 10px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      font-size: 12px;
+    }
+    .omp-canvas-toolbar button {
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+    .omp-canvas-toolbar button:hover { background: var(--bg-card); }
+    /* 缩放指示器 */
+    .omp-canvas-zoom {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    /* 状态药丸（保留兼容） */
+    .omp-status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+    .omp-status-pill.achieved { background: rgba(34,197,94,0.12); color: #16A34A; }
+    .omp-status-pill.warning { background: rgba(245,158,11,0.12); color: #D97706; }
+    .omp-status-pill.lagging { background: rgba(239,68,68,0.12); color: #DC2626; }
+    /* 展开按钮（保留兼容） */
+    .omp-expand-btn {
+      transition: transform 0.2s ease;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+      width: 20px;
+      text-align: center;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .omp-expand-btn.expanded { transform: rotate(90deg); }
+    /* 保留兼容：层级差异化 */
+    .omp-kpi-card[data-level="0"] { border-left: 4px solid #003087; }
+    .omp-kpi-card[data-level="1"] { border-left: 3px solid #005EB8; }
+    .omp-kpi-card[data-level="2"] { border-left: 2px solid #99C7E8; }
+    .omp-kpi-card[data-level="0"] { border-left: 4px solid #003087; }
+    .omp-kpi-card[data-level="1"] { border-left: 3px solid #005EB8; }
+    .omp-kpi-card[data-level="2"] { border-left: 2px solid #99C7E8; }
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .omp-kpi-card.mindmap-node { width: 140px; min-height: 80px; padding: 10px; }
+      .omp-kpi-children-row { gap: 10px; }
     }
 
     /* 减少动画偏好 */
@@ -402,32 +611,77 @@
         selectedPeriod: '2026-Q2',
         editingKpiId: null,
         editingTaskId: null,
+        kpiViewMode: 'tree',
+        kpiExpandedIds: new Set(),
+        kpiTreeAutoExpanded: false,
+        kpiDimCollapsed: {},
+        kpiCanvasState: { scale: 1, offsetX: 0, offsetY: 0 },
       };
 
       function omp_initData() {
+        // 版本号检测：代码更新时自动清理旧数据
+        const DATA_VERSION = 'canvas-v4';
+        const storedVersion = localStorage.getItem('dste_omp_data_version');
+        if (storedVersion !== DATA_VERSION) {
+          // 清除所有 DSTE 相关 localStorage
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('dste_')) localStorage.removeItem(key);
+          });
+          localStorage.setItem('dste_omp_data_version', DATA_VERSION);
+          console.log('[OMP] Data cleared for version:', DATA_VERSION);
+          // 强制刷新页面以加载最新代码（避免 Vite HTML 缓存）
+          window.location.reload(true);
+          return;
+        }
         if (!localStorage.getItem(OMP_STORAGE.indicators)) {
           const indicators = [
-            { id: 'ind_1', code: 'REVENUE', name: '合同额', description: '当期签订合同总金额', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: 'CRM系统', isPositive: true },
-            { id: 'ind_2', code: 'COLLECTION', name: '回款额', description: '当期实际回款金额', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '财务系统', isPositive: true },
-            { id: 'ind_3', code: 'NEW_CUSTOMERS', name: '新客户数', description: '当期新增客户数量', formula: 'COUNT(新客户)', unit: '个', frequency: 'quarterly', category: '客户', subCategory: '客户增长', dataSource: 'CRM系统', isPositive: true },
-            { id: 'ind_4', code: 'NPS', name: '客户满意度(NPS)', description: '净推荐值', formula: '推荐者%-贬损者%', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '客户满意度', dataSource: '调研系统', isPositive: true },
-            { id: 'ind_5', code: 'DELIVERY_CYCLE', name: '交付周期', description: '从需求确认到交付的平均天数', formula: 'AVG(交付日期-需求日期)', unit: '天', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: '项目系统', isPositive: false },
-            { id: 'ind_6', code: 'DEFECT_RATE', name: '缺陷率', description: '交付后发现缺陷的比例', formula: '缺陷数/交付总数', unit: '%', frequency: 'monthly', category: '流程', subCategory: '质量指标', dataSource: '质量系统', isPositive: false },
-            { id: 'ind_7', code: 'TRAINING_HOURS', name: '人均培训时长', description: '员工平均培训时长', formula: '总培训时长/员工数', unit: '小时', frequency: 'quarterly', category: '学习成长', subCategory: '人才发展', dataSource: 'HR系统', isPositive: true },
-            { id: 'ind_8', code: 'ENGAGEMENT', name: '员工敬业度', description: '员工敬业度调研得分', formula: 'AVG(敬业度评分)', unit: '%', frequency: 'yearly', category: '学习成长', subCategory: '组织活力', dataSource: '调研系统', isPositive: true },
+            { id: 'ind_sales_d', code: 'SALES_D', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            { id: 'ind_collection_k', code: 'COLLECTION_K', name: '回款额-K', description: '当期实际回款金额（营销线）', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            { id: 'ind_profit_margin', code: 'PROFIT_MARGIN', name: '营销线贡献利润率', description: '营销线利润贡献比例（减去人力成本及结算分摊）', formula: '(营收-成本-人力-分摊)/营收*100', unit: '%', frequency: 'quarterly', category: '财务', subCategory: '利润类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            { id: 'ind_new_product', code: 'NEW_PRODUCT_D', name: '新产品销售额-D', description: '新产品线销售收入（JDY&FDL）', formula: 'SUM(新产品合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '创新收入', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            { id: 'ind_benchmark', code: 'BENCHMARK', name: '市场标杆得分', description: '市场认知与品牌影响力综合评分', formula: 'AVG(各维度评分)', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '市场认知', dataSource: '调研系统', responsibleDept: '市场部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            { id: 'ind_arr', code: 'ARR', name: '年度经常性收入（ARR）', description: 'SaaS订阅收入年化金额', formula: 'SUM(MRR)*12', unit: '万元', frequency: 'quarterly', category: '客户', subCategory: '订阅收入', dataSource: '财务系统', responsibleDept: '客户成功部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            { id: 'ind_jdy', code: 'JDY', name: 'JDY销售额', description: '简道云产品线销售收入', formula: 'SUM(JDY合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            { id: 'ind_fdl', code: 'FDL', name: 'FDL销售额', description: 'FDL产品线销售收入', formula: 'SUM(FDL合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
           ];
           localStorage.setItem(OMP_STORAGE.indicators, JSON.stringify(indicators));
         }
         if (!localStorage.getItem(OMP_STORAGE.kpiInstances)) {
           localStorage.setItem(OMP_STORAGE.kpiInstances, JSON.stringify([
-            { id: 'kpi_1', indicatorId: 'ind_1', period: '2026-Q2', targetValue: 5000, challengeValue: 5500, actualValue: 4800, achievementRate: 96, weight: 30, owner: '李经理', dept: '销售部', status: 'achieved' },
-            { id: 'kpi_2', indicatorId: 'ind_2', period: '2026-Q2', targetValue: 4000, challengeValue: 4500, actualValue: 3500, achievementRate: 87.5, weight: 25, owner: '李经理', dept: '销售部', status: 'warning' },
-            { id: 'kpi_3', indicatorId: 'ind_3', period: '2026-Q2', targetValue: 50, challengeValue: 60, actualValue: 42, achievementRate: 84, weight: 20, owner: '王总监', dept: '市场部', status: 'warning' },
-            { id: 'kpi_4', indicatorId: 'ind_4', period: '2026-Q2', targetValue: 70, challengeValue: 75, actualValue: 68, achievementRate: 97.1, weight: 25, owner: '赵经理', dept: '客户成功部', status: 'achieved' },
-            { id: 'kpi_5', indicatorId: 'ind_5', period: '2026-Q2', targetValue: 30, challengeValue: 25, actualValue: 35, achievementRate: 85.7, weight: 30, owner: '张总监', dept: '研发部', status: 'warning' },
-            { id: 'kpi_6', indicatorId: 'ind_6', period: '2026-Q2', targetValue: 2, challengeValue: 1.5, actualValue: 1.8, achievementRate: 111.1, weight: 20, owner: '张总监', dept: '研发部', status: 'achieved' },
-            { id: 'kpi_7', indicatorId: 'ind_7', period: '2026-Q2', targetValue: 40, challengeValue: 50, actualValue: 38, achievementRate: 95, weight: 15, owner: '刘经理', dept: 'HR部', status: 'achieved' },
-            { id: 'kpi_8', indicatorId: 'ind_8', period: '2026-Q2', targetValue: 85, challengeValue: 90, actualValue: 82, achievementRate: 96.5, weight: 15, owner: '刘经理', dept: 'HR部', status: 'achieved' },
+            // === L0: 财务维度 ===
+            { id: 'kpi_sales_d', indicatorId: 'ind_sales_d', period: '2026', targetValue: 178623, challengeValue: 214348, actualValue: 171478, achievementRate: 96, weight: 10, owner: '陈总监', dept: '营销线', status: 'achieved', parentId: null, level: 0, bscDimension: 'financial', history: [92, 88, 94, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_collection_k', indicatorId: 'ind_collection_k', period: '2026', targetValue: 130097, challengeValue: 156116, actualValue: 113835, achievementRate: 87.5, weight: 25, owner: '陈总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [95, 90, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_profit_margin', indicatorId: 'ind_profit_margin', period: '2026', targetValue: 33.72, challengeValue: 35.72, actualValue: 35.0, achievementRate: 85.7, weight: 5, owner: '张总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [90, 88, 87, 85.7] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_new_product', indicatorId: 'ind_new_product', period: '2026', targetValue: 27842, challengeValue: 33410, actualValue: 20882, achievementRate: 75, weight: 10, owner: '李经理', dept: '产品部', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [78, 75, 72, 75] , x: null, y: null, width: 170, height: 100 },
+            // === L0: 客户维度 ===
+            { id: 'kpi_benchmark', indicatorId: 'ind_benchmark', period: '2026', targetValue: 182, challengeValue: 218, actualValue: 175, achievementRate: 96, weight: 10, owner: '王总监', dept: '市场部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [98, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_arr', indicatorId: 'ind_arr', period: '2026', targetValue: 43009, challengeValue: 51611, actualValue: 38708, achievementRate: 90, weight: 10, owner: '赵经理', dept: '客户成功部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [88, 86, 89, 90] , x: null, y: null, width: 170, height: 100 },
+            // === L1: 销售额-D 战区分解 ===
+            { id: 'kpi_sales_d_bj', indicatorId: 'ind_sales_d', period: '2026', targetValue: 33520, challengeValue: 40224, actualValue: 32179, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [95, 93, 96, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d_sh', indicatorId: 'ind_sales_d', period: '2026', targetValue: 30268, challengeValue: 36322, actualValue: 29057, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [96, 94, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d_hd', indicatorId: 'ind_sales_d', period: '2026', targetValue: 22284, challengeValue: 26741, actualValue: 21393, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [94, 92, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d_zm', indicatorId: 'ind_sales_d', period: '2026', targetValue: 21250, challengeValue: 25500, actualValue: 20400, achievementRate: 96, weight: 10, owner: '刘经理', dept: '浙闽大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [93, 95, 94, 96] , x: null, y: null, width: 170, height: 100 },
+            // === L1: 回款额-K 战区分解 ===
+            { id: 'kpi_collection_k_bj', indicatorId: 'ind_collection_k', period: '2026', targetValue: 23132, challengeValue: 27758, actualValue: 20241, achievementRate: 87.5, weight: 25, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [90, 88, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_collection_k_sh', indicatorId: 'ind_collection_k', period: '2026', targetValue: 21676, challengeValue: 26011, actualValue: 18967, achievementRate: 87.5, weight: 25, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [92, 90, 88, 87.5] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_collection_k_hd', indicatorId: 'ind_collection_k', period: '2026', targetValue: 16326, challengeValue: 19591, actualValue: 14285, achievementRate: 87.5, weight: 25, owner: '张经理', dept: '华南大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [89, 87, 86, 87.5] , x: null, y: null, width: 170, height: 100 },
+            // === L1: 新产品销售额 产品线分解 ===
+            { id: 'kpi_new_product_jdy', indicatorId: 'ind_jdy', period: '2026', targetValue: 16142, challengeValue: 19370, actualValue: 12107, achievementRate: 75, weight: 10, owner: '李经理', dept: 'JDY产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [76, 74, 73, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_new_product_fdl', indicatorId: 'ind_fdl', period: '2026', targetValue: 11700, challengeValue: 14040, actualValue: 8775, achievementRate: 75, weight: 10, owner: '李经理', dept: 'FDL产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [78, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
+            // === L1: 市场标杆得分 战区分解 ===
+            { id: 'kpi_benchmark_bj', indicatorId: 'ind_benchmark', period: '2026', targetValue: 28, challengeValue: 34, actualValue: 27, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [97, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_benchmark_sh', indicatorId: 'ind_benchmark', period: '2026', targetValue: 20, challengeValue: 24, actualValue: 19, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [98, 97, 96, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_benchmark_hd', indicatorId: 'ind_benchmark', period: '2026', targetValue: 25, challengeValue: 30, actualValue: 24, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [96, 95, 97, 96] , x: null, y: null, width: 170, height: 100 },
+            // === L1: ARR 战区分解 ===
+            { id: 'kpi_arr_bj', indicatorId: 'ind_arr', period: '2026', targetValue: 7018, challengeValue: 8422, actualValue: 6316, achievementRate: 90, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [88, 87, 89, 90] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_arr_sh', indicatorId: 'ind_arr', period: '2026', targetValue: 9035, challengeValue: 10842, actualValue: 8132, achievementRate: 90, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [89, 88, 90, 90] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_arr_hd', indicatorId: 'ind_arr', period: '2026', targetValue: 6671, challengeValue: 8005, actualValue: 6004, achievementRate: 90, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [90, 89, 88, 90] , x: null, y: null, width: 170, height: 100 },
+            // === L2: JDY 战区分解 ===
+            { id: 'kpi_jdy_bj', indicatorId: 'ind_jdy', period: '2026', targetValue: 2100, challengeValue: 2520, actualValue: 1575, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [74, 76, 75, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_jdy_sh', indicatorId: 'ind_jdy', period: '2026', targetValue: 1650, challengeValue: 1980, actualValue: 1238, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [76, 74, 75, 75] , x: null, y: null, width: 170, height: 100 },
+            // === L2: FDL 战区分解 ===
+            { id: 'kpi_fdl_bj', indicatorId: 'ind_fdl', period: '2026', targetValue: 1600, challengeValue: 1920, actualValue: 1200, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [75, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_fdl_sh', indicatorId: 'ind_fdl', period: '2026', targetValue: 1700, challengeValue: 2040, actualValue: 1275, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [74, 75, 76, 75] , x: null, y: null, width: 170, height: 100 },
           ]));
         }
         if (!localStorage.getItem(OMP_STORAGE.tasks)) {
@@ -488,13 +742,254 @@
         return 'lagging';
       }
 
+      // ===== 指标体系页面状态 =====
+      window._indicatorState = window._indicatorState || {
+        selectedCategory: 'all',
+        selectedSubCategory: null,
+        selectedIndicatorId: null,
+        searchQuery: '',
+        frequencyFilter: 'all',
+        statusFilter: 'all',
+      };
+
+      // ===== 指标体系页面 =====
+      function renderIndicatorSystem() {
+        const indicators = omp_load('indicators');
+        const state = window._indicatorState;
+
+        // 筛选逻辑
+        let filtered = indicators;
+        if (state.selectedCategory !== 'all') {
+          filtered = filtered.filter(i => i.category === state.selectedCategory);
+          if (state.selectedSubCategory) {
+            filtered = filtered.filter(i => i.subCategory === state.selectedSubCategory);
+          }
+        }
+        if (state.frequencyFilter !== 'all') {
+          filtered = filtered.filter(i => i.frequency === state.frequencyFilter);
+        }
+        if (state.statusFilter !== 'all') {
+          filtered = filtered.filter(i => i.status === state.statusFilter);
+        }
+        if (state.searchQuery) {
+          const q = state.searchQuery.toLowerCase();
+          filtered = filtered.filter(i =>
+            i.name.toLowerCase().includes(q) ||
+            i.code.toLowerCase().includes(q) ||
+            i.description.toLowerCase().includes(q)
+          );
+        }
+
+        // 分类统计
+        const categories = ['财务', '客户', '流程', '学习成长'];
+        const catIcons = { '财务': '📊', '客户': '👤', '流程': '⚙️', '学习成长': '📚' };
+        const catCounts = {};
+        categories.forEach(c => catCounts[c] = indicators.filter(i => i.category === c).length);
+
+        // 子分类
+        const subCategories = {};
+        categories.forEach(c => {
+          subCategories[c] = [...new Set(indicators.filter(i => i.category === c).map(i => i.subCategory))];
+        });
+
+        // 选中的指标详情
+        const selectedInd = state.selectedIndicatorId ? indicators.find(i => i.id === state.selectedIndicatorId) : null;
+
+        // 频次标签
+        const freqLabels = { monthly: '月度', quarterly: '季度', yearly: '年度' };
+        const freqColors = { monthly: 'var(--primary)', quarterly: 'var(--warning)', yearly: 'var(--success)' };
+
+        // 状态标签
+        const statusLabels = { active: '启用', disabled: '禁用' };
+        const statusColors = { active: 'var(--success)', disabled: 'var(--text-tertiary)' };
+
+        return `
+          ${renderBreadcrumb('KPI 指标体系')}
+          <div class="page-header">
+            <h1 class="page-title">KPI 指标体系</h1>
+            <div class="page-actions">
+              <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">共 ${indicators.length} 个指标</span>
+              <button class="btn btn-primary" data-action="ind-new">+ 新建指标</button>
+              <button class="btn btn-secondary" data-action="ind-export">📤 导出</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+            <input type="text" id="ind-search" placeholder="🔍 搜索指标名称/编码/描述..." value="${state.searchQuery}" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;" data-action="ind-search">
+            <select data-action="ind-filter-freq" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+              <option value="all" ${state.frequencyFilter === 'all' ? 'selected' : ''}>全部频次</option>
+              <option value="monthly" ${state.frequencyFilter === 'monthly' ? 'selected' : ''}>月度</option>
+              <option value="quarterly" ${state.frequencyFilter === 'quarterly' ? 'selected' : ''}>季度</option>
+              <option value="yearly" ${state.frequencyFilter === 'yearly' ? 'selected' : ''}>年度</option>
+            </select>
+            <select data-action="ind-filter-status" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+              <option value="all" ${state.statusFilter === 'all' ? 'selected' : ''}>全部状态</option>
+              <option value="active" ${state.statusFilter === 'active' ? 'selected' : ''}>启用</option>
+              <option value="disabled" ${state.statusFilter === 'disabled' ? 'selected' : ''}>禁用</option>
+            </select>
+          </div>
+
+          <div style="display:flex;gap:16px;">
+            <!-- 左侧分类树 -->
+            <div style="width:240px;flex-shrink:0;">
+              <div class="card" style="height:fit-content;">
+                <div class="card-header"><div class="card-title">📂 指标分类</div></div>
+                <div style="padding:12px;">
+                  <div class="ind-cat-item ${state.selectedCategory === 'all' ? 'active' : ''}" data-action="ind-select-cat" data-cat="all" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text-primary);display:flex;align-items:center;gap:8px;margin-bottom:2px;${state.selectedCategory === 'all' ? 'background:var(--bg-active);font-weight:600;' : ''}">
+                    <span>📋</span> 全部指标 <span style="margin-left:auto;font-size:11px;color:var(--text-tertiary);background:var(--bg-page);padding:1px 6px;border-radius:10px;">${indicators.length}</span>
+                  </div>
+                  ${categories.map(cat => `
+                    <div style="margin-top:4px;">
+                      <div class="ind-cat-item ${state.selectedCategory === cat ? 'active' : ''}" data-action="ind-select-cat" data-cat="${cat}" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text-primary);display:flex;align-items:center;gap:8px;${state.selectedCategory === cat ? 'background:var(--bg-active);font-weight:600;' : ''}">
+                        <span>${catIcons[cat]}</span> ${cat}指标 <span style="margin-left:auto;font-size:11px;color:var(--text-tertiary);background:var(--bg-page);padding:1px 6px;border-radius:10px;">${catCounts[cat] || 0}</span>
+                      </div>
+                      ${state.selectedCategory === cat ? subCategories[cat].map(sub => `
+                        <div class="ind-subcat-item ${state.selectedSubCategory === sub ? 'active' : ''}" data-action="ind-select-subcat" data-sub="${sub}" style="padding:6px 10px 6px 32px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-secondary);margin-top:2px;${state.selectedSubCategory === sub ? 'background:var(--bg-active);color:var(--primary);font-weight:500;' : ''}">
+                          ${sub}
+                        </div>
+                      `).join('') : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧内容区 -->
+            <div style="flex:1;min-width:0;">
+              ${filtered.length === 0 ? `
+                <div class="card" style="text-align:center;padding:60px 20px;">
+                  <div style="font-size:48px;margin-bottom:16px;">🔍</div>
+                  <div style="font-size:16px;color:var(--text-primary);margin-bottom:8px;">未找到匹配的指标</div>
+                  <div style="font-size:13px;color:var(--text-tertiary);">请调整筛选条件或搜索关键词</div>
+                </div>
+              ` : `
+                <div style="display:grid;grid-template-columns:${selectedInd ? '1fr 320px' : '1fr'};gap:16px;">
+                  <!-- 指标列表 -->
+                  <div class="card" style="overflow:hidden;">
+                    <div style="overflow-x:auto;">
+                      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead>
+                          <tr style="border-bottom:1px solid var(--border-light);">
+                            <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--text-tertiary);font-size:12px;">编码</th>
+                            <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--text-tertiary);font-size:12px;">指标名称</th>
+                            <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--text-tertiary);font-size:12px;">分类</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">频次</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">单位</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">状态</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${filtered.map(ind => `
+                            <tr style="border-bottom:1px solid var(--border-light);cursor:pointer;${state.selectedIndicatorId === ind.id ? 'background:var(--bg-active);' : ''}" data-action="ind-select" data-id="${ind.id}">
+                              <td style="padding:10px 12px;color:var(--text-secondary);font-size:12px;font-family:monospace;">${ind.code}</td>
+                              <td style="padding:10px 12px;">
+                                <div style="font-weight:500;color:var(--text-primary);">${ind.name}</div>
+                                <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">${ind.description.substring(0, 30)}${ind.description.length > 30 ? '...' : ''}</div>
+                              </td>
+                              <td style="padding:10px 12px;">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--bg-page);color:var(--text-secondary);">${ind.category}</span>
+                              </td>
+                              <td style="padding:10px 12px;text-align:center;">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${freqColors[ind.frequency]}15;color:${freqColors[ind.frequency]};">${freqLabels[ind.frequency]}</span>
+                              </td>
+                              <td style="padding:10px 12px;text-align:center;color:var(--text-secondary);font-size:12px;">${ind.unit}</td>
+                              <td style="padding:10px 12px;text-align:center;">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${statusColors[ind.status]}15;color:${statusColors[ind.status]};">${statusLabels[ind.status]}</span>
+                              </td>
+                              <td style="padding:10px 12px;text-align:center;">
+                                <button class="btn btn-sm btn-secondary" data-action="ind-edit" data-id="${ind.id}" style="font-size:11px;padding:2px 8px;margin-right:4px;" onclick="event.stopPropagation();">编辑</button>
+                                <button class="btn btn-sm btn-danger" data-action="ind-delete" data-id="${ind.id}" style="font-size:11px;padding:2px 8px;" onclick="event.stopPropagation();">删除</button>
+                              </td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  ${selectedInd ? `
+                    <!-- 详情面板 -->
+                    <div class="card" style="height:fit-content;">
+                      <div class="card-header">
+                        <div class="card-title">📋 指标详情</div>
+                      </div>
+                      <div style="padding:16px;">
+                        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">${selectedInd.name}</div>
+                        <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:16px;font-family:monospace;">${selectedInd.code}</div>
+
+                        <div style="margin-bottom:12px;">
+                          <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">指标定义</div>
+                          <div style="font-size:13px;color:var(--text-primary);line-height:1.5;">${selectedInd.description}</div>
+                        </div>
+
+                        <div style="margin-bottom:12px;">
+                          <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">计算公式</div>
+                          <div style="font-size:13px;color:var(--primary);font-family:monospace;background:var(--bg-page);padding:8px 10px;border-radius:6px;">${selectedInd.formula}</div>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                          <div>
+                            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">单位</div>
+                            <div style="font-size:13px;color:var(--text-primary);">${selectedInd.unit}</div>
+                          </div>
+                          <div>
+                            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">统计频次</div>
+                            <div style="font-size:13px;color:var(--text-primary);">${freqLabels[selectedInd.frequency]}</div>
+                          </div>
+                          <div>
+                            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">数据来源</div>
+                            <div style="font-size:13px;color:var(--text-primary);">${selectedInd.dataSource}</div>
+                          </div>
+                          <div>
+                            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">责任部门</div>
+                            <div style="font-size:13px;color:var(--text-primary);">${selectedInd.responsibleDept}</div>
+                          </div>
+                        </div>
+
+                        <div style="margin-bottom:12px;">
+                          <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">分类</div>
+                          <div style="font-size:13px;color:var(--text-primary);">${catIcons[selectedInd.category]} ${selectedInd.category} / ${selectedInd.subCategory}</div>
+                        </div>
+
+                        <div style="margin-bottom:12px;">
+                          <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">趋势方向</div>
+                          <div style="font-size:13px;color:var(--text-primary);">${selectedInd.isPositive ? '✅ 越高越好' : '⬇️ 越低越好'}</div>
+                        </div>
+
+                        <div style="padding-top:12px;border-top:1px solid var(--border-light);">
+                          <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">创建时间</div>
+                          <div style="font-size:12px;color:var(--text-secondary);">${selectedInd.createdAt}</div>
+                        </div>
+
+                        <div style="display:flex;gap:8px;margin-top:16px;">
+                          <button class="btn btn-primary" style="flex:1;font-size:12px;" data-action="ind-edit" data-id="${selectedInd.id}">编辑</button>
+                          <button class="btn btn-secondary" style="font-size:12px;" data-action="ind-clear-select">关闭</button>
+                        </div>
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+              `}
+            </div>
+          </div>
+
+          <style>
+            .ind-cat-item:hover { background: var(--bg-hover); }
+            .ind-cat-item.active { background: var(--bg-active) !important; }
+            .ind-subcat-item:hover { background: var(--bg-hover); }
+            .ind-subcat-item.active { background: var(--bg-active) !important; }
+          </style>
+        `;
+      }
+
       // ===== 页面内容 =====
       const PAGES = {
         'dashboard': renderDashboard,
         'dashboard/roadmap': renderDevTimeline,
         'sp/strategy-map': () => renderPlaceholder('🗺️ 战略地图', '可视化展示企业战略地图，基于平衡计分卡四维度构建战略目标体系。'),
         'sp/insights-topics': renderInsightsTopics,
-        'bp/kpi': () => renderPlaceholder('📈 KPI 指标体系', '企业级指标库管理，支持多层级 KPI 分解、自动计算、预警提醒。'),
+        'bp/kpi': renderIndicatorSystem,
         'bp/bem': () => renderPlaceholder('🔧 BEM 战略解码', '基于 BEM 六步解码法，将战略转化为可执行的行动计划。'),
         'bp/annual-plan': () => renderPlaceholder('📅 年度经营计划', '年度经营目标分解、资源配置、预算编制与执行跟踪。'),
         'exe/tasks': renderTasks,
@@ -724,17 +1219,69 @@
               case 'omp-view-task': window.omp_viewTask(id); break;
               case 'omp-edit-task': window.omp_editTask(id); break;
               case 'omp-new-task': window.omp_newTask(); break;
+              case 'omp-delete-kpi': window.omp_deleteKpi(id); break;
+              case 'omp-delete-task': window.omp_deleteTask(id); break;
               case 'omp-export': window.omp_exportData(); break;
+              case 'omp-toggle-view':
+                window._ompState.kpiViewMode = actionBtn.dataset.view;
+                navigate('exe/tasks');
+                break;
+              case 'omp-decompose-kpi': window.omp_openDecomposeModal(id); break;
               case 'omp-filter-kpi':
                 if (filter) { window._ompState.kpiFilter[filter] = actionBtn.value; navigate('exe/tasks'); }
                 break;
               case 'omp-filter-task':
                 if (filter) { window._ompState.taskFilter[filter] = actionBtn.value; navigate('exe/tasks'); }
                 break;
+              // ===== 指标体系事件 =====
+              case 'ind-select':
+                window._indicatorState.selectedIndicatorId = id;
+                navigate('bp/kpi');
+                break;
+              case 'ind-select-cat':
+                window._indicatorState.selectedCategory = actionBtn.dataset.cat;
+                window._indicatorState.selectedSubCategory = null;
+                window._indicatorState.selectedIndicatorId = null;
+                navigate('bp/kpi');
+                break;
+              case 'ind-select-subcat':
+                window._indicatorState.selectedSubCategory = actionBtn.dataset.sub;
+                window._indicatorState.selectedIndicatorId = null;
+                navigate('bp/kpi');
+                break;
+              case 'ind-new': window.ind_openModal('new'); break;
+              case 'ind-edit': window.ind_openModal('edit', id); break;
+              case 'ind-delete': window.ind_delete(id); break;
+              case 'ind-export': window.ind_export(); break;
+              case 'ind-clear-select':
+                window._indicatorState.selectedIndicatorId = null;
+                navigate('bp/kpi');
+                break;
+              case 'ind-filter-freq':
+                window._indicatorState.frequencyFilter = actionBtn.value;
+                navigate('bp/kpi');
+                break;
+              case 'ind-filter-status':
+                window._indicatorState.statusFilter = actionBtn.value;
+                navigate('bp/kpi');
+                break;
             }
             return;
           }
         });
+
+        // 指标体系：搜索框实时搜索（防抖）
+        const searchInput = container.querySelector('#ind-search');
+        if (searchInput) {
+          let debounceTimer;
+          searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+              window._indicatorState.searchQuery = e.target.value.trim();
+              navigate('bp/kpi');
+            }, 300);
+          });
+        }
       }
 
       // ===== 渲染左侧栏 =====
@@ -1167,6 +1714,114 @@
         `;
       }
 
+      // ===== Tab 1: 总览看板 =====
+      function omp_renderDashboard() {
+        const kpis = omp_load('kpiInstances');
+        const tasks = omp_load('tasks');
+        const indicators = omp_load('indicators');
+        const milestones = omp_load('milestones');
+
+        // 统计数据
+        const avgAchievement = kpis.length > 0 ? Math.round(kpis.reduce((s, k) => s + k.achievementRate, 0) / kpis.length * 10) / 10 : 0;
+        const warningKpis = kpis.filter(k => k.status === 'warning').length;
+        const laggingKpis = kpis.filter(k => k.status === 'lagging').length;
+        const totalTasks = tasks.length;
+        const doneTasks = tasks.filter(t => t.status === 'done' || t.status === 'closed').length;
+        const delayedTasks = tasks.filter(t => t.status === 'delayed').length;
+        const activeTasks = tasks.filter(t => t.status === 'active' || t.status === 'at_risk').length;
+        const taskCompletionRate = totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) : 0;
+
+        const statCards = [
+          { label: 'KPI 平均达成率', value: avgAchievement + '%', color: 'var(--primary)', icon: '📊' },
+          { label: '预警/落后 KPI', value: (warningKpis + laggingKpis) + ' 个', color: 'var(--warning)', icon: '⚠️' },
+          { label: '工作总数', value: totalTasks + ' 项', color: 'var(--primary)', icon: '📋' },
+          { label: '工作完成率', value: taskCompletionRate + '%', color: 'var(--success)', icon: '✅' },
+          { label: '延期工作', value: delayedTasks + ' 项', color: 'var(--danger)', icon: '🔴' },
+          { label: '进行中', value: activeTasks + ' 项', color: 'var(--primary)', icon: '🚀' },
+        ];
+
+        // 热力图: 部门 × BSC维度
+        const depts = [...new Set(kpis.map(k => k.dept))];
+        const categories = ['财务', '客户', '流程', '学习成长'];
+        const heatmapRows = depts.map(dept => {
+          return `<div style="display:grid;grid-template-columns:100px repeat(4,1fr);gap:8px;align-items:center;margin-bottom:8px;">
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${dept}</div>
+            ${categories.map(cat => {
+              const kpi = kpis.find(k => k.dept === dept && indicators.find(i => i.id === k.indicatorId)?.category === cat);
+              if (!kpi) return `<div class="omp-heatmap-cell" style="background:var(--bg-page);color:var(--text-tertiary);">-</div>`;
+              const rate = kpi.achievementRate;
+              const bg = rate >= 95 ? 'var(--success)' : rate >= 80 ? 'var(--warning)' : 'var(--danger)';
+              return `<div class="omp-heatmap-cell" style="background:${bg};color:var(--text-inverse);" data-action="omp-view-kpi" data-id="${kpi.id}">${rate}%</div>`;
+            }).join('')}
+          </div>`;
+        }).join('');
+
+        // 工作状态分布
+        const statusDist = {};
+        tasks.forEach(t => { statusDist[t.status] = (statusDist[t.status] || 0) + 1; });
+        const statusLabels = { planning: '规划中', active: '进行中', at_risk: '有风险', delayed: '已延期', done: '已完成', closed: '已关闭' };
+        const statusColors = { planning: 'var(--text-tertiary)', active: 'var(--success)', at_risk: 'var(--warning)', delayed: 'var(--danger)', done: 'var(--primary)', closed: 'var(--text-tertiary)' };
+        const distHtml = Object.entries(statusDist).map(([status, count]) => {
+          const pct = Math.round(count / totalTasks * 100);
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:12px;color:var(--text-secondary);width:60px;">${statusLabels[status]}</span>
+            <div style="flex:1;height:8px;background:var(--bg-page);border-radius:4px;overflow:hidden;">
+              <div style="width:${pct}%;height:100%;background:${statusColors[status]};border-radius:4px;"></div>
+            </div>
+            <span style="font-size:12px;font-weight:600;color:var(--text-primary);width:40px;text-align:right;">${count}</span>
+          </div>`;
+        }).join('');
+
+        // 预警清单
+        const alerts = [];
+        kpis.filter(k => k.status === 'lagging').forEach(k => {
+          const ind = indicators.find(i => i.id === k.indicatorId);
+          alerts.push({ type: 'kpi', text: `${ind ? ind.name : '未知指标'} (${k.dept}) 达成率 ${k.achievementRate}%`, id: k.id, action: 'omp-view-kpi' });
+        });
+        tasks.filter(t => t.status === 'delayed').forEach(t => {
+          alerts.push({ type: 'task', text: `${t.name} (${t.dept}) 已延期`, id: t.id, action: 'omp-view-task' });
+        });
+        const alertHtml = alerts.length > 0 ? alerts.map(a =>
+          `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-page);border-radius:6px;margin-bottom:6px;cursor:pointer;" data-action="${a.action}" data-id="${a.id}">
+            <span style="font-size:16px;">${a.type === 'kpi' ? '🔴' : '🔴'}</span>
+            <span style="font-size:13px;color:var(--text-primary);flex:1;">${a.text}</span>
+            <span style="font-size:12px;color:var(--primary);font-weight:500;">查看 →</span>
+          </div>`
+        ).join('') : '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:13px;">🎉 当前无预警项</div>';
+
+        return `
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+            ${statCards.map(c => `
+              <div class="omp-stat-card" style="text-align:center;">
+                <div style="font-size:24px;margin-bottom:4px;">${c.icon}</div>
+                <div style="font-size:28px;font-weight:700;color:${c.color};margin-bottom:4px;">${c.value}</div>
+                <div style="font-size:12px;color:var(--text-tertiary);">${c.label}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+            <div class="card">
+              <div class="card-header"><div class="card-title">🗺️ KPI 达成热力图</div></div>
+              <div style="padding:16px;">
+                <div style="display:grid;grid-template-columns:100px repeat(4,1fr);gap:8px;margin-bottom:12px;">
+                  <div></div>
+                  ${categories.map(c => `<div style="font-size:11px;color:var(--text-tertiary);text-align:center;font-weight:600;">${c}</div>`).join('')}
+                </div>
+                ${heatmapRows}
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">📊 工作状态分布</div></div>
+              <div style="padding:16px;">${distHtml}</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">⚠️ 预警清单</div></div>
+            <div style="padding:16px;">${alertHtml}</div>
+          </div>
+        `;
+      }
+
       // ===== Tab 2: KPI 管理 =====
       function omp_renderKPITab() {
         const kpis = omp_load('kpiInstances');
@@ -1200,18 +1855,19 @@
           warning: { cls: 'status-warning', text: '预警' },
           lagging: { cls: 'status-danger', text: '落后' },
         };
-        const trendData = {
-          kpi_1: [92, 88, 94, 96],
-          kpi_2: [95, 90, 85, 87.5],
-          kpi_3: [88, 85, 82, 84],
-          kpi_4: [98, 96, 95, 97.1],
-          kpi_5: [90, 88, 87, 85.7],
-          kpi_6: [105, 108, 110, 111.1],
-          kpi_7: [92, 90, 89, 95],
-          kpi_8: [94, 93, 91, 96.5],
-        };
         const miniTrend = (kpiId) => {
-          const data = trendData[kpiId] || [80, 82, 85, 88];
+          const kpi = kpis.find(k => k.id === kpiId);
+          let data = kpi?.history;
+          if (!data || data.length === 0) {
+            // Generate a plausible trend based on current achievementRate
+            const rate = kpi?.achievementRate || 80;
+            data = [
+              Math.max(0, Math.round((rate - 8) * 10) / 10),
+              Math.max(0, Math.round((rate - 4) * 10) / 10),
+              Math.max(0, Math.round((rate - 2) * 10) / 10),
+              rate,
+            ];
+          }
           const max = Math.max(...data);
           const min = Math.min(...data);
           const range = max - min || 1;
@@ -1236,8 +1892,15 @@
                 ${categories.map(c => `<option value="${c.value}" ${filter.category === c.value ? 'selected' : ''}>${c.label}</option>`).join('')}
               </select>
             </div>
-            <button class="btn btn-primary" data-action="omp-new-kpi" style="font-size:13px;">+ 新建 KPI</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <div style="display:flex;border:1px solid var(--border-color);border-radius:6px;overflow:hidden;">
+                <button class="btn btn-sm ${window._ompState.kpiViewMode === 'list' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-toggle-view" data-view="list" style="border-radius:0;border:none;font-size:12px;">📋 列表</button>
+                <button class="btn btn-sm ${window._ompState.kpiViewMode === 'tree' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-toggle-view" data-view="tree" style="border-radius:0;border:none;font-size:12px;">🌲 树形</button>
+              </div>
+              <button class="btn btn-primary" data-action="omp-new-kpi" style="font-size:13px;">+ 新建 KPI</button>
+            </div>
           </div>
+          ${window._ompState.kpiViewMode === 'tree' ? omp_renderKpiTree(filtered, indicators, statusBadge, miniTrend) : `
           <div class="card">
             <div style="overflow-x:auto;">
               <table class="data-table">
@@ -1267,6 +1930,7 @@
                         <td style="text-align:center;">
                           <button class="btn btn-sm btn-secondary" data-action="omp-view-kpi" data-id="${k.id}" style="font-size:12px;padding:3px 8px;">详情</button>
                           <button class="btn btn-sm btn-primary" data-action="omp-edit-kpi" data-id="${k.id}" style="font-size:12px;padding:3px 8px;">编辑</button>
+                          <button class="btn btn-sm btn-danger" data-action="omp-delete-kpi" data-id="${k.id}" style="font-size:12px;padding:3px 8px;">删除</button>
                         </td>
                       </tr>`;
                   }).join('')}
@@ -1277,6 +1941,203 @@
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-tertiary);">
               <span>共 ${filtered.length} 条 KPI</span><span>数据周期: 2026-Q2</span>
             </div>
+          </div>`}`;
+      }
+
+      // ===== KPI 指标树 — 卡片式层级视图 =====
+      function omp_kpiBuildTree(kpis) {
+        const childrenMap = {};
+        kpis.forEach(k => { childrenMap[k.id] = []; });
+        kpis.forEach(k => {
+          if (k.parentId && childrenMap[k.parentId] !== undefined) {
+            childrenMap[k.parentId].push(k);
+          }
+        });
+        const roots = kpis.filter(k => !k.parentId || !kpis.find(p => p.id === k.parentId));
+        return { roots, childrenMap };
+      }
+
+      function omp_kpiRenderRing(rate, size) {
+        const r = Math.round(size / 2) - 4;
+        const c = Math.round(2 * Math.PI * r * 100) / 100;
+        const dash = Math.round(c * Math.min(rate, 100) / 100 * 100) / 100;
+        const color = rate >= 95 ? '#16A34A' : rate >= 80 ? '#D97706' : '#DC2626';
+        const glow = rate >= 100 ? 'filter: drop-shadow(0 0 4px rgba(22,163,74,0.4));' : '';
+        const center = Math.round(size / 2);
+        return `<svg class="omp-kpi-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="${glow} flex-shrink:0;">
+          <circle cx="${center}" cy="${center}" r="${r}" fill="none" stroke="var(--border-color)" stroke-width="3"/>
+          <circle cx="${center}" cy="${center}" r="${r}" fill="none" stroke="${color}" stroke-width="3"
+            stroke-dasharray="${dash} ${c}" stroke-linecap="round" transform="rotate(-90 ${center} ${center})"/>
+        </svg>`;
+      }
+
+      function omp_renderKpiTree(kpis, indicators, statusBadge, miniTrend) {
+        const expandedIds = window._ompState.kpiExpandedIds;
+        const { roots, childrenMap } = omp_kpiBuildTree(kpis);
+        // BSC 维度配置（用于角标颜色）
+        const BSC_DIMENSIONS = {
+          financial: { name: '财务', color: '#1E3A5F' },
+          customer:  { name: '客户', color: '#2E8B57' },
+          internal:  { name: '流程', color: '#D4A017' },
+          learning:  { name: '成长', color: '#6B4C9A' }
+        };
+        // 首次渲染时，自动展开所有根节点（一次性）
+        if (!window._ompState.kpiTreeAutoExpanded) {
+          roots.forEach(r => {
+            if (childrenMap[r.id] && childrenMap[r.id].length > 0) {
+              expandedIds.add(r.id);
+            }
+          });
+          window._ompState.kpiTreeAutoExpanded = true;
+        }
+        // 画布状态
+        const canvasState = window._ompState.kpiCanvasState || {};
+        const scale = canvasState.scale || 1;
+        const offsetX = canvasState.offsetX || 0;
+        const offsetY = canvasState.offsetY || 0;
+
+        // 收集所有可见节点
+        const visibleNodes = [];
+        const visibleEdges = []; // { from: kpiId, to: kpiId }
+
+        function traverse(kpi) {
+          visibleNodes.push(kpi);
+          const hasChildren = childrenMap[kpi.id] && childrenMap[kpi.id].length > 0;
+          const isExpanded = expandedIds.has(kpi.id);
+          if (hasChildren && isExpanded) {
+            childrenMap[kpi.id].forEach(child => {
+              visibleEdges.push({ from: kpi.id, to: child.id });
+              traverse(child);
+            });
+          }
+        }
+        roots.forEach(r => traverse(r));
+
+        // 自动布局：如果节点没有位置，计算默认位置
+        // 使用简单的层级布局：根在左，子向右展开
+        const nodePositions = {};
+        const levelWidth = 220;
+        const nodeHeight = 110;
+        const levelNodes = {}; // { level: [kpiId, ...] }
+        
+        function collectLevels(kpi, level) {
+          if (!levelNodes[level]) levelNodes[level] = [];
+          levelNodes[level].push(kpi.id);
+          const isExpanded = expandedIds.has(kpi.id);
+          if (childrenMap[kpi.id] && isExpanded) {
+            childrenMap[kpi.id].forEach(child => collectLevels(child, level + 1));
+          }
+        }
+        roots.forEach(r => collectLevels(r, 0));
+
+        // 计算每个节点的位置
+        function sanitizePos(val, fallback) {
+          const n = parseFloat(val);
+          return (Number.isFinite(n) && n >= 0) ? n : fallback;
+        }
+        Object.entries(levelNodes).forEach(([level, ids]) => {
+          const lvl = parseInt(level);
+          const x = lvl * levelWidth + 20;
+          ids.forEach((id, idx) => {
+            const kpi = kpis.find(k => k.id === id);
+            // 优先使用保存的位置（严格校验：非 null/undefined、有效数字、非负）
+            const savedX = kpi && kpi.x != null ? parseFloat(kpi.x) : NaN;
+            const savedY = kpi && kpi.y != null ? parseFloat(kpi.y) : NaN;
+            if (Number.isFinite(savedX) && Number.isFinite(savedY) && savedX > 0 && savedY > 0) {
+              nodePositions[id] = {
+                x: savedX,
+                y: savedY,
+                w: sanitizePos(kpi.width, 170),
+                h: sanitizePos(kpi.height, 100)
+              };
+            } else {
+              const y = idx * (nodeHeight + 20) + 20;
+              nodePositions[id] = { x, y, w: 170, h: 100 };
+            }
+          });
+        });
+
+        // 强制净化：确保 nodePositions 中所有坐标都是有效数字
+        Object.keys(nodePositions).forEach(id => {
+          const p = nodePositions[id];
+          if (!Number.isFinite(p.x) || p.x < 0) p.x = 20;
+          if (!Number.isFinite(p.y) || p.y < 0) p.y = 20;
+          if (!Number.isFinite(p.w) || p.w <= 0) p.w = 170;
+          if (!Number.isFinite(p.h) || p.h <= 0) p.h = 100;
+        });
+
+        // 渲染节点 HTML
+        const nodesHtml = visibleNodes.map(kpi => {
+          const ind = indicators.find(i => i.id === kpi.indicatorId);
+          const pos = nodePositions[kpi.id] || { x: 0, y: 0, w: 170, h: 100 };
+          const hasChildren = childrenMap[kpi.id] && childrenMap[kpi.id].length > 0;
+          const isExpanded = expandedIds.has(kpi.id);
+          const statusClass = kpi.status === 'achieved' ? 'achieved' : kpi.status === 'warning' ? 'warning' : 'lagging';
+          const dimKey = kpi.bscDimension || 'financial';
+          const displayName = ind ? ind.name : '未知';
+          const unit = ind ? ind.unit : '';
+          const progressWidth = Math.min(kpi.achievementRate, 100);
+          
+          return `<div class="omp-canvas-node status-${kpi.status}" data-id="${kpi.id}" data-level="${kpi.level}" data-dim="${dimKey}"
+            style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px;height:${pos.h}px;"
+            onmousedown="window.omp_canvasNodeDragStart(event,'${kpi.id}')">
+            <div class="omp-dim-badge ${dimKey}"></div>
+            <div class="canvas-node-name">${displayName}</div>
+            ${kpi.dept && kpi.level > 0 ? `<div class="canvas-node-dept">${kpi.dept}</div>` : ''}
+            <div class="canvas-node-metric">目标 <strong>${kpi.targetValue}</strong>${unit} / 实际 <strong>${kpi.actualValue}</strong>${unit}</div>
+            <div class="canvas-node-progress">
+              <div class="canvas-node-progress-bar"><div class="${statusClass}" style="width:${progressWidth}%"></div></div>
+              <div class="canvas-node-progress-text ${statusClass}">${kpi.achievementRate}%</div>
+            </div>
+            ${hasChildren ? `<span class="canvas-node-expand" onclick="event.stopPropagation();window.omp_toggleExpand('${kpi.id}')">${isExpanded ? '−' : '+'}</span>` : ''}
+          </div>`;
+        }).join('');
+
+        // 渲染 SVG 连接线（保守写法：任何无效值都用 || 0 兜底）
+        const svgPaths = visibleEdges.map(edge => {
+          const fromPos = nodePositions[edge.from];
+          const toPos = nodePositions[edge.to];
+          if (!fromPos || !toPos) return '';
+          const fx = (fromPos.x || 0); const fy = (fromPos.y || 0);
+          const fw = (fromPos.w || 170); const fh = (fromPos.h || 100);
+          const tx = (toPos.x || 0); const ty = (toPos.y || 0);
+          const tw = (toPos.w || 170); const th = (toPos.h || 100);
+          const x1 = fx + fw;
+          const y1 = fy + fh / 2;
+          const x2 = tx;
+          const y2 = ty + th / 2;
+          const midX = (x1 + x2) / 2;
+          return `<path d="M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}" />`;
+        }).join('');
+
+        // 计算画布尺寸
+        let maxX = 0, maxY = 0;
+        Object.values(nodePositions).forEach(p => {
+          maxX = Math.max(maxX, p.x + p.w);
+          maxY = Math.max(maxY, p.y + p.h);
+        });
+        const canvasW = Math.max(maxX + 100, 1200);
+        const canvasH = Math.max(maxY + 100, 700);
+
+        return `
+          <div class="omp-kpi-canvas" id="omp-kpi-canvas"
+            onmousedown="window.omp_canvasPanStart(event)"
+            onwheel="window.omp_canvasZoom(event)">
+            <div class="omp-canvas-toolbar">
+              <button onclick="window.omp_canvasReset()">⟲ 重置</button>
+              <button onclick="window.omp_canvasZoomIn()">+</button>
+              <button onclick="window.omp_canvasZoomOut()">−</button>
+              <button onclick="window.omp_canvasSaveLayout()">💾 保存布局</button>
+            </div>
+            <div class="omp-canvas-zoom" id="omp-canvas-zoom">100%</div>
+            <div class="omp-kpi-canvas-inner" id="omp-kpi-canvas-inner" style="width:${canvasW}px;height:${canvasH}px;transform:translate(${offsetX}px,${offsetY}px) scale(${scale});">
+              <svg class="omp-canvas-svg" width="${canvasW}" height="${canvasH}">${svgPaths}</svg>
+              ${nodesHtml}
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:12px;color:var(--text-tertiary);margin-top:8px;">
+            <span>共 ${roots.length} 个一级指标 · ${visibleNodes.length} 个可见节点（画布）</span>
+            <span>拖拽节点调整位置 · 滚轮缩放 · 拖拽空白平移</span>
           </div>`;
       }
 
@@ -1352,6 +2213,7 @@
                         <td style="text-align:center;">
                           <button class="btn btn-sm btn-secondary" data-action="omp-view-task" data-id="${t.id}" style="font-size:12px;padding:3px 8px;">详情</button>
                           <button class="btn btn-sm btn-primary" data-action="omp-edit-task" data-id="${t.id}" style="font-size:12px;padding:3px 8px;">编辑</button>
+                          <button class="btn btn-sm btn-danger" data-action="omp-delete-task" data-id="${t.id}" style="font-size:12px;padding:3px 8px;">删除</button>
                         </td>
                       </tr>`;
                   }).join('')}
@@ -1369,7 +2231,7 @@
       function omp_renderGanttTab() {
         const tasks = omp_load('tasks');
         const months = ['4月', '5月', '6月', '7月', '8月', '9月'];
-        const statusColors = { planning: '#94a3b8', active: '#3b82f6', at_risk: '#f59e0b', delayed: '#ef4444', done: '#10b981', closed: '#64748b' };
+        const statusColors = { planning: 'var(--text-tertiary)', active: 'var(--primary)', at_risk: 'var(--warning)', delayed: 'var(--danger)', done: 'var(--success)', closed: 'var(--text-tertiary)' };
         const ganttRows = tasks.map(t => {
           const start = new Date(t.startDate);
           const end = new Date(t.endDate);
@@ -1383,8 +2245,9 @@
                 const isActive = monthNum >= startMonth && monthNum <= endMonth;
                 if (!isActive) return `<div style="padding:4px;background:var(--bg-page);min-height:32px;"></div>`;
                 return `<div style="padding:4px;background:var(--bg-page);min-height:32px;display:flex;align-items:center;">
-                  <div style="width:100%;height:20px;background:${statusColors[t.status]}30;border-radius:4px;position:relative;overflow:hidden;">
-                    <div style="width:${t.progress}%;height:100%;background:${statusColors[t.status]};border-radius:4px;"></div>
+                  <div style="width:100%;height:20px;border-radius:4px;position:relative;overflow:hidden;">
+                    <div style="position:absolute;inset:0;background:${statusColors[t.status]};opacity:0.15;border-radius:4px;"></div>
+                    <div style="width:${t.progress}%;height:100%;background:${statusColors[t.status]};border-radius:4px;position:relative;z-index:1;"></div>
                   </div>
                 </div>`;
               }).join('')}
@@ -1403,10 +2266,10 @@
               </div>
             </div>
             <div style="display:flex;gap:16px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-light);">
-              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#3b82f6;border-radius:2px;"></span>进行中</span>
-              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#f59e0b;border-radius:2px;"></span>有风险</span>
-              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#ef4444;border-radius:2px;"></span>已延期</span>
-              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#10b981;border-radius:2px;"></span>已完成</span>
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--primary);border-radius:2px;"></span>进行中</span>
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--warning);border-radius:2px;"></span>有风险</span>
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--danger);border-radius:2px;"></span>已延期</span>
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--success);border-radius:2px;"></span>已完成</span>
             </div>
           </div>`;
       }
@@ -1546,7 +2409,7 @@
                   <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">${i.content}</div>
                   <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px;">来源: ${i.source}</div>
                   ${linkedTopic ? `<div style="margin-top:6px;">
-                    <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--primary);color:#fff;">已生成专题: ${linkedTopic.name}</span>
+                    <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--primary);color:var(--text-inverse);">已生成专题: ${linkedTopic.name}</span>
                   </div>` : ''}
                 </div>
                 <div style="display:flex;gap:4px;flex-shrink:0;">
@@ -2007,7 +2870,7 @@
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border-color);">
                       <div style="display:flex;align-items:center;gap:10px;">
                         <h3 style="margin:0;font-size:16px;">${year}年专题</h3>
-                        <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--primary);color:#fff;">${yearTopics.length}个</span>
+                        <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--primary);color:var(--text-inverse);">${yearTopics.length}个</span>
                       </div>
                       <div style="display:flex;gap:12px;font-size:12px;color:var(--text-secondary);">
                         <span>进行中: ${yearActive}</span>
@@ -2661,6 +3524,8 @@
 
       // ===== OMP: 弹窗函数 =====
       function omp_openModal(title, content, wide) {
+        const existing = document.getElementById('omp-active-modal');
+        if (existing) existing.remove();
         const overlay = document.createElement('div');
         overlay.className = 'omp-modal-overlay';
         overlay.id = 'omp-active-modal';
@@ -2824,6 +3689,53 @@
           </div>`, true);
       }
 
+      function omp_openDecomposeModal(kpiId) {
+        const kpis = omp_load('kpiInstances');
+        const parentKpi = kpis.find(k => k.id === kpiId);
+        if (!parentKpi) return;
+        const indicators = omp_load('indicators');
+        const ind = indicators.find(i => i.id === parentKpi.indicatorId);
+        window._ompState.decomposingKpiId = kpiId;
+        omp_openModal('分解 KPI — ' + (ind ? ind.name : '未知指标'), `
+          <div style="margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">
+              <div style="background:var(--bg-page);padding:10px;border-radius:6px;"><div style="font-size:11px;color:var(--text-tertiary);">父级目标</div><div style="font-size:16px;font-weight:600;">${parentKpi.targetValue}${ind ? ind.unit : ''}</div></div>
+              <div style="background:var(--bg-page);padding:10px;border-radius:6px;"><div style="font-size:11px;color:var(--text-tertiary);">当前层级</div><div style="font-size:16px;font-weight:600;">${parentKpi.level === 0 ? '公司级' : '部门级'}</div></div>
+              <div style="background:var(--bg-page);padding:10px;border-radius:6px;"><div style="font-size:11px;color:var(--text-tertiary);">子级将设为</div><div style="font-size:16px;font-weight:600;">${parentKpi.level === 0 ? '部门级' : '团队级'}</div></div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">分解方式：<strong>按组织架构</strong></div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;gap:8px;margin-bottom:8px;font-size:12px;font-weight:600;color:var(--text-tertiary);padding:0 8px;">
+              <span style="flex:1;">子级名称</span>
+              <span style="width:80px;">部门</span>
+              <span style="width:70px;text-align:right;">目标值</span>
+              <span style="width:50px;text-align:right;">权重%</span>
+              <span style="width:30px;"></span>
+            </div>
+            <div id="omp-decompose-rows">
+              <div class="omp-decompose-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                <input type="text" class="omp-d-name" placeholder="如: 销售部合同额" style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                <input type="text" class="omp-d-dept" placeholder="部门" style="width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                <input type="number" class="omp-d-target" placeholder="目标" style="width:70px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;">
+                <input type="number" class="omp-d-weight" placeholder="权重" style="width:50px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;">
+                <button onclick="this.parentElement.remove(); window.omp_updateDecomposeValidation();" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:16px;width:30px;">✕</button>
+              </div>
+            </div>
+            <button onclick="window.omp_addDecomposeRow()" style="margin-top:4px;padding:6px 12px;background:var(--bg-page);border:1px dashed var(--border-color);border-radius:6px;color:var(--primary);font-size:12px;cursor:pointer;width:100%;">+ 添加子级</button>
+          </div>
+          <div id="omp-decompose-validation" style="padding:10px 12px;border-radius:6px;background:var(--bg-page);font-size:12px;margin-bottom:16px;">
+            <div>⚠️ 权重校验：等待输入...</div>
+            <div>⚠️ 目标值校验：等待输入...</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal').remove(); window._ompState.decomposingKpiId = null;">取消</button>
+            <button class="btn btn-primary" onclick="window.omp_saveDecomposition()">保存分解</button>
+          </div>
+        `, true);
+        window.omp_updateDecomposeValidation();
+      }
+
       function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -2859,12 +3771,19 @@
         if (editId === 'new') {
           if (!indicatorId) { alert('请选择指标'); return; }
           const achievementRate = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
-          kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate) });
+          kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate), parentId: null, level: 0 });
         } else {
           const idx = kpis.findIndex(k => k.id === editId);
           if (idx > -1) {
+            const oldKpi = kpis[idx];
             const achievementRate = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
-            kpis[idx] = { ...kpis[idx], dept, owner, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, status: omp_getKpiStatus(achievementRate) };
+            let history = oldKpi.history || [];
+            // If achievementRate changed, append old value to history
+            if (oldKpi.achievementRate !== achievementRate) {
+              history = [...history, oldKpi.achievementRate];
+              if (history.length > 6) history = history.slice(-6); // keep last 6 points
+            }
+            kpis[idx] = { ...oldKpi, dept, owner, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, status: omp_getKpiStatus(achievementRate), history };
           }
         }
         omp_save('kpiInstances', kpis);
@@ -2907,6 +3826,213 @@
       window.omp_newKpi = function() { omp_newKpiModal(); };
       window.omp_viewTask = function(id) { omp_viewTaskModal(id); };
       window.omp_editTask = function(id) { omp_editTaskModal(id); };
+      window.omp_toggleExpand = function(kpiId) {
+        const isExpanding = !window._ompState.kpiExpandedIds.has(kpiId);
+        if (isExpanding) {
+          window._ompState.kpiExpandedIds.add(kpiId);
+        } else {
+          window._ompState.kpiExpandedIds.delete(kpiId);
+        }
+        // Canvas 版：重新渲染以更新节点和连接线
+        navigate('bp/kpi');
+      };
+      window.omp_toggleDimension = function(dimKey) {
+        window._ompState.kpiDimCollapsed = window._ompState.kpiDimCollapsed || {};
+        const wasCollapsed = window._ompState.kpiDimCollapsed[dimKey];
+        window._ompState.kpiDimCollapsed[dimKey] = !wasCollapsed;
+        const dimEl = document.querySelector(`.omp-bsc-dimension[data-dim="${dimKey}"]`);
+        if (!dimEl) return;
+        const body = dimEl.querySelector('.omp-bsc-dimension-body');
+        const toggle = dimEl.querySelector('.dim-toggle');
+        if (body) body.classList.toggle('collapsed', !wasCollapsed);
+        if (toggle) toggle.textContent = wasCollapsed ? '▼' : '▶';
+      };
+      // ===== Canvas 画布交互 =====
+      window.omp_canvasState = window.omp_canvasState || { scale: 1, offsetX: 0, offsetY: 0, draggingNode: null, dragStartX: 0, dragStartY: 0, nodeStartX: 0, nodeStartY: 0, isPanning: false, panStartX: 0, panStartY: 0 };
+
+      window.omp_canvasNodeDragStart = function(e, kpiId) {
+        if (e.button !== 0) return;
+        const state = window.omp_canvasState;
+        state.draggingNode = kpiId;
+        state.dragStartX = e.clientX;
+        state.dragStartY = e.clientY;
+        const node = document.querySelector(`.omp-canvas-node[data-id="${kpiId}"]`);
+        if (node) {
+          state.nodeStartX = parseFloat(node.style.left) || 0;
+          state.nodeStartY = parseFloat(node.style.top) || 0;
+          node.classList.add('selected');
+        }
+        e.stopPropagation();
+        document.addEventListener('mousemove', window.omp_canvasNodeDragMove);
+        document.addEventListener('mouseup', window.omp_canvasNodeDragEnd);
+      };
+
+      window.omp_canvasNodeDragMove = function(e) {
+        const state = window.omp_canvasState;
+        if (!state.draggingNode) return;
+        const dx = (e.clientX - state.dragStartX) / state.scale;
+        const dy = (e.clientY - state.dragStartY) / state.scale;
+        const node = document.querySelector(`.omp-canvas-node[data-id="${state.draggingNode}"]`);
+        if (node) {
+          const newX = state.nodeStartX + dx;
+          const newY = state.nodeStartY + dy;
+          node.style.left = newX + 'px';
+          node.style.top = newY + 'px';
+          window.omp_canvasUpdateLines();
+        }
+      };
+
+      window.omp_canvasNodeDragEnd = function(e) {
+        const state = window.omp_canvasState;
+        if (state.draggingNode) {
+          const node = document.querySelector(`.omp-canvas-node[data-id="${state.draggingNode}"]`);
+          if (node) node.classList.remove('selected');
+          // Save position to localStorage
+          const kpis = omp_load('kpiInstances');
+          const kpi = kpis.find(k => k.id === state.draggingNode);
+          if (kpi && node) {
+            const newX = parseFloat(node.style.left);
+            const newY = parseFloat(node.style.top);
+            if (!isNaN(newX) && !isNaN(newY)) {
+              kpi.x = newX;
+              kpi.y = newY;
+            }
+            kpi.width = parseFloat(node.style.width) || 170;
+            kpi.height = parseFloat(node.style.height) || 100;
+            omp_save('kpiInstances', kpis);
+          }
+        }
+        state.draggingNode = null;
+        document.removeEventListener('mousemove', window.omp_canvasNodeDragMove);
+        document.removeEventListener('mouseup', window.omp_canvasNodeDragEnd);
+      };
+
+      window.omp_canvasPanStart = function(e) {
+        // Only pan if clicking on canvas background (not a node)
+        if (e.target.closest('.omp-canvas-node') || e.target.closest('.omp-canvas-toolbar')) return;
+        if (e.button !== 0) return;
+        const state = window.omp_canvasState;
+        state.isPanning = true;
+        state.panStartX = e.clientX;
+        state.panStartY = e.clientY;
+        e.preventDefault();
+        document.addEventListener('mousemove', window.omp_canvasPanMove);
+        document.addEventListener('mouseup', window.omp_canvasPanEnd);
+      };
+
+      window.omp_canvasPanMove = function(e) {
+        const state = window.omp_canvasState;
+        if (!state.isPanning) return;
+        const dx = e.clientX - state.panStartX;
+        const dy = e.clientY - state.panStartY;
+        state.offsetX += dx;
+        state.offsetY += dy;
+        state.panStartX = e.clientX;
+        state.panStartY = e.clientY;
+        window.omp_canvasApplyTransform();
+      };
+
+      window.omp_canvasPanEnd = function(e) {
+        window.omp_canvasState.isPanning = false;
+        document.removeEventListener('mousemove', window.omp_canvasPanMove);
+        document.removeEventListener('mouseup', window.omp_canvasPanEnd);
+      };
+
+      window.omp_canvasZoom = function(e) {
+        e.preventDefault();
+        const state = window.omp_canvasState;
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        state.scale = Math.max(0.3, Math.min(3, state.scale + delta));
+        window.omp_canvasApplyTransform();
+      };
+
+      window.omp_canvasZoomIn = function() {
+        window.omp_canvasState.scale = Math.min(3, window.omp_canvasState.scale + 0.2);
+        window.omp_canvasApplyTransform();
+      };
+
+      window.omp_canvasZoomOut = function() {
+        window.omp_canvasState.scale = Math.max(0.3, window.omp_canvasState.scale - 0.2);
+        window.omp_canvasApplyTransform();
+      };
+
+      window.omp_canvasReset = function() {
+        window.omp_canvasState.scale = 1;
+        window.omp_canvasState.offsetX = 0;
+        window.omp_canvasState.offsetY = 0;
+        window.omp_canvasApplyTransform();
+      };
+
+      window.omp_canvasApplyTransform = function() {
+        const state = window.omp_canvasState;
+        const inner = document.getElementById('omp-kpi-canvas-inner');
+        const zoomLabel = document.getElementById('omp-canvas-zoom');
+        if (inner) {
+          inner.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.scale})`;
+        }
+        if (zoomLabel) {
+          zoomLabel.textContent = Math.round(state.scale * 100) + '%';
+        }
+      };
+
+      window.omp_canvasUpdateLines = function() {
+        const svg = document.querySelector('.omp-canvas-svg');
+        if (!svg) return;
+        const edges = [];
+        const kpis = omp_load('kpiInstances');
+        const childrenMap = {};
+        kpis.forEach(k => { childrenMap[k.id] = []; });
+        kpis.forEach(k => {
+          if (k.parentId && childrenMap[k.parentId] !== undefined) {
+            childrenMap[k.parentId].push(k);
+          }
+        });
+        const expandedIds = window._ompState.kpiExpandedIds;
+        kpis.forEach(k => {
+          if (childrenMap[k.id] && expandedIds.has(k.id)) {
+            childrenMap[k.id].forEach(child => {
+              edges.push({ from: k.id, to: child.id });
+            });
+          }
+        });
+        const paths = edges.map(edge => {
+          const fromNode = document.querySelector(`.omp-canvas-node[data-id="${edge.from}"]`);
+          const toNode = document.querySelector(`.omp-canvas-node[data-id="${edge.to}"]`);
+          if (!fromNode || !toNode) return '';
+          const fromLeft = parseFloat(fromNode.style.left) || 0;
+          const fromTop = parseFloat(fromNode.style.top) || 0;
+          const toLeft = parseFloat(toNode.style.left) || 0;
+          const toTop = parseFloat(toNode.style.top) || 0;
+          const x1 = fromLeft + (fromNode.offsetWidth || 170);
+          const y1 = fromTop + (fromNode.offsetHeight || 100) / 2;
+          const x2 = toLeft;
+          const y2 = toTop + (toNode.offsetHeight || 100) / 2;
+          const midX = (x1 + x2) / 2;
+          return `<path d="M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}" />`;
+        }).join('');
+        svg.innerHTML = paths;
+      };
+
+      window.omp_canvasSaveLayout = function() {
+        const kpis = omp_load('kpiInstances');
+        document.querySelectorAll('.omp-canvas-node').forEach(node => {
+          const id = node.getAttribute('data-id');
+          const kpi = kpis.find(k => k.id === id);
+          if (kpi) {
+            const newX = parseFloat(node.style.left);
+            const newY = parseFloat(node.style.top);
+            if (!isNaN(newX) && !isNaN(newY)) {
+              kpi.x = newX;
+              kpi.y = newY;
+            }
+            kpi.width = parseFloat(node.style.width) || 170;
+            kpi.height = parseFloat(node.style.height) || 100;
+          }
+        });
+        omp_save('kpiInstances', kpis);
+        alert('布局已保存');
+      };
+
       window.omp_newTask = function() {
         const kpis = omp_load('kpiInstances');
         const kpiOptions = kpis.map(k => { const name = omp_getIndicatorName(k.indicatorId); return `<option value="${k.id}">${name} (${k.dept})</option>`; }).join('');
@@ -2934,6 +4060,288 @@
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `omp-export-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url);
+      };
+
+      window.omp_openDecomposeModal = function(id) { omp_openDecomposeModal(id); };
+
+      window.omp_addDecomposeRow = function() {
+        const container = document.getElementById('omp-decompose-rows');
+        if (!container) return;
+        const row = document.createElement('div');
+        row.className = 'omp-decompose-row';
+        row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+        row.innerHTML = `<input type="text" class="omp-d-name" placeholder="如: 销售部合同额" style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><input type="text" class="omp-d-dept" placeholder="部门" style="width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><input type="number" class="omp-d-target" placeholder="目标" style="width:70px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;"><input type="number" class="omp-d-weight" placeholder="权重" style="width:50px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;"><button onclick="this.parentElement.remove(); window.omp_updateDecomposeValidation();" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:16px;width:30px;">✕</button>`;
+        container.appendChild(row);
+        window.omp_updateDecomposeValidation();
+      };
+
+      window.omp_updateDecomposeValidation = function() {
+        const rows = document.querySelectorAll('.omp-decompose-row');
+        let totalWeight = 0;
+        let totalTarget = 0;
+        let hasEmpty = false;
+        rows.forEach(r => {
+          const w = parseFloat(r.querySelector('.omp-d-weight')?.value) || 0;
+          const t = parseFloat(r.querySelector('.omp-d-target')?.value) || 0;
+          const n = r.querySelector('.omp-d-name')?.value?.trim();
+          totalWeight += w;
+          totalTarget += t;
+          if (!n) hasEmpty = true;
+        });
+        const parentKpiId = window._ompState.decomposingKpiId;
+        const kpis = omp_load('kpiInstances');
+        const parentKpi = kpis.find(k => k.id === parentKpiId);
+        const parentTarget = parentKpi ? parentKpi.targetValue : 0;
+        const weightOk = Math.abs(totalWeight - 100) < 0.01;
+        const targetOk = totalTarget <= parentTarget;
+        const el = document.getElementById('omp-decompose-validation');
+        if (!el) return;
+        el.innerHTML = `
+          <div style="color:${weightOk ? 'var(--success)' : 'var(--danger)'}">${weightOk ? '✅' : '❌'} 权重之和: ${totalWeight}% ${weightOk ? '(= 100%)' : '(必须 = 100%)'}</div>
+          <div style="color:${targetOk ? 'var(--success)' : 'var(--warning)'}">${targetOk ? '✅' : '⚠️'} 目标值之和: ${totalTarget} ${targetOk ? '(≤ 父级 ' + parentTarget + ')' : '(超过父级 ' + parentTarget + ')'}</div>
+          ${hasEmpty ? '<div style="color:var(--danger)">❌ 存在未填写名称的子级</div>' : ''}
+        `;
+      };
+
+      window.omp_saveDecomposition = function() {
+        const rows = document.querySelectorAll('.omp-decompose-row');
+        if (rows.length === 0) { alert('请至少添加一个子级'); return; }
+        let totalWeight = 0;
+        let totalTarget = 0;
+        const children = [];
+        for (const r of rows) {
+          const name = r.querySelector('.omp-d-name')?.value?.trim();
+          const dept = r.querySelector('.omp-d-dept')?.value?.trim();
+          const target = parseFloat(r.querySelector('.omp-d-target')?.value);
+          const weight = parseFloat(r.querySelector('.omp-d-weight')?.value);
+          if (!name || !dept || isNaN(target) || isNaN(weight)) { alert('请填写完整的子级信息'); return; }
+          totalWeight += weight;
+          totalTarget += target;
+          children.push({ name, dept, target, weight });
+        }
+        if (Math.abs(totalWeight - 100) > 0.01) { alert('子级权重之和必须等于 100%，当前为 ' + totalWeight + '%'); return; }
+        const parentId = window._ompState.decomposingKpiId;
+        const kpis = omp_load('kpiInstances');
+        const parentKpi = kpis.find(k => k.id === parentId);
+        if (!parentKpi) { alert('父级 KPI 不存在'); return; }
+        if (totalTarget > parentKpi.targetValue) {
+          if (!confirm('子级目标值之和 (' + totalTarget + ') 超过父级目标 (' + parentKpi.targetValue + ')，是否继续？')) return;
+        }
+        const indicatorId = parentKpi.indicatorId;
+        const period = parentKpi.period;
+        const parentLevel = parentKpi.level;
+        const childLevel = parentLevel + 1;
+        children.forEach(c => {
+          const achievementRate = c.target > 0 ? Math.round((0 / c.target) * 100 * 10) / 10 : 0;
+          kpis.push({
+            id: 'kpi_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            indicatorId, period,
+            targetValue: c.target, challengeValue: c.target, actualValue: 0,
+            achievementRate, weight: c.weight, owner: parentKpi.owner, dept: c.dept,
+            status: 'lagging', parentId, level: childLevel
+          });
+        });
+        omp_save('kpiInstances', kpis);
+        window._ompState.decomposingKpiId = null;
+        document.getElementById('omp-active-modal')?.remove();
+        navigate('exe/tasks');
+      };
+
+      window.omp_deleteKpi = function(id) {
+        const kpis = omp_load('kpiInstances');
+        const hasChildren = kpis.some(k => k.parentId === id);
+        if (hasChildren) { alert('该 KPI 下有子级分解，请先删除所有子级。'); return; }
+        if (!confirm('确定要删除这个 KPI 吗？此操作不可恢复。')) return;
+        const filtered = kpis.filter(k => k.id !== id);
+        omp_save('kpiInstances', filtered);
+        navigate('exe/tasks');
+      };
+
+      window.omp_deleteTask = function(id) {
+        if (!confirm('确定要删除这个重点工作吗？关联的里程碑和进度记录也将被删除。此操作不可恢复。')) return;
+        const tasks = omp_load('tasks');
+        const filteredTasks = tasks.filter(t => t.id !== id);
+        omp_save('tasks', filteredTasks);
+        const milestones = omp_load('milestones');
+        const filteredMs = milestones.filter(m => m.taskId !== id);
+        omp_save('milestones', filteredMs);
+        const records = omp_load('progressRecords');
+        const filteredRecs = records.filter(r => r.taskId !== id);
+        omp_save('progressRecords', filteredRecs);
+        navigate('exe/tasks');
+      };
+
+      // ===== 指标体系全局函数 =====
+      window.ind_delete = function(id) {
+        const indicators = omp_load('indicators');
+        const ind = indicators.find(i => i.id === id);
+        if (!ind) return;
+        // 检查是否被 KPI 使用
+        const kpis = omp_load('kpiInstances');
+        const usedBy = kpis.filter(k => k.indicatorId === id);
+        if (usedBy.length > 0) {
+          alert(`该指标已被 ${usedBy.length} 个 KPI 实例使用，无法删除。请先将关联的 KPI 改为其他指标。`);
+          return;
+        }
+        if (!confirm(`确定要删除指标「${ind.name}」吗？此操作不可恢复。`)) return;
+        const filtered = indicators.filter(i => i.id !== id);
+        omp_save('indicators', filtered);
+        window._indicatorState.selectedIndicatorId = null;
+        navigate('bp/kpi');
+      };
+
+      window.ind_export = function() {
+        const indicators = omp_load('indicators');
+        const headers = ['编码', '名称', '定义', '计算公式', '单位', '频次', '分类', '子分类', '数据来源', '责任部门', '状态'];
+        const rows = indicators.map(i => [
+          i.code, i.name, i.description, i.formula, i.unit,
+          i.frequency, i.category, i.subCategory, i.dataSource, i.responsibleDept, i.status
+        ]);
+        const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `KPI指标体系_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+      };
+
+      window.ind_openModal = function(mode, id) {
+        const indicators = omp_load('indicators');
+        const isEdit = mode === 'edit';
+        const ind = isEdit ? indicators.find(i => i.id === id) : null;
+        const categories = ['财务', '客户', '流程', '学习成长'];
+        const subCats = {
+          '财务': ['收入类', '利润类', '成本类', '投资回报类'],
+          '客户': ['客户满意度', '客户增长', '客户价值', '市场份额'],
+          '流程': ['运营效率', '质量指标', '创新指标', '合规指标'],
+          '学习成长': ['人才发展', '组织活力', '数字化能力', '知识管理']
+        };
+        const freqs = [
+          { value: 'monthly', label: '月度' },
+          { value: 'quarterly', label: '季度' },
+          { value: 'yearly', label: '年度' }
+        ];
+        const depts = ['销售部', '市场部', '财务部', '客户成功部', '项目管理部', '质量部', '产品部', 'HR部', 'IT部', '法务部'];
+
+        omp_openModal(isEdit ? '编辑指标' : '新建指标', `
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标编码 *</label>
+              <input type="text" id="ind-code" value="${isEdit ? ind.code : ''}" placeholder="如: REVENUE" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;" ${isEdit ? 'disabled' : ''}>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标名称 *</label>
+              <input type="text" id="ind-name" value="${isEdit ? ind.name : ''}" placeholder="如: 合同额" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标定义 *</label>
+              <textarea id="ind-desc" rows="2" placeholder="描述该指标的业务含义和统计口径" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${isEdit ? ind.description : ''}</textarea>
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">计算公式</label>
+              <input type="text" id="ind-formula" value="${isEdit ? ind.formula : ''}" placeholder="如: SUM(合同金额)" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">单位</label>
+              <input type="text" id="ind-unit" value="${isEdit ? ind.unit : ''}" placeholder="如: 万元" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">统计频次</label>
+              <select id="ind-freq" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                ${freqs.map(f => `<option value="${f.value}" ${isEdit && ind.frequency === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">BSC分类 *</label>
+              <select id="ind-category" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;" onchange="window.ind_updateSubCats()">
+                <option value="">请选择</option>
+                ${categories.map(c => `<option value="${c}" ${isEdit && ind.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">子分类</label>
+              <select id="ind-subcategory" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                ${isEdit ? subCats[ind.category]?.map(s => `<option value="${s}" ${ind.subCategory === s ? 'selected' : ''}>${s}</option>`).join('') : '<option value="">请先选择分类</option>'}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">数据来源</label>
+              <input type="text" id="ind-source" value="${isEdit ? ind.dataSource : ''}" placeholder="如: CRM系统" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任部门</label>
+              <select id="ind-dept" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                ${depts.map(d => `<option value="${d}" ${isEdit && ind.responsibleDept === d ? 'selected' : ''}>${d}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">趋势方向</label>
+              <select id="ind-positive" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                <option value="true" ${isEdit && ind.isPositive ? 'selected' : ''}>越高越好</option>
+                <option value="false" ${isEdit && !ind.isPositive ? 'selected' : ''}>越低越好</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">状态</label>
+              <select id="ind-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                <option value="active" ${isEdit && ind.status === 'active' ? 'selected' : ''}>启用</option>
+                <option value="disabled" ${isEdit && ind.status === 'disabled' ? 'selected' : ''}>禁用</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal')?.remove()">取消</button>
+            <button class="btn btn-primary" onclick="window.ind_save('${isEdit ? id : 'new'}')">保存</button>
+          </div>
+        `, true);
+
+        window.ind_updateSubCats = function() {
+          const cat = document.getElementById('ind-category').value;
+          const subSelect = document.getElementById('ind-subcategory');
+          const subs = subCats[cat] || [];
+          subSelect.innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('') || '<option value="">请选择分类</option>';
+        };
+      };
+
+      window.ind_save = function(id) {
+        const code = document.getElementById('ind-code')?.value?.trim();
+        const name = document.getElementById('ind-name')?.value?.trim();
+        const description = document.getElementById('ind-desc')?.value?.trim();
+        const formula = document.getElementById('ind-formula')?.value?.trim();
+        const unit = document.getElementById('ind-unit')?.value?.trim();
+        const frequency = document.getElementById('ind-freq')?.value;
+        const category = document.getElementById('ind-category')?.value;
+        const subCategory = document.getElementById('ind-subcategory')?.value;
+        const dataSource = document.getElementById('ind-source')?.value?.trim();
+        const responsibleDept = document.getElementById('ind-dept')?.value;
+        const isPositive = document.getElementById('ind-positive')?.value === 'true';
+        const status = document.getElementById('ind-status')?.value || 'active';
+
+        if (!code || !name || !description || !category) {
+          alert('请填写必填项（编码、名称、定义、分类）');
+          return;
+        }
+
+        const indicators = omp_load('indicators');
+        if (id === 'new') {
+          if (indicators.some(i => i.code === code)) {
+            alert(`指标编码「${code}」已存在，请使用其他编码。`);
+            return;
+          }
+          indicators.push({
+            id: 'ind_' + Date.now(),
+            code, name, description, formula, unit, frequency, category, subCategory, dataSource, responsibleDept, isPositive, status,
+            createdAt: new Date().toISOString().slice(0, 10)
+          });
+        } else {
+          const idx = indicators.findIndex(i => i.id === id);
+          if (idx > -1) {
+            indicators[idx] = { ...indicators[idx], name, description, formula, unit, frequency, category, subCategory, dataSource, responsibleDept, isPositive, status };
+          }
+        }
+        omp_save('indicators', indicators);
+        document.getElementById('omp-active-modal')?.remove();
+        navigate('bp/kpi');
       };
 
       // 暴露全局 navigate

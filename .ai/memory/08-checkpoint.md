@@ -2,29 +2,16 @@
 
 > 记录复杂任务的中间状态，方便中断后恢复。
 
-## T010 需求管理中心 — 需求池列表页
+## 组织绩效管理模块 (OMP) — 开发中
 
-- **当前步骤**：未开始（Step 1: 页面骨架与路由注册）
-- **任务文件**：`.ai/tasks/active/T010-requirement-pool.md`
-- **前置条件**：无强依赖，可独立开发
-- **注意**： cockpit.html 的 JS 在 IIFE 中，但独立页面不受此限制
-
-## 经营分析会独立页面提取 + v0.4.4 功能增强
-
-- **当前状态**：已完成提取到 `src/meetings.html`，新增决策编辑 + 待闭环行动抽屉
-- **构建验证**：通过，meetings.html 产物 164KB（gzip 31KB）
-- **测试验证**：91 通过 / 5 失败（reviewer 历史遗留）
-- **浏览器验证**：会议列表、详情、日历视图、新建会议、决策编辑、待办抽屉全部正常
-- **生产部署**：v0.4.4 已上线 https://dste.fineres.com
-- **自动部署**：GitHub Actions Run #23 首次成功
-
-## GitHub Actions 自动部署修复
-
-- **修复内容**：
-  - 服务器 `/root/.ssh/authorized_keys` 添加 RSA 公钥
-  - deploy.yml 改用 `rsync + ssh` 替代 `appleboy/scp-action`
-  - 配置缺失的 `SSH_HOST`（47.101.197.187）和 `SSH_USER`（root）Secrets
-- **验证状态**：Run #23 success，push 到 main 自动触发部署
+- **当前步骤**：Tab 1 总览看板缺失 + 删除功能缺失 + CSS 变量违规待修复
+- **代码位置**：`src/cockpit.html` 内，约 line 389~2937（OMP 数据层 + 渲染 + 弹窗 + 事件）
+- **数据存储**：localStorage 键 `dste_omp_*_v1`
+- **页面路由**：`cockpit.html#exe/tasks`
+- **Mock 数据**：8 指标 + 8 KPI 实例 + 6 重点工作 + 18 里程碑 + 4 进度记录
+- **已完成**：Tab 2(KPI管理) / Tab 3(重点工作) / Tab 4(甘特图) / 弹窗 / 导出
+- **未完成**：Tab 1(总览看板) / 删除功能 / CSS 变量修复
+- **注意**：所有 OMP 函数加 `omp_` 前缀；事件委托在 bindPageEvents 中处理；弹窗内 onclick 使用 window 全局函数
 
 ## T010 需求管理中心 — 需求池列表页
 
@@ -32,3 +19,4 @@
 - **任务文件**：`.ai/tasks/active/T010-requirement-pool.md`
 - **前置条件**：无强依赖，可独立开发
 - **注意**： cockpit.html 的 JS 在 IIFE 中，但独立页面不受此限制
+- **状态**：已暂停，优先完成 OMP

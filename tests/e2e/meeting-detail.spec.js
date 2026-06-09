@@ -26,12 +26,20 @@ test.describe('Meeting Detail View', () => {
     expect(text.length).toBeGreaterThan(0);
   });
 
-  test('detail overlay has tabs', async ({ page }) => {
+  test('detail overlay has sections without tabs', async ({ page }) => {
     const card = page.locator('[onclick^="openMeetingDetail"]').first();
     await card.click();
 
-    const tabs = page.locator('.meeting-tab-btn');
-    await expect(tabs.first()).toBeVisible();
+    // Agenda section should be visible
+    await expect(page.locator('text=会议议程').first()).toBeVisible();
+    // Actions section should be visible
+    await expect(page.locator('text=行动项').first()).toBeVisible();
+    // Decisions section should be visible
+    await expect(page.locator('text=决议').first()).toBeVisible();
+    // Meeting chain section should be visible
+    await expect(page.locator('text=会议链').first()).toBeVisible();
+    // Old tab buttons should NOT exist
+    await expect(page.locator('.meeting-tab-btn').first()).not.toBeVisible();
   });
 
   test('no JavaScript errors when opening detail', async ({ page }) => {

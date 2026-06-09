@@ -286,6 +286,33 @@
           "desc": "**业务专题模块构建修复**：修复 `ISSUE_STORAGE_KEY` 未导出导致 Vite 构建失败的问题"
         }
       ]
+    },
+    {
+      "version": "v0.4.6",
+      "date": "2026-06-05",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**经营分析会模块升级**："
+        },
+        {
+          "type": "Added",
+          "desc": "**业务专题管理升级**："
+        },
+        {
+          "type": "Added",
+          "desc": "**驾驶舱增强**：组织绩效管理模块入口"
+        },
+        {
+          "type": "Changed",
+          "desc": "**议题导入格式升级**：兼容帆软 ST/AT 真实 Excel 导出格式（议题主题/片联议题类型/议题分类/提交人姓名）"
+        },
+        {
+          "type": "Changed",
+          "desc": "议题编号规则放宽，支持自动编号"
+        }
+      ]
     }
   ],
   "modules": [

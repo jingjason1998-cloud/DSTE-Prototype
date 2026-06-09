@@ -1,0 +1,46 @@
+=== BASELINE 2026年 6月 8日 星期一 18时37分02秒 CST ===
+
+--- pytest ---
+........................................................................ [ 69%]
+...............................                                          [100%]
+103 passed in 0.73s
+
+--- check:scope ---
+
+> dste-platform@0.4.6 check:scope
+> node scripts/check-onclick-scope.js src/cockpit.html && node scripts/check-onclick-scope.js src/business-topics.html && node scripts/check-onclick-scope.js src/meetings.html
+
+✅ All 21 onclick functions are globally accessible.
+✅ All 6 onclick functions are globally accessible.
+✅ All 32 onclick functions are globally accessible.
+
+--- build ---
+
+> dste-platform@0.4.6 build
+> node scripts/generate-roadmap.cjs && vite build
+
+Generated /Users/jasonjing/DSTE-Prototype/public/roadmap-data.json with 14 versions
+Generated /Users/jasonjing/DSTE-Prototype/src/data/roadmap-data.json with 14 versions
+vite v5.4.21 building for production...
+<script src="./assets/js/main.js"> in "/index.html" can't be bundled without type="module" attribute
+<script src="./pages/reviewer/main.js"> in "/src/reviewer.html" can't be bundled without type="module" attribute
+<script src="../assets/js/main.js"> in "/src/cockpit.html" can't be bundled without type="module" attribute
+<script src="../assets/js/main.js"> in "/src/meetings.html" can't be bundled without type="module" attribute
+transforming...
+✓ 20 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/src/reviewer.html                           23.93 kB │ gzip:  6.16 kB
+dist/index.html                                  28.57 kB │ gzip:  7.05 kB
+dist/src/business-topics.html                    38.89 kB │ gzip:  9.10 kB
+dist/src/meetings.html                          183.18 kB │ gzip: 33.87 kB
+dist/src/cockpit.html                           254.56 kB │ gzip: 51.30 kB
+dist/assets/shell-B0cKCzvM.css                    6.11 kB │ gzip:  1.60 kB
+dist/assets/main-Dg5l5x-u.css                    11.58 kB │ gzip:  2.77 kB
+dist/assets/reviewer-BcAjusq6.css                26.33 kB │ gzip:  5.13 kB
+dist/assets/business-topics-D6aLMBBI.css         43.45 kB │ gzip:  7.94 kB
+dist/assets/cockpit-BPv1axTv.js                   0.20 kB │ gzip:  0.17 kB
+dist/assets/meetings-BPv1axTv.js                  0.20 kB │ gzip:  0.17 kB
+dist/assets/modulepreload-polyfill-B5Qt9EMX.js    0.71 kB │ gzip:  0.40 kB
+dist/assets/business-topics-CfIG4rq2.js          80.19 kB │ gzip: 26.55 kB
+✓ built in 195ms

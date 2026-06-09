@@ -79,5 +79,5 @@ jobs:
         if: success()
         run: |
           echo "DSTE 生产环境部署成功！"
-          echo "版本: v0.4.6"
+          echo "版本: v0.4.7"
           echo "时间: $(date)"

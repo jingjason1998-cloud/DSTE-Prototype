@@ -1,6 +1,8 @@
 import { loadIssues, loadAllIssues } from './issue-import.js';
 
 let _currentReportType = null;
+let _aiMatchTopicId = null;
+let _aiMatchResults = [];
 
 function simpleHash(str) {
     let hash = 0;
@@ -35,10 +37,106 @@ function closeModal(id) {
 
 export function extractKeywords(text) {
     if (!text) return [];
-    const stopWords = new Set(['的','了','在','是','和','就','不','都','一','上','也','很','到','说','要','去','会','着','看','好','这','那','个','为','与','及','等','对','可','能','由','从','被','将','于','中','而','或','但','如','若','给','以','之','其','有','我','你','他','她','它','们','来','过','下','大','小','多','少','高','低','长','短','新','旧','年','月','日','时','分','秒','第','把','让','向','往','前','后','左','右','内','外','间','里','面','方','头','部','件','项','条','种','类','次','回','期','轮','批','组','套','份','块','片','段','节','章','款','则','条','例','案','题','问','答','话','文','字','词','句','行','页','栏','列','层','级','阶','段','步','环','点','线','面','体','量','度','率','比','值','数','额','量','价','金','钱','元','万','亿']);
-    const cleaned = text.toLowerCase().replace(/[^\u4e00-\u9fff\w]/g, ' ');
-    const words = cleaned.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w));
-    return [...new Set(words)].slice(0, 20);
+    const stopWords = new Set(['的','了','在','是','和','就','不','都','一','上','也','很','到','说','要','去','会','着','看','好','这','那','个','为','与','及','等','对','可','能','由','从','被','将','于','中','而','或','但','如','若','给','以','之','其','有','我','你','他','她','它','们','来','过','下','短','年','月','日','时','分','秒','第','把','让','向','往','前','后','左','右','内','外','间','里','面']);
+    const cleaned = text.toLowerCase();
+    const words = [];
+
+    // 1. 提取英文/数字词（邮箱前缀、英文名等）
+    const englishWords = cleaned.match(/[a-z0-9][a-z0-9._-]*/g) || [];
+    englishWords.forEach(w => {
+        if (w.length >= 2 && !stopWords.has(w)) words.push(w);
+    });
+
+    // 2. 中文按非中文字符分段，每段做 2-4 字 n-gram
+    const segments = cleaned.split(/[^一-鿿]+/).filter(s => s.length >= 2);
+    segments.forEach(seg => {
+        for (let i = 0; i < seg.length - 1; i++) {
+            for (let len = 2; len <= 4 && i + len <= seg.length; len++) {
+                const word = seg.slice(i, i + len);
+                if (![...word].some(c => stopWords.has(c))) {
+                    words.push(word);
+                }
+            }
+        }
+    });
+
+    return [...new Set(words)].slice(0, 30);
+}
+
+// ===== 语义关联词扩展 =====
+const SEMANTIC_MAP = {
+    '人数': ['编制', '人头', '人员', '人力', '名额', '配置'],
+    '编制': ['人数', '人头', '人员', '人力', '名额', '配置'],
+    '组长': ['小组', '团队', '队长', '主管', 'leader'],
+    '小组': ['组长', '团队', '队伍', '班组'],
+    '制度': ['规则', '规范', '政策', '规定', '机制'],
+    '规则': ['制度', '规范', '政策', '规定', '机制'],
+    '优化': ['改进', '提升', '完善', '改良', '调整'],
+    '改进': ['优化', '提升', '完善', '改良'],
+    '战区': ['区域', '地区', '片区', '分战区', '地域'],
+    '区域': ['战区', '地区', '片区', '地域'],
+    '销售': ['售卖', '营销', '营收', '业绩', '收入', '售卖'],
+    '营收': ['销售', '收入', '业绩', '售卖'],
+    '客户': ['用户', '客群', '顾客'],
+    '成本': ['费用', '支出', '开销', '花费'],
+    '费用': ['成本', '支出', '开销'],
+    '绩效': ['业绩', '表现', '考核', '评价'],
+    '考核': ['绩效', '评价', '评估'],
+    '培训': ['培养', '赋能', '学习', '教育'],
+    '招聘': ['招募', '引进', '纳新', '招人'],
+    '流程': ['过程', '工序', '环节', '步骤'],
+    '系统': ['平台', '工具', '软件', '应用'],
+    '数据': ['信息', '指标', '数字', '统计'],
+    '风险': ['隐患', '问题', '危机', '威胁'],
+    '预算': ['计划', '拨款', '资金', '经费'],
+    '战略': ['策略', '规划', '方针', '路线'],
+    '组织': ['机构', '架构', '体系', '结构'],
+    '干部': ['管理层', '领导', '主管', '负责人'],
+    '管理': ['管控', '治理', '监督', '统筹'],
+};
+
+function getSemanticSet(word) {
+    const set = new Set([word]);
+    const related = SEMANTIC_MAP[word];
+    if (related) related.forEach(r => set.add(r));
+    return set;
+}
+
+function computeSemanticJaccard(a, b) {
+    if (!a.length || !b.length) return { exact: 0, semantic: 0 };
+    const setA = new Set(a);
+    const setB = new Set(b);
+    const exactMatch = new Set([...setA].filter(x => setB.has(x)));
+
+    // 语义匹配：A中的词在B的语义扩展中
+    let semanticMatch = 0;
+    setA.forEach(wa => {
+        if (exactMatch.has(wa)) return; // 已精确匹配的不重复计算
+        const semA = getSemanticSet(wa);
+        for (const wb of setB) {
+            const semB = getSemanticSet(wb);
+            // 检查两个词的语义集合是否有交集
+            const hasOverlap = [...semA].some(x => semB.has(x));
+            if (hasOverlap) {
+                semanticMatch++;
+                break;
+            }
+        }
+    });
+
+    const unionSize = new Set([...setA, ...setB]).size;
+    const exactSim = exactMatch.size / Math.max(unionSize, 1);
+    const semanticSim = semanticMatch / Math.max(unionSize, 1);
+    return { exact: exactSim, semantic: semanticSim };
+}
+
+function extractNames(text) {
+    if (!text) return [];
+    // 提取中文姓名（2-4个汉字）
+    const chineseNames = (text.match(/[一-鿿]{2,4}/g) || []);
+    // 提取英文名（字母开头，可含点号、下划线）
+    const englishNames = (text.match(/[a-zA-Z][a-zA-Z0-9._-]*/g) || []);
+    return [...new Set([...chineseNames, ...englishNames])];
 }
 
 export function jaccardSimilarity(a, b) {
@@ -55,20 +153,30 @@ export function computeAiMatchScore(topic, issue) {
     let reasons = [];
     let relationSuggestion = 'support';
 
-    // 1. 部门匹配 (权重 0.25)
-    if (topic.department && issue.department) {
-        const tDept = topic.department.trim();
-        const iDept = issue.department.trim();
+    // 1. 负责人/提交人匹配 (权重 0.18) — 新增维度
+    const topicOwner = extractNames(topic.owner || '');
+    const issueProposer = extractNames(issue.proposer || '');
+    const issueHandler = extractNames(issue.currentOwner || issue.handler || '');
+    const ownerMatch = topicOwner.some(n => issueProposer.includes(n) || issueHandler.includes(n));
+    if (ownerMatch) {
+        score += 0.18;
+        reasons.push('同一负责人');
+    }
+
+    // 2. 部门匹配 (权重 0.15，原0.25)
+    const tDept = (topic.department || '').trim();
+    const iDept = (issue.department || '').trim();
+    if (tDept && iDept && tDept !== '-' && iDept !== '-') {
         if (tDept === iDept) {
-            score += 0.25;
+            score += 0.15;
             reasons.push('责任部门一致');
         } else if (tDept.includes(iDept) || iDept.includes(tDept)) {
-            score += 0.15;
+            score += 0.10;
             reasons.push('责任部门相关');
         }
     }
 
-    // 2. 关键词重叠 (权重 0.30)
+    // 3. 关键词重叠 (权重 0.35，原0.30) — 增加语义扩展
     const topicText = [topic.name, topic.description, topic.target, topic.department, ...(topic.tags || [])].join(' ');
     const issueText = [
         issue.issueSubject || issue.issueTitle,
@@ -79,15 +187,29 @@ export function computeAiMatchScore(topic, issue) {
     ].join(' ');
     const topicKeywords = extractKeywords(topicText);
     const issueKeywords = extractKeywords(issueText);
-    const keywordSim = jaccardSimilarity(topicKeywords, issueKeywords);
-    score += keywordSim * 0.30;
-    if (keywordSim > 0.3) {
-        reasons.push(`关键词高度相关(${Math.round(keywordSim * 100)}%)`);
-    } else if (keywordSim > 0.1) {
-        reasons.push(`关键词部分相关(${Math.round(keywordSim * 100)}%)`);
+    const { exact: exactSim, semantic: semanticSim } = computeSemanticJaccard(topicKeywords, issueKeywords);
+    const combinedSim = exactSim + semanticSim * 0.5; // 语义匹配按50%权重
+    score += combinedSim * 0.35;
+    if (exactSim > 0.2) {
+        reasons.push(`关键词高度相关(${Math.round(exactSim * 100)}%)`);
+    } else if (exactSim > 0.05 || semanticSim > 0.1) {
+        reasons.push(`关键词部分相关(精确${Math.round(exactSim * 100)}%+语义${Math.round(semanticSim * 100)}%)`);
     }
 
-    // 3. KPI/标签关联 (权重 0.25)
+    // 4. 描述-标题交叉匹配 (权重 0.12) — 新增维度
+    const tDesc = extractKeywords([topic.description, topic.target].join(' '));
+    const iTitleKw = extractKeywords(issue.issueSubject || issue.issueTitle || '');
+    const tNameKw = extractKeywords(topic.name || '');
+    const iDescKw = extractKeywords(issue.issueDescription || issue.content || '');
+    const crossSim1 = jaccardSimilarity(tDesc, iTitleKw);
+    const crossSim2 = jaccardSimilarity(tNameKw, iDescKw);
+    const crossSim = Math.max(crossSim1, crossSim2);
+    if (crossSim > 0.1) {
+        score += crossSim * 0.12;
+        reasons.push(`描述与标题交叉匹配(${Math.round(crossSim * 100)}%)`);
+    }
+
+    // 5. KPI/标签关联 (权重 0.15，原0.25)
     const topicTags = (topic.tags || []).map(t => t.toLowerCase());
     const issueKpis = (issue.relatedKpis || []).map(k => k.toLowerCase());
     let kpiOverlap = 0;
@@ -97,42 +219,42 @@ export function computeAiMatchScore(topic, issue) {
         });
     });
     if (kpiOverlap > 0) {
-        score += Math.min(0.25, kpiOverlap * 0.08);
+        score += Math.min(0.15, kpiOverlap * 0.06);
         reasons.push(`KPI关联(${kpiOverlap}个)`);
     }
 
-    // 4. 时间窗口 (权重 0.10)
+    // 6. 时间窗口 (权重 0.08，原0.10)
     const issueDate = issue.submitTime || issue.meetingDate;
     if (topic.startDate && topic.endDate && issueDate) {
         const s = new Date(topic.startDate);
         const e = new Date(topic.endDate);
         const m = new Date(issueDate);
         if (m >= s && m <= e) {
-            score += 0.10;
+            score += 0.08;
             reasons.push('议题日期在专题周期内');
         } else {
             const daysDiff = Math.abs(m - Math.max(s, Math.min(m, e))) / (1000 * 60 * 60 * 24);
             if (daysDiff < 90) {
-                score += 0.05;
+                score += 0.04;
                 reasons.push('议题日期临近专题周期');
             }
         }
     }
 
-    // 5. 优先级加权
-    if (issue.priority === 'P0') score += 0.05;
-    else if (issue.priority === 'P1') score += 0.02;
+    // 7. 优先级加权
+    if (issue.priority === 'P0') score += 0.03;
+    else if (issue.priority === 'P1') score += 0.01;
 
-    // 6. 议题标题与专题名称直接包含关系
+    // 8. 议题标题与专题名称直接包含关系 (权重 0.12，原0.15)
     const tName = (topic.name || '').toLowerCase();
     const iTitle = (issue.issueSubject || issue.issueTitle || '').toLowerCase();
     if (tName && iTitle && (tName.includes(iTitle) || iTitle.includes(tName))) {
-        score += 0.15;
+        score += 0.12;
         reasons.push('名称高度相似');
     }
 
     // 关系类型建议
-    if (score >= 0.6) relationSuggestion = 'direct';
+    if (score >= 0.60) relationSuggestion = 'direct';
     else if (score >= 0.35) relationSuggestion = 'support';
     else relationSuggestion = 'reference';
 
@@ -141,7 +263,7 @@ export function computeAiMatchScore(topic, issue) {
 }
 
 export function openAiMatchModal() {
-    _aiMatchTopicId = _currentLinkTopicId;
+    _aiMatchTopicId = typeof window !== 'undefined' ? window._currentLinkTopicId : null;
     const topic = window.loadTopics().find(t => t.id === _aiMatchTopicId);
     if (!topic) return;
 
@@ -168,9 +290,9 @@ export function runAiMatch(topic) {
     }
 
     const results = candidates.map(issue => computeAiMatchScore(topic, issue))
-        .filter(r => r.score >= 0.15)
+        .filter(r => r.score >= 0.20)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 10);
+        .slice(0, 6);
 
     _aiMatchResults = results;
     document.getElementById('aiMatchLoading').style.display = 'none';
@@ -232,7 +354,9 @@ export function applyAiMatches() {
         if (cb && cb.checked) {
             const relSelect = document.getElementById('aimatch_rel_' + idx);
             const relationType = relSelect ? relSelect.value : r.relationSuggestion;
-            linkIssueToTopic(_aiMatchTopicId, r.issue.issueId, relationType);
+            if (typeof window !== 'undefined' && window.linkIssueToTopic) {
+                window.linkIssueToTopic(_aiMatchTopicId, r.issue.issueId, relationType);
+            }
             linkedCount++;
         }
     });
@@ -241,7 +365,9 @@ export function applyAiMatches() {
         alert(`AI 智能关联完成！已关联 ${linkedCount} 条议题`);
         const linkModal = document.getElementById('linkIssuesModal');
         if (linkModal && linkModal.classList.contains('active')) {
-            renderLinkIssuesList();
+            if (typeof window !== 'undefined' && window.renderLinkIssuesList) {
+                window.renderLinkIssuesList();
+            }
         }
     }
 }
