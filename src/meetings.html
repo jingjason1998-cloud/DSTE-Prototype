@@ -509,6 +509,13 @@
             }
             return;
           }
+          // data-open-meeting-detail: 打开会议详情
+          const detailCard = e.target.closest('[data-open-meeting-detail]');
+          if (detailCard) {
+            e.preventDefault();
+            openMeetingDetail(detailCard.dataset.meetingId);
+            return;
+          }
         });
       }
 
@@ -594,7 +601,7 @@
             { id: 'A002', content: '海外渠道新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
           ],
           decisions: [
-            { id: 'D001', content: 'Q2 营收目标 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'approved' },
+            { id: 'D001', content: 'Q2 营收目标 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'approved', kmsUrl: 'https://kms.fineres.com/doc/d001' },
             { id: 'D002', content: '海外渠道扩张计划', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
           ],
           hasMinutes: true, minutesStatus: 'final',
@@ -618,7 +625,7 @@
             { id: 'A003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'in_progress' }
           ],
           decisions: [
-            { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'approved' }
+            { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'approved', kmsUrl: 'https://kms.fineres.com/doc/d003' }
           ],
           hasMinutes: true, minutesStatus: 'final',
           minutes_content: '1. 3月营收 1.2 亿，环比提升 8%。\\n2. 产品 V3.0 开发进度 80%，预计 5 月底上线。\\n3. 华东区签约目标上调至 8000 万。\\n4. 客户满意度调研结果：4.2 分，需重点关注售后响应速度。',
@@ -641,7 +648,7 @@
             { id: 'A004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'in_progress' }
           ],
           decisions: [
-            { id: 'D004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'approved' }
+            { id: 'D004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'approved', kmsUrl: 'https://kms.fineres.com/doc/d004' }
           ],
           hasMinutes: false, minutesStatus: null,
           metrics: { materialTimeliness: 90, resolutionTimeliness: 0, actionClosure: 60, satisfaction: 0 },
@@ -956,7 +963,7 @@
           return `
             <div class="meeting-card" data-month="${m.month}" data-status="${m.status}" data-scenario="${m.scenario}" data-pipeline-step="${pipelineStep}"
               style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${sc.color}; transition: all 0.2s; cursor: pointer;"
-              onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'" onclick="openMeetingDetail('${m.id}')">
+              onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'" data-open-meeting-detail data-meeting-id="${m.id}">
               <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <div style="font-size: 15px; font-weight: 600;">${m.title}</div>
@@ -1593,6 +1600,7 @@
                       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
                         <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
                         <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.content}</span>
+                        ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" onclick="event.stopPropagation()" title="打开 KMS 文档" style="font-size: 12px; color: var(--primary); text-decoration: none; flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--primary-light); border-radius: 4px; background: var(--primary-light);">🔗 KMS</a>` : ''}
                         <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${d.owner || d.decider || '待定'} · ${d.deadline || d.decision_date || '未定'}</span>
                         <button type="button" onclick="event.stopPropagation(); pushResolution('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; flex-shrink: 0;">📢 推送</button>
                       </div>
@@ -1715,14 +1723,20 @@
         };
         window.renderNotificationMessage = function(type, data) {
           switch (type) {
-            case 'resolution':
-              return `📋 【决议推送】${data.meetingTitle}\n━━━━━━━━━━━━━━\n${data.content}\n负责人：${data.owner || '待定'}\n截止日期：${data.deadline || '未定'}\n状态：${data.status === 'approved' ? '已批准' : data.status === 'implemented' ? '已执行' : '待审批'}\n━━━━━━━━━━━━━━`;
-            case 'todo':
-              return `⏰ 【待办提醒】${data.meetingTitle}\n━━━━━━━━━━━━━━\n${data.content}\n负责人：${data.owner || '待定'}\n截止日期：${data.deadline || '未定'}\n━━━━━━━━━━━━━━\n距截止还有 ${data.daysLeft !== undefined ? data.daysLeft + ' 天' : '若干天'}`;
+            case 'resolution': {
+              const statusColor = data.status === 'approved' ? 'info' : data.status === 'implemented' ? 'info' : 'warning';
+              const statusText = data.status === 'approved' ? '已批准' : data.status === 'implemented' ? '已执行' : '待审批';
+              return `## 📋 决议推送\n**会议：**${data.meetingTitle}\n**内容：**${data.content}\n**负责人：**${data.owner || '待定'}\n**截止日期：**${data.deadline || '未定'}\n**状态：**<font color="${statusColor}">${statusText}</font>${data.kmsUrl ? '\n**KMS：**[查看文档](' + data.kmsUrl + ')' : ''}`;
+            }
+            case 'todo': {
+              const daysColor = data.daysLeft === undefined ? 'comment' : data.daysLeft < 0 ? 'warning' : data.daysLeft <= 3 ? 'warning' : 'info';
+              const daysText = data.daysLeft !== undefined ? (data.daysLeft < 0 ? `已逾期 ${Math.abs(data.daysLeft)} 天` : `距截止还有 ${data.daysLeft} 天`) : '若干天';
+              return `## ⏰ 待办提醒\n**会议：**${data.meetingTitle}\n**内容：**${data.content}\n**负责人：**${data.owner || '待定'}\n**截止日期：**${data.deadline || '未定'}\n<font color="${daysColor}">⏳ ${daysText}</font>`;
+            }
             case 'alert-meeting':
-              return `⚠️ 【预警】${data.meetingTitle}\n━━━━━━━━━━━━━━\n${data.stepLabel} 尚未完成，已逾期 ${data.daysOverdue} 天\n会议日期：${data.meetingDate}\n━━━━━━━━━━━━━━\n请尽快推进！`;
+              return `## ⚠️ 会议预警\n**会议：**${data.meetingTitle}\n**问题：**${data.stepLabel} 尚未完成\n**逾期：**<font color="warning">${data.daysOverdue} 天</font>\n**会议日期：**${data.meetingDate}\n> 💡 请尽快推进！`;
             case 'alert-action':
-              return `⚠️ 【预警】${data.meetingTitle}\n━━━━━━━━━━━━━━\n行动项：${data.content}\n负责人：${data.owner || '待定'}\n截止日期：${data.deadline}\n━━━━━━━━━━━━━━\n距截止仅剩 ${data.daysLeft} 天，请尽快闭环！`;
+              return `## ⚠️ 行动项预警\n**会议：**${data.meetingTitle}\n**行动项：**${data.content}\n**负责人：**${data.owner || '待定'}\n**截止日期：**${data.deadline}\n<font color="warning">距截止仅剩 ${data.daysLeft} 天，请尽快闭环！</font>`;
             default:
               return '';
           }
@@ -1734,12 +1748,12 @@
           if (!cfg.enabledTypes[enabledKey]) return { success: false, msg: '该类型推送已禁用' };
           const msg = renderNotificationMessage(type, payload);
           if (!msg) return { success: false, msg: '消息内容为空' };
-          const message = msg + (cfg.mentionAll ? '\n@所有人' : '');
+          const content = msg + (cfg.mentionAll ? '\n\n<font color="comment">@所有人</font>' : '');
           try {
             const res = await fetch(API_BASE + '/api/notify/proxy', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ webhookUrl, message }),
+              body: JSON.stringify({ webhookUrl, payload: { msgtype: 'markdown', markdown: { content } } }),
             });
             const result = await res.json();
             const entry = { type, content: msg.slice(0, 100), sentAt: new Date().toISOString(), status: result.success ? 'success' : 'failed', error: result.errmsg || '' };
@@ -1794,7 +1808,7 @@
           const m = meetings.find(x => x.id === meetingId);
           if (!m || !m.decisions || !m.decisions[idx]) return;
           const d = m.decisions[idx];
-          openWebhookSelector('resolution', { meetingTitle: m.title, content: d.content, owner: d.owner, deadline: d.deadline, status: d.status });
+          openWebhookSelector('resolution', { meetingTitle: m.title, content: d.content, owner: d.owner, deadline: d.deadline, status: d.status, kmsUrl: d.kmsUrl });
         };
         window.pushTodoReminder = function(meetingId, idx) {
           const m = meetings.find(x => x.id === meetingId);
@@ -2228,17 +2242,23 @@
             return;
           }
           container.innerHTML = list.map((item, idx) => `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <input type="text" value="${item.content}" onchange="updateDecisionContent(${idx}, this.value)" placeholder="决议内容" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-              <input type="text" value="${item.owner}" onchange="updateDecisionOwner(${idx}, this.value)" placeholder="决策人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-              <input type="date" value="${item.deadline}" onchange="updateDecisionDeadline(${idx}, this.value)" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-              <select onchange="updateDecisionStatus(${idx}, this.value)" style="width: 100px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
-                <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>待审批</option>
-                <option value="approved" ${item.status === 'approved' ? 'selected' : ''}>已批准</option>
-                <option value="implemented" ${item.status === 'implemented' ? 'selected' : ''}>已执行</option>
-                <option value="rejected" ${item.status === 'rejected' ? 'selected' : ''}>已驳回</option>
-              </select>
-              <button type="button" onclick="removeDecisionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 10px; border: 1px solid var(--border-light); border-radius: 6px; background: var(--bg-page);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="text" value="${item.content}" onchange="updateDecisionContent(${idx}, this.value)" placeholder="决议内容" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <input type="text" value="${item.owner}" onchange="updateDecisionOwner(${idx}, this.value)" placeholder="决策人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <input type="date" value="${item.deadline}" onchange="updateDecisionDeadline(${idx}, this.value)" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <select onchange="updateDecisionStatus(${idx}, this.value)" style="width: 100px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
+                  <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>待审批</option>
+                  <option value="approved" ${item.status === 'approved' ? 'selected' : ''}>已批准</option>
+                  <option value="implemented" ${item.status === 'implemented' ? 'selected' : ''}>已执行</option>
+                  <option value="rejected" ${item.status === 'rejected' ? 'selected' : ''}>已驳回</option>
+                </select>
+                <button type="button" onclick="removeDecisionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap;">🔗 KMS</span>
+                <input type="url" value="${item.kmsUrl || ''}" onchange="updateDecisionKmsUrl(${idx}, this.value)" placeholder="https://kms.fineres.com/doc/..." style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+              </div>
             </div>
           `).join('');
         }
@@ -2246,11 +2266,12 @@
         window.updateDecisionOwner = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].owner = val; };
         window.updateDecisionDeadline = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].deadline = val; };
         window.updateDecisionStatus = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].status = val; };
+        window.updateDecisionKmsUrl = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].kmsUrl = val; };
         window.addDecisionItem = function() {
           if (!window._meetingEditData) return;
           if (!window._meetingEditData.decisions) window._meetingEditData.decisions = [];
           const today = new Date().toISOString().split('T')[0];
-          window._meetingEditData.decisions.push({ id: 'D' + Date.now() + '_' + Math.floor(Math.random() * 1000), content: '', owner: '', deadline: today, status: 'pending' });
+          window._meetingEditData.decisions.push({ id: 'D' + Date.now() + '_' + Math.floor(Math.random() * 1000), content: '', owner: '', deadline: today, status: 'pending', kmsUrl: '' });
           renderDecisionList();
         };
         window.removeDecisionItem = function(idx) {
@@ -2433,10 +2454,11 @@
                   <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${d.content}</span>
                   <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${statusColors[d.status] || 'var(--text-tertiary)'}15; color: ${statusColors[d.status] || 'var(--text-tertiary)'};">${statusIcons[d.status] || '⏳'} ${statusLabels[d.status] || d.status}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary);">
+                <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap;">
                   <span>📅 ${d.deadline || '未设置'}</span>
                   <span>👤 ${d.owner || '待定'}</span>
                   <span style="cursor: pointer; color: var(--primary);" onclick="closeDecisionsDrawer(); openMeetingDetail('${d.meetingId}')">📋 ${d.meetingTitle}</span>
+                  ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">🔗 KMS</a>` : ''}
                 </div>
               </div>
             `).join('')}

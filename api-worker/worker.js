@@ -251,10 +251,10 @@ export default {
         }
         const body = await request.json();
         const webhookUrl = body.webhookUrl;
-        const message = body.message;
+        const payload = body.payload;
 
-        if (!webhookUrl || !message) {
-          return errorResponse('Missing webhookUrl or message', 400, request);
+        if (!webhookUrl) {
+          return errorResponse('Missing webhookUrl', 400, request);
         }
 
         // 安全校验：只允许企业微信 Webhook URL
@@ -262,11 +262,14 @@ export default {
           return errorResponse('Invalid webhook URL', 400, request);
         }
 
+        // 兼容旧接口：无 payload 时回退到 text 类型
+        const forwardBody = payload || { msgtype: 'text', text: { content: body.message || '' } };
+
         try {
           const resp = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ msgtype: 'text', text: { content: message } }),
+            body: JSON.stringify(forwardBody),
           });
           const result = await resp.json();
           return jsonResponse({ success: result.errcode === 0, errcode: result.errcode, errmsg: result.errmsg }, 200, request);

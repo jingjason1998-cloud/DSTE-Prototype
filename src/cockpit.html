@@ -116,6 +116,11 @@
       min-width: 600px;
     }
 
+    /* ===== 全局弹窗样式 ===== */
+    .omp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .omp-modal { background: var(--bg-card); border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .omp-modal-wide { max-width: 900px !important; }
+
     /* ===== KPI 指标树 — 卡片式层级视图 ===== */
     /* ===== Canvas 自由画布 KPI 树 ===== */
     .omp-kpi-canvas {
@@ -565,7 +570,7 @@
         ],
         bp: [
           { type: 'group', title: '战略解码 (BP)', items: [
-            { id: 'bp/kpi', icon: '📈', label: 'KPI 指标体系' },
+            { id: 'bp/kpi', icon: '📈', label: '战略指标库' },
             { id: 'bp/bem', icon: '🔧', label: 'BEM 战略解码' },
             { id: 'bp/annual-plan', icon: '📅', label: '年度经营计划' }
           ]},
@@ -618,9 +623,17 @@
         kpiCanvasState: { scale: 1, offsetX: 0, offsetY: 0 },
       };
 
+      // ===== 年度经营计划页面状态 =====
+      window._annualPlanState = {
+        cycleId: 'cycle_2026_marketing',
+        activeTab: 'overview',
+        selectedKpiId: null,
+        expandedGroupIds: new Set(),
+      };
+
       function omp_initData() {
         // 版本号检测：代码更新时自动清理旧数据
-        const DATA_VERSION = 'canvas-v4';
+        const DATA_VERSION = 'canvas-v7';
         const storedVersion = localStorage.getItem('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
           // 清除所有 DSTE 相关 localStorage
@@ -635,53 +648,63 @@
         }
         if (!localStorage.getItem(OMP_STORAGE.indicators)) {
           const indicators = [
-            { id: 'ind_sales_d', code: 'SALES_D', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15' },
-            { id: 'ind_collection_k', code: 'COLLECTION_K', name: '回款额-K', description: '当期实际回款金额（营销线）', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15' },
-            { id: 'ind_profit_margin', code: 'PROFIT_MARGIN', name: '营销线贡献利润率', description: '营销线利润贡献比例（减去人力成本及结算分摊）', formula: '(营收-成本-人力-分摊)/营收*100', unit: '%', frequency: 'quarterly', category: '财务', subCategory: '利润类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15' },
-            { id: 'ind_new_product', code: 'NEW_PRODUCT_D', name: '新产品销售额-D', description: '新产品线销售收入（JDY&FDL）', formula: 'SUM(新产品合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '创新收入', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
-            { id: 'ind_benchmark', code: 'BENCHMARK', name: '市场标杆得分', description: '市场认知与品牌影响力综合评分', formula: 'AVG(各维度评分)', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '市场认知', dataSource: '调研系统', responsibleDept: '市场部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
-            { id: 'ind_arr', code: 'ARR', name: '年度经常性收入（ARR）', description: 'SaaS订阅收入年化金额', formula: 'SUM(MRR)*12', unit: '万元', frequency: 'quarterly', category: '客户', subCategory: '订阅收入', dataSource: '财务系统', responsibleDept: '客户成功部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
-            { id: 'ind_jdy', code: 'JDY', name: 'JDY销售额', description: '简道云产品线销售收入', formula: 'SUM(JDY合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
-            { id: 'ind_fdl', code: 'FDL', name: 'FDL销售额', description: 'FDL产品线销售收入', formula: 'SUM(FDL合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15' },
+            // === 结果指标 (result) ===
+            { id: 'ind_sales_d', code: 'SALES_D', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_collection_k', code: 'COLLECTION_K', name: '回款额-K', description: '当期实际回款金额（营销线）', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_profit_margin', code: 'PROFIT_MARGIN', name: '营销线贡献利润率', description: '营销线利润贡献比例（减去人力成本及结算分摊）', formula: '(营收-成本-人力-分摊)/营收*100', unit: '%', frequency: 'quarterly', category: '财务', subCategory: '利润类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'percentage' },
+            { id: 'ind_new_product', code: 'NEW_PRODUCT_D', name: '新产品销售额-D', description: '新产品线销售收入（JDY&FDL）', formula: 'SUM(新产品合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '创新收入', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_benchmark', code: 'BENCHMARK', name: '市场标杆得分', description: '市场认知与品牌影响力综合评分', formula: 'AVG(各维度评分)', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '市场认知', dataSource: '调研系统', responsibleDept: '市场部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'score' },
+            { id: 'ind_arr', code: 'ARR', name: '年度经常性收入（ARR）', description: 'SaaS订阅收入年化金额', formula: 'SUM(MRR)*12', unit: '万元', frequency: 'quarterly', category: '客户', subCategory: '订阅收入', dataSource: '财务系统', responsibleDept: '客户成功部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_jdy', code: 'JDY', name: 'JDY销售额', description: '简道云产品线销售收入', formula: 'SUM(JDY合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_fdl', code: 'FDL', name: 'FDL销售额', description: 'FDL产品线销售收入', formula: 'SUM(FDL合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            // === 过程指标 (process) ===
+            { id: 'ind_opportunity', code: 'OPPORTUNITY', name: '有效商机数', description: '当期有效商机数量（已确认需求且预算到位）', formula: 'COUNT(有效商机)', unit: '个', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
+            { id: 'ind_visit', code: 'VISIT', name: '客户拜访次数', description: '当期实际拜访客户次数', formula: 'COUNT(拜访记录)', unit: '次', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
+            { id: 'ind_conversion', code: 'CONVERSION', name: '合同转化率', description: '商机转化为合同的比例', formula: '成交合同数/商机总数*100', unit: '%', frequency: 'quarterly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'percentage' },
           ];
           localStorage.setItem(OMP_STORAGE.indicators, JSON.stringify(indicators));
+        }
+        if (!localStorage.getItem('dste_cycles')) {
+          localStorage.setItem('dste_cycles', JSON.stringify([
+            { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null }
+          ]));
         }
         if (!localStorage.getItem(OMP_STORAGE.kpiInstances)) {
           localStorage.setItem(OMP_STORAGE.kpiInstances, JSON.stringify([
             // === L0: 财务维度 ===
-            { id: 'kpi_sales_d', indicatorId: 'ind_sales_d', period: '2026', targetValue: 178623, challengeValue: 214348, actualValue: 171478, achievementRate: 96, weight: 10, owner: '陈总监', dept: '营销线', status: 'achieved', parentId: null, level: 0, bscDimension: 'financial', history: [92, 88, 94, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_collection_k', indicatorId: 'ind_collection_k', period: '2026', targetValue: 130097, challengeValue: 156116, actualValue: 113835, achievementRate: 87.5, weight: 25, owner: '陈总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [95, 90, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_profit_margin', indicatorId: 'ind_profit_margin', period: '2026', targetValue: 33.72, challengeValue: 35.72, actualValue: 35.0, achievementRate: 85.7, weight: 5, owner: '张总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [90, 88, 87, 85.7] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_new_product', indicatorId: 'ind_new_product', period: '2026', targetValue: 27842, challengeValue: 33410, actualValue: 20882, achievementRate: 75, weight: 10, owner: '李经理', dept: '产品部', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [78, 75, 72, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 178623, challengeValue: 214348, actualValue: 171478, achievementRate: 96, weight: 10, owner: '陈总监', dept: '营销线', status: 'achieved', parentId: null, level: 0, bscDimension: 'financial', history: [92, 88, 94, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_collection_k', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 130097, challengeValue: 156116, actualValue: 113835, achievementRate: 87.5, weight: 25, owner: '陈总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [95, 90, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_profit_margin', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_profit_margin', period: '2026', targetValue: 33.72, challengeValue: 35.72, actualValue: 35.0, achievementRate: 85.7, weight: 5, owner: '张总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [90, 88, 87, 85.7] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_new_product', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_new_product', period: '2026', targetValue: 27842, challengeValue: 33410, actualValue: 20882, achievementRate: 75, weight: 10, owner: '李经理', dept: '产品部', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [78, 75, 72, 75] , x: null, y: null, width: 170, height: 100 },
             // === L0: 客户维度 ===
-            { id: 'kpi_benchmark', indicatorId: 'ind_benchmark', period: '2026', targetValue: 182, challengeValue: 218, actualValue: 175, achievementRate: 96, weight: 10, owner: '王总监', dept: '市场部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [98, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_arr', indicatorId: 'ind_arr', period: '2026', targetValue: 43009, challengeValue: 51611, actualValue: 38708, achievementRate: 90, weight: 10, owner: '赵经理', dept: '客户成功部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [88, 86, 89, 90] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_benchmark', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 182, challengeValue: 218, actualValue: 175, achievementRate: 96, weight: 10, owner: '王总监', dept: '市场部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [98, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_arr', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 43009, challengeValue: 51611, actualValue: 38708, achievementRate: 90, weight: 10, owner: '赵经理', dept: '客户成功部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [88, 86, 89, 90] , x: null, y: null, width: 170, height: 100 },
             // === L1: 销售额-D 战区分解 ===
-            { id: 'kpi_sales_d_bj', indicatorId: 'ind_sales_d', period: '2026', targetValue: 33520, challengeValue: 40224, actualValue: 32179, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [95, 93, 96, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_sales_d_sh', indicatorId: 'ind_sales_d', period: '2026', targetValue: 30268, challengeValue: 36322, actualValue: 29057, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [96, 94, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_sales_d_hd', indicatorId: 'ind_sales_d', period: '2026', targetValue: 22284, challengeValue: 26741, actualValue: 21393, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [94, 92, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_sales_d_zm', indicatorId: 'ind_sales_d', period: '2026', targetValue: 21250, challengeValue: 25500, actualValue: 20400, achievementRate: 96, weight: 10, owner: '刘经理', dept: '浙闽大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [93, 95, 94, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 33520, challengeValue: 40224, actualValue: 32179, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [95, 93, 96, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 30268, challengeValue: 36322, actualValue: 29057, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [96, 94, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 22284, challengeValue: 26741, actualValue: 21393, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [94, 92, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_sales_d_zm', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 21250, challengeValue: 25500, actualValue: 20400, achievementRate: 96, weight: 10, owner: '刘经理', dept: '浙闽大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [93, 95, 94, 96] , x: null, y: null, width: 170, height: 100 },
             // === L1: 回款额-K 战区分解 ===
-            { id: 'kpi_collection_k_bj', indicatorId: 'ind_collection_k', period: '2026', targetValue: 23132, challengeValue: 27758, actualValue: 20241, achievementRate: 87.5, weight: 25, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [90, 88, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_collection_k_sh', indicatorId: 'ind_collection_k', period: '2026', targetValue: 21676, challengeValue: 26011, actualValue: 18967, achievementRate: 87.5, weight: 25, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [92, 90, 88, 87.5] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_collection_k_hd', indicatorId: 'ind_collection_k', period: '2026', targetValue: 16326, challengeValue: 19591, actualValue: 14285, achievementRate: 87.5, weight: 25, owner: '张经理', dept: '华南大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [89, 87, 86, 87.5] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_collection_k_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 23132, challengeValue: 27758, actualValue: 20241, achievementRate: 87.5, weight: 25, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [90, 88, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_collection_k_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 21676, challengeValue: 26011, actualValue: 18967, achievementRate: 87.5, weight: 25, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [92, 90, 88, 87.5] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_collection_k_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 16326, challengeValue: 19591, actualValue: 14285, achievementRate: 87.5, weight: 25, owner: '张经理', dept: '华南大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [89, 87, 86, 87.5] , x: null, y: null, width: 170, height: 100 },
             // === L1: 新产品销售额 产品线分解 ===
-            { id: 'kpi_new_product_jdy', indicatorId: 'ind_jdy', period: '2026', targetValue: 16142, challengeValue: 19370, actualValue: 12107, achievementRate: 75, weight: 10, owner: '李经理', dept: 'JDY产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [76, 74, 73, 75] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_new_product_fdl', indicatorId: 'ind_fdl', period: '2026', targetValue: 11700, challengeValue: 14040, actualValue: 8775, achievementRate: 75, weight: 10, owner: '李经理', dept: 'FDL产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [78, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_new_product_jdy', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_jdy', period: '2026', targetValue: 16142, challengeValue: 19370, actualValue: 12107, achievementRate: 75, weight: 10, owner: '李经理', dept: 'JDY产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [76, 74, 73, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_new_product_fdl', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 11700, challengeValue: 14040, actualValue: 8775, achievementRate: 75, weight: 10, owner: '李经理', dept: 'FDL产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [78, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
             // === L1: 市场标杆得分 战区分解 ===
-            { id: 'kpi_benchmark_bj', indicatorId: 'ind_benchmark', period: '2026', targetValue: 28, challengeValue: 34, actualValue: 27, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [97, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_benchmark_sh', indicatorId: 'ind_benchmark', period: '2026', targetValue: 20, challengeValue: 24, actualValue: 19, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [98, 97, 96, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_benchmark_hd', indicatorId: 'ind_benchmark', period: '2026', targetValue: 25, challengeValue: 30, actualValue: 24, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [96, 95, 97, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_benchmark_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 28, challengeValue: 34, actualValue: 27, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [97, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_benchmark_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 20, challengeValue: 24, actualValue: 19, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [98, 97, 96, 96] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_benchmark_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 25, challengeValue: 30, actualValue: 24, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [96, 95, 97, 96] , x: null, y: null, width: 170, height: 100 },
             // === L1: ARR 战区分解 ===
-            { id: 'kpi_arr_bj', indicatorId: 'ind_arr', period: '2026', targetValue: 7018, challengeValue: 8422, actualValue: 6316, achievementRate: 90, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [88, 87, 89, 90] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_arr_sh', indicatorId: 'ind_arr', period: '2026', targetValue: 9035, challengeValue: 10842, actualValue: 8132, achievementRate: 90, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [89, 88, 90, 90] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_arr_hd', indicatorId: 'ind_arr', period: '2026', targetValue: 6671, challengeValue: 8005, actualValue: 6004, achievementRate: 90, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [90, 89, 88, 90] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_arr_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 7018, challengeValue: 8422, actualValue: 6316, achievementRate: 90, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [88, 87, 89, 90] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_arr_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 9035, challengeValue: 10842, actualValue: 8132, achievementRate: 90, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [89, 88, 90, 90] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_arr_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 6671, challengeValue: 8005, actualValue: 6004, achievementRate: 90, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [90, 89, 88, 90] , x: null, y: null, width: 170, height: 100 },
             // === L2: JDY 战区分解 ===
-            { id: 'kpi_jdy_bj', indicatorId: 'ind_jdy', period: '2026', targetValue: 2100, challengeValue: 2520, actualValue: 1575, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [74, 76, 75, 75] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_jdy_sh', indicatorId: 'ind_jdy', period: '2026', targetValue: 1650, challengeValue: 1980, actualValue: 1238, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [76, 74, 75, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_jdy_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_jdy', period: '2026', targetValue: 2100, challengeValue: 2520, actualValue: 1575, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [74, 76, 75, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_jdy_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_jdy', period: '2026', targetValue: 1650, challengeValue: 1980, actualValue: 1238, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [76, 74, 75, 75] , x: null, y: null, width: 170, height: 100 },
             // === L2: FDL 战区分解 ===
-            { id: 'kpi_fdl_bj', indicatorId: 'ind_fdl', period: '2026', targetValue: 1600, challengeValue: 1920, actualValue: 1200, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [75, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_fdl_sh', indicatorId: 'ind_fdl', period: '2026', targetValue: 1700, challengeValue: 2040, actualValue: 1275, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [74, 75, 76, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_fdl_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 1600, challengeValue: 1920, actualValue: 1200, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [75, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
+            { id: 'kpi_fdl_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 1700, challengeValue: 2040, actualValue: 1275, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [74, 75, 76, 75] , x: null, y: null, width: 170, height: 100 },
           ]));
         }
         if (!localStorage.getItem(OMP_STORAGE.tasks)) {
@@ -742,7 +765,7 @@
         return 'lagging';
       }
 
-      // ===== 指标体系页面状态 =====
+      // ===== 战略指标库页面状态 =====
       window._indicatorState = window._indicatorState || {
         selectedCategory: 'all',
         selectedSubCategory: null,
@@ -752,10 +775,26 @@
         statusFilter: 'all',
       };
 
-      // ===== 指标体系页面 =====
+      // ===== 战略指标库页面 =====
       function renderIndicatorSystem() {
         const indicators = omp_load('indicators');
         const state = window._indicatorState;
+
+        // 计算每个指标被引用的次数（KPI 实例 + 任务关联）
+        const kpis = omp_load('kpiInstances');
+        const tasks = omp_load('tasks');
+        const refCounts = {};
+        indicators.forEach(ind => { refCounts[ind.id] = 0; });
+        kpis.forEach(k => { if (refCounts[k.indicatorId] !== undefined) refCounts[k.indicatorId]++; });
+        tasks.forEach(t => {
+          (t.relatedKpiIds || []).forEach(rid => { if (refCounts[rid] !== undefined) refCounts[rid]++; });
+        });
+
+        // 指标类型标签
+        const typeLabels = { result: '结果', process: '过程' };
+        const typeColors = { result: 'var(--primary)', process: 'var(--warning)' };
+        const dtypeLabels = { currency: '金额', percentage: '百分比', count: '计数', days: '天数', score: '分数' };
+        const dtypeColors = { currency: '#16A34A', percentage: '#2563EB', count: '#D97706', days: '#7C3AED', score: '#DC2626' };
 
         // 筛选逻辑
         let filtered = indicators;
@@ -804,9 +843,10 @@
         const statusColors = { active: 'var(--success)', disabled: 'var(--text-tertiary)' };
 
         return `
-          ${renderBreadcrumb('KPI 指标体系')}
+          ${renderBreadcrumb('战略指标库')}
           <div class="page-header">
-            <h1 class="page-title">KPI 指标体系</h1>
+            <h1 class="page-title">战略指标库</h1>
+            <p style="margin:4px 0 0 0;font-size:13px;color:var(--text-secondary);">承接战略解码成果，支撑经营计划分解，实现战略到执行的指标贯通。</p>
             <div class="page-actions">
               <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">共 ${indicators.length} 个指标</span>
               <button class="btn btn-primary" data-action="ind-new">+ 新建指标</button>
@@ -872,9 +912,11 @@
                           <tr style="border-bottom:1px solid var(--border-light);">
                             <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--text-tertiary);font-size:12px;">编码</th>
                             <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--text-tertiary);font-size:12px;">指标名称</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">类型</th>
                             <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--text-tertiary);font-size:12px;">分类</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">数据类型</th>
                             <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">频次</th>
-                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">单位</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">引用</th>
                             <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">状态</th>
                             <th style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text-tertiary);font-size:12px;">操作</th>
                           </tr>
@@ -887,19 +929,27 @@
                                 <div style="font-weight:500;color:var(--text-primary);">${ind.name}</div>
                                 <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">${ind.description.substring(0, 30)}${ind.description.length > 30 ? '...' : ''}</div>
                               </td>
+                              <td style="padding:10px 12px;text-align:center;">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${typeColors[ind.indicatorType] || 'var(--text-tertiary)'}15;color:${typeColors[ind.indicatorType] || 'var(--text-tertiary)'};">${typeLabels[ind.indicatorType] || '未知'}</span>
+                              </td>
                               <td style="padding:10px 12px;">
                                 <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--bg-page);color:var(--text-secondary);">${ind.category}</span>
                               </td>
                               <td style="padding:10px 12px;text-align:center;">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${dtypeColors[ind.dataType] || 'var(--text-tertiary)'}15;color:${dtypeColors[ind.dataType] || 'var(--text-tertiary)'};">${dtypeLabels[ind.dataType] || ind.dataType || '-'}</span>
+                              </td>
+                              <td style="padding:10px 12px;text-align:center;">
                                 <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${freqColors[ind.frequency]}15;color:${freqColors[ind.frequency]};">${freqLabels[ind.frequency]}</span>
                               </td>
-                              <td style="padding:10px 12px;text-align:center;color:var(--text-secondary);font-size:12px;">${ind.unit}</td>
+                              <td style="padding:10px 12px;text-align:center;">
+                                <span style="font-size:12px;font-weight:600;color:${refCounts[ind.id] > 0 ? 'var(--primary)' : 'var(--text-tertiary)'}">${refCounts[ind.id]}</span>
+                              </td>
                               <td style="padding:10px 12px;text-align:center;">
                                 <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${statusColors[ind.status]}15;color:${statusColors[ind.status]};">${statusLabels[ind.status]}</span>
                               </td>
                               <td style="padding:10px 12px;text-align:center;">
-                                <button class="btn btn-sm btn-secondary" data-action="ind-edit" data-id="${ind.id}" style="font-size:11px;padding:2px 8px;margin-right:4px;" onclick="event.stopPropagation();">编辑</button>
-                                <button class="btn btn-sm btn-danger" data-action="ind-delete" data-id="${ind.id}" style="font-size:11px;padding:2px 8px;" onclick="event.stopPropagation();">删除</button>
+                                <button class="btn btn-sm btn-secondary" data-action="ind-edit" data-id="${ind.id}" style="font-size:11px;padding:2px 8px;margin-right:4px;">编辑</button>
+                                <button class="btn btn-sm btn-danger" data-action="ind-delete" data-id="${ind.id}" style="font-size:11px;padding:2px 8px;">删除</button>
                               </td>
                             </tr>
                           `).join('')}
@@ -929,6 +979,18 @@
                         </div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                          <div>
+                            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">指标类型</div>
+                            <div style="font-size:13px;color:var(--text-primary);">
+                              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${typeColors[selectedInd.indicatorType] || 'var(--text-tertiary)'}15;color:${typeColors[selectedInd.indicatorType] || 'var(--text-tertiary)'};">${typeLabels[selectedInd.indicatorType] || selectedInd.indicatorType || '-'}</span>
+                            </div>
+                          </div>
+                          <div>
+                            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">数据类型</div>
+                            <div style="font-size:13px;color:var(--text-primary);">
+                              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${dtypeColors[selectedInd.dataType] || 'var(--text-tertiary)'}15;color:${dtypeColors[selectedInd.dataType] || 'var(--text-tertiary)'};">${dtypeLabels[selectedInd.dataType] || selectedInd.dataType || '-'}</span>
+                            </div>
+                          </div>
                           <div>
                             <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">单位</div>
                             <div style="font-size:13px;color:var(--text-primary);">${selectedInd.unit}</div>
@@ -991,7 +1053,7 @@
         'sp/insights-topics': renderInsightsTopics,
         'bp/kpi': renderIndicatorSystem,
         'bp/bem': () => renderPlaceholder('🔧 BEM 战略解码', '基于 BEM 六步解码法，将战略转化为可执行的行动计划。'),
-        'bp/annual-plan': () => renderPlaceholder('📅 年度经营计划', '年度经营目标分解、资源配置、预算编制与执行跟踪。'),
+        'bp/annual-plan': renderAnnualPlan,
         'exe/tasks': renderTasks,
         'exe/business-topics': () => { window.location.href = 'business-topics.html'; return ''; },
         'exe/meetings': () => { window.location.href = 'meetings.html'; return ''; },
@@ -1079,6 +1141,408 @@
           });
         }
       }
+
+      // ===== 年度经营计划页面 =====
+      function renderAnnualPlan() {
+        const state = window._annualPlanState;
+        const kpis = omp_load('kpiInstances').filter(k => k.cycleId === state.cycleId && k.parentId === null);
+        const indicators = omp_load('indicators');
+        const tabs = [
+          { id: 'overview', label: '📊 总览' },
+          { id: 'decomposition', label: '🏢 战区分解' },
+        ];
+        const activeTab = state.activeTab;
+
+        // BSC 维度颜色
+        const dimColors = { financial: '#16A34A', customer: '#2563EB', process: '#D97706', learning: '#7C3AED' };
+        const dimLabels = { financial: '财务', customer: '客户', process: '流程', learning: '学习成长' };
+
+        let tabContent = '';
+        if (activeTab === 'overview') {
+          tabContent = `
+            <div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;overflow:hidden;margin-bottom:20px;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="background:var(--bg-page);">
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:80px;">牵引点</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;">KPI指标</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:100px;">全年目标</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:80px;">H1占比</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:60px;">权重</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;" colspan="3">三档目标</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:left;">备注</th>
+                  </tr>
+                  <tr style="background:var(--bg-page);">
+                    <th colspan="5"></th>
+                    <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;font-size:12px;">底线</th>
+                    <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;font-size:12px;">达标</th>
+                    <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;font-size:12px;">挑战</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${kpis.map(kpi => {
+                    const ind = indicators.find(i => i.id === kpi.indicatorId);
+                    const dim = kpi.bscDimension || 'financial';
+                    const dimColor = dimColors[dim] || 'var(--text-tertiary)';
+                    const baseline = kpi.baselineValue || Math.round(kpi.targetValue * (kpi.baselinePct || 0.7));
+                    const challenge = kpi.challengeValue || Math.round(kpi.targetValue * (kpi.challengePct || 1.2));
+                    const h1Ratio = kpi.h1Ratio !== undefined ? kpi.h1Ratio : 0.45;
+                    return `
+                      <tr style="border-bottom:1px solid var(--border-light);cursor:pointer;${state.selectedKpiId === kpi.id ? 'background:var(--bg-active);' : ''}" data-action="ap-select-kpi" data-id="${kpi.id}">
+                        <td style="padding:10px;text-align:center;">
+                          <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${dimColor}15;color:${dimColor};font-weight:600;">${dimLabels[dim] || dim}</span>
+                        </td>
+                        <td style="padding:10px;text-align:center;font-weight:600;">${ind ? ind.name : kpi.indicatorId}</td>
+                        <td style="padding:10px;text-align:center;color:var(--primary);font-weight:600;">${kpi.targetValue.toLocaleString()} ${kpi.unit || ''}</td>
+                        <td style="padding:10px;text-align:center;">${Math.round(h1Ratio * 100)}%</td>
+                        <td style="padding:10px;text-align:center;font-weight:600;">${kpi.weight}</td>
+                        <td style="padding:10px;text-align:center;color:var(--text-tertiary);">${baseline.toLocaleString()}</td>
+                        <td style="padding:10px;text-align:center;color:var(--primary);font-weight:600;">${kpi.targetValue.toLocaleString()}</td>
+                        <td style="padding:10px;text-align:center;color:var(--success);">${challenge.toLocaleString()}</td>
+                        <td style="padding:10px;text-align:left;font-size:12px;color:var(--text-secondary);">
+                          <div style="display:flex;gap:4px;justify-content:flex-end;">
+                            <button type="button" class="btn btn-sm btn-secondary" data-action="ap-edit-kpi" data-id="${kpi.id}" style="font-size:11px;padding:2px 8px;">编辑</button>
+                            <button type="button" class="btn btn-sm btn-primary" data-action="ap-decompose" data-id="${kpi.id}" style="font-size:11px;padding:2px 8px;">分解</button>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              ${kpis.map(kpi => `
+                <div style="flex:1;min-width:200px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;padding:16px;" data-action="ap-select-kpi" data-id="${kpi.id}">
+                  <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">${indicators.find(i => i.id === kpi.indicatorId)?.name || kpi.indicatorId}</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--text-primary);">${kpi.targetValue.toLocaleString()} <span style="font-size:12px;font-weight:400;color:var(--text-tertiary);">${kpi.unit || ''}</span></div>
+                  <div style="margin-top:8px;height:6px;background:var(--border-light);border-radius:3px;overflow:hidden;">
+                    <div style="width:${Math.min(kpi.achievementRate || 0, 100)}%;height:100%;background:${(kpi.achievementRate || 0) >= 90 ? 'var(--success)' : (kpi.achievementRate || 0) >= 70 ? 'var(--warning)' : 'var(--danger)'};border-radius:3px;"></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-secondary);">
+                    <span>达成: ${kpi.achievementRate || 0}%</span>
+                    <span>权重: ${kpi.weight}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else if (activeTab === 'decomposition') {
+          // 战区分解表
+          const warzones = ['北京大区', '上海大区', '华南大区', '浙闽大区', '苏皖大区', '西南大区', '华北大区', '华中大区', '西北大区', '东北大区'];
+          const childKpis = omp_load('kpiInstances').filter(k => k.cycleId === state.cycleId && k.parentId !== null);
+          tabContent = `
+            <div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;overflow:hidden;">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead>
+                  <tr style="background:var(--bg-page);">
+                    <th style="padding:10px;border-bottom:2px solid var(--border-color);text-align:center;">考核指标</th>
+                    <th style="padding:10px;border-bottom:2px solid var(--border-color);text-align:center;">合计</th>
+                    ${warzones.map(z => `<th style="padding:10px;border-bottom:2px solid var(--border-color);text-align:center;min-width:70px;">${z}</th>`).join('')}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${['销售额-D', '新产品销售额-D', '回款额-K', '市场标杆得分', 'ARR'].map((name, idx) => {
+                    const parentKpi = kpis.find(k => {
+                      const ind = indicators.find(i => i.id === k.indicatorId);
+                      return ind && ind.name.includes(name.replace('销售额-D', '销售额'));
+                    });
+                    const total = parentKpi ? parentKpi.targetValue : '-';
+                    return `
+                      <tr style="border-bottom:1px solid var(--border-light);">
+                        <td style="padding:8px;text-align:center;font-weight:600;">${name}</td>
+                        <td style="padding:8px;text-align:center;color:var(--primary);font-weight:600;">${total.toLocaleString ? total.toLocaleString() : total}</td>
+                        ${warzones.map(z => {
+                          const child = childKpis.find(k => {
+                            const ind = indicators.find(i => i.id === k.indicatorId);
+                            return ind && ind.name.includes(name.replace('销售额-D', '销售额').replace('回款额-K', '回款')) && k.dept === z;
+                          });
+                          return `<td style="padding:8px;text-align:center;">${child ? child.targetValue.toLocaleString() : '-'}</td>`;
+                        }).join('')}
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        return `
+          ${renderBreadcrumb('年度经营计划')}
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">年度经营计划</h1>
+              <p style="margin:4px 0 0 0;font-size:13px;color:var(--text-secondary);">承接战略解码成果，完成组织绩效目标分解与资源配置</p>
+            </div>
+            <div class="page-actions">
+              <select id="ap-cycle-select" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;margin-right:8px;" data-action="ap-switch-cycle">
+                <option value="cycle_2026_marketing" selected>2026年度 — 营销线</option>
+                <option value="cycle_2025_marketing">2025年度 — 营销线</option>
+              </select>
+              <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">阶段: planning</span>
+              <button class="btn btn-secondary" data-action="ap-add-kpi" style="margin-right:8px;">+ 添加KPI</button>
+              <button class="btn btn-primary" data-action="ap-publish">发布到执行</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:0;border-bottom:1px solid var(--border-color);margin-bottom:20px;">
+            ${tabs.map(t => `
+              <button class="ap-tab-btn ${activeTab === t.id ? 'active' : ''}"
+                      data-action="ap-switch-tab" data-tab="${t.id}"
+                      style="padding:12px 24px;background:none;border:none;border-bottom:2px solid ${activeTab === t.id ? 'var(--primary)' : 'transparent'};color:${activeTab === t.id ? 'var(--primary)' : 'var(--text-secondary)'};font-weight:${activeTab === t.id ? '600' : '500'};cursor:pointer;font-size:14px;transition:all 0.2s;">
+                ${t.label}
+              </button>
+            `).join('')}
+          </div>
+          <div id="ap-tab-content">${tabContent}</div>
+          ${state.selectedKpiId ? ap_renderEditPanel(state.selectedKpiId) : ''}
+        `;
+      }
+
+      // ===== 年度经营计划 — 编辑面板 =====
+      function ap_renderEditPanel(kpiId) {
+        const kpis = omp_load('kpiInstances');
+        const kpi = kpis.find(k => k.id === kpiId);
+        if (!kpi) return '';
+        const indicators = omp_load('indicators');
+        const ind = indicators.find(i => i.id === kpi.indicatorId);
+        const baseline = kpi.baselineValue || Math.round(kpi.targetValue * (kpi.baselinePct || 0.7));
+        const challenge = kpi.challengeValue || Math.round(kpi.targetValue * (kpi.challengePct || 1.2));
+        return `
+          <div style="position:fixed;top:0;right:0;width:360px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border-color);z-index:100;padding:20px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,0.1);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+              <h3 style="margin:0;font-size:16px;">编辑 KPI</h3>
+              <button data-action="ap-close-panel" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">×</button>
+            </div>
+            <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:16px;">${ind ? ind.name : kpi.indicatorId}</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">达标目标 *</label>
+                <input type="number" id="ap-edit-target" value="${kpi.targetValue}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">权重（分值）</label>
+                <input type="number" id="ap-edit-weight" value="${kpi.weight}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">H1 占比 (%)</label>
+                <input type="number" id="ap-edit-h1" value="${Math.round((kpi.h1Ratio || 0.45) * 100)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">底线比例 (%)</label>
+                  <input type="number" id="ap-edit-baseline-pct" value="${Math.round((kpi.baselinePct || 0.7) * 100)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                </div>
+                <div>
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">挑战比例 (%)</label>
+                  <input type="number" id="ap-edit-challenge-pct" value="${Math.round((kpi.challengePct || 1.2) * 100)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                </div>
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">计分规则</label>
+                <textarea id="ap-edit-scoring" rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${kpi.scoringRule || ''}</textarea>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="btn btn-primary" style="flex:1;" data-action="ap-save-kpi" data-id="${kpi.id}">保存</button>
+                <button class="btn btn-secondary" data-action="ap-close-panel">取消</button>
+              </div>
+              <div style="border-top:1px solid var(--border-light);padding-top:12px;margin-top:8px;">
+                <button class="btn btn-sm btn-danger" style="width:100%;font-size:12px;" data-action="ap-delete-kpi" data-id="${kpi.id}">🗑 删除此 KPI</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== 年度经营计划 — 保存 KPI 编辑 =====
+      window.ap_saveKpi = function(kpiId) {
+        const kpis = omp_load('kpiInstances');
+        const idx = kpis.findIndex(k => k.id === kpiId);
+        if (idx === -1) return;
+        const targetValue = parseFloat(document.getElementById('ap-edit-target')?.value);
+        const weight = parseFloat(document.getElementById('ap-edit-weight')?.value);
+        const h1Ratio = parseFloat(document.getElementById('ap-edit-h1')?.value) / 100;
+        const baselinePct = parseFloat(document.getElementById('ap-edit-baseline-pct')?.value) / 100;
+        const challengePct = parseFloat(document.getElementById('ap-edit-challenge-pct')?.value) / 100;
+        const scoringRule = document.getElementById('ap-edit-scoring')?.value?.trim();
+        if (!targetValue || isNaN(targetValue)) {
+          alert('请输入有效的目标值');
+          return;
+        }
+        kpis[idx] = { ...kpis[idx], targetValue, weight, h1Ratio, baselinePct, challengePct, scoringRule };
+        omp_save('kpiInstances', kpis);
+        window._annualPlanState.selectedKpiId = null;
+        navigate('bp/annual-plan');
+      };
+
+      // ===== 年度经营计划 — 添加 KPI =====
+      window.ap_addKpi = function() {
+        const indicators = omp_load('indicators');
+        const indOptions = indicators.map(i => `<option value="${i.id}">${i.code} — ${i.name}</option>`).join('');
+        omp_openModal('添加 KPI', `
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">选择指标 *</label>
+              <select id="ap-add-indicator" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                <option value="">请选择指标</option>
+                ${indOptions}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">达标目标 *</label>
+              <input type="number" id="ap-add-target" placeholder="如: 178623" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">权重（分值）</label>
+              <input type="number" id="ap-add-weight" value="10" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">BSC 维度</label>
+              <select id="ap-add-dim" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                <option value="financial">财务</option>
+                <option value="customer">客户</option>
+                <option value="process">流程</option>
+                <option value="learning">学习成长</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal')?.remove()">取消</button>
+            <button class="btn btn-primary" onclick="window.ap_confirmAddKpi()">保存</button>
+          </div>
+        `, true);
+      };
+
+      window.ap_confirmAddKpi = function() {
+        const indicatorId = document.getElementById('ap-add-indicator')?.value;
+        const targetValue = parseFloat(document.getElementById('ap-add-target')?.value);
+        const weight = parseFloat(document.getElementById('ap-add-weight')?.value) || 10;
+        const bscDimension = document.getElementById('ap-add-dim')?.value || 'financial';
+        if (!indicatorId || !targetValue || isNaN(targetValue)) {
+          alert('请选择指标并输入有效的目标值');
+          return;
+        }
+        const indicators = omp_load('indicators');
+        const ind = indicators.find(i => i.id === indicatorId);
+        const kpis = omp_load('kpiInstances');
+        kpis.push({
+          id: 'kpi_' + Date.now(),
+          cycleId: window._annualPlanState.cycleId,
+          indicatorId,
+          period: '2026',
+          targetValue,
+          challengeValue: Math.round(targetValue * 1.2),
+          actualValue: 0,
+          achievementRate: 0,
+          weight,
+          owner: '',
+          dept: '营销线',
+          status: 'active',
+          parentId: null,
+          level: 0,
+          bscDimension,
+          history: [],
+          x: null, y: null, width: 170, height: 100
+        });
+        omp_save('kpiInstances', kpis);
+        document.getElementById('omp-active-modal')?.remove();
+        navigate('bp/annual-plan');
+      };
+
+      // ===== 年度经营计划 — 分解 KPI（简化版：按组织架构分解）=====
+      window.ap_decomposeKpi = function(kpiId) {
+        console.log('[AP] decompose called:', kpiId);
+        try {
+          const kpis = omp_load('kpiInstances');
+          const parent = kpis.find(k => k.id === kpiId);
+          if (!parent) { console.warn('[AP] parent not found'); return; }
+        const warzones = ['北京大区', '上海大区', '华南大区', '浙闽大区', '苏皖大区', '西南大区', '华北大区', '华中大区', '西北大区', '东北大区'];
+        const indicators = omp_load('indicators');
+        const ind = indicators.find(i => i.id === parent.indicatorId);
+        omp_openModal('分解 KPI — ' + (ind ? ind.name : parent.indicatorId), `
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+            父级目标: <strong>${parent.targetValue.toLocaleString()}</strong> ${parent.unit || ''}
+          </div>
+          <div style="max-height:400px;overflow-y:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="background:var(--bg-page);">
+                  <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:left;">战区</th>
+                  <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;width:120px;">目标值</th>
+                  <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;width:80px;">权重%</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${warzones.map((z, i) => `
+                  <tr>
+                    <td style="padding:8px;border-bottom:1px solid var(--border-light);">${z}</td>
+                    <td style="padding:8px;border-bottom:1px solid var(--border-light);">
+                      <input type="number" id="ap-decomp-target-${i}" value="${Math.round(parent.targetValue / warzones.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
+                    </td>
+                    <td style="padding:8px;border-bottom:1px solid var(--border-light);">
+                      <input type="number" id="ap-decomp-weight-${i}" value="${Math.round(100 / warzones.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal')?.remove()">取消</button>
+            <button class="btn btn-primary" onclick="window.ap_confirmDecompose('${kpiId}')">保存分解</button>
+          </div>
+        `, true);
+        } catch (err) { console.error('[AP] decompose error:', err); alert('分解弹窗出错: ' + err.message); }
+      };
+
+      window.ap_confirmDecompose = function(parentId) {
+        const kpis = omp_load('kpiInstances');
+        const parent = kpis.find(k => k.id === parentId);
+        if (!parent) return;
+        const warzones = ['北京大区', '上海大区', '华南大区', '浙闽大区', '苏皖大区', '西南大区', '华北大区', '华中大区', '西北大区', '东北大区'];
+        let totalTarget = 0;
+        let totalWeight = 0;
+        const children = [];
+        warzones.forEach((z, i) => {
+          const target = parseFloat(document.getElementById(`ap-decomp-target-${i}`)?.value) || 0;
+          const weight = parseFloat(document.getElementById(`ap-decomp-weight-${i}`)?.value) || 0;
+          totalTarget += target;
+          totalWeight += weight;
+          if (target > 0) {
+            children.push({
+              id: 'kpi_' + Date.now() + '_' + i,
+              cycleId: window._annualPlanState.cycleId,
+              indicatorId: parent.indicatorId,
+              period: parent.period,
+              targetValue: target,
+              challengeValue: Math.round(target * 1.2),
+              actualValue: 0,
+              achievementRate: 0,
+              weight: weight,
+              owner: '',
+              dept: z,
+              status: 'active',
+              parentId: parentId,
+              level: parent.level + 1,
+              bscDimension: parent.bscDimension,
+              history: [],
+              x: null, y: null, width: 170, height: 100
+            });
+          }
+        });
+        if (totalTarget > parent.targetValue) {
+          if (!confirm(`子目标合计 (${totalTarget}) 超过父目标 (${parent.targetValue})，是否继续？`)) return;
+        }
+        if (Math.abs(totalWeight - 100) > 1) {
+          alert(`权重合计为 ${totalWeight}%，必须等于 100%`);
+          return;
+        }
+        kpis.push(...children);
+        omp_save('kpiInstances', kpis);
+        document.getElementById('omp-active-modal')?.remove();
+        navigate('bp/annual-plan');
+      };
 
       // ===== 渲染顶部导航 =====
       function renderTopNav() {
@@ -1172,7 +1636,7 @@
         const pageNames = {
           'dashboard': '驾驶舱',
           'sp/strategy-map': '战略地图', 'sp/insights-topics': '战略洞察与专题',
-          'bp/kpi': 'KPI 指标体系', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
+          'bp/kpi': '战略指标库', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
           'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meetings/edit': '编辑会议', 'exe/meeting-review': '会议材料审核',
           'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
           'ai': 'AI 战略助手',
@@ -1233,7 +1697,7 @@
               case 'omp-filter-task':
                 if (filter) { window._ompState.taskFilter[filter] = actionBtn.value; navigate('exe/tasks'); }
                 break;
-              // ===== 指标体系事件 =====
+              // ===== 战略指标库事件 =====
               case 'ind-select':
                 window._indicatorState.selectedIndicatorId = id;
                 navigate('bp/kpi');
@@ -1265,12 +1729,67 @@
                 window._indicatorState.statusFilter = actionBtn.value;
                 navigate('bp/kpi');
                 break;
+              // ===== 年度经营计划事件 =====
+              case 'ap-switch-tab':
+                window._annualPlanState.activeTab = actionBtn.dataset.tab;
+                navigate('bp/annual-plan');
+                break;
+              case 'ap-switch-cycle':
+                window._annualPlanState.cycleId = actionBtn.value;
+                window._annualPlanState.selectedKpiId = null;
+                navigate('bp/annual-plan');
+                break;
+              case 'ap-select-kpi':
+                window._annualPlanState.selectedKpiId = id;
+                navigate('bp/annual-plan');
+                break;
+              case 'ap-edit-kpi':
+                window._annualPlanState.selectedKpiId = id;
+                navigate('bp/annual-plan');
+                break;
+              case 'ap-close-panel':
+                window._annualPlanState.selectedKpiId = null;
+                navigate('bp/annual-plan');
+                break;
+              case 'ap-save-kpi':
+                window.ap_saveKpi(id);
+                break;
+              case 'ap-add-kpi':
+                window.ap_addKpi();
+                break;
+              case 'ap-decompose':
+                window.ap_decomposeKpi(id);
+                break;
+              case 'ap-delete-kpi':
+                if (!confirm('确定要删除此 KPI 吗？如有子节点将一并删除。')) break;
+                const allKpis = omp_load('kpiInstances');
+                const toDelete = new Set([id]);
+                // 递归收集子节点
+                let changed = true;
+                while (changed) {
+                  changed = false;
+                  allKpis.forEach(k => {
+                    if (!toDelete.has(k.id) && toDelete.has(k.parentId)) {
+                      toDelete.add(k.id);
+                      changed = true;
+                    }
+                  });
+                }
+                const filtered = allKpis.filter(k => !toDelete.has(k.id));
+                omp_save('kpiInstances', filtered);
+                window._annualPlanState.selectedKpiId = null;
+                navigate('bp/annual-plan');
+                break;
+              case 'ap-publish':
+                if (!confirm('确定要发布到执行阶段吗？发布后KPI树结构将冻结。')) break;
+                alert('已发布到执行阶段（演示）');
+                break;
             }
             return;
           }
         });
 
-        // 指标体系：搜索框实时搜索（防抖）
+        // 战略指标库：搜索框实时搜索（防抖）
         const searchInput = container.querySelector('#ind-search');
         if (searchInput) {
           let debounceTimer;
@@ -1707,9 +2226,6 @@
             .omp-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
             .omp-heatmap-cell { padding: 12px 8px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
             .omp-heatmap-cell:hover { transform: scale(1.05); }
-            .omp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-            .omp-modal { background: var(--bg-card); border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-            .omp-modal-wide { max-width: 900px !important; }
           </style>
         `;
       }
@@ -4171,16 +4687,24 @@
         navigate('exe/tasks');
       };
 
-      // ===== 指标体系全局函数 =====
+      // ===== 战略指标库全局函数 =====
       window.ind_delete = function(id) {
         const indicators = omp_load('indicators');
         const ind = indicators.find(i => i.id === id);
         if (!ind) return;
-        // 检查是否被 KPI 使用
+        // 检查是否被 KPI 实例使用
         const kpis = omp_load('kpiInstances');
-        const usedBy = kpis.filter(k => k.indicatorId === id);
-        if (usedBy.length > 0) {
-          alert(`该指标已被 ${usedBy.length} 个 KPI 实例使用，无法删除。请先将关联的 KPI 改为其他指标。`);
+        const usedByKpis = kpis.filter(k => k.indicatorId === id);
+        // 检查是否被任务关联
+        const tasks = omp_load('tasks');
+        const usedByTasks = tasks.filter(t => (t.relatedKpiIds || []).includes(id));
+        const totalUsed = usedByKpis.length + usedByTasks.length;
+        if (totalUsed > 0) {
+          let msg = `该指标已被 ${totalUsed} 处引用，无法删除：`;
+          if (usedByKpis.length > 0) msg += `\n- ${usedByKpis.length} 个 KPI 实例`;
+          if (usedByTasks.length > 0) msg += `\n- ${usedByTasks.length} 个重点工作`;
+          msg += '\n\n请先将关联项改为其他指标。';
+          alert(msg);
           return;
         }
         if (!confirm(`确定要删除指标「${ind.name}」吗？此操作不可恢复。`)) return;
@@ -4201,7 +4725,7 @@
         const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `KPI指标体系_${new Date().toISOString().slice(0,10)}.csv`;
+        link.download = `战略指标库_${new Date().toISOString().slice(0,10)}.csv`;
         link.click();
       };
 
@@ -4220,6 +4744,17 @@
           { value: 'monthly', label: '月度' },
           { value: 'quarterly', label: '季度' },
           { value: 'yearly', label: '年度' }
+        ];
+        const indTypes = [
+          { value: 'result', label: '📊 结果指标' },
+          { value: 'process', label: '📐 过程指标' }
+        ];
+        const dataTypes = [
+          { value: 'currency', label: '💰 金额（万元/元）' },
+          { value: 'percentage', label: '📈 百分比（%）' },
+          { value: 'count', label: '🔢 计数（个/次）' },
+          { value: 'days', label: '📅 天数' },
+          { value: 'score', label: '⭐ 分数' }
         ];
         const depts = ['销售部', '市场部', '财务部', '客户成功部', '项目管理部', '质量部', '产品部', 'HR部', 'IT部', '法务部'];
 
@@ -4249,6 +4784,18 @@
               <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">统计频次</label>
               <select id="ind-freq" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                 ${freqs.map(f => `<option value="${f.value}" ${isEdit && ind.frequency === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标类型 *</label>
+              <select id="ind-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                ${indTypes.map(t => `<option value="${t.value}" ${isEdit && ind.indicatorType === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">数据类型 *</label>
+              <select id="ind-data-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                ${dataTypes.map(d => `<option value="${d.value}" ${isEdit && ind.dataType === d.value ? 'selected' : ''}>${d.label}</option>`).join('')}
               </select>
             </div>
             <div>
@@ -4310,6 +4857,8 @@
         const formula = document.getElementById('ind-formula')?.value?.trim();
         const unit = document.getElementById('ind-unit')?.value?.trim();
         const frequency = document.getElementById('ind-freq')?.value;
+        const indicatorType = document.getElementById('ind-type')?.value;
+        const dataType = document.getElementById('ind-data-type')?.value;
         const category = document.getElementById('ind-category')?.value;
         const subCategory = document.getElementById('ind-subcategory')?.value;
         const dataSource = document.getElementById('ind-source')?.value?.trim();
@@ -4317,8 +4866,8 @@
         const isPositive = document.getElementById('ind-positive')?.value === 'true';
         const status = document.getElementById('ind-status')?.value || 'active';
 
-        if (!code || !name || !description || !category) {
-          alert('请填写必填项（编码、名称、定义、分类）');
+        if (!code || !name || !description || !category || !indicatorType || !dataType) {
+          alert('请填写必填项（编码、名称、定义、分类、指标类型、数据类型）');
           return;
         }
 
@@ -4330,13 +4879,13 @@
           }
           indicators.push({
             id: 'ind_' + Date.now(),
-            code, name, description, formula, unit, frequency, category, subCategory, dataSource, responsibleDept, isPositive, status,
+            code, name, description, formula, unit, frequency, indicatorType, dataType, category, subCategory, dataSource, responsibleDept, isPositive, status,
             createdAt: new Date().toISOString().slice(0, 10)
           });
         } else {
           const idx = indicators.findIndex(i => i.id === id);
           if (idx > -1) {
-            indicators[idx] = { ...indicators[idx], name, description, formula, unit, frequency, category, subCategory, dataSource, responsibleDept, isPositive, status };
+            indicators[idx] = { ...indicators[idx], name, description, formula, unit, frequency, indicatorType, dataType, category, subCategory, dataSource, responsibleDept, isPositive, status };
           }
         }
         omp_save('indicators', indicators);

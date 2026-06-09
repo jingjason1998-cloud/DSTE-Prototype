@@ -827,12 +827,31 @@ function updateSortIndicators() {
 }
 
 // ===================== Form Modal =====================
-function populateYearOptions(selectEl, selectedYear) {
-    const years = getAllYears();
+function populateYearOptions(selectEl, selectedYear, startDate, endDate) {
+    // 1. 从历史专题数据中提取已有年份
+    const years = new Set(getAllYears());
+
+    // 2. 从 startDate / endDate 提取年份范围
+    const sYear = startDate ? startDate.slice(0, 4) : '';
+    const eYear = endDate ? endDate.slice(0, 4) : '';
+    if (sYear) years.add(sYear);
+    if (eYear) years.add(eYear);
+    // 填充 startDate 与 endDate 之间的所有年份
+    if (sYear && eYear) {
+        const s = parseInt(sYear, 10);
+        const e = parseInt(eYear, 10);
+        for (let y = Math.min(s, e); y <= Math.max(s, e); y++) {
+            years.add(String(y));
+        }
+    }
+
+    // 3. 始终包含当前年份
     const currentYear = new Date().getFullYear().toString();
-    if (!years.includes(currentYear)) years.unshift(currentYear);
-    years.sort().reverse();
-    selectEl.innerHTML = '<option value="">选择年度</option>' + years.map(y =>
+    years.add(currentYear);
+
+    // 4. 排序并渲染
+    const sortedYears = Array.from(years).sort().reverse();
+    selectEl.innerHTML = '<option value="">选择年度</option>' + sortedYears.map(y =>
         `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`
     ).join('');
 }
@@ -841,8 +860,6 @@ function openFormModal(id) {
     const isEdit = !!id;
     document.getElementById('formTitle').textContent = isEdit ? '编辑业务专题' : '新建业务专题';
     document.getElementById('formTopicId').value = id || '';
-
-    populateYearOptions(document.getElementById('fYear'), '');
 
     if (isEdit) {
         const topic = loadTopics().find(t => t.id === id);
@@ -854,9 +871,10 @@ function openFormModal(id) {
         document.getElementById('fStatus').value = topic.status || 'preparing';
         document.getElementById('fOwner').value = topic.owner || '';
         document.getElementById('fDepartment').value = topic.department || '';
-        document.getElementById('fYear').value = topic.year || '';
         document.getElementById('fStartDate').value = topic.startDate || '';
         document.getElementById('fEndDate').value = topic.endDate || '';
+        // 年度选项基于 startDate/endDate 动态生成
+        populateYearOptions(document.getElementById('fYear'), topic.year || '', topic.startDate || '', topic.endDate || '');
         document.getElementById('fTags').value = (topic.tags || []).join(', ');
         document.getElementById('fSummary').value = topic.summary || '';
         document.getElementById('fKmsLink').value = topic.kmsLink || '';
@@ -865,6 +883,7 @@ function openFormModal(id) {
         document.getElementById('topicForm').reset();
         document.getElementById('fPriority').value = 'P1';
         document.getElementById('fStatus').value = 'preparing';
+        populateYearOptions(document.getElementById('fYear'), '', '', '');
         renderFormMilestones([]);
     }
 
@@ -1641,14 +1660,16 @@ function handleDelegatedChange(e) {
         return;
     }
 
-    // startDate change: auto-populate year if not set
-    if (target.id === 'fStartDate') {
+    // startDate / endDate change: re-populate year options based on date range
+    if (target.id === 'fStartDate' || target.id === 'fEndDate') {
         const yearEl = document.getElementById('fYear');
-        if (target.value && !yearEl.value) {
-            const year = target.value.slice(0, 4);
-            if (year) {
-                populateYearOptions(yearEl, year);
-            }
+        const startVal = document.getElementById('fStartDate').value;
+        const endVal = document.getElementById('fEndDate').value;
+        const currentYear = yearEl.value;
+        populateYearOptions(yearEl, currentYear, startVal, endVal);
+        // If year is still empty after repopulating, auto-fill from startDate
+        if (!yearEl.value && startVal) {
+            yearEl.value = startVal.slice(0, 4);
         }
         return;
     }

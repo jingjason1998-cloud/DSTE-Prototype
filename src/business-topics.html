@@ -291,16 +291,43 @@
 
 
         <div class="page-content">
-            <div style="display: flex; gap: 16px; margin-bottom: 20px;">
-                <div class="report-card report-card-st" data-action="ai-report" data-report-type="ST">
-                    <div class="report-card-label">🏛️ ST 议题全局分析</div>
-                    <div class="report-card-status" id="stReportStatus">点击生成</div>
-                    <div class="report-card-meta" id="stReportMeta">—</div>
+            <!-- 顶部：统计指标卡 + ST/AT 报告 -->
+            <div style="display: flex; gap: 16px; margin-bottom: 20px; align-items: stretch;">
+                <!-- 左侧：统计指标卡 -->
+                <div style="flex: 1; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">📊 业务专题统计</div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="statInProgress">0</div>
+                            <div style="font-size: 12px; color: var(--text-tertiary);">进行中</div>
+                        </div>
+                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                            <div style="font-size: 28px; font-weight: 700;" id="statArchived">0</div>
+                            <div style="font-size: 12px; color: var(--text-tertiary);">已归档</div>
+                        </div>
+                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--warning);" id="statP1Urgent">0</div>
+                            <div style="font-size: 12px; color: var(--text-tertiary);">P0 紧急</div>
+                        </div>
+                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--danger);" id="statDelayed">0</div>
+                            <div style="font-size: 12px; color: var(--text-tertiary);">已延期</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="report-card report-card-at" data-action="ai-report" data-report-type="AT">
-                    <div class="report-card-label">🏢 AT 议题全局分析</div>
-                    <div class="report-card-status" id="atReportStatus">点击生成</div>
-                    <div class="report-card-meta" id="atReportMeta">—</div>
+
+                <!-- 右侧：ST / AT 报告卡片 -->
+                <div style="width: 240px; display: flex; flex-direction: column; gap: 12px;">
+                    <div class="report-card report-card-st" data-action="ai-report" data-report-type="ST" style="flex: 1;">
+                        <div class="report-card-label">🏛️ ST 议题全局分析</div>
+                        <div class="report-card-status" id="stReportStatus">点击生成</div>
+                        <div class="report-card-meta" id="stReportMeta">—</div>
+                    </div>
+                    <div class="report-card report-card-at" data-action="ai-report" data-report-type="AT" style="flex: 1;">
+                        <div class="report-card-label">🏢 AT 议题全局分析</div>
+                        <div class="report-card-status" id="atReportStatus">点击生成</div>
+                        <div class="report-card-meta" id="atReportMeta">—</div>
+                    </div>
                 </div>
             </div>
 
@@ -356,28 +383,6 @@
                     <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
                     <div style="font-size: 14px; margin-bottom: 8px;">暂无业务专题</div>
                     <div style="font-size: 12px;">点击右上角「新建业务专题」开始创建</div>
-                </div>
-            </div>
-
-            <div style="margin-top: 24px; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
-                <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">📊 业务专题统计</div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px;">
-                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                        <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="statInProgress">0</div>
-                        <div style="font-size: 12px; color: var(--text-tertiary);">进行中</div>
-                    </div>
-                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                        <div style="font-size: 28px; font-weight: 700;" id="statArchived">0</div>
-                        <div style="font-size: 12px; color: var(--text-tertiary);">已归档</div>
-                    </div>
-                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                        <div style="font-size: 28px; font-weight: 700; color: var(--warning);" id="statP1Urgent">0</div>
-                        <div style="font-size: 12px; color: var(--text-tertiary);">P0 紧急</div>
-                    </div>
-                    <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                        <div style="font-size: 28px; font-weight: 700; color: var(--danger);" id="statDelayed">0</div>
-                        <div style="font-size: 12px; color: var(--text-tertiary);">已延期</div>
-                    </div>
                 </div>
             </div>
         </div>

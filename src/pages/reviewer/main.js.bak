@@ -423,7 +423,7 @@
                         const color = isLatest ? '#2563eb' : '#6b7280';
                         const border = isLatest ? 'rgba(59,130,246,0.3)' : '#e5e7eb';
                         const timeStr = new Date(rec.timestamp || 0).toLocaleString('zh-CN');
-                        tagsHtml += '<span class="history-version-tag' + (isLatest ? ' latest' : '') + '" style="padding:4px 10px;border-radius:6px;font-size:0.8em;cursor:pointer;background:' + bg + ';color:' + color + ';border:1px solid ' + border + ';white-space:nowrap;" onclick="event.stopPropagation();showHistoryDetail(' + parseInt(rec.id, 10) + ')" title="' + escapeHtml(timeStr) + '">v' + (rec.version || 1) + ' · ' + (rec.total_score || '--') + '分</span>';
+                        tagsHtml += '<span class="history-version-tag' + (isLatest ? ' latest' : '') + '" style="padding:4px 10px;border-radius:6px;font-size:0.8em;cursor:pointer;background:' + bg + ';color:' + color + ';border:1px solid ' + border + ';white-space:nowrap;" onclick="event.stopPropagation();showHistoryDetail(' + rec.id + ')" title="' + escapeHtml(timeStr) + '">v' + (rec.version || 1) + ' · ' + (rec.total_score || '--') + '分</span>';
                     });
                     
                     let compareBtn = '';
@@ -462,7 +462,7 @@
             if (!url) return;
             const history = await getReviewHistory(10);
             const versions = history.filter(r => r.url === url).sort((a, b) => (a.version || 1) - (b.version || 1));
-            if (versions.length < 2) { setStatus('该材料不足2个版本，无法对比', 'warning'); return; }
+            if (versions.length < 2) { alert('该材料不足2个版本，无法对比'); return; }
             showVersionCompare(versions[0], versions[versions.length - 1]);
         }
 
@@ -636,8 +636,8 @@
         async function openCompareModal(url) {
             const history = await getReviewHistory(10);
             const versions = history.filter(r => r.url === url).sort((a, b) => (a.version || 1) - (b.version || 1));
-            if (versions.length < 2) { setStatus('该材料不足2个版本，无法对比', 'warning'); return; }
-
+            if (versions.length < 2) { alert('该材料不足2个版本，无法对比'); return; }
+            
             // 默认对比最早版本和最新版本
             showVersionCompare(versions[0], versions[versions.length - 1]);
         }
@@ -790,7 +790,7 @@
         function toggleHistoryPanel() {
             var panel = document.getElementById('historyPanel');
             var listEl = document.getElementById('historyList');
-            if (!panel) { setStatus('错误：找不到面板', 'error'); return; }
+            if (!panel) { alert('错误：找不到面板'); return; }
             var hasHidden = panel.classList.contains('hidden');
             if (hasHidden) {
                 panel.classList.remove('hidden');
@@ -799,7 +799,7 @@
                     listEl.innerHTML = '<p style="color:#2563eb;text-align:center;padding:20px;">正在加载历史记录...</p>';
                 }
                 renderHistoryPanel().catch(function(err) {
-                    if (listEl) listEl.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">加载失败: ' + escapeHtml(err.message || '未知错误') + '</p>';
+                    if (listEl) listEl.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">加载失败: ' + (err.message || '未知错误') + '</p>';
                 });
             } else {
                 panel.classList.add('hidden');
@@ -907,9 +907,7 @@
                         var icon = res.status === 'completed' ? '✅' : (res.status === 'failed' ? '❌' : '⏳');
                         var score = res.total_score ? ' · <strong style="color:' + (res.total_score >= 80 ? '#16a34a' : (res.total_score >= 60 ? '#ca8a04' : '#dc2626')) + ';">' + res.total_score + '分</strong>' : '';
                         var titleColor = res.status === 'failed' ? '#dc2626' : '#374151';
-                        var rawTitle = res.title || res.url || '';
-                        var displayTitle = escapeHtml(rawTitle.length > 40 ? rawTitle.substring(0, 40) + '...' : rawTitle);
-                        html += '<div style="margin-bottom:4px;color:#6b7280;">' + icon + ' <span style="color:' + titleColor + ';">' + displayTitle + '</span>' + score + '</div>';
+                        html += '<div style="margin-bottom:4px;color:#6b7280;">' + icon + ' <span style="color:' + titleColor + ';">' + (res.title || res.url).substring(0, 40) + '</span>' + score + '</div>';
                     });
                     progressList.innerHTML = html;
                 }
@@ -944,7 +942,7 @@
         async function showCompareMatrix() {
             var taskId = window._lastBatchTaskId;
             if (!taskId) {
-                setStatus('请先完成批量审核', 'warning');
+                alert('请先完成批量审核');
                 return;
             }
             var modal = document.getElementById('compareMatrixModal');
@@ -959,12 +957,12 @@
                 var resp = await fetch(PROXY_URL + '/api/batch/' + taskId + '/compare');
                 var data = await resp.json();
                 if (!data.success) {
-                    content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">' + escapeHtml(data.error || '生成失败') + '</p>';
+                    content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">' + (data.error || '生成失败') + '</p>';
                     return;
                 }
                 renderCompareMatrix(data);
             } catch(e) {
-                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">请求失败: ' + escapeHtml(e.message) + '</p>';
+                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">请求失败: ' + e.message + '</p>';
             }
         }
         

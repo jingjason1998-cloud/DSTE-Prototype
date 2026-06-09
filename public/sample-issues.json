@@ -1,0 +1,16 @@
+{
+  "st": [
+    {"issueId":"01373","sourceSystem":"ST","meetingName":"片联季度经营分析会","meetingDate":"2026-05-19","issueTitle":"把数据治理证书纳入报销范围","issueType":"人力资源","department":"人力资源","proposer":"dallas-章鹏","content":"目前PMP和软考高级证书可以报销，但数据治理相关证书（如DAMA、CDMP）未被纳入报销范围，建议统一纳入","decision":"转入片联议题讨论","status":"跟进","priority":"P2","submitTime":"2026-05-19"},
+    {"issueId":"01374","sourceSystem":"ST","meetingName":"片联季度经营分析会","meetingDate":"2026-05-20","issueTitle":"战区销售小组编制配置规则优化方案","issueType":"干部管理","department":"干部管理","proposer":"Alex.Fang-方朱穆睿","content":"当前战区销售小组编制配置存在不合理之处，需要优化配置规则以提升人效","decision":"对议题发表初步意见","status":"关闭","priority":"P1","submitTime":"2026-05-20"},
+    {"issueId":"01375","sourceSystem":"ST","meetingName":"片联季度经营分析会","meetingDate":"2026-05-21","issueTitle":"大客户交付周期压缩专项","issueType":"交付运营","department":"交付运营","proposer":"项目管理部-李华","content":"大客户项目平均交付周期为90天，竞品平均60天，需要专项压缩交付周期","decision":"同意立项，组建专项小组","status":"进行中","priority":"P0","submitTime":"2026-05-21"},
+    {"issueId":"01376","sourceSystem":"ST","meetingName":"片联季度经营分析会","meetingDate":"2026-05-22","issueTitle":"产品定价策略调整建议","issueType":"财务","department":"财务部","proposer":"财务部-王芳","content":"当前产品定价策略未能充分反映市场变化，建议按季度调整定价模型","decision":"需补充市场调研数据","status":"跟进","priority":"P1","submitTime":"2026-05-22"},
+    {"issueId":"01377","sourceSystem":"ST","meetingName":"片联季度经营分析会","meetingDate":"2026-05-23","issueTitle":"区域渠道冲突管理规范","issueType":"渠道管理","department":"渠道管理部","proposer":"渠道部-张明","content":"多个战区存在渠道冲突现象，需要建立统一的渠道冲突管理规范","decision":"原则同意，细化执行方案","status":"跟进","priority":"P2","submitTime":"2026-05-23"}
+  ],
+  "at": [
+    {"issueId":"00820","sourceSystem":"AT","meetingName":"本部重点工作经营例会","meetingDate":"2026-04-15","issueTitle":"战区销售小组编制配置规则优化方案","issueType":"干部管理","department":"干部管理","proposer":"Alex.Fang-方朱穆睿","content":"战区销售组长带人人数的限制政策在当下是否需要优化？如何优化？","decision":"对议题发表初步意见","status":"关闭","priority":"P1","submitTime":"2026-04-15"},
+    {"issueId":"00821","sourceSystem":"AT","meetingName":"本部重点工作经营例会","meetingDate":"2026-04-16","issueTitle":"九数云-2026年售卖通路和分成逻辑","issueType":"绩效管理","department":"绩效管理","proposer":"AllenGun-甘子伦","content":"2026年九数云产品的售卖通路和分成逻辑需要重新梳理","decision":"关闭","status":"关闭","priority":"P1","submitTime":"2026-04-16"},
+    {"issueId":"00822","sourceSystem":"AT","meetingName":"本部重点工作经营例会","meetingDate":"2026-04-17","issueTitle":"北京特定客户及组员提成二次分配方案","issueType":"薪酬管理","department":"薪酬管理","proposer":"薪酬部-赵敏","content":"北京特定客户的提成分配涉及多方，需要明确二次分配规则","decision":"需进一步讨论","status":"跟进","priority":"P2","submitTime":"2026-04-17"},
+    {"issueId":"00823","sourceSystem":"AT","meetingName":"本部重点工作经营例会","meetingDate":"2026-04-18","issueTitle":"项目四算覆盖率提升专项","issueType":"项目管理","department":"项目管理部","proposer":"项目总监-陈强","content":"当前项目四算覆盖率为85%，目标100%，需要专项提升","decision":"同意立项","status":"进行中","priority":"P0","submitTime":"2026-04-18"},
+    {"issueId":"00824","sourceSystem":"AT","meetingName":"本部重点工作经营例会","meetingDate":"2026-04-19","issueTitle":"低利润项目预警机制建设","issueType":"财务","department":"财务部","proposer":"财务分析-刘洋","content":"建立低利润项目自动预警机制，提前识别风险项目","decision":"技术方案评审中","status":"跟进","priority":"P1","submitTime":"2026-04-19"}
+  ]
+}

@@ -313,6 +313,45 @@
           "desc": "议题编号规则放宽，支持自动编号"
         }
       ]
+    },
+    {
+      "version": "v0.4.7",
+      "date": "2026-06-09",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**KPI 指标体系**（驾驶舱新增模块）："
+        },
+        {
+          "type": "Added",
+          "desc": "**KPI 指标树 v3/v4**："
+        },
+        {
+          "type": "Added",
+          "desc": "**业务专题管理增强**："
+        },
+        {
+          "type": "Added",
+          "desc": "**OMP 组织绩效管理仪表板**："
+        },
+        {
+          "type": "Added",
+          "desc": "**企业微信通知代理**（Cloudflare Worker）："
+        },
+        {
+          "type": "Added",
+          "desc": "**经营分析会增强**："
+        },
+        {
+          "type": "Changed",
+          "desc": "cockpit.html 规模增长至 3800+ 行（承载 KPI/OMP 模块）"
+        },
+        {
+          "type": "Changed",
+          "desc": "api-worker 新增 `/api/notify/proxy` 接口"
+        }
+      ]
     }
   ],
   "modules": [
