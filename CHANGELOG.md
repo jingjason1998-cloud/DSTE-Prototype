@@ -38,6 +38,12 @@
 - `api-worker` 新增 OMP 数据接口
 - `package.json` 新增 devDependencies：`@eslint/js`、`eslint-config-prettier`、`globals`、`prettier`、`vitest`
 
+## [v0.4.10] - 2026-06-10
+
+### Fixed
+- **经营分析会保存失败**：`saveMeeting`/`deleteMeeting` 函数在全局作用域定义，但引用了 `renderMeetings` 内部的局部变量 `meetings`，导致 `ReferenceError: meetings is not defined`
+  - 修复：在 `saveMeeting` 和 `deleteMeeting` 函数开头添加 `const meetings = window._meetingsData`
+
 ## [Unreleased]
 
 ### 计划中

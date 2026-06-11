@@ -403,11 +403,27 @@
         },
         {
           "type": "Added",
+          "desc": "**经营分析会组件化拆分**（`src/meetings/`）："
+        },
+        {
+          "type": "Added",
+          "desc": "**单元测试框架搭建**："
+        },
+        {
+          "type": "Added",
+          "desc": "**代码规范工具链**："
+        },
+        {
+          "type": "Added",
           "desc": "**Reviewer 材料审核增强**：审核标准可视化、场景切换优化"
         },
         {
           "type": "Added",
           "desc": "**AI 语义关联优化**：`diagnose-ai-match.js` 诊断工具"
+        },
+        {
+          "type": "Added",
+          "desc": "**PR 模板**：`.github/pull_request_template.md`"
         },
         {
           "type": "Changed",
@@ -416,6 +432,10 @@
         {
           "type": "Changed",
           "desc": "`api-worker` 新增 OMP 数据接口"
+        },
+        {
+          "type": "Changed",
+          "desc": "`package.json` 新增 devDependencies：`@eslint/js`、`eslint-config-prettier`、`globals`、`prettier`、`vitest`"
         }
       ]
     }

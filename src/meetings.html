@@ -1503,6 +1503,7 @@
                   <span style="font-size: 12px; color: var(--text-secondary); margin-left: 8px;">共 ${m.agenda_items?.length || 0} 项 · ${agendaTotalMinutes} 分钟</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
+                  <button type="button" onclick="event.stopPropagation(); pushAgendaMeeting('${m.id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📢 推送议程</button>
                   <span style="font-size: 12px; color: var(--text-secondary);">已完成 0 / ${m.agenda_items?.length || 0}</span>
                   <svg width="28" height="28" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--border-light)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" stroke-width="3" stroke-dasharray="0 94"/></svg>
                 </div>
@@ -1528,6 +1529,7 @@
                         <span style="color: var(--primary);">${a.duration}分钟</span>
                       </div>
                     </div>
+                    <button type="button" onclick="event.stopPropagation(); pushAgenda('${m.id}', ${i})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0; white-space: nowrap;">📢 推送</button>
                   </div>
                 `).join('')}
               </div>
@@ -1738,7 +1740,7 @@
 
         // ---- 企业微信通知体系 ----
         const NOTIF_CONFIG_KEY = 'dste_notification_config';
-        const NOTIF_DEFAULT = { webhooks: [], enabledTypes: { resolution: true, todo: true, alert: true }, mentionAll: false, lastSent: [] };
+        const NOTIF_DEFAULT = { webhooks: [], enabledTypes: { resolution: true, todo: true, alert: true, agenda: true }, mentionAll: false, lastSent: [] };
 
         window.loadNotificationConfig = function() {
           let cfg;
@@ -1772,6 +1774,19 @@
               return `## ⚠️ 会议预警\n**会议：**${data.meetingTitle}\n**问题：**${data.stepLabel} 尚未完成\n**逾期：**<font color="warning">${data.daysOverdue} 天</font>\n**会议日期：**${data.meetingDate}\n> 💡 请尽快推进！`;
             case 'alert-action':
               return `## ⚠️ 行动项预警\n**会议：**${data.meetingTitle}\n**行动项：**${data.content}\n**负责人：**${data.owner || '待定'}\n**截止日期：**${data.deadline}\n<font color="warning">距截止仅剩 ${data.daysLeft} 天，请尽快闭环！</font>`;
+            case 'agenda': {
+              const modeTip = data.mode === 'material' ? '请提前准备议程材料' : data.mode === 'change' ? '议程信息已更新，请留意' : '请准时参加议程讨论';
+              return `## 📋 议程通知\n**会议：**${data.meetingTitle}\n**议程：**${data.agendaTitle}\n**类型：**${data.agendaType || '其他'}\n**时长：**${data.duration || 0} 分钟\n**负责人：**${data.owner || '待定'}\n` +
+                (data.speaker ? `**演讲人：**${data.speaker}\n` : '') +
+                (data.materialLink ? `**材料：**[查看材料](${data.materialLink})\n` : '') +
+                `> 💡 ${modeTip}`;
+            }
+            case 'agenda-meeting': {
+              const items = (data.agendaItems || []).map((a, i) => `${i + 1}. 【${a.type || '其他'}】${a.title}（${a.duration || 0}min）— 负责人：${a.owner || '待定'}`).join('\n');
+              return `## 📋 会议议程总览\n**会议：**${data.meetingTitle}\n**日期：**${data.meetingDate || '待定'}\n` +
+                (data.location ? `**地点：**${data.location}\n` : '') +
+                `\n**议程列表：**\n${items || '> 暂无议程'}\n\n> 📌 合计 ${data.totalDuration || 0} 分钟，共 ${(data.agendaItems || []).length} 项议程`;
+            }
             default:
               return '';
           }
@@ -1779,7 +1794,7 @@
         window.sendWeComNotification = async function(type, payload, webhookUrl) {
           const cfg = loadNotificationConfig();
           if (!webhookUrl) { alert('请先选择发送目标群'); return { success: false, msg: '未选择发送目标' }; }
-          const enabledKey = type.startsWith('alert') ? 'alert' : type;
+          const enabledKey = type.startsWith('alert') ? 'alert' : type.startsWith('agenda') ? 'agenda' : type;
           if (!cfg.enabledTypes[enabledKey]) return { success: false, msg: '该类型推送已禁用' };
           const msg = renderNotificationMessage(type, payload);
           if (!msg) return { success: false, msg: '消息内容为空' };
@@ -1857,13 +1872,45 @@
           if (!m) return;
           openWebhookSelector(alertType, { ...data, meetingTitle: m.title });
         };
+        window.pushAgenda = function(meetingId, idx, mode) {
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m || !m.agenda_items || !m.agenda_items[idx]) return;
+          const a = m.agenda_items[idx];
+          openWebhookSelector('agenda', {
+            meetingTitle: m.title,
+            agendaTitle: a.title,
+            agendaType: AGENDA_TYPE_LABELS[a.type] || '其他',
+            duration: a.duration,
+            owner: a.owner,
+            speaker: a.speaker,
+            materialLink: a.material_link,
+            mode: mode || 'reminder'
+          });
+        };
+        window.pushAgendaMeeting = function(meetingId) {
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m) return;
+          const totalMinutes = (m.agenda_items || []).reduce((s, a) => s + (a.duration || 0), 0);
+          openWebhookSelector('agenda-meeting', {
+            meetingTitle: m.title,
+            meetingDate: m.date,
+            location: m.location,
+            agendaItems: (m.agenda_items || []).map(a => ({
+              title: a.title,
+              type: AGENDA_TYPE_LABELS[a.type] || '其他',
+              duration: a.duration,
+              owner: a.owner
+            })),
+            totalDuration: totalMinutes
+          });
+        };
         window.openNotificationCenter = function() {
           const cfg = loadNotificationConfig();
           const logs = cfg.lastSent || [];
           const listHtml = logs.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">暂无推送记录</div>' : logs.map(l => `
             <div style="padding: 12px; background: var(--bg-page); border-radius: 8px; margin-bottom: 8px; border-left: 3px solid ${l.status === 'success' ? 'var(--success)' : 'var(--danger)'}">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="font-size: 13px; font-weight: 600;">${l.type === 'resolution' ? '📋 决议推送' : l.type === 'todo' ? '⏰ 待办提醒' : '⚠️ 预警'}</span>
+                <span style="font-size: 13px; font-weight: 600;">${l.type === 'resolution' ? '📋 决议推送' : l.type === 'todo' ? '⏰ 待办提醒' : l.type.startsWith('agenda') ? '📋 议程通知' : '⚠️ 预警'}</span>
                 <span style="font-size: 11px; color: var(--text-tertiary);">${new Date(l.sentAt).toLocaleString()}</span>
               </div>
               <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${l.content}</div>
@@ -1924,6 +1971,7 @@
           document.getElementById('notif-enable-resolution').checked = cfg.enabledTypes?.resolution !== false;
           document.getElementById('notif-enable-todo').checked = cfg.enabledTypes?.todo !== false;
           document.getElementById('notif-enable-alert').checked = cfg.enabledTypes?.alert !== false;
+          document.getElementById('notif-enable-agenda').checked = cfg.enabledTypes?.agenda !== false;
           document.getElementById('notif-mention-all').checked = cfg.mentionAll || false;
           const ov = document.getElementById('notification-config-overlay');
           if (ov) ov.style.display = 'flex';
@@ -1945,6 +1993,7 @@
               resolution: document.getElementById('notif-enable-resolution')?.checked || false,
               todo: document.getElementById('notif-enable-todo')?.checked || false,
               alert: document.getElementById('notif-enable-alert')?.checked || false,
+              agenda: document.getElementById('notif-enable-agenda')?.checked || false,
             },
             mentionAll: document.getElementById('notif-mention-all')?.checked || false,
             lastSent: loadNotificationConfig().lastSent || [],
@@ -2323,6 +2372,7 @@
          * 数据持久化到 API 和 localStorage
          */
         window.saveMeeting = function() {
+          const meetings = window._meetingsData;
           try {
             const d = window._meetingEditData;
             if (!d) { console.warn('saveMeeting: _meetingEditData is null'); alert('编辑数据丢失，请重新打开编辑窗口'); return; }
@@ -2404,6 +2454,7 @@
           }
         };
         window.deleteMeeting = function() {
+          const meetings = window._meetingsData;
           const d = window._meetingEditData;
           if (!d) return;
           if (!confirm('确定要删除该会议吗？此操作不可撤销。')) return;
@@ -3084,6 +3135,7 @@
             <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-enable-resolution" style="cursor: pointer;"> 📋 决议推送</label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-enable-todo" style="cursor: pointer;"> ⏰ 待办提醒</label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-enable-alert" style="cursor: pointer;"> ⚠️ 预警提醒</label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" id="notif-enable-agenda" style="cursor: pointer;"> 📋 议程通知</label>
           </div>
         </div>
         <div style="margin-bottom: 20px;">
