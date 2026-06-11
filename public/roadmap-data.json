@@ -352,6 +352,72 @@
           "desc": "api-worker 新增 `/api/notify/proxy` 接口"
         }
       ]
+    },
+    {
+      "version": "v0.4.8",
+      "date": "2026-06-09",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**战略指标库（KPI 指标体系）**："
+        },
+        {
+          "type": "Added",
+          "desc": "**OMP 组织绩效管理增强**："
+        },
+        {
+          "type": "Added",
+          "desc": "**Reviewer 模块重构**："
+        },
+        {
+          "type": "Added",
+          "desc": "**年度经营计划 PRD**：产品设计方案文档"
+        },
+        {
+          "type": "Changed",
+          "desc": "cockpit.html 规模增长至 4500+ 行"
+        },
+        {
+          "type": "Changed",
+          "desc": "导航新增「战略指标库」入口"
+        },
+        {
+          "type": "Changed",
+          "desc": "api-worker 新增指标数据接口"
+        }
+      ]
+    },
+    {
+      "version": "v0.4.9",
+      "date": "2026-06-10",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**经营分析会会议效果评估**："
+        },
+        {
+          "type": "Added",
+          "desc": "**OMP 重点工作管理（驾驶舱）**："
+        },
+        {
+          "type": "Added",
+          "desc": "**Reviewer 材料审核增强**：审核标准可视化、场景切换优化"
+        },
+        {
+          "type": "Added",
+          "desc": "**AI 语义关联优化**：`diagnose-ai-match.js` 诊断工具"
+        },
+        {
+          "type": "Changed",
+          "desc": "经营分析会审核标准文档归档至 `docs/.archive/`"
+        },
+        {
+          "type": "Changed",
+          "desc": "`api-worker` 新增 OMP 数据接口"
+        }
+      ]
     }
   ],
   "modules": [

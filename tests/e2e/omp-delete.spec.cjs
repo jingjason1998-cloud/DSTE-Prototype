@@ -11,7 +11,7 @@ test('OMP delete leaf KPI works with confirmation', async ({ page }) => {
     }
   });
   
-  await page.goto('http://localhost:4173/src/cockpit.html#exe/tasks');
+  await page.goto('/src/cockpit.html#exe/tasks');
   await page.waitForTimeout(2000);
   
   // Switch to KPI tab, tree view
@@ -39,7 +39,7 @@ test('OMP delete task works with confirmation', async ({ page }) => {
     await dialog.accept();
   });
   
-  await page.goto('http://localhost:4173/src/cockpit.html#exe/tasks');
+  await page.goto('/src/cockpit.html#exe/tasks');
   await page.waitForTimeout(2000);
   
   await page.locator('button[data-tab="tasks"]').first().click();

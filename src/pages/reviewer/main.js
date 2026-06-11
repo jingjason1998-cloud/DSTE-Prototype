@@ -23,7 +23,7 @@
         // 本地场景配置（代理不可用时作为备用）
         const LOCAL_SCENES = [
             { id: 'vertical-segment-review', short_name: '垂直客群-落后述职' },
-            { id: 'lagging-region-review', short_name: '落后战区述职' },
+            { id: 'lagging-region-review', short_name: '落后战区业绩承诺会' },
             { id: 'annual-leader-review', short_name: '负责人年度述职' },
             { id: 'general-topic-review', short_name: '通用议题材料审核（以本部会为例）' }
         ];
@@ -33,7 +33,11 @@
             const select = document.getElementById('sceneSelect');
             let sceneList = [];
             try {
-                const resp = await fetch(PROXY_URL + '/api/scenes', { method: 'GET', mode: 'cors' });
+                // 1秒超时：代理不可用时快速回退到本地配置
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1000);
+                const resp = await fetch(PROXY_URL + '/api/scenes', { method: 'GET', mode: 'cors', signal: controller.signal });
+                clearTimeout(timeoutId);
                 const data = await resp.json();
                 if (data.success && data.scenes && data.scenes.length > 0) {
                     sceneList = data.scenes;
@@ -44,6 +48,12 @@
             // 如果代理没有返回或返回为空，使用本地配置
             if (sceneList.length === 0) {
                 sceneList = LOCAL_SCENES;
+            } else {
+                // 用本地 short_name 覆盖后端返回的名称（方案A：前端映射）
+                sceneList = sceneList.map(s => {
+                    const local = LOCAL_SCENES.find(ls => ls.id === s.id);
+                    return local ? { ...s, short_name: local.short_name } : s;
+                });
             }
             // 确保通用议题评审场景始终存在，名称与本地保持一致
             const hasGeneral = sceneList.some(s => s.id === 'general-topic-review');
@@ -143,8 +153,66 @@
                     bottomClass: 'yellow'
                 }
             ],
-            'lagging-region-review': [],
-            'annual-leader-review': []
+            'lagging-region-review': [
+                {
+                    dim: '目标承诺',
+                    weight: '20分',
+                    body: '战区必须做出明确的业绩承诺，承诺内容可衡量、可追踪。需包含：当月业绩承诺目标(5分)、累计业绩承诺目标(4分)、同比数据及目标(3分)、业绩缺口分析(4分)、承诺目标可量化可衡量(4分)。承诺目标需有数据/商机/历史依据支撑，拒绝拍脑袋',
+                    bottom: '🔴 一票否决：未做出业绩承诺（目标承诺维度为0分）→ 直接退回重写 R5',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '行动具体化',
+                    weight: '30分',
+                    body: '每个行动项必须符合SMART原则，明确责任人和时间节点。含：每个行动项有明确责任人(8分)、明确时间节点(8分)、行动描述具体S(4分)、有可衡量的产出/验收标准M(4分)、行动与业绩目标关联R(3分)、行动切实可行A(3分)。拒绝"加强管理"等笼统表述',
+                    bottom: '🔴 一票否决：行动方案完全无责任人或无时间节点（行动具体化维度低于10分）→ 直接退回重写 R5',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '材料规范度',
+                    weight: '35分',
+                    body: '材料结构完整，必需章节齐全。含：财务建议≥3条(7分)、销售运营中心建议≥3条(7分)、项目运营中心建议≥3条(7分)、战区内部分析(7分)、上月承诺复盘(条件触发)(7分)。上月做了业绩承诺但未达成时，必须复盘。拒绝建议雷同、仅罗列数据无洞察',
+                    bottom: '⚠️ 严重：缺少必需章节（如财务建议/运营建议/项目建议）→ 大幅扣分，可能影响上会',
+                    bottomClass: 'yellow'
+                },
+                {
+                    dim: '数据质量',
+                    weight: '15分',
+                    body: '数据准确、逻辑自洽、无明显计算错误。含：同比/环比计算正确(4分)、百分比总和校验(3分)、数量级合理(3分)、正负号符合业务逻辑(2分)、关键指标计算正确(3分)。不深入验证数据来源真实性，但聚焦明显计算错误和逻辑矛盾',
+                    bottom: '🔴 一票否决：数据存在重大错误导致决策误导（数据质量维度低于5分）→ 直接退回重写 R5',
+                    bottomClass: 'red'
+                }
+            ],
+            'annual-leader-review': [
+                {
+                    dim: '完整性',
+                    weight: '25分',
+                    body: '年度述职必须覆盖8大模块：年度目标达成回顾、关键战役复盘、团队建设与人才培养、个人能力提升、客户/市场洞察、资源使用效率、问题反思与根因、下年度规划',
+                    bottom: '⚠️ 缺少≥3个模块 → 完整性维度大幅扣分',
+                    bottomClass: 'yellow'
+                },
+                {
+                    dim: 'SP战略关联度',
+                    weight: '25分',
+                    body: '个人/团队目标必须与公司SP、部门BP对齐。包含4层对齐检查：公司SP、部门BP、个人PBC→SP、下年计划→SP。SP机会覆盖度≥80%不扣分',
+                    bottom: '🔴 一票否决：计划与SP方向明显冲突 → SP维度 = 0分',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '态度与反思',
+                    weight: '25分',
+                    body: '坦诚反思、敢于自我批判。评估维度：诚实度（不隐藏失败）、自我批判（归因于内≥40%）、成长思维（具体学习计划）、领导力反思（领导风格与团队影响）',
+                    bottom: '🔴 一票否决：≥5处推卸责任且零自我批判 → 态度维度 ≤ 5分',
+                    bottomClass: 'red'
+                },
+                {
+                    dim: '下一步计划',
+                    weight: '25分',
+                    body: '下年度规划具体可执行。要求：目标量化、关键战役3-5个、教训应用、资源明确、风险预案。年度连续性：2025问题→2026行动→2026目标',
+                    bottom: '⚠️ 目标定性或计划与教训脱节 → 大幅扣分',
+                    bottomClass: 'yellow'
+                }
+            ]
         };
 
         function renderPrincipleCards(sceneId) {
@@ -168,7 +236,7 @@
         function getLocalFocusDimensions(sceneId) {
             const map = {
                 'vertical-segment-review': ['完整性', '差距与根因分析', '业绩预测达成概率分析', '下一步计划', 'SP战略关联度', '态度与反思'],
-                'lagging-region-review': ['完整性', '差距与根因分析', 'SP战略关联度', '业绩预测达成概率分析'],
+                'lagging-region-review': ['目标承诺', '行动具体化', '材料规范度', '数据质量'],
                 'annual-leader-review': ['完整性', 'SP战略关联度', '态度与反思', '下一步计划'],
                 'general-topic-review': ['目标-解决方案对齐度', '决策支撑度', '行动具体化', '材料规范度']
             };
@@ -189,26 +257,36 @@
             const stdBody = document.getElementById('passStandardBody');
             if (!stdBody) return;
             const activeScene = sceneId || 'general-topic-review';
-            if (activeScene === 'general-topic-review') {
-                stdBody.innerHTML = `
-                    <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
-                    <div class="std-item"><span class="std-dot"></span><span>且未触碰任何红线：</span></div>
-                    <div style="padding-left:18px;color:#6b7280;font-size:0.9em;">
-                        <div>• 零决策请求 / 零数据支撑 / 零责任主体 / 零时间计划</div>
-                    </div>
-                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
-                        触碰红线 → 总分封顶60分，判定<span class="std-redline">「待修改」</span>
-                    </div>
-                `;
-            } else {
-                stdBody.innerHTML = `
-                    <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
-                    <div class="std-item"><span class="std-dot"></span><span>且差距与根因分析 ≥ <strong>12分</strong>（单项底线）</span></div>
-                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
-                        根因分析低于12分 → 直接判定<span class="std-redline">「待修改」</span>，不论总分
-                    </div>
-                `;
-            }
+            const standards = {
+                'general-topic-review': {
+                    score: '≥80分',
+                    extra: '未触碰红线：零决策请求 / 零数据支撑 / 零责任主体 / 零时间计划',
+                    note: '触碰红线 → 总分封顶60分'
+                },
+                'vertical-segment-review': {
+                    score: '≥75分',
+                    extra: '且根因分析深度 ≥12分（单项底线）',
+                    note: '根因分析低于12分 → 直接待修改'
+                },
+                'lagging-region-review': {
+                    score: 'R2及以上（≥80分）',
+                    extra: 'R1(90-100)直接上会 / R2(80-89)微调上会 / R3(70-79)修改重审 / R4(60-69)大幅修改 / R5(0-59)退回重写',
+                    note: '一票否决：零业绩承诺 / 行动无责任人 / 行动无时间节点 / 数据重大错误'
+                },
+                'annual-leader-review': {
+                    score: '≥80分',
+                    extra: '且态度与反思 ≥15分（防止数据漂亮但反思空洞）',
+                    note: '缺少≥3个模块 → 大幅扣分 / 零自我反思 → 态度维度≤5分'
+                }
+            };
+            const s = standards[activeScene] || standards['general-topic-review'];
+            stdBody.innerHTML = `
+                <div class="std-item"><span class="std-dot"></span><span>总分 <strong>${s.score}</strong></span></div>
+                <div class="std-item"><span class="std-dot"></span><span>${s.extra}</span></div>
+                <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
+                    ${s.note}
+                </div>
+            `;
         }
 
         function resetReportArea() {
@@ -305,14 +383,47 @@
         // 本地硬编码的审核要点（代理不可用时使用）
         function getLocalSceneHints(sceneId) {
             const hints = {
+                'vertical-segment-review': [
+                    '【完整性】是否包含市场现状与竞争格局分析',
+                    '【完整性】是否包含业绩达成回顾（目标vs实际）',
+                    '【完整性】是否包含核心差距识别（量化呈现）',
+                    '【完整性】是否包含根因分析（深入业务本质）',
+                    '【完整性】是否包含下一步行动计划（具体可执行）',
+                    '【差距与根因】业绩差距是否量化（目标vs实际，同比/环比）',
+                    '【差距与根因】根因分析是否使用结构化方法（5Why/鱼骨图）',
+                    '【差距与根因】根因是否深入业务本质（非"市场环境不好"）',
+                    '【业绩预测】未来业绩预测是否有逻辑支撑（历史趋势/市场容量）',
+                    '【业绩预测】是否明确达成概率评估及关键假设条件',
+                    '【下一步计划】改进措施是否具体可执行（责任人+时间节点）',
+                    '【下一步计划】措施与差距分析是否形成闭环',
+                    '【下一步计划】资源需求和支持请求是否清晰列出',
+                    '【SP战略】述职内容是否与SP战略方向明确对齐',
+                    '【SP战略】是否展示战略解码成果（关键举措与目标映射）',
+                    '【态度反思】是否展现积极的问题意识和改进意愿',
+                    '【态度反思】对过往失误是否有坦诚反思（不回避/不推诿）'
+                ],
                 'lagging-region-review': [
-                    '季度目标达成全景是否清晰（财务/客户/运营/学习成长）',
-                    '策略执行的有效性评估是否客观',
-                    '未达成目标的根因分析是否深入（5Why）',
-                    '下季度策略调整是否有数据支撑',
-                    '跨部门协同问题是否识别并给出解决方案',
-                    '业绩承诺是否具体可衡量，避免空话套话',
-                    '资源需求和支持请求是否明确'
+                    '【目标承诺】是否包含当月业绩承诺目标（定量，非定性）',
+                    '【目标承诺】是否包含累计业绩承诺目标',
+                    '【目标承诺】是否包含同比数据及目标（基数是否说明）',
+                    '【目标承诺】是否包含业绩缺口分析（含归因，非仅罗列数据）',
+                    '【目标承诺】承诺目标是否可量化、可衡量、有依据支撑',
+                    '【行动具体化】每个行动项是否有明确责任人',
+                    '【行动具体化】每个行动项是否有明确时间节点（具体日期，非"月底前"）',
+                    '【行动具体化】行动描述是否具体（拒绝"加强管理"等笼统表述）',
+                    '【行动具体化】是否有可衡量的产出/验收标准',
+                    '【行动具体化】行动与业绩目标是否直接关联',
+                    '【材料规范度】是否包含财务建议≥3条（问题+措施+预期效果）',
+                    '【材料规范度】是否包含销售运营中心建议≥3条（含应收管理+大客户专项）',
+                    '【材料规范度】是否包含项目运营中心建议≥3条（含重点项目+资源协调）',
+                    '【材料规范度】是否包含战区内部分析（整体/客户/产品线维度，有洞察）',
+                    '【材料规范度】上月做了业绩承诺但未达成时，是否包含复盘分析',
+                    '【材料规范度】各模块建议是否差异化（避免雷同/重复）',
+                    '【数据质量】同比/环比计算是否正确',
+                    '【数据质量】百分比总和是否校验（如占比合计=100%）',
+                    '【数据质量】关键指标计算是否正确（如利润率=利润/收入）',
+                    '【数据质量】正文数据与表格数据是否前后一致',
+                    '【数据质量】数量级是否合理（无小数点/单位错误）'
                 ],
                 'annual-leader-review': [
                     '年度目标达成情况是否全面回顾',
@@ -453,7 +564,7 @@
                 document.getElementById('versionCompareBox').style.display = 'none';
             } catch (err) {
                 console.error('renderHistoryPanel 错误:', err);
-                document.getElementById('historyList').innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">加载失败: ' + escapeHtml(err.message) + '<br><span style="font-size:0.8em;color:#9ca3af;">请按 F12 查看控制台详细错误</span></p>';
+                document.getElementById('historyList').innerHTML = '<p class="review-msg review-msg-error">加载失败: ' + escapeHtml(err.message) + '<br><span class="review-msg-hint">请按 F12 查看控制台详细错误</span></p>';
             }
         }
         
@@ -796,10 +907,10 @@
                 panel.classList.remove('hidden');
                 panel.style.setProperty('display', 'block', 'important');
                 if (listEl) {
-                    listEl.innerHTML = '<p style="color:#2563eb;text-align:center;padding:20px;">正在加载历史记录...</p>';
+                    listEl.innerHTML = '<p class="review-msg review-msg-info">正在加载历史记录...</p>';
                 }
                 renderHistoryPanel().catch(function(err) {
-                    if (listEl) listEl.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">加载失败: ' + escapeHtml(err.message || '未知错误') + '</p>';
+                    if (listEl) listEl.innerHTML = '<p class="review-msg review-msg-error">加载失败: ' + escapeHtml(err.message || '未知错误') + '</p>';
                 });
             } else {
                 panel.classList.add('hidden');
@@ -951,7 +1062,7 @@
             var content = document.getElementById('compareMatrixContent');
             if (!modal || !content) return;
             
-            content.innerHTML = '<p style="color:#2563eb;text-align:center;padding:20px;">正在生成对比矩阵...</p>';
+            content.innerHTML = '<p class="review-msg review-msg-info">正在生成对比矩阵...</p>';
             modal.classList.remove('hidden');
             modal.style.setProperty('display', 'flex', 'important');
             
@@ -959,12 +1070,12 @@
                 var resp = await fetch(PROXY_URL + '/api/batch/' + taskId + '/compare');
                 var data = await resp.json();
                 if (!data.success) {
-                    content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">' + escapeHtml(data.error || '生成失败') + '</p>';
+                    content.innerHTML = '<p class="review-msg review-msg-error">' + escapeHtml(data.error || '生成失败') + '</p>';
                     return;
                 }
                 renderCompareMatrix(data);
             } catch(e) {
-                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">请求失败: ' + escapeHtml(e.message) + '</p>';
+                content.innerHTML = '<p class="review-msg review-msg-error">请求失败: ' + escapeHtml(e.message) + '</p>';
             }
         }
         
@@ -972,11 +1083,11 @@
             var content = document.getElementById('compareMatrixContent');
             if (!content) return;
             if (!data.matrix || !Array.isArray(data.matrix) || data.matrix.length === 0) {
-                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">对比矩阵数据为空</p>';
+                content.innerHTML = '<p class="review-msg review-msg-error">对比矩阵数据为空</p>';
                 return;
             }
             if (!data.matrix[0] || typeof data.matrix[0] !== 'object') {
-                content.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">对比矩阵数据格式错误</p>';
+                content.innerHTML = '<p class="review-msg review-msg-error">对比矩阵数据格式错误</p>';
                 return;
             }
             
@@ -1168,10 +1279,10 @@
                     { name: '态度与反思', max: 5, short: '态度反思' }
                 ],
                 'lagging-region-review': [
-                    { name: '完整性', max: 25, short: '完整性' },
-                    { name: '差距与根因分析', max: 25, short: '差距根因' },
-                    { name: 'SP战略关联度', max: 25, short: 'SP战略' },
-                    { name: '业绩预测达成概率分析', max: 25, short: '业绩预测' }
+                    { name: '目标承诺', max: 20, short: '目标承诺' },
+                    { name: '行动具体化', max: 30, short: '行动具体化' },
+                    { name: '材料规范度', max: 35, short: '材料规范度' },
+                    { name: '数据质量', max: 15, short: '数据质量' }
                 ],
                 'annual-leader-review': [
                     { name: '完整性', max: 25, short: '完整性' },
@@ -1754,18 +1865,38 @@
                 stdBody.innerHTML = `
                     <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
                     <div class="std-item"><span class="std-dot"></span><span>且未触碰任何红线：</span></div>
-                    <div style="padding-left:18px;color:#6b7280;font-size:0.9em;">
+                    <div style="padding-left:18px;color:var(--text-tertiary);font-size:0.9em;">
                         <div>• 零决策请求 / 零数据支撑 / 零责任主体 / 零时间计划</div>
                     </div>
-                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
+                    <div style="margin-top:6px;padding:6px 10px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border-color);font-size:0.85em;color:var(--text-tertiary);">
                         触碰红线 → 总分封顶60分，判定<span class="std-redline">「待修改」</span>
+                    </div>
+                `;
+            } else if (currentScene === 'lagging-region-review') {
+                stdBody.innerHTML = `
+                    <div class="std-item"><span class="std-dot"></span><span><strong>R级制评分标准</strong></span></div>
+                    <div style="padding-left:18px;color:var(--text-tertiary);font-size:0.85em;margin-bottom:8px;">
+                        <div>• R1 (90-100分)：材料达标，可直接上会</div>
+                        <div>• R2 (80-89分)：基本达标，微调后上会，无需重新评审</div>
+                        <div>• R3 (70-79分)：存在明显不足，修改后需重新评审</div>
+                        <div>• R4 (60-69分)：存在较多问题，大幅修改后重新评审</div>
+                        <div>• R5 (0-59分)：严重不达标，退回重写</div>
+                    </div>
+                    <div class="std-item"><span class="std-dot"></span><span><strong>🔴 一票否决项</strong></span></div>
+                    <div style="padding-left:18px;color:var(--text-tertiary);font-size:0.85em;">
+                        <div>• 目标承诺维度为 0 分（未做出业绩承诺）</div>
+                        <div>• 行动具体化维度低于 10 分（无责任人或无时间节点）</div>
+                        <div>• 数据质量维度低于 5 分（重大错误导致决策误导）</div>
+                    </div>
+                    <div style="margin-top:6px;padding:6px 10px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border-color);font-size:0.85em;color:var(--text-tertiary);">
+                        触发一票否决 → 直接判定<span class="std-redline">「R5 退回重写」</span>
                     </div>
                 `;
             } else {
                 stdBody.innerHTML = `
                     <div class="std-item"><span class="std-dot"></span><span>总分 ≥ <strong>80分</strong></span></div>
                     <div class="std-item"><span class="std-dot"></span><span>且差距与根因分析 ≥ <strong>12分</strong>（单项底线）</span></div>
-                    <div style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:0.85em;color:#6b7280;">
+                    <div style="margin-top:6px;padding:6px 10px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border-color);font-size:0.85em;color:var(--text-tertiary);">
                         根因分析低于12分 → 直接判定<span class="std-redline">「待修改」</span>，不论总分
                     </div>
                 `;
@@ -1814,6 +1945,30 @@
                 if (redLines.length > 0) {
                     bottomLineHtml = `<span class="highlight-red">触碰红线：</span><br>` + redLines.map(l => `• ${l}`).join('<br>');
                     bottomLineHtml += '<br><span style="color:#ff7777;font-size:0.85em;">触碰任意红线，总分封顶60分，不得直接上会</span>';
+                }
+            } else if (currentScene === 'lagging-region-review') {
+                // 业绩承诺会场景：一票否决检查
+                const commitmentScore = scoreData.scores.find(s => s.name.includes('目标承诺'));
+                const actionScore = scoreData.scores.find(s => s.name.includes('行动具体化'));
+                const dataQualityScore = scoreData.scores.find(s => s.name.includes('数据质量'));
+                const vetoLines = [];
+                if (commitmentScore && commitmentScore.score === 0) vetoLines.push('目标承诺为 0 分（未做出业绩承诺）→ 一票否决 R5');
+                if (actionScore && actionScore.score < 10) vetoLines.push('行动具体化 ' + actionScore.score + ' 分 &lt; 10 分（无责任人或无时间节点）→ 一票否决 R5');
+                if (dataQualityScore && dataQualityScore.score < 5) vetoLines.push('数据质量 ' + dataQualityScore.score + ' 分 &lt; 5 分（重大错误导致决策误导）→ 一票否决 R5');
+                if (vetoLines.length > 0) {
+                    bottomLineHtml = `<span class="highlight-red">🔴 触发一票否决：</span><br>` + vetoLines.map(l => `• ${l}`).join('<br>');
+                    bottomLineHtml += '<br><span style="color:#ff7777;font-size:0.85em;">一票否决项不修改到位，本次不予上会</span>';
+                } else {
+                    // 未触发一票否决，显示 R 级评定
+                    const total = scoreData.totalScore || 0;
+                    let rLevel = '';
+                    let rDesc = '';
+                    if (total >= 90) { rLevel = 'R1'; rDesc = '材料达标，可直接上会'; }
+                    else if (total >= 80) { rLevel = 'R2'; rDesc = '基本达标，微调后上会'; }
+                    else if (total >= 70) { rLevel = 'R3'; rDesc = '存在明显不足，修改后需重新评审'; }
+                    else if (total >= 60) { rLevel = 'R4'; rDesc = '存在较多问题，大幅修改后重新评审'; }
+                    else { rLevel = 'R5'; rDesc = '严重不达标，退回重写'; }
+                    bottomLineHtml = `<span style="color:var(--text-tertiary);font-size:0.9em;">评审等级：<strong style="color:${total >= 80 ? '#16a34a' : (total >= 60 ? '#ca8a04' : '#dc2626')}">${rLevel}</strong> — ${rDesc}</span>`;
                 }
             } else {
                 // 述职场景：差距与根因分析底线

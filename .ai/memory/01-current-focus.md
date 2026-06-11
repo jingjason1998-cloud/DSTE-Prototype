@@ -1,32 +1,48 @@
 # 当前开发焦点
 
-> 更新时间: 2026-06-05 14:45
+> 更新时间: 2026-06-10 16:00
 
 ## 状态
-**组织绩效管理模块 (OMP) 开发中** — 由 Claude 开发到一半，Kimi 续盘
+**经营分析会模块 — 评分评价功能已完成**，待开发会议材料审核功能。
 
-## 刚完成 (Claude 会话)
-- 组织绩效管理模块 MVP 骨架已植入 `cockpit.html` (`exe/tasks` 页面)
-- 数据层：OMP_STORAGE + Mock 数据初始化（8 指标 + 8 KPI + 6 工作 + 18 里程碑 + 4 进度记录）
-- Tab 2: KPI 管理 — 列表/筛选/新建/编辑/详情/迷你趋势图
-- Tab 3: 重点工作 — 列表/筛选/新建/编辑/详情（含里程碑+进度记录）
-- Tab 4: 甘特图 — CSS Grid 实现
-- 弹窗系统：omp_openModal + KPI/工作 的 查看/编辑/新建 弹窗
-- 数据持久化：localStorage，导出 JSON
+## 刚完成 (Kimi 会话)
+- **会议评分评价功能（方案 B：AI 推荐 + 人工确认）**
+  1. 自动评分算法 `calculateAutoScore(meeting)` — 基于客观数据（metrics/pipeline/decisions/actions）自动计算四项维度推荐分（会前准备/会议讨论/决议质量/执行落地）
+  2. 评估录入浮层 — 居中 modal，预填 AI 推荐分，支持逐项滑块微调（0-100）、11 个快捷标签多选、文字评价 textarea
+  3. 详情页评估入口 — 左侧信息面板显示评估状态 + 「⭐ 评估会议/重新评估」按钮；内容区新增「⭐ 评估」可折叠 section（综合分大数字 + 4 维度进度条 + 标签 pills + 引用块文字评价）
+  4. 列表卡片评估状态 — 已评估显示 ⭐ 分数+等级（颜色区分），未评估显示灰色「未评估」标签
+  5. 数据持久化 — `meeting.effectiveness` 字段（overallScore/dimensions/feedback/comment/evaluatedAt），随会议数据一起 localStorage + 后端同步
+  6. Playwright E2E 测试 — 新增 `tests/e2e/meeting-evaluation.spec.js`（5 个测试用例全部通过）
+  7. 修复既有测试 — `meeting-save-todo.spec.js` 中 `button:has-text("保存")` 因新增「保存评估」按钮导致 strict mode violation，改为 `button[onclick="saveMeeting()"]`
 
-## 已知缺失 / 待修复
-1. **Tab 1: 总览看板** (`omp_renderDashboard`) — 函数被调用但未定义，会导致切换到此 Tab 时报错
-2. **删除功能** — KPI 和 重点工作 表格中无删除按钮，无删除确认逻辑
-3. **甘特图硬编码颜色** — 使用 `#3b82f6` 等十六进制色值，违反 CSS 变量规范
-4. **趋势图硬编码数据** — `trendData` 对象写死，未从真实历史数据计算
+## 已知问题
+- `meeting-detail.spec.js` 部分测试偶发失败（元素不可见/点击超时）— 与预览服务器渲染时序有关，非代码回归
+- `indicator-system` / `omp-*` / `kpi-tree*` 等测试因硬编码端口 `localhost:4173` 与当前 `vite preview` 端口不一致导致失败 — 已有问题，与本次修改无关
 
 ## 下一步
-- 补充 Tab 1 总览看板（统计卡片 + KPI 热力图 + 工作状态分布 + 预警清单）
-- 补充删除功能 + 二次确认弹窗
-- 修复 CSS 变量违规
-- 构建验证 + 浏览器测试
-- 版本号升级 v0.4.5
+- **会议材料审核功能** — 用户提到此前已中断开发，需恢复上下文继续开发
+  - 会议材料审核 = 对会议召开前的材料（议程、报告、PPT 等）进行质量审核/打分
+  - 与会议评分评价的区别：材料审核是「会前」，评分评价是「会后」
+- 运行全量 Playwright 回归测试确认无新增回归
+
+## 评分评价数据结构
+```javascript
+meeting.effectiveness = {
+  overallScore: 92,           // 综合分 0-100
+  dimensions: {
+    preparation: 95,          // 会前准备
+    discussion: 90,           // 会议讨论
+    decision: 95,             // 决议质量
+    execution: 88             // 执行落地
+  },
+  feedback: ['议程合理', '数据充分', '决议明确'],  // 快捷标签
+  comment: '具体评价文字...',                      // 文字评价
+  evaluatedAt: '2026-06-10T08:00:00Z'             // 评估时间
+}
+```
 
 ## 关联文档
-- 产品设计：`docs/01-Product产品/组织绩效管理-产品设计文档.md`
-- 前端架构：`docs/03-ADR架构决策/组织绩效管理-前端架构方案.md`
+- 会议评分评价实现文件：`src/meetings.html`（~3440 行）
+- 自动评分算法位置：`calculateAutoScore()`（在 `getScoreColor` 之后，`renderMeetingDetail` 之前）
+- 评估浮层 DOM：`#meeting-eval-overlay`（body 末尾，z-index 3300）
+- 评估 JS 函数：`openMeetingEvalModal` / `closeMeetingEvalModal` / `saveMeetingEvaluation` / `renderEvalForm`

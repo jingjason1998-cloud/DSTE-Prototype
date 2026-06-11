@@ -26,7 +26,7 @@ test.describe('Meeting Save TODO', () => {
     await actionInput.fill('测试行动项内容');
 
     // 4. Click save
-    const saveBtn = page.locator('button:has-text("保存")');
+    const saveBtn = page.locator('button[onclick="saveMeeting()"]').first();
     await saveBtn.click();
     await page.waitForTimeout(500);
 
@@ -57,7 +57,7 @@ test.describe('Meeting Save TODO', () => {
     const actionInput = page.locator('#edit-action-list input[placeholder="行动内容"]').first();
     await actionInput.fill('测试保存');
 
-    await page.locator('button:has-text("保存")').click();
+    await page.locator('button[onclick="saveMeeting()"]').first().click();
     await page.waitForTimeout(500);
 
     expect(errors).toEqual([]);

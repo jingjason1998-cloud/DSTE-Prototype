@@ -7,6 +7,37 @@
 
 ---
 
+## [v0.4.9] - 2026-06-10
+
+### Added
+- **经营分析会会议效果评估**：
+  - 会议评估弹窗（`openMeetingEvalModal`），支持人工评估与重新评估
+  - 自动评分算法（`calculateAutoScore`）：基于流程完成度、材料准备、讨论充分性、决策质量、行动项执行等 5 个维度
+  - 评分可视化（overallScore + 维度雷达图 + 等级标签）
+- **OMP 重点工作管理（驾驶舱）**：
+  - 周期选择器（`renderCycleSelector` / `getCurrentCycle`），支持年度/半年度/季度切换
+  - 重点工作 CRUD（新增/编辑/保存/删除）
+  - BEM 战略解码维度切换（财务/客户/流程/学习成长）
+  - OMP API 对接（`apiLoadOmp` / `apiSaveOmp` / `ompSyncFromApi`）
+- **经营分析会组件化拆分**（`src/meetings/`）：
+  - `CalendarView.js` — 日历视图组件
+  - `DecisionsDrawer.js` — 决策抽屉组件
+  - `helpers.js` / `notifications.js` / `scoring.js` — 工具函数
+- **单元测试框架搭建**：
+  - Vitest 配置（`vitest.config.js`）
+  - 3 个单元测试：`helpers.test.js` / `notifications.test.js` / `scoring.test.js`
+- **代码规范工具链**：
+  - ESLint 配置（`eslint.config.js`）：安全规则 + 最佳实践 + 复杂度控制
+  - Prettier 配置（`.prettierrc` / `.prettierignore`）
+- **Reviewer 材料审核增强**：审核标准可视化、场景切换优化
+- **AI 语义关联优化**：`diagnose-ai-match.js` 诊断工具
+- **PR 模板**：`.github/pull_request_template.md`
+
+### Changed
+- 经营分析会审核标准文档归档至 `docs/.archive/`
+- `api-worker` 新增 OMP 数据接口
+- `package.json` 新增 devDependencies：`@eslint/js`、`eslint-config-prettier`、`globals`、`prettier`、`vitest`
+
 ## [Unreleased]
 
 ### 计划中

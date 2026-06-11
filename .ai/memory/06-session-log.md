@@ -2,6 +2,36 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-09 17:30 (Claude)
+- **主题**：年度计划 vs OMP 边界厘清 + CSS 硬编码颜色全修复
+- **操作**：
+  - **厘清年度计划与 OMP 边界**：年度计划 = 只读目标一览表，OMP = 执行监控
+  - 年度计划页移除 KPI 卡片中的达成率进度条（执行数据不展示）
+  - OMP KPI 编辑弹窗：目标值/挑战值/权重设为 disabled（计划锁定），保存逻辑不覆盖计划字段
+  - OMP 移除「新建 KPI」按钮，替换为提示「KPI 目标请前往年度经营计划维护」
+  - **修复全部 CSS 硬编码颜色**（20+ 处）：
+    - 新增 CSS 变量：--dim-*/--kpi-level-*/--accent-pink/--canvas-*
+    - BSC 维度徽章、canvas 节点状态、进度条、状态 pill、KPI 卡片层级、SVG 环形图等全部替换
+    - JS 中 dtypeColors、dimColors、deptColors、BSC_DIMENSIONS 等对象值替换为 var() 引用
+  - 更新 `.ai/memory/01-current-focus.md` 反映真实状态
+- **验证**：
+  - `npx vite build` 构建通过（229ms）
+- **状态**：complete，待 pytest + Playwright 回归测试
+
+## 2026-06-09 14:45
+- **主题**：战略指标库编辑按钮无反应排查 + meetings.html 事件委托修复
+- **操作**：
+  - 排查战略指标库（`#bp/kpi`）页面编辑按钮点击无反应问题
+  - 添加调试日志追踪：事件委托正常 → `ind_openModal` 正常 → `omp_openModal` 正常 → DOM 元素存在
+  - **根因定位**：`.omp-modal-overlay` / `.omp-modal` / `.omp-modal-wide` CSS 被错误地定义在 `renderTasks()` 函数内部的 `<style>` 标签中，只在 `exe/tasks` 页面插入 DOM；战略指标库页面弹窗 DOM 被创建但完全无样式
+  - **修复**：将弹窗 CSS 移至全局 `<style>` 标签（第12行），所有页面共享
+  - 修复 meetings.html 编辑按钮内联 `onclick` 导致测试失败：移除内联事件，卡片点击改为 `data-open-meeting-detail` 事件委托
+  - 升级 `DATA_VERSION`：`canvas-v6` → `canvas-v7`
+- **验证**：
+  - pytest 161 passed / 0 failed
+  - 浏览器端验证：战略指标库编辑弹窗正常显示
+- **状态**：complete
+
 ## 2026-06-05 14:45
 - **主题**：组织绩效管理模块 (OMP) — Claude 续盘 + 关键缺失修复
 - **操作**：
@@ -99,3 +129,22 @@
 - **决策**: 将 cockpit.html 的内联 JS 提取到独立文件（dashboard.js 等），但 Agent token 超限中断
 - **下一步**: 跑测试验证当前状态，决定是继续修复还是回滚备份
 - **状态**: partial
+
+
+## 2026-06-10 (Kimi)
+- **主题**：会议评分评价功能实现 + 补充会议材料审核项目记忆
+- **操作**：
+  - **经营分析会模块：会议评分评价功能（方案 B：AI 推荐 + 人工确认）**
+    - 自动评分算法 `calculateAutoScore(meeting)` — 基于 metrics/pipeline/decisions/actions 计算四维推荐分
+    - 评估录入浮层 — 居中 modal，预填 AI 推荐分，支持滑块微调、11 个快捷标签、文字评价
+    - 详情页评估入口 + 评估 section（进度条、标签 pills、引用块）
+    - 列表卡片评估状态展示
+    - 新增 `tests/e2e/meeting-evaluation.spec.js`（5 个测试用例全部通过）
+    - 修复既有测试 `meeting-save-todo.spec.js` 因新增「保存评估」按钮导致的 strict mode violation
+  - **补充隔壁项目记忆**：`meeting-material-reviewer/.ai/memory/`
+    - 记录了会议材料审核助手 v1.0.1 的完整状态（Flask 代理 + 前端 + SQLite）
+    - 记录了 4 个审核场景、批量审核恢复机制、事实核查等关键决策
+- **验证**：
+  - `npm run build` 构建通过
+  - 通知测试 9/9 passed，评估测试 5/5 passed，保存待办 2/2 passed
+- **状态**：complete

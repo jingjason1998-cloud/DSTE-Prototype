@@ -218,6 +218,22 @@ test.describe('getDimensionConfig — 维度配置完整性', () => {
     ]);
   });
 
+  test('lagging-region-review 返回4个业绩承诺会维度', async ({ page }) => {
+    await page.goto('/src/reviewer.html');
+    const config = await page.evaluate(() => {
+      return window._testGetDimensionConfig('lagging-region-review');
+    });
+
+    expect(config).toHaveLength(4);
+    expect(config.map(c => c.name)).toEqual([
+      '目标承诺',
+      '行动具体化',
+      '材料规范度',
+      '数据质量'
+    ]);
+    expect(config.map(c => c.max)).toEqual([20, 30, 35, 15]);
+  });
+
   test('未知场景回退到 general-topic-review', async ({ page }) => {
     await page.goto('/src/reviewer.html');
     const config = await page.evaluate(() => {

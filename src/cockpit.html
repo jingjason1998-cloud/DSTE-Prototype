@@ -107,6 +107,26 @@
       }
     }
 
+    /* ===== OMP 专用 CSS 变量 ===== */
+    :root {
+      /* BSC 维度色 */
+      --dim-financial: #1E3A5F;
+      --dim-customer: #2E8B57;
+      --dim-process: #D4A017;
+      --dim-learning: #6B4C9A;
+      /* KPI 层级色 */
+      --kpi-level-0: #003087;
+      --kpi-level-1: #005EB8;
+      --kpi-level-2: #99C7E8;
+      /* 画布背景 */
+      --canvas-bg: var(--bg-page);
+      --canvas-node-bg: var(--bg-card);
+      --canvas-stroke: var(--border-color);
+      --canvas-progress-track: var(--border-light);
+      /* 辅助色 */
+      --accent-pink: #EB2F96;
+    }
+
     /* 表格横向滚动容器 */
     .table-scroll-wrapper {
       overflow-x: auto;
@@ -128,7 +148,7 @@
       width: 100%;
       height: 700px;
       overflow: hidden;
-      background: #f8f9fa;
+      background: var(--canvas-bg);
       border-radius: 12px;
       border: 1px solid var(--border-color);
       cursor: grab;
@@ -150,7 +170,7 @@
     }
     .omp-canvas-svg path {
       fill: none;
-      stroke: #D0D0D0;
+      stroke: var(--canvas-stroke);
       stroke-width: 2;
       transition: d 0.2s ease;
     }
@@ -161,8 +181,8 @@
       min-height: 90px;
       border-radius: 10px;
       padding: 12px;
-      background: #fff;
-      border: 1px solid #E8E8E8;
+      background: var(--canvas-node-bg);
+      border: 1px solid var(--canvas-stroke);
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       cursor: grab;
       z-index: 2;
@@ -174,7 +194,7 @@
     }
     .omp-canvas-node:active { cursor: grabbing; }
     .omp-canvas-node:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-    .omp-canvas-node.selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
+    .omp-canvas-node.selected { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent); }
     /* 维度角标 */
     .omp-dim-badge {
       position: absolute;
@@ -184,14 +204,14 @@
       border-width: 0 24px 24px 0;
       border-color: transparent;
     }
-    .omp-dim-badge.financial { border-right-color: #1E3A5F; }
-    .omp-dim-badge.customer { border-right-color: #2E8B57; }
-    .omp-dim-badge.internal { border-right-color: #D4A017; }
-    .omp-dim-badge.learning { border-right-color: #6B4C9A; }
+    .omp-dim-badge.financial { border-right-color: var(--dim-financial); }
+    .omp-dim-badge.customer { border-right-color: var(--dim-customer); }
+    .omp-dim-badge.internal { border-right-color: var(--dim-process); }
+    .omp-dim-badge.learning { border-right-color: var(--dim-learning); }
     /* 顶部状态色条 */
-    .omp-canvas-node.status-achieved { border-top: 3px solid #22C55E; }
-    .omp-canvas-node.status-warning { border-top: 3px solid #F59E0B; }
-    .omp-canvas-node.status-lagging { border-top: 3px solid #EF4444; }
+    .omp-canvas-node.status-achieved { border-top: 3px solid var(--success); }
+    .omp-canvas-node.status-warning { border-top: 3px solid var(--warning); }
+    .omp-canvas-node.status-lagging { border-top: 3px solid var(--danger); }
     .canvas-node-name {
       font-size: 13px;
       font-weight: 600;
@@ -218,7 +238,7 @@
     .canvas-node-progress-bar {
       height: 4px;
       border-radius: 2px;
-      background: #E5E7EB;
+      background: var(--canvas-progress-track);
       overflow: hidden;
       margin-bottom: 4px;
     }
@@ -227,17 +247,17 @@
       border-radius: 2px;
       transition: width 0.3s ease;
     }
-    .canvas-node-progress-bar > div.achieved { background: #22C55E; }
-    .canvas-node-progress-bar > div.warning { background: #F59E0B; }
-    .canvas-node-progress-bar > div.lagging { background: #EF4444; }
+    .canvas-node-progress-bar > div.achieved { background: var(--success); }
+    .canvas-node-progress-bar > div.warning { background: var(--warning); }
+    .canvas-node-progress-bar > div.lagging { background: var(--danger); }
     .canvas-node-progress-text {
       font-size: 11px;
       font-weight: 600;
       text-align: right;
     }
-    .canvas-node-progress-text.achieved { color: #16A34A; }
-    .canvas-node-progress-text.warning { color: #D97706; }
-    .canvas-node-progress-text.lagging { color: #DC2626; }
+    .canvas-node-progress-text.achieved { color: var(--success); }
+    .canvas-node-progress-text.warning { color: var(--warning); }
+    .canvas-node-progress-text.lagging { color: var(--danger); }
     /* 展开折叠按钮 */
     .canvas-node-expand {
       position: absolute;
@@ -297,9 +317,9 @@
       flex-shrink: 0;
       letter-spacing: 0.5px;
     }
-    .omp-status-pill.achieved { background: rgba(34,197,94,0.12); color: #16A34A; }
-    .omp-status-pill.warning { background: rgba(245,158,11,0.12); color: #D97706; }
-    .omp-status-pill.lagging { background: rgba(239,68,68,0.12); color: #DC2626; }
+    .omp-status-pill.achieved { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+    .omp-status-pill.warning { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
+    .omp-status-pill.lagging { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
     /* 展开按钮（保留兼容） */
     .omp-expand-btn {
       transition: transform 0.2s ease;
@@ -315,12 +335,9 @@
     }
     .omp-expand-btn.expanded { transform: rotate(90deg); }
     /* 保留兼容：层级差异化 */
-    .omp-kpi-card[data-level="0"] { border-left: 4px solid #003087; }
-    .omp-kpi-card[data-level="1"] { border-left: 3px solid #005EB8; }
-    .omp-kpi-card[data-level="2"] { border-left: 2px solid #99C7E8; }
-    .omp-kpi-card[data-level="0"] { border-left: 4px solid #003087; }
-    .omp-kpi-card[data-level="1"] { border-left: 3px solid #005EB8; }
-    .omp-kpi-card[data-level="2"] { border-left: 2px solid #99C7E8; }
+    .omp-kpi-card[data-level="0"] { border-left: 4px solid var(--kpi-level-0); }
+    .omp-kpi-card[data-level="1"] { border-left: 3px solid var(--kpi-level-1); }
+    .omp-kpi-card[data-level="2"] { border-left: 2px solid var(--kpi-level-2); }
     /* 响应式 */
     @media (max-width: 768px) {
       .omp-kpi-card.mindmap-node { width: 140px; min-height: 80px; padding: 10px; }
@@ -350,6 +367,9 @@
       </div>
       <ul class="top-nav-links" id="top-nav-links"></ul>
       <div class="top-nav-actions">
+        <select id="global-cycle-select" data-action="global-switch-cycle" style="padding:4px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;margin-right:8px;">
+          <!-- 由 renderCycleSelector 填充 -->
+        </select>
         <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
         <button class="icon-btn" title="通知">🔔</button>
         <div class="user-avatar" id="user-avatar" style="position:relative;">张</div>
@@ -623,17 +643,30 @@
         kpiCanvasState: { scale: 1, offsetX: 0, offsetY: 0 },
       };
 
+      // ===== 全局 DSTE 状态（跨模块共享） =====
+      window._dsteState = {
+        currentCycleId: 'cycle_2026_marketing',
+      };
+
+      // ===== 分解维度配置 =====
+      const DECOMPOSE_DIMENSIONS = {
+        warzone: { label: '战区', items: ['北京大区', '上海大区', '华南大区', '浙闽大区', '苏皖大区', '西南大区', '华北大区', '华中大区', '西北大区', '东北大区'] },
+        industry: { label: '行业', items: ['制造业', '金融业', '零售业', '医疗业', '教育业', '政府/公共事业', '互联网', '能源'] },
+        product: { label: '产品', items: ['核心产品', '云服务', '数据分析', '咨询服务', '培训服务'] },
+        dept: { label: '部门', items: ['销售部', '市场部', '产品部', '技术部', '客户成功部', '运营部', 'HR部', '财务部'] },
+      };
+
       // ===== 年度经营计划页面状态 =====
       window._annualPlanState = {
-        cycleId: 'cycle_2026_marketing',
         activeTab: 'overview',
         selectedKpiId: null,
         expandedGroupIds: new Set(),
+        decomposeDimension: 'warzone',
       };
 
       function omp_initData() {
         // 版本号检测：代码更新时自动清理旧数据
-        const DATA_VERSION = 'canvas-v7';
+        const DATA_VERSION = 'canvas-v10';
         const storedVersion = localStorage.getItem('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
           // 清除所有 DSTE 相关 localStorage
@@ -664,9 +697,10 @@
           ];
           localStorage.setItem(OMP_STORAGE.indicators, JSON.stringify(indicators));
         }
-        if (!localStorage.getItem('dste_cycles')) {
-          localStorage.setItem('dste_cycles', JSON.stringify([
-            { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null }
+        if (!localStorage.getItem('dste_cycles_v1')) {
+          localStorage.setItem('dste_cycles_v1', JSON.stringify([
+            { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null },
+            { id: 'cycle_2025_marketing', year: 2025, name: '2025年度 — 营销线', phase: 'archived', organization: '营销线', parentCycleId: null },
           ]));
         }
         if (!localStorage.getItem(OMP_STORAGE.kpiInstances)) {
@@ -709,12 +743,12 @@
         }
         if (!localStorage.getItem(OMP_STORAGE.tasks)) {
           localStorage.setItem(OMP_STORAGE.tasks, JSON.stringify([
-            { id: 'task_1', name: '华东区渠道下沉', description: '拓展华东区二三线城市渠道合作伙伴', type: 'strategic', priority: 'P0', status: 'active', progress: 85, owner: '李经理', dept: '销售部', startDate: '2026-04-01', endDate: '2026-08-31', relatedKpiIds: ['kpi_1'], budget: 200, actualCost: 150 },
-            { id: 'task_2', name: 'CRM系统升级', description: '升级客户管理系统，提升销售效率', type: 'capability', priority: 'P1', status: 'active', progress: 65, owner: '王总监', dept: 'IT部', startDate: '2026-03-01', endDate: '2026-09-30', relatedKpiIds: ['kpi_2'], budget: 300, actualCost: 180 },
-            { id: 'task_3', name: '供应链优化', description: '优化供应链流程，缩短交付周期', type: 'improvement', priority: 'P0', status: 'delayed', progress: 45, owner: '张总监', dept: '供应链部', startDate: '2026-02-01', endDate: '2026-06-30', relatedKpiIds: ['kpi_5'], budget: 150, actualCost: 120 },
-            { id: 'task_4', name: '客户成功体系建设', description: '建立完善的客户成功管理体系', type: 'capability', priority: 'P1', status: 'active', progress: 30, owner: '赵经理', dept: '客户成功部', startDate: '2026-05-01', endDate: '2026-12-31', relatedKpiIds: ['kpi_4'], budget: 100, actualCost: 30 },
-            { id: 'task_5', name: 'Q2大客户攻坚', description: '针对Top20大客户开展专项攻坚', type: 'strategic', priority: 'P0', status: 'active', progress: 70, owner: '陈总监', dept: '销售部', startDate: '2026-04-01', endDate: '2026-07-31', relatedKpiIds: ['kpi_1', 'kpi_2'], budget: 180, actualCost: 100 },
-            { id: 'task_6', name: '销售团队赋能培训', description: '销售技能和产品知识培训', type: 'capability', priority: 'P1', status: 'active', progress: 55, owner: '刘经理', dept: 'HR部', startDate: '2026-03-01', endDate: '2026-08-31', relatedKpiIds: ['kpi_7'], budget: 80, actualCost: 45 },
+            { id: 'task_1', cycleId: 'cycle_2026_marketing', seq: 1, name: '大客户经营能力提升', bscDimension: 'customer', kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1376824175', owner: '陈总监', status: 'active', description: '提升大客户经营能力，建立深度合作关系', type: 'strategic', priority: 'P0', progress: 65, dept: '销售部', startDate: '2026-01-01', endDate: '2026-12-31', relatedKpiIds: [], budget: 500, actualCost: 200 },
+            { id: 'task_2', cycleId: 'cycle_2026_marketing', seq: 2, name: '垂直细分客户运营', bscDimension: 'customer', kmsUrl: '#', owner: '王总监', status: 'active', description: '按行业/区域细分客户群体，差异化运营', type: 'strategic', priority: 'P0', progress: 45, dept: '市场部', startDate: '2026-02-01', endDate: '2026-10-31', relatedKpiIds: [], budget: 300, actualCost: 120 },
+            { id: 'task_3', cycleId: 'cycle_2026_marketing', seq: 3, name: '新产品推广（简道云&FDL）项目', bscDimension: 'customer', kmsUrl: '#', owner: '李经理', status: 'planning', description: '新产品线市场推广和销售赋能', type: 'strategic', priority: 'P0', progress: 20, dept: '产品部', startDate: '2026-03-01', endDate: '2026-09-30', relatedKpiIds: [], budget: 400, actualCost: 50 },
+            { id: 'task_4', cycleId: 'cycle_2026_marketing', seq: 4, name: '业务破圈（财务&供应链&一号位）项目', bscDimension: 'customer', kmsUrl: '#', owner: '张总监', status: 'planning', description: '打破业务壁垒，实现跨部门协同', type: 'improvement', priority: 'P1', progress: 15, dept: '运营部', startDate: '2026-04-01', endDate: '2026-12-31', relatedKpiIds: [], budget: 250, actualCost: 30 },
+            { id: 'task_5', cycleId: 'cycle_2026_marketing', seq: 5, name: '数据治理：（优先业务破圈数据治理）', bscDimension: 'customer', kmsUrl: '#', owner: '赵经理', status: 'planning', description: '建立数据标准，提升数据质量', type: 'capability', priority: 'P1', progress: 10, dept: '数据部', startDate: '2026-05-01', endDate: '2026-11-30', relatedKpiIds: [], budget: 180, actualCost: 20 },
+            { id: 'task_6', cycleId: 'cycle_2026_marketing', seq: 6, name: 'MTL流程项目', bscDimension: 'process', kmsUrl: '#', owner: '刘经理', status: 'active', description: '市场到线索流程优化，提升获客效率', type: 'improvement', priority: 'P0', progress: 55, dept: '流程部', startDate: '2026-01-01', endDate: '2026-08-31', relatedKpiIds: [], budget: 200, actualCost: 100 },
           ]));
         }
         if (!localStorage.getItem(OMP_STORAGE.milestones)) {
@@ -749,11 +783,70 @@
         }
       }
 
+      // ===== OMP 数据层：localStorage + 后端 API 双写 =====
+      window._ompApiCache = {};
+
+      async function apiLoadOmp(entity) {
+        if (!API_BASE) return null;
+        try {
+          const token = localStorage.getItem('dste_token');
+          const resp = await fetch(API_BASE + '/api/omp/' + entity, {
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+          });
+          if (!resp.ok) return null;
+          const result = await resp.json();
+          if (result.success) {
+            window._ompApiCache[entity] = result.data;
+            return result.data;
+          }
+        } catch (err) { console.warn('[OMP] API load failed:', err); }
+        return null;
+      }
+
+      async function apiSaveOmp(entity, data) {
+        if (!API_BASE) return false;
+        try {
+          const token = localStorage.getItem('dste_token');
+          const resp = await fetch(API_BASE + '/api/omp/' + entity, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+            },
+            body: JSON.stringify(data),
+          });
+          return resp.ok;
+        } catch (err) { console.warn('[OMP] API save failed:', err); }
+        return false;
+      }
+
+      async function ompSyncFromApi() {
+        console.log('[OMP] Syncing from API...');
+        const entities = ['indicators', 'kpiInstances', 'tasks', 'milestones', 'progressRecords', 'cycles'];
+        for (const entity of entities) {
+          const data = await apiLoadOmp(entity);
+          if (data !== null) {
+            // 如果 API 有数据，更新 localStorage
+            try { localStorage.setItem(OMP_STORAGE[entity], JSON.stringify(data)); } catch(e) {}
+          }
+        }
+        console.log('[OMP] Sync complete');
+      }
+
       function omp_load(key) {
+        // 优先从内存缓存读取（API 同步后的最新数据）
+        if (window._ompApiCache[key]) return window._ompApiCache[key];
+        // Fallback 到 localStorage
         try { const raw = localStorage.getItem(OMP_STORAGE[key]); return raw ? JSON.parse(raw) : []; } catch(e) { return []; }
       }
+
       function omp_save(key, data) {
-        try { localStorage.setItem(OMP_STORAGE[key], JSON.stringify(data)); } catch(e) { console.warn('[OMP] save failed:', e); }
+        // 1. 更新内存缓存
+        window._ompApiCache[key] = data;
+        // 2. 保存到 localStorage（fallback，保证离线可用）
+        try { localStorage.setItem(OMP_STORAGE[key], JSON.stringify(data)); } catch(e) { console.warn('[OMP] local save failed:', e); }
+        // 3. 异步保存到后端 API（不阻塞 UI）
+        apiSaveOmp(key, data);
       }
       function omp_getIndicatorName(indicatorId) {
         const ind = omp_load('indicators').find(i => i.id === indicatorId);
@@ -794,7 +887,7 @@
         const typeLabels = { result: '结果', process: '过程' };
         const typeColors = { result: 'var(--primary)', process: 'var(--warning)' };
         const dtypeLabels = { currency: '金额', percentage: '百分比', count: '计数', days: '天数', score: '分数' };
-        const dtypeColors = { currency: '#16A34A', percentage: '#2563EB', count: '#D97706', days: '#7C3AED', score: '#DC2626' };
+        const dtypeColors = { currency: 'var(--success)', percentage: 'var(--primary)', count: 'var(--warning)', days: 'var(--info)', score: 'var(--danger)' };
 
         // 筛选逻辑
         let filtered = indicators;
@@ -1086,12 +1179,26 @@
         }
 
         renderTopNav();
+        renderCycleSelector();
+        // 全局周期切换器事件绑定
+        const cycleSelect = document.getElementById('global-cycle-select');
+        if (cycleSelect) {
+          cycleSelect.addEventListener('change', (e) => {
+            window._dsteState.currentCycleId = e.target.value;
+            // 刷新当前页面以应用新周期
+            const currentHash = window.location.hash.slice(1) || 'dashboard';
+            navigate(currentHash);
+          });
+        }
 
         // 加载会议数据：优先 API，其次 localStorage（由 apiLoad 处理），最后由 renderMeetings 创建 mock
         const remoteMeetings = await apiLoad('/api/meetings');
         if (remoteMeetings && remoteMeetings.length > 0) {
           window._meetingsData = remoteMeetings;
         }
+
+        // 同步 OMP 数据（指标库 / KPI / 重点工作等）
+        await ompSyncFromApi();
 
         const hash = window.location.hash.slice(1) || 'dashboard';
         navigate(hash, false);
@@ -1145,16 +1252,18 @@
       // ===== 年度经营计划页面 =====
       function renderAnnualPlan() {
         const state = window._annualPlanState;
-        const kpis = omp_load('kpiInstances').filter(k => k.cycleId === state.cycleId && k.parentId === null);
+        const cycleId = window._dsteState.currentCycleId;
+        const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId && k.parentId === null);
         const indicators = omp_load('indicators');
+        const tasks = omp_load('tasks').filter(t => t.cycleId === cycleId);
         const tabs = [
           { id: 'overview', label: '📊 总览' },
-          { id: 'decomposition', label: '🏢 战区分解' },
+          { id: 'decomposition', label: '🔀 分解视图' },
         ];
         const activeTab = state.activeTab;
 
         // BSC 维度颜色
-        const dimColors = { financial: '#16A34A', customer: '#2563EB', process: '#D97706', learning: '#7C3AED' };
+        const dimColors = { financial: 'var(--dim-financial)', customer: 'var(--dim-customer)', process: 'var(--dim-process)', learning: 'var(--dim-learning)' };
         const dimLabels = { financial: '财务', customer: '客户', process: '流程', learning: '学习成长' };
 
         let tabContent = '';
@@ -1212,34 +1321,74 @@
                 </tbody>
               </table>
             </div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;">
-              ${kpis.map(kpi => `
-                <div style="flex:1;min-width:200px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;padding:16px;" data-action="ap-select-kpi" data-id="${kpi.id}">
-                  <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">${indicators.find(i => i.id === kpi.indicatorId)?.name || kpi.indicatorId}</div>
-                  <div style="font-size:20px;font-weight:700;color:var(--text-primary);">${kpi.targetValue.toLocaleString()} <span style="font-size:12px;font-weight:400;color:var(--text-tertiary);">${kpi.unit || ''}</span></div>
-                  <div style="margin-top:8px;height:6px;background:var(--border-light);border-radius:3px;overflow:hidden;">
-                    <div style="width:${Math.min(kpi.achievementRate || 0, 100)}%;height:100%;background:${(kpi.achievementRate || 0) >= 90 ? 'var(--success)' : (kpi.achievementRate || 0) >= 70 ? 'var(--warning)' : 'var(--danger)'};border-radius:3px;"></div>
-                  </div>
-                  <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-secondary);">
-                    <span>达成: ${kpi.achievementRate || 0}%</span>
-                    <span>权重: ${kpi.weight}</span>
-                  </div>
-                </div>
-              `).join('')}
+            <div style="margin-top:24px;margin-bottom:8px;">
+              <div style="font-size:14px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
+                <span>🎯</span> 年度重点工作
+                <span style="font-size:12px;font-weight:400;color:var(--text-tertiary);margin-left:auto;">承接战略目标的关键举措</span>
+              </div>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;overflow:hidden;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="background:var(--bg-page);">
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:100px;">牵引方向</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:60px;">序号</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:left;">${getCurrentCycle().year}重点工作清单</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:left;">KMS链接</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:100px;">负责人</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:80px;">状态</th>
+                    <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:60px;">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tasks.map(kt => {
+                    const dim = kt.bscDimension || 'customer';
+                    const dimColor = dimColors[dim] || 'var(--text-tertiary)';
+                    const dimLabel = { customer: '客户', process: '流程', financial: '财务', learning: '学习成长' }[dim] || dim;
+                    const statusLabelsKt = { planning: '规划中', active: '进行中', done: '已完成', closed: '已关闭' };
+                    const statusColorsKt = { planning: 'var(--text-tertiary)', active: 'var(--primary)', done: 'var(--success)', closed: 'var(--text-tertiary)' };
+                    return `
+                      <tr style="border-bottom:1px solid var(--border-light);">
+                        <td style="padding:10px;text-align:center;">
+                          <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${dimColor}15;color:${dimColor};font-weight:600;">${dimLabel}</span>
+                        </td>
+                        <td style="padding:10px;text-align:center;font-weight:600;color:var(--text-primary);">${kt.seq}</td>
+                        <td style="padding:10px;text-align:left;font-weight:500;color:var(--text-primary);">${kt.name}</td>
+                        <td style="padding:10px;text-align:left;">
+                          <a href="${kt.kmsUrl || '#'}" target="_blank" style="color:var(--primary);font-size:13px;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${kt.kmsUrl || '-'}</a>
+                        </td>
+                        <td style="padding:10px;text-align:center;font-size:13px;color:var(--text-secondary);">${kt.owner}</td>
+                        <td style="padding:10px;text-align:center;">
+                          <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:color-mix(in srgb, ${statusColorsKt[kt.status]} 10%, transparent);color:${statusColorsKt[kt.status]};">${statusLabelsKt[kt.status] || kt.status}</span>
+                        </td>
+                        <td style="padding:10px;text-align:center;">
+                          <button class="btn btn-sm btn-secondary" data-action="ap-edit-keytask" data-id="${kt.id}" style="font-size:11px;padding:2px 8px;">编辑</button>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
             </div>
           `;
         } else if (activeTab === 'decomposition') {
-          // 战区分解表
-          const warzones = ['北京大区', '上海大区', '华南大区', '浙闽大区', '苏皖大区', '西南大区', '华北大区', '华中大区', '西北大区', '东北大区'];
-          const childKpis = omp_load('kpiInstances').filter(k => k.cycleId === state.cycleId && k.parentId !== null);
+          // 分解视图 — 支持多维度切换
+          const decomposeDim = state.decomposeDimension || 'warzone';
+          const dimCfg = DECOMPOSE_DIMENSIONS[decomposeDim];
+          const items = dimCfg ? dimCfg.items : [];
+          const childKpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId && k.parentId !== null);
+          const dimButtons = Object.entries(DECOMPOSE_DIMENSIONS).map(([key, cfg]) =>
+            `<button class="btn btn-sm ${decomposeDim === key ? 'btn-primary' : 'btn-secondary'}" data-action="ap-switch-decompose-dim" data-dim="${key}" style="margin-right:6px;font-size:12px;">${cfg.label}</button>`
+          ).join('');
           tabContent = `
+            <div style="margin-bottom:16px;">${dimButtons}</div>
             <div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;overflow:hidden;">
               <table style="width:100%;border-collapse:collapse;font-size:12px;">
                 <thead>
                   <tr style="background:var(--bg-page);">
                     <th style="padding:10px;border-bottom:2px solid var(--border-color);text-align:center;">考核指标</th>
                     <th style="padding:10px;border-bottom:2px solid var(--border-color);text-align:center;">合计</th>
-                    ${warzones.map(z => `<th style="padding:10px;border-bottom:2px solid var(--border-color);text-align:center;min-width:70px;">${z}</th>`).join('')}
+                    ${items.map(z => `<th style="padding:10px;border-bottom:2px solid var(--border-color);text-align:center;min-width:70px;">${z}</th>`).join('')}
                   </tr>
                 </thead>
                 <tbody>
@@ -1253,7 +1402,7 @@
                       <tr style="border-bottom:1px solid var(--border-light);">
                         <td style="padding:8px;text-align:center;font-weight:600;">${name}</td>
                         <td style="padding:8px;text-align:center;color:var(--primary);font-weight:600;">${total.toLocaleString ? total.toLocaleString() : total}</td>
-                        ${warzones.map(z => {
+                        ${items.map(z => {
                           const child = childKpis.find(k => {
                             const ind = indicators.find(i => i.id === k.indicatorId);
                             return ind && ind.name.includes(name.replace('销售额-D', '销售额').replace('回款额-K', '回款')) && k.dept === z;
@@ -1277,12 +1426,10 @@
               <p style="margin:4px 0 0 0;font-size:13px;color:var(--text-secondary);">承接战略解码成果，完成组织绩效目标分解与资源配置</p>
             </div>
             <div class="page-actions">
-              <select id="ap-cycle-select" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;margin-right:8px;" data-action="ap-switch-cycle">
-                <option value="cycle_2026_marketing" selected>2026年度 — 营销线</option>
-                <option value="cycle_2025_marketing">2025年度 — 营销线</option>
-              </select>
+              <span style="font-size:13px;color:var(--text-primary);font-weight:600;margin-right:12px;">${getCurrentCycle().name}</span>
               <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">阶段: planning</span>
               <button class="btn btn-secondary" data-action="ap-add-kpi" style="margin-right:8px;">+ 添加KPI</button>
+              <button class="btn btn-secondary" data-action="ap-add-keytask" style="margin-right:8px;">+ 添加重点工作</button>
               <button class="btn btn-primary" data-action="ap-publish">发布到执行</button>
             </div>
           </div>
@@ -1428,7 +1575,7 @@
         const kpis = omp_load('kpiInstances');
         kpis.push({
           id: 'kpi_' + Date.now(),
-          cycleId: window._annualPlanState.cycleId,
+          cycleId: window._dsteState.currentCycleId,
           indicatorId,
           period: '2026',
           targetValue,
@@ -1450,6 +1597,147 @@
         navigate('bp/annual-plan');
       };
 
+      // ===== 年度经营计划 — 重点工作 CRUD =====
+      window._apEditingKeyTaskId = null;
+      window.ap_addKeyTask = function() {
+        window._apEditingKeyTaskId = 'new';
+        omp_openModal('添加重点工作', `
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">序号 *</label>
+                <input type="number" id="ap-kt-seq" value="1" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">牵引方向</label>
+                <select id="ap-kt-dim" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  <option value="customer">客户</option>
+                  <option value="process">流程</option>
+                  <option value="financial">财务</option>
+                  <option value="learning">学习成长</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">工作名称 *</label>
+              <input type="text" id="ap-kt-name" placeholder="如：大客户经营能力提升" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">KMS 链接</label>
+              <input type="text" id="ap-kt-kmsurl" placeholder="https://kms.fineres.com/..." style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人</label>
+                <input type="text" id="ap-kt-owner" placeholder="如：陈总监" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">状态</label>
+                <select id="ap-kt-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  <option value="planning">规划中</option>
+                  <option value="active">进行中</option>
+                  <option value="done">已完成</option>
+                  <option value="closed">已关闭</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal')?.remove(); window._apEditingKeyTaskId = null;">取消</button>
+            <button class="btn btn-primary" onclick="window.ap_saveKeyTask()">保存</button>
+          </div>
+        `, true);
+      };
+      window.ap_editKeyTask = function(ktId) {
+        const kts = omp_load('tasks');
+        const kt = kts.find(k => k.id === ktId);
+        if (!kt) return;
+        window._apEditingKeyTaskId = ktId;
+        omp_openModal('编辑重点工作', `
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">序号 *</label>
+                <input type="number" id="ap-kt-seq" value="${kt.seq}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">牵引方向</label>
+                <select id="ap-kt-dim" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  <option value="customer" ${kt.bscDimension === 'customer' ? 'selected' : ''}>客户</option>
+                  <option value="process" ${kt.bscDimension === 'process' ? 'selected' : ''}>流程</option>
+                  <option value="financial" ${kt.bscDimension === 'financial' ? 'selected' : ''}>财务</option>
+                  <option value="learning" ${kt.bscDimension === 'learning' ? 'selected' : ''}>学习成长</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">工作名称 *</label>
+              <input type="text" id="ap-kt-name" value="${kt.name}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">KMS 链接</label>
+              <input type="text" id="ap-kt-kmsurl" value="${kt.kmsUrl || ''}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人</label>
+                <input type="text" id="ap-kt-owner" value="${kt.owner || ''}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">状态</label>
+                <select id="ap-kt-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  <option value="planning" ${kt.status === 'planning' ? 'selected' : ''}>规划中</option>
+                  <option value="active" ${kt.status === 'active' ? 'selected' : ''}>进行中</option>
+                  <option value="done" ${kt.status === 'done' ? 'selected' : ''}>已完成</option>
+                  <option value="closed" ${kt.status === 'closed' ? 'selected' : ''}>已关闭</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <button class="btn btn-sm btn-danger" onclick="window.ap_deleteKeyTask()">🗑 删除</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal')?.remove(); window._apEditingKeyTaskId = null;">取消</button>
+              <button class="btn btn-primary" onclick="window.ap_saveKeyTask()">保存</button>
+            </div>
+          </div>
+        `, true);
+      };
+      window.ap_saveKeyTask = function() {
+        const seq = parseInt(document.getElementById('ap-kt-seq')?.value);
+        const bscDimension = document.getElementById('ap-kt-dim')?.value || 'customer';
+        const name = document.getElementById('ap-kt-name')?.value?.trim();
+        const kmsUrl = document.getElementById('ap-kt-kmsurl')?.value?.trim() || '#';
+        const owner = document.getElementById('ap-kt-owner')?.value?.trim() || '';
+        const status = document.getElementById('ap-kt-status')?.value || 'planning';
+        if (!name || isNaN(seq)) { alert('请输入工作名称和序号'); return; }
+        const kts = omp_load('tasks');
+        const editId = window._apEditingKeyTaskId;
+        if (editId === 'new') {
+          kts.push({ id: 'kt_' + Date.now(), cycleId: window._annualPlanState.cycleId, seq, name, bscDimension, kmsUrl, owner, status });
+        } else {
+          const idx = kts.findIndex(k => k.id === editId);
+          if (idx > -1) {
+            kts[idx] = { ...kts[idx], seq, name, bscDimension, kmsUrl, owner, status };
+          }
+        }
+        omp_save('tasks', kts);
+        window._apEditingKeyTaskId = null;
+        document.getElementById('omp-active-modal')?.remove();
+        navigate('bp/annual-plan');
+      };
+      window.ap_deleteKeyTask = function() {
+        if (!confirm('确定要删除这个重点工作吗？此操作不可恢复。')) return;
+        const editId = window._apEditingKeyTaskId;
+        if (!editId || editId === 'new') return;
+        const kts = omp_load('tasks');
+        const filtered = kts.filter(k => k.id !== editId);
+        omp_save('keyTasks', filtered);
+        window._apEditingKeyTaskId = null;
+        document.getElementById('omp-active-modal')?.remove();
+        navigate('bp/annual-plan');
+      };
+
       // ===== 年度经营计划 — 分解 KPI（简化版：按组织架构分解）=====
       window.ap_decomposeKpi = function(kpiId) {
         console.log('[AP] decompose called:', kpiId);
@@ -1457,54 +1745,116 @@
           const kpis = omp_load('kpiInstances');
           const parent = kpis.find(k => k.id === kpiId);
           if (!parent) { console.warn('[AP] parent not found'); return; }
-        const warzones = ['北京大区', '上海大区', '华南大区', '浙闽大区', '苏皖大区', '西南大区', '华北大区', '华中大区', '西北大区', '东北大区'];
-        const indicators = omp_load('indicators');
-        const ind = indicators.find(i => i.id === parent.indicatorId);
-        omp_openModal('分解 KPI — ' + (ind ? ind.name : parent.indicatorId), `
-          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
-            父级目标: <strong>${parent.targetValue.toLocaleString()}</strong> ${parent.unit || ''}
-          </div>
-          <div style="max-height:400px;overflow-y:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          const indicators = omp_load('indicators');
+          const ind = indicators.find(i => i.id === parent.indicatorId);
+          const dimOptions = Object.entries(DECOMPOSE_DIMENSIONS).map(([key, cfg]) =>
+            `<option value="${key}">${cfg.label}</option>`
+          ).join('');
+          const defaultDim = 'warzone';
+          const dimConfig = DECOMPOSE_DIMENSIONS[defaultDim];
+          const items = dimConfig.items;
+          const renderTable = (dimKey) => {
+            const cfg = DECOMPOSE_DIMENSIONS[dimKey];
+            const its = cfg.items;
+            return `
+              <table style="width:100%;border-collapse:collapse;font-size:12px;" id="ap-decomp-table">
+                <thead>
+                  <tr style="background:var(--bg-page);">
+                    <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:left;">${cfg.label}</th>
+                    <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;width:120px;">目标值</th>
+                    <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;width:80px;">权重%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${its.map((z, i) => `
+                    <tr>
+                      <td style="padding:8px;border-bottom:1px solid var(--border-light);">${z}</td>
+                      <td style="padding:8px;border-bottom:1px solid var(--border-light);">
+                        <input type="number" id="ap-decomp-target-${i}" value="${Math.round(parent.targetValue / its.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
+                      </td>
+                      <td style="padding:8px;border-bottom:1px solid var(--border-light);">
+                        <input type="number" id="ap-decomp-weight-${i}" value="${Math.round(100 / its.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          };
+          window._apDecomposeDim = defaultDim;
+          window._apDecomposeItemsCount = items.length;
+          window._apDecomposeParentId = kpiId;
+          omp_openModal('分解 KPI — ' + (ind ? ind.name : parent.indicatorId), `
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+              父级目标: <strong>${parent.targetValue.toLocaleString()}</strong> ${parent.unit || ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <label style="font-size:13px;color:var(--text-secondary);">分解维度:</label>
+              <select id="ap-decomp-dim" onchange="window.ap_switchDecomposeDim(this.value)" style="padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                ${dimOptions}
+              </select>
+            </div>
+            <div style="max-height:400px;overflow-y:auto;" id="ap-decomp-table-wrap">
+              ${renderTable(defaultDim)}
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+              <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal')?.remove(); window._apDecomposeDim = null;">取消</button>
+              <button class="btn btn-primary" onclick="window.ap_confirmDecompose('${kpiId}')">保存分解</button>
+            </div>
+          `, true);
+        } catch (err) { console.error('[AP] decompose error:', err); alert('分解弹窗出错: ' + err.message); }
+      };
+      window.ap_switchDecomposeDim = function(dimKey) {
+        const parentId = window._apDecomposeParentId;
+        if (!parentId) return;
+        const kpis = omp_load('kpiInstances');
+        const parent = kpis.find(k => k.id === parentId);
+        if (!parent) return;
+        const cfg = DECOMPOSE_DIMENSIONS[dimKey];
+        const items = cfg.items;
+        window._apDecomposeDim = dimKey;
+        window._apDecomposeItemsCount = items.length;
+        const tableWrap = document.getElementById('ap-decomp-table-wrap');
+        if (tableWrap) {
+          tableWrap.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:12px;" id="ap-decomp-table">
               <thead>
                 <tr style="background:var(--bg-page);">
-                  <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:left;">战区</th>
+                  <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:left;">${cfg.label}</th>
                   <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;width:120px;">目标值</th>
                   <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;width:80px;">权重%</th>
                 </tr>
               </thead>
               <tbody>
-                ${warzones.map((z, i) => `
+                ${items.map((z, i) => `
                   <tr>
                     <td style="padding:8px;border-bottom:1px solid var(--border-light);">${z}</td>
                     <td style="padding:8px;border-bottom:1px solid var(--border-light);">
-                      <input type="number" id="ap-decomp-target-${i}" value="${Math.round(parent.targetValue / warzones.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
+                      <input type="number" id="ap-decomp-target-${i}" value="${Math.round(parent.targetValue / items.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
                     </td>
                     <td style="padding:8px;border-bottom:1px solid var(--border-light);">
-                      <input type="number" id="ap-decomp-weight-${i}" value="${Math.round(100 / warzones.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
+                      <input type="number" id="ap-decomp-weight-${i}" value="${Math.round(100 / items.length)}" style="width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:12px;">
                     </td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
-          </div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal')?.remove()">取消</button>
-            <button class="btn btn-primary" onclick="window.ap_confirmDecompose('${kpiId}')">保存分解</button>
-          </div>
-        `, true);
-        } catch (err) { console.error('[AP] decompose error:', err); alert('分解弹窗出错: ' + err.message); }
+          `;
+        }
       };
 
       window.ap_confirmDecompose = function(parentId) {
         const kpis = omp_load('kpiInstances');
         const parent = kpis.find(k => k.id === parentId);
         if (!parent) return;
-        const warzones = ['北京大区', '上海大区', '华南大区', '浙闽大区', '苏皖大区', '西南大区', '华北大区', '华中大区', '西北大区', '东北大区'];
+        const dimKey = window._apDecomposeDim || 'warzone';
+        const dimCfg = DECOMPOSE_DIMENSIONS[dimKey];
+        if (!dimCfg) { alert('分解维度配置错误'); return; }
+        const items = dimCfg.items;
         let totalTarget = 0;
         let totalWeight = 0;
         const children = [];
-        warzones.forEach((z, i) => {
+        items.forEach((item, i) => {
           const target = parseFloat(document.getElementById(`ap-decomp-target-${i}`)?.value) || 0;
           const weight = parseFloat(document.getElementById(`ap-decomp-weight-${i}`)?.value) || 0;
           totalTarget += target;
@@ -1512,7 +1862,7 @@
           if (target > 0) {
             children.push({
               id: 'kpi_' + Date.now() + '_' + i,
-              cycleId: window._annualPlanState.cycleId,
+              cycleId: window._dsteState.currentCycleId,
               indicatorId: parent.indicatorId,
               period: parent.period,
               targetValue: target,
@@ -1521,11 +1871,12 @@
               achievementRate: 0,
               weight: weight,
               owner: '',
-              dept: z,
+              dept: item,
               status: 'active',
               parentId: parentId,
               level: parent.level + 1,
               bscDimension: parent.bscDimension,
+              decomposeBy: dimKey,
               history: [],
               x: null, y: null, width: 170, height: 100
             });
@@ -1540,6 +1891,8 @@
         }
         kpis.push(...children);
         omp_save('kpiInstances', kpis);
+        window._apDecomposeDim = null;
+        window._apDecomposeParentId = null;
         document.getElementById('omp-active-modal')?.remove();
         navigate('bp/annual-plan');
       };
@@ -1569,6 +1922,34 @@
             }
           });
         });
+      }
+
+      // ===== 全局周期选择器渲染 =====
+      function renderCycleSelector() {
+        const select = document.getElementById('global-cycle-select');
+        if (!select) return;
+        try {
+          let cycles = JSON.parse(localStorage.getItem('dste_cycles_v1') || '[]');
+          // fallback: 如果周期数据不存在，自动创建默认值
+          if (!cycles || cycles.length === 0) {
+            cycles = [
+              { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null },
+              { id: 'cycle_2025_marketing', year: 2025, name: '2025年度 — 营销线', phase: 'archived', organization: '营销线', parentCycleId: null },
+            ];
+            localStorage.setItem('dste_cycles_v1', JSON.stringify(cycles));
+          }
+          const currentId = window._dsteState.currentCycleId;
+          select.innerHTML = cycles.map(c =>
+            `<option value="${c.id}" ${c.id === currentId ? 'selected' : ''}>${c.name}</option>`
+          ).join('');
+        } catch(e) {}
+      }
+
+      function getCurrentCycle() {
+        try {
+          const cycles = JSON.parse(localStorage.getItem('dste_cycles_v1') || '[]');
+          return cycles.find(c => c.id === window._dsteState.currentCycleId) || { year: 2026, name: '2026年度 — 营销线' };
+        } catch(e) { return { year: 2026, name: '2026年度 — 营销线' }; }
       }
 
       // ===== 导航 =====
@@ -1735,8 +2116,10 @@
                 navigate('bp/annual-plan');
                 break;
               case 'ap-switch-cycle':
-                window._annualPlanState.cycleId = actionBtn.value;
-                window._annualPlanState.selectedKpiId = null;
+                // 已废弃：周期切换由全局选择器统一处理
+                break;
+              case 'ap-switch-decompose-dim':
+                window._annualPlanState.decomposeDimension = actionBtn.dataset.dim;
                 navigate('bp/annual-plan');
                 break;
               case 'ap-select-kpi':
@@ -1783,6 +2166,12 @@
               case 'ap-publish':
                 if (!confirm('确定要发布到执行阶段吗？发布后KPI树结构将冻结。')) break;
                 alert('已发布到执行阶段（演示）');
+                break;
+              case 'ap-add-keytask':
+                window.ap_addKeyTask();
+                break;
+              case 'ap-edit-keytask':
+                window.ap_editKeyTask(id);
                 break;
             }
             return;
@@ -1889,7 +2278,7 @@
         {
           category: '经营预算',
           icon: '📊',
-          color: '#1677FF',
+          color: 'var(--primary)',
           reports: [
             {
               id: 'fr-001',
@@ -1910,7 +2299,7 @@
         {
           category: '专题报表',
           icon: '📈',
-          color: '#52C41A',
+          color: 'var(--success)',
           reports: [
             // 开口：后续在此处添加专题报表
           ]
@@ -2122,15 +2511,15 @@
                 <span style="font-size: 12px; color: var(--text-tertiary);">3 条待处理</span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="padding: 12px; background: rgba(245, 34, 45, 0.05); border-radius: 8px; border-left: 3px solid var(--danger);">
+                <div style="padding: 12px; background: color-mix(in srgb, var(--danger) 5%, transparent); border-radius: 8px; border-left: 3px solid var(--danger);">
                   <div style="font-size: 13px; font-weight: 500; color: var(--danger);">客户满意度下降</div>
                   <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Q3 NPS 下降至 62，低于目标 70</div>
                 </div>
-                <div style="padding: 12px; background: rgba(250, 173, 20, 0.05); border-radius: 8px; border-left: 3px solid var(--warning);">
+                <div style="padding: 12px; background: color-mix(in srgb, var(--warning) 5%, transparent); border-radius: 8px; border-left: 3px solid var(--warning);">
                   <div style="font-size: 13px; font-weight: 500; color: var(--warning);">新产品推广滞后</div>
                   <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">收入占比 28.4%，目标 35%</div>
                 </div>
-                <div style="padding: 12px; background: rgba(250, 173, 20, 0.05); border-radius: 8px; border-left: 3px solid var(--warning);">
+                <div style="padding: 12px; background: color-mix(in srgb, var(--warning) 5%, transparent); border-radius: 8px; border-left: 3px solid var(--warning);">
                   <div style="font-size: 13px; font-weight: 500; color: var(--warning);">供应链成本上升</div>
                   <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Q3 成本环比 +12%</div>
                 </div>
@@ -2207,7 +2596,7 @@
           <div class="page-header">
             <h1 class="page-title">组织绩效管理</h1>
             <div class="page-actions">
-              <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">周期: 2026-Q2</span>
+              <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">周期: ${getCurrentCycle().year} — ${getCurrentCycle().organization}</span>
               <button class="btn btn-secondary" data-action="omp-export">📤 导出</button>
             </div>
           </div>
@@ -2232,7 +2621,8 @@
 
       // ===== Tab 1: 总览看板 =====
       function omp_renderDashboard() {
-        const kpis = omp_load('kpiInstances');
+        const cycleId = window._dsteState.currentCycleId;
+        const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
         const tasks = omp_load('tasks');
         const indicators = omp_load('indicators');
         const milestones = omp_load('milestones');
@@ -2340,7 +2730,8 @@
 
       // ===== Tab 2: KPI 管理 =====
       function omp_renderKPITab() {
-        const kpis = omp_load('kpiInstances');
+        const cycleId = window._dsteState.currentCycleId;
+        const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
         const indicators = omp_load('indicators');
         const filter = window._ompState.kpiFilter;
         let filtered = kpis;
@@ -2413,7 +2804,7 @@
                 <button class="btn btn-sm ${window._ompState.kpiViewMode === 'list' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-toggle-view" data-view="list" style="border-radius:0;border:none;font-size:12px;">📋 列表</button>
                 <button class="btn btn-sm ${window._ompState.kpiViewMode === 'tree' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-toggle-view" data-view="tree" style="border-radius:0;border:none;font-size:12px;">🌲 树形</button>
               </div>
-              <button class="btn btn-primary" data-action="omp-new-kpi" style="font-size:13px;">+ 新建 KPI</button>
+              <span style="font-size:12px;color:var(--text-tertiary);margin-left:auto;">💡 KPI 目标请前往「年度经营计划」维护</span>
             </div>
           </div>
           ${window._ompState.kpiViewMode === 'tree' ? omp_renderKpiTree(filtered, indicators, statusBadge, miniTrend) : `
@@ -2477,8 +2868,8 @@
         const r = Math.round(size / 2) - 4;
         const c = Math.round(2 * Math.PI * r * 100) / 100;
         const dash = Math.round(c * Math.min(rate, 100) / 100 * 100) / 100;
-        const color = rate >= 95 ? '#16A34A' : rate >= 80 ? '#D97706' : '#DC2626';
-        const glow = rate >= 100 ? 'filter: drop-shadow(0 0 4px rgba(22,163,74,0.4));' : '';
+        const color = rate >= 95 ? 'var(--success)' : rate >= 80 ? 'var(--warning)' : 'var(--danger)';
+        const glow = rate >= 100 ? 'filter: drop-shadow(0 0 4px color-mix(in srgb, var(--success) 40%, transparent));' : '';
         const center = Math.round(size / 2);
         return `<svg class="omp-kpi-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="${glow} flex-shrink:0;">
           <circle cx="${center}" cy="${center}" r="${r}" fill="none" stroke="var(--border-color)" stroke-width="3"/>
@@ -2492,10 +2883,10 @@
         const { roots, childrenMap } = omp_kpiBuildTree(kpis);
         // BSC 维度配置（用于角标颜色）
         const BSC_DIMENSIONS = {
-          financial: { name: '财务', color: '#1E3A5F' },
-          customer:  { name: '客户', color: '#2E8B57' },
-          internal:  { name: '流程', color: '#D4A017' },
-          learning:  { name: '成长', color: '#6B4C9A' }
+          financial: { name: '财务', color: 'var(--dim-financial)' },
+          customer:  { name: '客户', color: 'var(--dim-customer)' },
+          internal:  { name: '流程', color: 'var(--dim-process)' },
+          learning:  { name: '成长', color: 'var(--dim-learning)' }
         };
         // 首次渲染时，自动展开所有根节点（一次性）
         if (!window._ompState.kpiTreeAutoExpanded) {
@@ -2659,8 +3050,9 @@
 
       // ===== Tab 3: 重点工作 =====
       function omp_renderTaskTab() {
+        const cycleId = window._dsteState.currentCycleId;
         const tasks = omp_load('tasks');
-        const kpis = omp_load('kpiInstances');
+        const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
         const filter = window._ompState.taskFilter;
         let filtered = tasks;
         if (filter.status !== 'all') filtered = filtered.filter(t => t.status === filter.status);
@@ -2875,11 +3267,11 @@
 
         // 五看配置
         const fiveViews = [
-          { type: 'trend', label: '看趋势', icon: '📈', color: '#1677FF', desc: '宏观环境、行业趋势' },
-          { type: 'customer', label: '看客户', icon: '👥', color: '#52C41A', desc: '客户需求、痛点、价值' },
-          { type: 'competitor', label: '看竞争', icon: '⚔️', color: '#FAAD14', desc: '竞争对手战略、能力' },
-          { type: 'self', label: '看自己', icon: '🔍', color: '#722ED1', desc: '内部能力、资源、差距' },
-          { type: 'opportunity', label: '看机会', icon: '💡', color: '#13C2C2', desc: '市场机会、战略机会点' }
+          { type: 'trend', label: '看趋势', icon: '📈', color: 'var(--primary)', desc: '宏观环境、行业趋势' },
+          { type: 'customer', label: '看客户', icon: '👥', color: 'var(--success)', desc: '客户需求、痛点、价值' },
+          { type: 'competitor', label: '看竞争', icon: '⚔️', color: 'var(--warning)', desc: '竞争对手战略、能力' },
+          { type: 'self', label: '看自己', icon: '🔍', color: 'var(--dim-learning)', desc: '内部能力、资源、差距' },
+          { type: 'opportunity', label: '看机会', icon: '💡', color: 'var(--info)', desc: '市场机会、战略机会点' }
         ];
 
         const impactColor = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
@@ -3445,7 +3837,7 @@
         const riskColor = { '高': 'var(--danger)', '中': 'var(--warning)', '低': 'var(--success)' };
         const statusClass = { 'normal': 'status-primary', 'success': 'status-success', 'warning': 'status-warning', 'default': 'status-default' };
         const statusLabel = { 'normal': '推进中', 'success': '即将完成', 'warning': '有风险', 'default': '启动中' };
-        const deptColors = ['#1677FF','#52C41A','#FAAD14','#F5222D','#722ED1','#13C2C2','#EB2F96'];
+        const deptColors = ['var(--primary)','var(--success)','var(--warning)','var(--danger)','var(--dim-learning)','var(--info)','var(--accent-pink)'];
 
         const rows = topics.map((t, i) => {
           const partnerTags = t.partners.map((p, j) => `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${deptColors[(i+j)%deptColors.length]}15;color:${deptColors[(i+j)%deptColors.length]};font-size:11px;margin-right:4px;">${p}</span>`).join('');
@@ -4101,10 +4493,10 @@
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门</label><input type="text" id="omp-kpi-dept" value="${kpi.dept}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任人</label><input type="text" id="omp-kpi-owner" value="${kpi.owner}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">周期</label><input type="text" id="omp-kpi-period" value="${kpi.period}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
-            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">目标值${ind ? ' (' + ind.unit + ')' : ''}</label><input type="number" id="omp-kpi-target" value="${kpi.targetValue}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
-            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">挑战值${ind ? ' (' + ind.unit + ')' : ''}</label><input type="number" id="omp-kpi-challenge" value="${kpi.challengeValue}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">目标值${ind ? ' (' + ind.unit + ')' : ''} <span style="color:var(--text-tertiary);font-size:11px;">(计划锁定)</span></label><input type="number" id="omp-kpi-target" value="${kpi.targetValue}" disabled style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-page);color:var(--text-tertiary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">挑战值${ind ? ' (' + ind.unit + ')' : ''} <span style="color:var(--text-tertiary);font-size:11px;">(计划锁定)</span></label><input type="number" id="omp-kpi-challenge" value="${kpi.challengeValue || ''}" disabled style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-page);color:var(--text-tertiary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">实际值${ind ? ' (' + ind.unit + ')' : ''}</label><input type="number" id="omp-kpi-actual" value="${kpi.actualValue}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
-            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">权重 (%)</label><input type="number" id="omp-kpi-weight" value="${kpi.weight}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">权重 (%) <span style="color:var(--text-tertiary);font-size:11px;">(计划锁定)</span></label><input type="number" id="omp-kpi-weight" value="${kpi.weight}" min="0" max="100" disabled style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-page);color:var(--text-tertiary);font-size:13px;"></div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
             <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal').remove(); window._ompState.editingKpiId = null;">取消</button>
@@ -4276,30 +4668,37 @@
         const indicatorId = document.getElementById('omp-kpi-indicator')?.value;
         const dept = document.getElementById('omp-kpi-dept')?.value?.trim();
         const owner = document.getElementById('omp-kpi-owner')?.value?.trim();
-        const target = parseFloat(document.getElementById('omp-kpi-target')?.value);
-        const challenge = parseFloat(document.getElementById('omp-kpi-challenge')?.value) || 0;
         const actual = parseFloat(document.getElementById('omp-kpi-actual')?.value) || 0;
-        const weight = parseFloat(document.getElementById('omp-kpi-weight')?.value) || 20;
         const period = document.getElementById('omp-kpi-period')?.value?.trim() || '2026-Q2';
-        if (!dept || !owner || isNaN(target)) { alert('请填写必填项'); return; }
+        if (!dept || !owner) { alert('请填写必填项（部门、责任人）'); return; }
         const kpis = omp_load('kpiInstances');
         const editId = window._ompState.editingKpiId;
         if (editId === 'new') {
+          // Note: new KPI creation is not available from OMP UI anymore;
+          // kept for backward compatibility / programmatic use
+          const target = parseFloat(document.getElementById('omp-kpi-target')?.value);
+          const challenge = parseFloat(document.getElementById('omp-kpi-challenge')?.value) || 0;
+          const weight = parseFloat(document.getElementById('omp-kpi-weight')?.value) || 20;
           if (!indicatorId) { alert('请选择指标'); return; }
+          if (isNaN(target)) { alert('请输入目标值'); return; }
           const achievementRate = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
           kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate), parentId: null, level: 0 });
         } else {
           const idx = kpis.findIndex(k => k.id === editId);
           if (idx > -1) {
             const oldKpi = kpis[idx];
+            // Plan fields (targetValue, challengeValue, weight) are locked;
+            // only execution fields are editable in OMP
+            const target = oldKpi.targetValue;
+            const challenge = oldKpi.challengeValue || 0;
+            const weight = oldKpi.weight;
             const achievementRate = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
             let history = oldKpi.history || [];
-            // If achievementRate changed, append old value to history
             if (oldKpi.achievementRate !== achievementRate) {
               history = [...history, oldKpi.achievementRate];
-              if (history.length > 6) history = history.slice(-6); // keep last 6 points
+              if (history.length > 6) history = history.slice(-6);
             }
-            kpis[idx] = { ...oldKpi, dept, owner, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, status: omp_getKpiStatus(achievementRate), history };
+            kpis[idx] = { ...oldKpi, dept, owner, period, actualValue: actual, achievementRate, status: omp_getKpiStatus(achievementRate), history };
           }
         }
         omp_save('kpiInstances', kpis);

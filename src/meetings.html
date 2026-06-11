@@ -581,6 +581,13 @@
         { key: 'actionsTracked',  label: '行动追踪', icon: '📊' }
       ];
 
+      // 挂载常量到 window，供外部组件文件访问
+      window.SCENARIO_CONFIG = SCENARIO_CONFIG;
+      window.STATUS_CONFIG = STATUS_CONFIG;
+      window.AGENDA_TYPE_LABELS = AGENDA_TYPE_LABELS;
+      window.AGENDA_TYPE_COLORS = AGENDA_TYPE_COLORS;
+      window.PIPELINE_STEPS = PIPELINE_STEPS;
+
       function getMockMeetings() {
         return [
           {
@@ -724,6 +731,10 @@
       ];
       }
 
+      /**
+       * 渲染经营分析会主页面（列表视图）
+       * 包含：场景指标卡、KPI卡片、筛选栏、会议列表、统计面板、待办提醒
+       */
       function renderMeetings() {
         // ---- 场景配置 ----
 
@@ -759,8 +770,26 @@
         const allActions = meetings.flatMap(m => m.actions || []);
         const allDecisions = meetings.flatMap(m => m.decisions || []);
         const doneDecisions = allDecisions.filter(d => d.status === 'approved' || d.status === 'implemented').length;
-        const completedEffectiveness = meetings.filter(m => m.effectiveness).map(m => ({ ...m.effectiveness, meetingName: m.title }));
+        const completedEffectiveness = meetings.filter(m => m.effectiveness).map(m => ({ ...m.effectiveness, meetingName: m.title, scenario: m.scenario }));
         const avgEffectiveness = completedEffectiveness.length > 0 ? Math.round(completedEffectiveness.reduce((s, e) => s + e.overallScore, 0) / completedEffectiveness.length) : 0;
+        // ---- 会议质量分析统计 ----
+        const evaluatedCount = completedEffectiveness.length;
+        const pendingEvalCount = meetings.filter(m => m.status === 'completed' && !m.effectiveness).length;
+        const avgDims = evaluatedCount > 0 ? {
+          preparation: Math.round(completedEffectiveness.reduce((s, e) => s + (e.dimensions?.preparation || 0), 0) / evaluatedCount),
+          discussion: Math.round(completedEffectiveness.reduce((s, e) => s + (e.dimensions?.discussion || 0), 0) / evaluatedCount),
+          decision: Math.round(completedEffectiveness.reduce((s, e) => s + (e.dimensions?.decision || 0), 0) / evaluatedCount),
+          execution: Math.round(completedEffectiveness.reduce((s, e) => s + (e.dimensions?.execution || 0), 0) / evaluatedCount),
+        } : { preparation: 0, discussion: 0, decision: 0, execution: 0 };
+        const scenarioScores = Object.entries(
+          meetings.filter(m => m.effectiveness).reduce((acc, m) => {
+            const key = m.scenario || 'unknown';
+            if (!acc[key]) acc[key] = { total: 0, count: 0 };
+            acc[key].total += m.effectiveness.overallScore;
+            acc[key].count += 1;
+            return acc;
+          }, {})
+        ).map(([key, val]) => ({ key, name: (SCENARIO_CONFIG[key]?.label || key), avg: Math.round(val.total / val.count), color: SCENARIO_CONFIG[key]?.color || 'var(--text-tertiary)' }));
         const totalMinutes = meetings.filter(m => m.hasMinutes).length;
         const totalAgendaItems = meetings.reduce((s, m) => s + (m.agenda_items?.length || 0), 0);
         const actionDone = allActions.filter(a => a.status === 'completed').length;
@@ -835,15 +864,48 @@
                   </div>`).join('')}</div>`
               : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无决议</div>`,
             eval: m.effectiveness
-              ? `<div style="font-size: 12px; color: var(--text-secondary);">
-                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <span style="font-size: 20px; font-weight: 700; color: ${m.effectiveness.overallScore >= 90 ? 'var(--success)' : m.effectiveness.overallScore >= 80 ? 'var(--primary)' : 'var(--warning)'};">${m.effectiveness.overallScore}</span>
-                    <span style="color: var(--text-tertiary);">综合评分</span>
+              ? (() => {
+                  const e = m.effectiveness;
+                  const dims = [
+                    { key: 'preparation', label: '会前准备' },
+                    { key: 'discussion', label: '会议讨论' },
+                    { key: 'decision', label: '决议质量' },
+                    { key: 'execution', label: '执行落地' }
+                  ];
+                  return `<div style="font-size: 12px; color: var(--text-secondary);">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                      <span style="font-size: 28px; font-weight: 700; color: ${getScoreColor(e.overallScore)};">${e.overallScore}</span>
+                      <div>
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${getScoreLabel(e.overallScore)}</div>
+                        <div style="font-size: 11px; color: var(--text-tertiary);">综合评分${e.auto ? '（系统推荐）' : e.evaluatedAt ? ' · ' + new Date(e.evaluatedAt).toLocaleDateString('zh-CN') + ' 评估' : ''}</div>
+                      </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                      ${dims.map(d => {
+                        const v = e.dimensions[d.key] || 0;
+                        const c = getScoreColor(v);
+                        return `<div>
+                          <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                            <span style="font-size: 11px; color: var(--text-secondary);">${d.label}</span>
+                            <span style="font-size: 11px; font-weight: 600; color: ${c};">${v}</span>
+                          </div>
+                          <div style="width: 100%; height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden;">
+                            <div style="width: ${v}%; height: 100%; background: ${c}; border-radius: 2px; transition: width 0.3s;"></div>
+                          </div>
+                        </div>`;
+                      }).join('')}
+                    </div>
+                    ${e.feedback?.length ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">${e.feedback.map(f => `<span style="padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-light);">${f}</span>`).join('')}</div>` : ''}
+                    ${e.comment ? `<div style="padding: 10px 12px; background: var(--bg-page); border-radius: 6px; border-left: 3px solid var(--primary-light); font-size: 12px; color: var(--text-primary); line-height: 1.6; margin-bottom: 10px;">${e.comment.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''}
+                    ${m.status === 'completed' ? `<button type="button" onclick="openMeetingEvalModal('${m.id}')" style="padding: 5px 12px; font-size: 12px; border: 1px solid var(--warning); border-radius: 6px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; font-weight: 500;">⭐ 重新评估</button>` : ''}
+                  </div>`;
+                })()
+              : `<div style="font-size: 12px; color: var(--text-tertiary);">
+                  <div style="text-align: center; padding: 16px 0;">
+                    <div style="font-size: 13px; margin-bottom: 8px;">暂无评估</div>
+                    ${m.status === 'completed' ? `<button type="button" onclick="openMeetingEvalModal('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">⭐ 评估会议</button>` : '<div style="font-size: 11px;">会议完成后可评估</div>'}
                   </div>
-                  <div style="margin-bottom: 6px;">准备度 ${m.effectiveness.dimensions.preparation} · 讨论度 ${m.effectiveness.dimensions.discussion} · 决议质量 ${m.effectiveness.dimensions.decision} · 执行落地 ${m.effectiveness.dimensions.execution}</div>
-                  ${m.effectiveness.feedback.map(f => `<div style="padding-left: 8px; border-left: 2px solid var(--primary-light); margin-bottom: 3px; color: var(--text-tertiary);">💬 ${f}</div>`).join('')}
-                 </div>`
-              : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无评估</div>`,
+                </div>`,
             principles: `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
               <div style="margin-bottom: 4px;">1. 会前材料提前 48h 分发</div>
               <div style="margin-bottom: 4px;">2. 决议必须有负责人和截止日期</div>
@@ -983,7 +1045,7 @@
                 <div style="display: flex; gap: 8px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; align-items: center;">
                   <span>✅ 行动 ${m.actions?.filter(a => a.status === 'completed' || a.status === 'implemented').length || 0}/${m.actions?.length || 0}</span>
                 </div>
-                ${m.effectiveness ? `<div style="font-size: 14px; font-weight: 700; color: var(--warning);">⭐ ${m.effectiveness.overallScore}</div>` : ''}
+                ${m.effectiveness ? `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 14px; font-weight: 700; color: ${getScoreColor(m.effectiveness.overallScore)};">⭐ ${m.effectiveness.overallScore}</span><span style="font-size: 10px; color: var(--text-tertiary);">${getScoreLabel(m.effectiveness.overallScore)}</span></div>` : (m.status === 'completed' ? `<div style="font-size: 11px; color: var(--text-tertiary); padding: 2px 6px; background: var(--bg-page); border-radius: 4px;">未评估</div>` : '')}
               </div>
               ${agendaTags ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">${agendaTags}${moreAgenda}</div>` : ''}
               ${renderPipeline(m)}
@@ -1071,264 +1133,6 @@
           </div>
         `).join('');
 
-        // ---- 会议详情函数 ----
-        // ---- 日历视图状态与渲染 ----
-        window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
-
-        function renderCalendarMonth(year, month) {
-          console.log('[Calendar] renderCalendarMonth called:', year, month);
-          const header = document.getElementById('calendar-header');
-          const body = document.getElementById('calendar-body');
-          const footer = document.getElementById('calendar-footer');
-          console.log('[Calendar] DOM elements:', { header: !!header, body: !!body, footer: !!footer });
-          if (!header || !body || !footer) {
-            const panel = document.getElementById('meetings-calendar-panel');
-            const body = document.getElementById('calendar-body');
-            if (body) body.innerHTML = '<div style="padding:20px;color:var(--danger)">日历渲染错误：DOM元素未找到</div>';
-            return;
-          }
-
-          const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-          const monthMeetings = meetings.filter(m => m.date && m.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`));
-
-          // 头部：导航 + 视图切换
-          header.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <button onclick="changeCalendarMonth(-1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">← 上一月</button>
-                <span style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${year}年${monthNames[month]}</span>
-                <button onclick="changeCalendarMonth(1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">下一月 →</button>
-                <button onclick="goCalendarToday()" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📅 今天</button>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 12px; color: var(--text-tertiary);">本月 ${monthMeetings.length} 场会议</span>
-                <button onclick="switchCalendarView('year')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">📆 年视图</button>
-              </div>
-            </div>
-          `;
-
-          // 主体：日历网格
-          const firstDay = new Date(year, month, 1).getDay();
-          const daysInMonth = new Date(year, month + 1, 0).getDate();
-          const today = new Date();
-          const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
-
-          let gridHtml = `<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border-light); border-radius: 8px; overflow: hidden;">`;
-          ['日','一','二','三','四','五','六'].forEach(d => {
-            gridHtml += `<div style="text-align: center; padding: 6px 0; font-size: 12px; font-weight: 600; color: var(--text-secondary); background: var(--bg-card);">${d}</div>`;
-          });
-
-          for (let i = 0; i < firstDay; i++) {
-            gridHtml += `<div style="min-height: 100px; padding: 6px; background: var(--bg-page);"></div>`;
-          }
-
-          for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const dayMeetings = meetings.filter(m => m.date === dateStr);
-            const isToday = isCurrentMonth && d === today.getDate();
-
-            gridHtml += `<div style="min-height: 100px; padding: 6px; background: var(--bg-card); position: relative;">
-              <div style="font-size: 12px; font-weight: ${isToday ? '700' : '400'}; color: ${isToday ? '#fff' : 'var(--text-primary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 4px;">${d}</div>
-              <div style="display: flex; flex-direction: column; gap: 3px;">
-                ${dayMeetings.slice(0, 2).map(m => {
-                  const sc = SCENARIO_CONFIG[m.scenario] || { color: 'var(--text-secondary)', icon: '📋' };
-                  const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
-                  const title = m.title.slice(0, 12) + (m.title.length > 12 ? '...' : '');
-                  const location = m.location ? m.location.slice(0, 6) + (m.location.length > 6 ? '...' : '') : '';
-                  const actionCount = (m.actions || []).length;
-                  const decisionCount = (m.decisions || []).length;
-                  return `<div data-calendar-meeting onclick="openMeetingDetail('${m.id}')" onmouseenter="showMeetingTooltip(this, true)" onmouseleave="showMeetingTooltip(this, false)" style="position: relative; padding: 2px 5px; border-radius: 3px; font-size: 10px; cursor: pointer; background: ${sc.color}18; color: ${sc.color}; border-left: 3px solid ${sc.color};">
-                    <span style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                      <span data-status-dot style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${st.color}; margin-right: 3px; vertical-align: middle;"></span>
-                      <span style="vertical-align: middle;">${sc.icon} ${title}${location ? ' · ' + location : ''}</span>
-                    </span>
-                    <div class="meeting-tooltip" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 100; width: max-content; max-width: 280px; padding-top: 4px;">
-                      <div style="padding: 10px 14px; background: var(--bg-page); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); font-size: 12px; white-space: normal; line-height: 1.5; position: relative;">
-                        <div style="position: absolute; top: -5px; left: 14px; width: 8px; height: 8px; background: var(--bg-page); border-left: 1px solid var(--border-color); border-top: 1px solid var(--border-color); transform: rotate(45deg);"></div>
-                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">${m.title}</div>
-                        <div style="color: var(--text-tertiary);">
-                          <div>📅 ${m.date} · ${sc.icon} ${sc.label}</div>
-                          <div>📍 ${m.location || '待定'} · 👤 ${m.host || '待定'}</div>
-                          <div>📊 ${st.label}${decisionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
-                        </div>
-                        <div style="margin-top: 8px; border-top: 1px solid var(--border-light); padding-top: 8px;">
-                          <button type="button" onclick="event.stopPropagation(); cloneMeeting('${m.id}');" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500; pointer-events: auto;">📋 复制此会议</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>`;
-                }).join('')}
-                ${dayMeetings.length > 2 ? `<div style="font-size: 10px; color: var(--text-tertiary); padding-left: 4px;">+${dayMeetings.length - 2}</div>` : ''}
-              </div>
-            </div>`;
-          }
-          gridHtml += `</div>`;
-          console.log('[Calendar] gridHtml length:', gridHtml.length);
-          body.innerHTML = gridHtml;
-          console.log('[Calendar] body.innerHTML set, body children:', body.children.length);
-          // 日历渲染完成
-
-          // 底部：当月会议清单
-          const sorted = monthMeetings.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-          footer.innerHTML = `
-            <div class="card" style="margin-bottom: 0;">
-              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="card-title">📋 ${year}年${monthNames[month]} 会议清单</div>
-                <span style="font-size: 12px; color: var(--text-tertiary);">共 ${sorted.length} 场</span>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                ${sorted.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 20px;">本月暂无会议</div>' : sorted.map(m => {
-                  const sc = SCENARIO_CONFIG[m.scenario] || { label: m.scenario, color: 'var(--text-tertiary)', icon: '📋' };
-                  const st = STATUS_CONFIG[m.status] || STATUS_CONFIG.planned;
-                  const actionCount = (m.actions || []).length;
-                  const decisionCount = (m.decisions || []).length;
-                  return `<div onclick="openMeetingDetail('${m.id}')" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s; border-left: 3px solid ${sc.color};">
-                    <span style="font-size: 12px; color: var(--text-tertiary); min-width: 60px;">${m.date.slice(5)}</span>
-                    <div style="flex: 1; min-width: 0;">
-                      <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.title}</div>
-                      <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">📍 ${m.location || '待定'} · 👤 ${m.host || '待定'}${actionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
-                    </div>
-                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: ${sc.color}15; color: ${sc.color}; white-space: nowrap;">${sc.icon} ${sc.label}</span>
-                    <span class="status-badge ${st.badgeClass}" style="font-size: 11px; white-space: nowrap;">${st.label}</span>
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>
-          `;
-        }
-        window.renderCalendarMonth = renderCalendarMonth;
-
-        function renderCalendarYear(year) {
-          const header = document.getElementById('calendar-header');
-          const body = document.getElementById('calendar-body');
-          const footer = document.getElementById('calendar-footer');
-          if (!header || !body || !footer) return;
-
-          const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-          const today = new Date();
-
-          header.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <button onclick="changeCalendarYear(-1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">← 上一年</button>
-                <span style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${year}年</span>
-                <button onclick="changeCalendarYear(1)" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">下一年 →</button>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <button onclick="goCalendarToday()" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📅 今天</button>
-                <button onclick="switchCalendarView('month')" style="padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">📅 月视图</button>
-              </div>
-            </div>
-          `;
-
-          let gridHtml = `<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">`;
-
-          for (let m = 0; m < 12; m++) {
-            const firstDay = new Date(year, m, 1).getDay();
-            const daysInMonth = new Date(year, m + 1, 0).getDate();
-            const monthMeetings = meetings.filter(mt => mt.date && mt.date.startsWith(`${year}-${String(m + 1).padStart(2, '0')}`));
-            const isCurrentMonth = year === today.getFullYear() && m === today.getMonth();
-
-            let miniGrid = '';
-            for (let i = 0; i < firstDay; i++) {
-              miniGrid += `<div></div>`;
-            }
-            for (let d = 1; d <= daysInMonth; d++) {
-              const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-              const dayMeetings = meetings.filter(mt => mt.date === dateStr);
-              const isToday = isCurrentMonth && d === today.getDate();
-              const hasMeeting = dayMeetings.length > 0;
-              const sc = hasMeeting ? SCENARIO_CONFIG[dayMeetings[0].scenario] : null;
-              miniGrid += `<div style="position: relative; display: flex; align-items: center; justify-content: center; height: 22px; font-size: 10px; color: ${isToday ? '#fff' : hasMeeting ? sc.color : 'var(--text-tertiary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; border-radius: 3px; cursor: ${hasMeeting ? 'pointer' : 'default'};" ${hasMeeting ? `onclick="switchCalendarView('month'); window._calendarState.year=${year}; window._calendarState.month=${m}; renderCalendarMonth(${year}, ${m});" title="${dayMeetings.map(dm => dm.title).join(', ')}"` : ''}>
-                ${d}
-                ${hasMeeting ? `<div style="position: absolute; bottom: 2px; left: 20%; right: 20%; height: 2px; background: ${sc.color}; border-radius: 1px;"></div>` : ''}
-              </div>`;
-            }
-
-            gridHtml += `
-              <div onclick="switchCalendarView('month'); window._calendarState.year=${year}; window._calendarState.month=${m}; renderCalendarMonth(${year}, ${m});" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-light)'" style="padding: 10px; background: var(--bg-card); border-radius: 8px; border: 1px solid ${isCurrentMonth ? 'var(--primary)' : 'var(--border-light)'}; cursor: pointer; transition: border-color 0.15s;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                  <span style="font-size: 13px; font-weight: 600; color: ${isCurrentMonth ? 'var(--primary)' : 'var(--text-primary)'};">${monthNames[m]}</span>
-                  <span style="font-size: 11px; color: var(--text-tertiary);">${monthMeetings.length} 场</span>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center;">
-                  ${miniGrid}
-                </div>
-              </div>
-            `;
-          }
-
-          gridHtml += `</div>`;
-          body.innerHTML = gridHtml;
-          footer.innerHTML = '';
-        }
-
-        window.switchCalendarView = function(mode) {
-          window._calendarState.view = mode;
-          const state = window._calendarState;
-          if (mode === 'month') {
-            renderCalendarMonth(state.year, state.month);
-          } else {
-            renderCalendarYear(state.year);
-          }
-        };
-
-        window.changeCalendarMonth = function(delta) {
-          const state = window._calendarState;
-          state.month += delta;
-          if (state.month > 11) { state.month = 0; state.year++; }
-          if (state.month < 0) { state.month = 11; state.year--; }
-          renderCalendarMonth(state.year, state.month);
-        };
-
-        window.changeCalendarYear = function(delta) {
-          window._calendarState.year += delta;
-          renderCalendarYear(window._calendarState.year);
-        };
-
-        window.goCalendarToday = function() {
-          const now = new Date();
-          window._calendarState.year = now.getFullYear();
-          window._calendarState.month = now.getMonth();
-          if (window._calendarState.view === 'month') {
-            renderCalendarMonth(now.getFullYear(), now.getMonth());
-          } else {
-            renderCalendarYear(now.getFullYear());
-          }
-        };
-
-        window.showMeetingTooltip = function(el, show) {
-          const tooltip = el.querySelector('.meeting-tooltip');
-          if (tooltip) tooltip.style.display = show ? 'block' : 'none';
-        };
-
-        window.toggleMeetingsView = function() {
-          console.log('[Calendar] toggleMeetingsView called, current mode:', window._meetingsViewMode);
-          const btn = document.getElementById('btn-toggle-view');
-          const listPanel = document.getElementById('meetings-list-panel');
-          const calPanel = document.getElementById('meetings-calendar-panel');
-          console.log('[Calendar] panels:', { list: !!listPanel, cal: !!calPanel });
-          if (window._meetingsViewMode === 'calendar') {
-            window._meetingsViewMode = 'list';
-            if (btn) btn.textContent = '📅 日历视图';
-            if (listPanel) listPanel.style.display = 'block';
-            if (calPanel) calPanel.style.display = 'none';
-          } else {
-            window._meetingsViewMode = 'calendar';
-            if (btn) btn.textContent = '📋 列表视图';
-            if (listPanel) listPanel.style.display = 'none';
-            if (calPanel) calPanel.style.display = 'block';
-            // 渲染日历
-            const state = window._calendarState;
-            console.log('[Calendar] rendering calendar, state:', state);
-            if (state.view === 'month') {
-              renderCalendarMonth(state.year, state.month);
-            } else {
-              renderCalendarYear(state.year);
-            }
-          }
-        };
-
         window.openNewMeeting = function() {
           const newMeeting = {
             id: 'new_' + Date.now(),
@@ -1381,6 +1185,10 @@
         };
 
         window._currentDetailMeetingId = null;
+        /**
+         * 打开会议详情浮层
+         * @param {string} id - 会议 ID
+         */
         window.openMeetingDetail = function(id) {
           const m = meetings.find(x => x.id === id);
           if (!m) return;
@@ -1402,6 +1210,65 @@
           if (score >= 80) return 'var(--success)';
           if (score >= 60) return 'var(--warning)';
           return 'var(--danger)';
+        }
+        function getScoreLabel(score) {
+          if (score === null || score === undefined) return '未评估';
+          if (score >= 90) return '卓越';
+          if (score >= 80) return '良好';
+          if (score >= 60) return '合格';
+          return '待改进';
+        }
+        // ---- 自动评分算法（AI推荐） ----
+        function calculateAutoScore(meeting) {
+          const p = meeting.pipeline || {};
+          const m = meeting.metrics || {};
+          const decisions = meeting.decisions || [];
+          const actions = meeting.actions || [];
+
+          // 会前准备：材料准时率 + 预评审
+          const preparation = Math.min(100, Math.round(
+            (m.materialTimeliness || 0) * 0.8 + (p.preReviewDone ? 20 : 0)
+          ));
+
+          // 会议讨论：基础分 + 各项加成
+          let discussion = 60;
+          if (p.meetingHeld) discussion += 10;
+          if ((meeting.agenda_items || []).length > 0) discussion += 10;
+          if (meeting.hasMinutes) discussion += 10;
+          if (meeting.minutesStatus === 'final') discussion += 10;
+
+          // 决议质量：闭环率 + KMS关联 + 审批率
+          const totalDecisions = decisions.length;
+          const withKms = totalDecisions > 0 ? decisions.filter(d => d.kmsUrl).length / totalDecisions : 0;
+          const approvedRate = totalDecisions > 0 ? decisions.filter(d => d.status === 'approved' || d.status === 'implemented').length / totalDecisions : 0;
+          const decision = Math.min(100, Math.round(
+            (m.resolutionTimeliness || 0) * 0.6 + withKms * 20 + approvedRate * 20
+          ));
+
+          // 执行落地：行动闭环率 + 追踪
+          const execution = Math.min(100, Math.round(
+            (m.actionClosure || 0) * 0.8 + (p.actionsTracked ? 20 : 0)
+          ));
+
+          const overall = Math.round((preparation + discussion + decision + execution) / 4);
+
+          // 生成系统反馈标签
+          const autoFeedback = [];
+          if (preparation >= 85) autoFeedback.push('材料充分');
+          if (preparation < 60) autoFeedback.push('数据不足');
+          if (discussion >= 85) autoFeedback.push('议程合理');
+          if (discussion < 60) autoFeedback.push('时间失控');
+          if (decision >= 85) autoFeedback.push('决议明确');
+          if (decision < 60) autoFeedback.push('决议模糊');
+          if (execution >= 85) autoFeedback.push('闭环到位');
+          if (execution < 60) autoFeedback.push('缺乏跟进');
+
+          return {
+            overallScore: overall,
+            dimensions: { preparation, discussion, decision, execution },
+            feedback: autoFeedback,
+            auto: true
+          };
         }
         window.closeMeetingDetail = function() {
           const ov = document.getElementById('meeting-detail-overlay');
@@ -1426,7 +1293,126 @@
           }
         };
 
+        // ---- 会议评估浮层 ----
+        window._evalMeetingId = null;
+        window._evalFormData = null;
+        const EVAL_DIMENSIONS = [
+          { key: 'preparation', label: '会前准备', desc: '材料质量、数据充分性、议题相关性' },
+          { key: 'discussion', label: '会议讨论', desc: '议题聚焦、时间控制、参与度' },
+          { key: 'decision', label: '决议质量', desc: '目标明确、责任清晰、可执行性' },
+          { key: 'execution', label: '执行落地', desc: '跟进机制、闭环效率、资源匹配' }
+        ];
+        const EVAL_TAGS = ['议程合理','数据充分','讨论聚焦','决议明确','责任清晰','闭环到位','时间失控','数据不足','议题发散','决议模糊','缺乏跟进'];
+        /**
+         * 打开会议效果评估浮层
+         * @param {string} meetingId - 会议 ID
+         */
+        window.openMeetingEvalModal = function(meetingId) {
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m) return;
+          if (m.status !== 'completed') { alert('仅已完成的会议可以评估'); return; }
+          window._evalMeetingId = meetingId;
+          let data;
+          if (m.effectiveness) {
+            data = JSON.parse(JSON.stringify(m.effectiveness));
+          } else {
+            data = calculateAutoScore(m);
+          }
+          window._evalFormData = {
+            overallScore: data.overallScore,
+            dimensions: { ...data.dimensions },
+            feedback: (data.feedback || []).slice(),
+            comment: data.comment || '',
+            auto: !!data.auto && !m.effectiveness
+          };
+          renderEvalForm();
+          document.getElementById('meeting-eval-overlay').style.display = 'flex';
+        };
+        window.closeMeetingEvalModal = function() {
+          document.getElementById('meeting-eval-overlay').style.display = 'none';
+          window._evalMeetingId = null;
+          window._evalFormData = null;
+        };
+        function renderEvalForm() {
+          const data = window._evalFormData;
+          if (!data) return;
+          const score = typeof data.overallScore === 'number' ? data.overallScore : 0;
+          const overallColor = getScoreColor(score);
+          const overallLabel = getScoreLabel(score);
+          const autoBadge = data.auto ? '<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: var(--primary-light); color: var(--primary); margin-left: 6px;">AI 推荐</span>' : '';
+          document.getElementById('eval-overall-display').innerHTML = `<span style="font-size: 32px; font-weight: 700; color: ${overallColor};">${score}</span><span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">${overallLabel}</span>${autoBadge}`;
+          const dimsHtml = EVAL_DIMENSIONS.map(dim => {
+            const val = data.dimensions[dim.key] || 0;
+            const color = getScoreColor(val);
+            return `
+              <div style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <div>
+                    <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${dim.label}</span>
+                    <span style="font-size: 11px; color: var(--text-tertiary); margin-left: 6px;">${dim.desc}</span>
+                  </div>
+                  <span style="font-size: 14px; font-weight: 700; color: ${color}; min-width: 28px; text-align: right;">${val}</span>
+                </div>
+                <input type="range" min="0" max="100" value="${val}" oninput="updateEvalSlider('${dim.key}', this.value)"
+                  style="width: 100%; accent-color: ${color}; cursor: pointer;" />
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); margin-top: 2px;">
+                  <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                </div>
+              </div>`;
+          }).join('');
+          document.getElementById('eval-dimensions').innerHTML = dimsHtml;
+          const tagsHtml = EVAL_TAGS.map(tag => {
+            const active = data.feedback.includes(tag);
+            return `<button type="button" onclick="toggleEvalTag('${tag}')"
+              style="padding: 4px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; border: 1px solid ${active ? 'var(--primary)' : 'var(--border-light)'}; background: ${active ? 'var(--primary-light)' : 'var(--bg-page)'}; color: ${active ? 'var(--primary)' : 'var(--text-secondary)'}; transition: all 0.15s;">${tag}</button>`;
+          }).join('');
+          document.getElementById('eval-tags').innerHTML = tagsHtml;
+          document.getElementById('eval-comment').value = data.comment || '';
+        }
+        window.updateEvalSlider = function(dim, val) {
+          if (!window._evalFormData) return;
+          window._evalFormData.dimensions[dim] = parseInt(val);
+          const dims = window._evalFormData.dimensions;
+          window._evalFormData.overallScore = Math.round((dims.preparation + dims.discussion + dims.resolution + dims.execution) / 4);
+          window._evalFormData.auto = false;
+          renderEvalForm();
+        };
+        window.toggleEvalTag = function(tag) {
+          if (!window._evalFormData) return;
+          const fb = window._evalFormData.feedback;
+          const idx = fb.indexOf(tag);
+          if (idx > -1) fb.splice(idx, 1); else fb.push(tag);
+          window._evalFormData.auto = false;
+          renderEvalForm();
+        };
+        window.saveMeetingEvaluation = function() {
+          if (!window._evalMeetingId || !window._evalFormData) return;
+          const m = meetings.find(x => x.id === window._evalMeetingId);
+          if (!m) return;
+          const data = window._evalFormData;
+          m.effectiveness = {
+            overallScore: data.overallScore,
+            dimensions: { ...data.dimensions },
+            feedback: data.feedback.slice(),
+            comment: (document.getElementById('eval-comment')?.value || '').trim(),
+            auto: false,
+            evaluatedAt: new Date().toISOString()
+          };
+          const orig = window._meetingsData.find(x => x.id === window._evalMeetingId);
+          if (orig) orig.effectiveness = JSON.parse(JSON.stringify(m.effectiveness));
+          localStorage.setItem('dste_meetings', JSON.stringify(window._meetingsData));
+          apiSave('/api/meetings', window._meetingsData);
+          closeMeetingEvalModal();
+          if (window._currentDetailMeetingId === window._evalMeetingId) {
+            renderMeetingDetail(m);
+          }
+          alert('评估已保存');
+        };
 
+        /**
+         * 渲染会议详情浮层（主视图）
+         * @param {Object} m - 会议对象
+         */
         function renderMeetingDetail(m) {
           const sc = SCENARIO_CONFIG[m.scenario] || {};
           const st = STATUS_CONFIG[m.status] || {};
@@ -1463,7 +1449,8 @@
                 ['📝', '记录人', m.recorder || '待定'],
                 ['🏢', '层级', m.level],
                 ['📊', '状态', `<span class="status-badge ${st.badgeClass}">${st.label}</span>`],
-                ['🔗', 'KMS', m.meeting_link ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 140px;">${m.meeting_link.replace(/^https?:\/\//, '')}</a>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未设置</span>']
+                ['🔗', 'KMS', m.meeting_link ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 140px;">${m.meeting_link.replace(/^https?:\/\//, '')}</a>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未设置</span>'],
+                ['⭐', '评估', m.effectiveness ? `<span style="font-size: 12px; font-weight: 600; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore} · ${getScoreLabel(m.effectiveness.overallScore)}${m.effectiveness.auto ? '（系统）' : ''}</span>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未评估</span>']
               ].map(([icon, label, value]) => `
                 <div style="display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--border-light);">
                   <span style="font-size: 11px; color: var(--text-secondary); min-width: 40px; flex-shrink: 0;">${icon} ${label}</span>
@@ -1471,6 +1458,9 @@
                 </div>
               `).join('')}
               ${pipelineSummary}
+              ${m.status === 'completed' ? `<div style="padding: 10px 0 4px; text-align: center;">
+                <button type="button" onclick="openMeetingEvalModal('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--warning); border-radius: 6px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; font-weight: 500; width: 100%;">${m.effectiveness ? '⭐ 重新评估' : '⭐ 评估会议'}</button>
+              </div>` : ''}
             </div>
           `;
 
@@ -1611,6 +1601,50 @@
             </div>
           `;
 
+          // 评估（可折叠，默认展开）
+          const evalSection = m.effectiveness ? `
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
+              <div onclick="toggleDetailSection('detail-eval')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px; font-weight: 600;">⭐ 评估</span>
+                  <span style="font-size: 12px; font-weight: 600; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore} · ${getScoreLabel(m.effectiveness.overallScore)}</span>
+                </div>
+                <span id="detail-eval-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+              </div>
+              <div id="detail-eval" style="padding: 0 16px 12px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                  <span style="font-size: 28px; font-weight: 700; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore}</span>
+                  <div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${getScoreLabel(m.effectiveness.overallScore)}</div>
+                    <div style="font-size: 11px; color: var(--text-tertiary);">综合评分</div>
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+                  ${[
+                    { key: 'preparation', label: '会前准备' },
+                    { key: 'discussion', label: '会议讨论' },
+                    { key: 'decision', label: '决议质量' },
+                    { key: 'execution', label: '执行落地' }
+                  ].map(d => {
+                    const v = m.effectiveness.dimensions[d.key] || 0;
+                    const c = getScoreColor(v);
+                    return `<div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                        <span style="font-size: 11px; color: var(--text-secondary);">${d.label}</span>
+                        <span style="font-size: 11px; font-weight: 600; color: ${c};">${v}</span>
+                      </div>
+                      <div style="width: 100%; height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden;">
+                        <div style="width: ${v}%; height: 100%; background: ${c}; border-radius: 2px; transition: width 0.3s;"></div>
+                      </div>
+                    </div>`;
+                  }).join('')}
+                </div>
+                ${m.effectiveness.feedback?.length ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">${m.effectiveness.feedback.map(f => `<span style="padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-light);">${f}</span>`).join('')}</div>` : ''}
+                ${m.effectiveness.comment ? `<div style="padding: 8px 10px; background: var(--bg-page); border-radius: 6px; border-left: 3px solid var(--primary-light); font-size: 12px; color: var(--text-primary); line-height: 1.5;">${m.effectiveness.comment.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''}
+              </div>
+            </div>
+          ` : '';
+
           // 会议链（可折叠，横向迷你卡片）
           const chainSection = `
             <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
@@ -1657,6 +1691,7 @@
                 ${minutesSection}
                 ${actionsSection}
                 ${decisionsSection}
+                ${evalSection}
                 ${chainSection}
               </div>
             </div>
@@ -1991,6 +2026,9 @@
           }
           return null;
         }
+        /**
+         * 智能填充会议表单：根据会议名称自动匹配历史模板/关键词规则
+         */
         function autoFillMeetingForm() {
           const titleInput = document.getElementById('edit-title');
           if (!titleInput) return;
@@ -2280,6 +2318,10 @@
           renderDecisionList();
         };
 
+        /**
+         * 保存会议数据（新建或更新）
+         * 数据持久化到 API 和 localStorage
+         */
         window.saveMeeting = function() {
           try {
             const d = window._meetingEditData;
@@ -2392,78 +2434,6 @@
         };
 
         // ---- 决议中心抽屉 ----
-        window._decisionsFilter = 'all';
-        window._decisionsSearch = '';
-        window.openDecisionsDrawer = function() {
-          const overlay = document.getElementById('decisions-overlay');
-          const drawer = document.getElementById('decisions-drawer');
-          if (overlay) overlay.style.display = 'block';
-          if (drawer) drawer.style.display = 'flex';
-          window._decisionsFilter = 'all';
-          window._decisionsSearch = '';
-          renderDecisionsList();
-        };
-        window.closeDecisionsDrawer = function() {
-          const overlay = document.getElementById('decisions-overlay');
-          const drawer = document.getElementById('decisions-drawer');
-          if (overlay) overlay.style.display = 'none';
-          if (drawer) drawer.style.display = 'none';
-        };
-        window.filterDecisions = function(status) {
-          window._decisionsFilter = status;
-          renderDecisionsList();
-        };
-        window.searchDecisions = function(keyword) {
-          window._decisionsSearch = keyword.trim().toLowerCase();
-          renderDecisionsList();
-        };
-        function renderDecisionsList() {
-          const container = document.getElementById('decisions-list');
-          if (!container) return;
-          const decisionItems = meetings.flatMap(m => (m.decisions || []).map(d => ({ ...d, meetingTitle: m.title, meetingId: m.id })));
-          let filtered = decisionItems;
-          if (window._decisionsFilter !== 'all') {
-            filtered = filtered.filter(d => d.status === window._decisionsFilter);
-          }
-          if (window._decisionsSearch) {
-            filtered = filtered.filter(d =>
-              (d.content || '').toLowerCase().includes(window._decisionsSearch) ||
-              (d.owner || '').toLowerCase().includes(window._decisionsSearch) ||
-              (d.meetingTitle || '').toLowerCase().includes(window._decisionsSearch)
-            );
-          }
-          const statusLabels = { approved: '已批准', implemented: '已执行', pending: '待审批', rejected: '已驳回' };
-          const statusColors = { approved: 'var(--success)', implemented: 'var(--success)', pending: 'var(--warning)', rejected: 'var(--danger)' };
-          const statusIcons = { approved: '✅', implemented: '✅', pending: '⏳', rejected: '❌' };
-          const filterButtons = [
-            { key: 'all', label: '全部' },
-            { key: 'implemented', label: '已执行' },
-            { key: 'approved', label: '已批准' },
-            { key: 'pending', label: '待审批' },
-            { key: 'rejected', label: '已驳回' }
-          ];
-          container.innerHTML = `
-            <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
-              ${filterButtons.map(f => `
-                <button type="button" onclick="filterDecisions('${f.key}')" style="padding: 4px 10px; font-size: 12px; border: 1px solid ${window._decisionsFilter === f.key ? 'var(--primary)' : 'var(--border-color)'}; border-radius: 4px; background: ${window._decisionsFilter === f.key ? 'var(--primary-light)' : 'var(--bg-page)'}; color: ${window._decisionsFilter === f.key ? 'var(--primary)' : 'var(--text-secondary)'}; cursor: pointer;">${f.label}</button>
-              `).join('')}
-            </div>
-            ${filtered.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🔍 未找到匹配决议</div>' : filtered.map(d => `
-              <div style="padding: 14px; background: var(--bg-page); border-radius: 8px; margin-bottom: 12px; border-left: 3px solid ${statusColors[d.status] || 'var(--text-tertiary)'};">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                  <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${d.content}</span>
-                  <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${statusColors[d.status] || 'var(--text-tertiary)'}15; color: ${statusColors[d.status] || 'var(--text-tertiary)'};">${statusIcons[d.status] || '⏳'} ${statusLabels[d.status] || d.status}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap;">
-                  <span>📅 ${d.deadline || '未设置'}</span>
-                  <span>👤 ${d.owner || '待定'}</span>
-                  <span style="cursor: pointer; color: var(--primary);" onclick="closeDecisionsDrawer(); openMeetingDetail('${d.meetingId}')">📋 ${d.meetingTitle}</span>
-                  ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">🔗 KMS</a>` : ''}
-                </div>
-              </div>
-            `).join('')}
-          `;
-        }
 
         return `
           ${renderBreadcrumb('经营分析会')}
@@ -3082,6 +3052,8 @@
       console.log('DSTE Meetings v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'));
     })();
   </script>
+  <script src="/meetings-components/CalendarView.js"></script>
+  <script src="/meetings-components/DecisionsDrawer.js"></script>
   <div id="app-version" style="position:fixed;bottom:4px;right:8px;font-size:11px;color:var(--text-tertiary);opacity:0.6;z-index:9999;pointer-events:none;"></div>
   <script type="module">
     (function() {
@@ -3149,6 +3121,39 @@
       <div id="notification-center-list" style="flex: 1; overflow-y: auto; padding: 16px 20px;"></div>
       <div style="padding: 12px 20px; border-top: 1px solid var(--border-light); flex-shrink: 0;">
         <button type="button" onclick="localStorage.setItem('dste_notification_config', JSON.stringify({...JSON.parse(localStorage.getItem('dste_notification_config')||'{}'), lastSent: []})); openNotificationCenter();" style="width: 100%; padding: 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">清除记录</button>
+      </div>
+    </div>
+  </div>
+  <!-- 会议评估浮层 -->
+  <div id="meeting-eval-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3300; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); width: 420px; max-width: 92vw; max-height: 90vh; box-shadow: 0 8px 32px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">⭐ 会议评估</h3>
+        <button onclick="closeMeetingEvalModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div style="flex: 1; overflow-y: auto; padding: 20px;">
+        <!-- 综合分 -->
+        <div id="eval-overall-display" style="text-align: center; margin-bottom: 20px; padding: 12px; background: var(--bg-page); border-radius: 10px;"></div>
+        <!-- 维度评分 -->
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">维度评分</div>
+          <div id="eval-dimensions"></div>
+        </div>
+        <!-- 快捷标签 -->
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">快捷标签</div>
+          <div id="eval-tags" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+        <!-- 文字评价 -->
+        <div style="margin-bottom: 8px;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">文字评价</div>
+          <textarea id="eval-comment" placeholder="请输入具体评价与改进建议..." style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box; resize: vertical; line-height: 1.6;"></textarea>
+        </div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 8px;">💡 首次打开时分数由系统自动推荐，可根据实际情况调整</div>
+      </div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border-light); display: flex; gap: 10px; flex-shrink: 0;">
+        <button type="button" onclick="closeMeetingEvalModal()" style="flex: 1; padding: 10px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">取消</button>
+        <button type="button" onclick="saveMeetingEvaluation()" style="flex: 1; padding: 10px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">保存评估</button>
       </div>
     </div>
   </div>

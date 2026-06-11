@@ -8,8 +8,9 @@ test.describe('Meeting Detail View', () => {
   });
 
   test('clicking meeting card opens detail overlay', async ({ page }) => {
-    const card = page.locator('[onclick^="openMeetingDetail"]').first();
+    const card = page.locator('.meeting-card').first();
     await expect(card).toBeVisible();
+    await card.scrollIntoViewIfNeeded();
     await card.click();
 
     const overlay = page.locator('#meeting-detail-overlay');
@@ -17,7 +18,8 @@ test.describe('Meeting Detail View', () => {
   });
 
   test('detail overlay shows meeting title', async ({ page }) => {
-    const card = page.locator('[onclick^="openMeetingDetail"]').first();
+    const card = page.locator('.meeting-card').first();
+    await card.scrollIntoViewIfNeeded();
     await card.click();
 
     const headerLeft = page.locator('#meeting-detail-header-left');
@@ -27,7 +29,8 @@ test.describe('Meeting Detail View', () => {
   });
 
   test('detail overlay has sections without tabs', async ({ page }) => {
-    const card = page.locator('[onclick^="openMeetingDetail"]').first();
+    const card = page.locator('.meeting-card').first();
+    await card.scrollIntoViewIfNeeded();
     await card.click();
 
     // Agenda section should be visible
@@ -46,7 +49,8 @@ test.describe('Meeting Detail View', () => {
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 
-    const card = page.locator('[onclick^="openMeetingDetail"]').first();
+    const card = page.locator('.meeting-card').first();
+    await card.scrollIntoViewIfNeeded();
     await card.click();
     await page.waitForTimeout(300);
 
@@ -77,7 +81,8 @@ test.describe('Meeting Detail View', () => {
 
   test('clicking tab button inside card should NOT open detail', async ({ page }) => {
     // Find first card with tabs
-    const card = page.locator('[onclick^="openMeetingDetail"]').first();
+    const card = page.locator('.meeting-card').first();
+    await card.scrollIntoViewIfNeeded();
     const tabBtn = card.locator('button').first();
     
     if (await tabBtn.isVisible().catch(() => false)) {

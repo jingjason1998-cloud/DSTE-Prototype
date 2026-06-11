@@ -41,6 +41,13 @@ const KEYS = {
   topics: 'dste_topics_v2',
   issues: 'dste_issues_v1',
   meetings: 'dste_meetings_v1',
+  // OMP 数据层
+  indicators: 'dste_omp_indicators_v1',
+  kpiInstances: 'dste_omp_kpi_instances_v1',
+  tasks: 'dste_omp_tasks_v1',
+  milestones: 'dste_omp_milestones_v1',
+  progressRecords: 'dste_omp_progress_v1',
+  cycles: 'dste_cycles_v1',
 };
 
 // CAS 配置
@@ -121,6 +128,12 @@ const DEFAULTS = {
   topics: '[]',
   issues: '[]',
   meetings: '[]',
+  indicators: '[]',
+  kpiInstances: '[]',
+  tasks: '[]',
+  milestones: '[]',
+  progressRecords: '[]',
+  cycles: '[]',
 };
 
 export default {
@@ -241,6 +254,25 @@ export default {
           const body = await request.json();
           await env.DSTE_KV.put(KEYS.meetings, JSON.stringify(body));
           return jsonResponse({ success: true, message: 'meetings saved' }, 200, request);
+        }
+      }
+
+      // --- OMP 数据 API（指标库 / KPI / 重点工作 / 里程碑 / 进度记录 / 周期） ---
+      const ompMatch = path.match(/^\/api\/omp\/([^\/]+)$/);
+      if (ompMatch) {
+        const entity = ompMatch[1];
+        const kvKey = KEYS[entity];
+        if (!kvKey) {
+          return errorResponse('Unknown entity: ' + entity, 400, request);
+        }
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(kvKey) || DEFAULTS[entity] || '[]';
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const body = await request.json();
+          await env.DSTE_KV.put(kvKey, JSON.stringify(body));
+          return jsonResponse({ success: true, message: entity + ' saved' }, 200, request);
         }
       }
 

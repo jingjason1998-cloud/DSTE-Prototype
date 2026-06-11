@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 test('miniTrend uses KPI history data not hardcoded values', async ({ page }) => {
-  await page.goto('http://localhost:4173/src/cockpit.html#exe/tasks');
+  await page.goto('/src/cockpit.html#exe/tasks');
   await page.waitForTimeout(2000);
   
   // Switch to KPI tab

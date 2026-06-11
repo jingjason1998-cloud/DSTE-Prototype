@@ -47,11 +47,11 @@ export function extractKeywords(text) {
         if (w.length >= 2 && !stopWords.has(w)) words.push(w);
     });
 
-    // 2. 中文按非中文字符分段，每段做 2-4 字 n-gram
+    // 2. 中文按非中文字符分段，每段做 2-3 字 n-gram（4-gram噪声太大）
     const segments = cleaned.split(/[^一-鿿]+/).filter(s => s.length >= 2);
     segments.forEach(seg => {
         for (let i = 0; i < seg.length - 1; i++) {
-            for (let len = 2; len <= 4 && i + len <= seg.length; len++) {
+            for (let len = 2; len <= 3 && i + len <= seg.length; len++) {
                 const word = seg.slice(i, i + len);
                 if (![...word].some(c => stopWords.has(c))) {
                     words.push(word);
@@ -60,39 +60,47 @@ export function extractKeywords(text) {
         }
     });
 
-    return [...new Set(words)].slice(0, 30);
+    return [...new Set(words)].slice(0, 25);
 }
 
 // ===== 语义关联词扩展 =====
 const SEMANTIC_MAP = {
-    '人数': ['编制', '人头', '人员', '人力', '名额', '配置'],
+    '人数': ['编制', '人头', '人员', '人力', '名额', '配置', ' staffing'],
     '编制': ['人数', '人头', '人员', '人力', '名额', '配置'],
-    '组长': ['小组', '团队', '队长', '主管', 'leader'],
+    '组长': ['小组', '团队', '队长', '主管', 'leader', '负责人'],
     '小组': ['组长', '团队', '队伍', '班组'],
-    '制度': ['规则', '规范', '政策', '规定', '机制'],
+    '制度': ['规则', '规范', '政策', '规定', '机制', '章程'],
     '规则': ['制度', '规范', '政策', '规定', '机制'],
-    '优化': ['改进', '提升', '完善', '改良', '调整'],
+    '优化': ['改进', '提升', '完善', '改良', '调整', '升级'],
     '改进': ['优化', '提升', '完善', '改良'],
-    '战区': ['区域', '地区', '片区', '分战区', '地域'],
+    '战区': ['区域', '地区', '片区', '分战区', '地域', '片区'],
     '区域': ['战区', '地区', '片区', '地域'],
-    '销售': ['售卖', '营销', '营收', '业绩', '收入', '售卖'],
+    '销售': ['售卖', '营销', '营收', '业绩', '收入', '售卖', '业务'],
     '营收': ['销售', '收入', '业绩', '售卖'],
-    '客户': ['用户', '客群', '顾客'],
-    '成本': ['费用', '支出', '开销', '花费'],
-    '费用': ['成本', '支出', '开销'],
-    '绩效': ['业绩', '表现', '考核', '评价'],
-    '考核': ['绩效', '评价', '评估'],
-    '培训': ['培养', '赋能', '学习', '教育'],
-    '招聘': ['招募', '引进', '纳新', '招人'],
-    '流程': ['过程', '工序', '环节', '步骤'],
-    '系统': ['平台', '工具', '软件', '应用'],
-    '数据': ['信息', '指标', '数字', '统计'],
-    '风险': ['隐患', '问题', '危机', '威胁'],
-    '预算': ['计划', '拨款', '资金', '经费'],
-    '战略': ['策略', '规划', '方针', '路线'],
-    '组织': ['机构', '架构', '体系', '结构'],
-    '干部': ['管理层', '领导', '主管', '负责人'],
-    '管理': ['管控', '治理', '监督', '统筹'],
+    '业务': ['销售', '营收', '经营', ' Commercial'],
+    '客户': ['用户', '客群', '顾客', 'consumer'],
+    '成本': ['费用', '支出', '开销', '花费', '投入'],
+    '费用': ['成本', '支出', '开销', '预算'],
+    '绩效': ['业绩', '表现', '考核', '评价', 'KPI'],
+    '考核': ['绩效', '评价', '评估', '考评'],
+    '培训': ['培养', '赋能', '学习', '教育', '训练'],
+    '招聘': ['招募', '引进', '纳新', '招人', '人才'],
+    '流程': ['过程', '工序', '环节', '步骤', '流程'],
+    '系统': ['平台', '工具', '软件', '应用', '体系'],
+    '数据': ['信息', '指标', '数字', '统计', 'Data'],
+    '风险': ['隐患', '问题', '危机', '威胁', '漏洞'],
+    '预算': ['计划', '拨款', '资金', '经费', '费用'],
+    '战略': ['策略', '规划', '方针', '路线', '方向'],
+    '组织': ['机构', '架构', '体系', '结构', '团队'],
+    '干部': ['管理层', '领导', '主管', '负责人', '经理'],
+    '管理': ['管控', '治理', '监督', '统筹', '运营'],
+    '交付': ['实施', '交付', '上线', '部署', ' rollout'],
+    '项目': ['专项', '工程', '计划', '项目'],
+    '专项': ['项目', '计划', '工程', '专题'],
+    '专题': ['专项', '项目', '议题'],
+    '质量': ['品质', '品控', 'QA', '质量'],
+    '安全': ['安防', '保密', '风控', '安全'],
+    '合规': ['合法', '规范', '风控', '合規'],
 };
 
 function getSemanticSet(word) {
@@ -148,35 +156,45 @@ export function jaccardSimilarity(a, b) {
     return intersection.size / Math.max(union.size, 1);
 }
 
+function computeCharOverlap(a, b) {
+    // 字符级重叠率：计算两个文本中相同字符的比例（去重后）
+    if (!a || !b) return 0;
+    const ca = new Set(a.toLowerCase().replace(/[^一-鿿]/g, ''));
+    const cb = new Set(b.toLowerCase().replace(/[^一-鿿]/g, ''));
+    if (ca.size === 0 || cb.size === 0) return 0;
+    const intersection = [...ca].filter(c => cb.has(c));
+    return intersection.length / Math.max(ca.size, cb.size);
+}
+
 export function computeAiMatchScore(topic, issue) {
     let score = 0;
     let reasons = [];
     let relationSuggestion = 'support';
 
-    // 1. 负责人/提交人匹配 (权重 0.18) — 新增维度
+    // 1. 负责人/提交人匹配 (权重 0.15)
     const topicOwner = extractNames(topic.owner || '');
     const issueProposer = extractNames(issue.proposer || '');
     const issueHandler = extractNames(issue.currentOwner || issue.handler || '');
     const ownerMatch = topicOwner.some(n => issueProposer.includes(n) || issueHandler.includes(n));
     if (ownerMatch) {
-        score += 0.18;
+        score += 0.15;
         reasons.push('同一负责人');
     }
 
-    // 2. 部门匹配 (权重 0.15，原0.25)
+    // 2. 部门匹配 (权重 0.12)
     const tDept = (topic.department || '').trim();
     const iDept = (issue.department || '').trim();
     if (tDept && iDept && tDept !== '-' && iDept !== '-') {
         if (tDept === iDept) {
-            score += 0.15;
+            score += 0.12;
             reasons.push('责任部门一致');
         } else if (tDept.includes(iDept) || iDept.includes(tDept)) {
-            score += 0.10;
+            score += 0.08;
             reasons.push('责任部门相关');
         }
     }
 
-    // 3. 关键词重叠 (权重 0.35，原0.30) — 增加语义扩展
+    // 3. 关键词重叠 (权重 0.40) — 核心匹配维度
     const topicText = [topic.name, topic.description, topic.target, topic.department, ...(topic.tags || [])].join(' ');
     const issueText = [
         issue.issueSubject || issue.issueTitle,
@@ -188,28 +206,22 @@ export function computeAiMatchScore(topic, issue) {
     const topicKeywords = extractKeywords(topicText);
     const issueKeywords = extractKeywords(issueText);
     const { exact: exactSim, semantic: semanticSim } = computeSemanticJaccard(topicKeywords, issueKeywords);
-    const combinedSim = exactSim + semanticSim * 0.5; // 语义匹配按50%权重
-    score += combinedSim * 0.35;
-    if (exactSim > 0.2) {
+    const combinedSim = exactSim + semanticSim * 0.6; // 语义匹配按60%权重
+    score += combinedSim * 0.40;
+    if (exactSim > 0.15) {
         reasons.push(`关键词高度相关(${Math.round(exactSim * 100)}%)`);
-    } else if (exactSim > 0.05 || semanticSim > 0.1) {
+    } else if (exactSim > 0.03 || semanticSim > 0.05) {
         reasons.push(`关键词部分相关(精确${Math.round(exactSim * 100)}%+语义${Math.round(semanticSim * 100)}%)`);
     }
 
-    // 4. 描述-标题交叉匹配 (权重 0.12) — 新增维度
-    const tDesc = extractKeywords([topic.description, topic.target].join(' '));
-    const iTitleKw = extractKeywords(issue.issueSubject || issue.issueTitle || '');
-    const tNameKw = extractKeywords(topic.name || '');
-    const iDescKw = extractKeywords(issue.issueDescription || issue.content || '');
-    const crossSim1 = jaccardSimilarity(tDesc, iTitleKw);
-    const crossSim2 = jaccardSimilarity(tNameKw, iDescKw);
-    const crossSim = Math.max(crossSim1, crossSim2);
-    if (crossSim > 0.1) {
-        score += crossSim * 0.12;
-        reasons.push(`描述与标题交叉匹配(${Math.round(crossSim * 100)}%)`);
+    // 4. 字符级重叠匹配 (权重 0.12) — 补充 n-gram 的不足
+    const charOverlap = computeCharOverlap(topic.name, issue.issueSubject || issue.issueTitle);
+    if (charOverlap > 0.15) {
+        score += charOverlap * 0.12;
+        reasons.push(`字符重叠(${Math.round(charOverlap * 100)}%)`);
     }
 
-    // 5. KPI/标签关联 (权重 0.15，原0.25)
+    // 5. KPI/标签关联 (权重 0.12)
     const topicTags = (topic.tags || []).map(t => t.toLowerCase());
     const issueKpis = (issue.relatedKpis || []).map(k => k.toLowerCase());
     let kpiOverlap = 0;
@@ -219,43 +231,43 @@ export function computeAiMatchScore(topic, issue) {
         });
     });
     if (kpiOverlap > 0) {
-        score += Math.min(0.15, kpiOverlap * 0.06);
+        score += Math.min(0.12, kpiOverlap * 0.05);
         reasons.push(`KPI关联(${kpiOverlap}个)`);
     }
 
-    // 6. 时间窗口 (权重 0.08，原0.10)
+    // 6. 时间窗口 (权重 0.06)
     const issueDate = issue.submitTime || issue.meetingDate;
     if (topic.startDate && topic.endDate && issueDate) {
         const s = new Date(topic.startDate);
         const e = new Date(topic.endDate);
         const m = new Date(issueDate);
         if (m >= s && m <= e) {
-            score += 0.08;
+            score += 0.06;
             reasons.push('议题日期在专题周期内');
         } else {
             const daysDiff = Math.abs(m - Math.max(s, Math.min(m, e))) / (1000 * 60 * 60 * 24);
             if (daysDiff < 90) {
-                score += 0.04;
+                score += 0.03;
                 reasons.push('议题日期临近专题周期');
             }
         }
     }
 
     // 7. 优先级加权
-    if (issue.priority === 'P0') score += 0.03;
+    if (issue.priority === 'P0') score += 0.02;
     else if (issue.priority === 'P1') score += 0.01;
 
-    // 8. 议题标题与专题名称直接包含关系 (权重 0.12，原0.15)
+    // 8. 议题标题与专题名称直接包含关系 (权重 0.10)
     const tName = (topic.name || '').toLowerCase();
     const iTitle = (issue.issueSubject || issue.issueTitle || '').toLowerCase();
     if (tName && iTitle && (tName.includes(iTitle) || iTitle.includes(tName))) {
-        score += 0.12;
+        score += 0.10;
         reasons.push('名称高度相似');
     }
 
     // 关系类型建议
-    if (score >= 0.60) relationSuggestion = 'direct';
-    else if (score >= 0.35) relationSuggestion = 'support';
+    if (score >= 0.50) relationSuggestion = 'direct';
+    else if (score >= 0.25) relationSuggestion = 'support';
     else relationSuggestion = 'reference';
 
     const finalScore = Math.min(0.99, score);
@@ -283,16 +295,38 @@ export function runAiMatch(topic) {
     const allIssues = loadAllIssues();
     const linkedIds = new Set((topic.linkedIssues || []).map(li => li.issueId));
     const candidates = allIssues.filter(i => !linkedIds.has(i.issueId));
+
+    console.log('[AI Match] 专题:', topic.name, '| 议题总数:', allIssues.length, '| 已关联:', linkedIds.size, '| 待匹配:', candidates.length);
+
     if (candidates.length === 0) {
         document.getElementById('aiMatchLoading').style.display = 'none';
         document.getElementById('aiMatchEmpty').style.display = 'block';
         return;
     }
 
-    const results = candidates.map(issue => computeAiMatchScore(topic, issue))
-        .filter(r => r.score >= 0.20)
+    const scored = candidates.map(issue => computeAiMatchScore(topic, issue));
+    const results = scored
+        .filter(r => r.score >= 0.12)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 6);
+        .slice(0, 8);
+
+    // 调试：输出得分分布
+    const distribution = { high: 0, mid: 0, low: 0, filtered: 0 };
+    scored.forEach(r => {
+        if (r.score >= 0.30) distribution.high++;
+        else if (r.score >= 0.20) distribution.mid++;
+        else if (r.score >= 0.12) distribution.low++;
+        else distribution.filtered++;
+    });
+    console.log('[AI Match] 得分分布:', distribution, '| 推荐:', results.length);
+    if (results.length > 0) {
+        console.log('[AI Match] TOP3:', results.slice(0, 3).map(r => ({
+            id: r.issue.issueId,
+            title: r.issue.issueTitle?.slice(0, 20),
+            score: r.score.toFixed(3),
+            reasons: r.reasons
+        })));
+    }
 
     _aiMatchResults = results;
     document.getElementById('aiMatchLoading').style.display = 'none';

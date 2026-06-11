@@ -4,7 +4,7 @@ test('OMP Dashboard tab renders without error', async ({ page }) => {
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
   
-  await page.goto('http://localhost:4173/src/cockpit.html#exe/tasks');
+  await page.goto('/src/cockpit.html#exe/tasks');
   await page.waitForTimeout(2000);
   
   const tab = page.locator('button[data-tab="dashboard"]').first();

@@ -43,3 +43,26 @@ border-color: var(--border);
 非 cockpit 的独立页面（如 reviewer.html、business-topics.html）：
 - 在 `vite.config.js` 的 `build.rollupOptions.input` 注册入口
 - 不受 cockpit IIFE 限制，但建议保持事件委托风格一致
+
+## 全局弹窗 CSS 模式
+
+**共享弹窗/遮罩组件的 CSS 必须全局化**：
+
+```css
+/* ❌ 错误：放在某个页面渲染函数内部 */
+function renderTasks() {
+  return `
+    ...页面内容...
+    <style>
+      .omp-modal-overlay { ... }  /* 只在 exe/tasks 页面可用 */
+    </style>
+  `;
+}
+
+/* ✅ 正确：放在全局 <style> 标签中 */
+/* 在 <head> 内的全局 <style> 中定义 */
+.omp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.omp-modal { background: var(--bg-card); border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+```
+
+**原则**：任何可能被多个页面调用的组件（弹窗、通知中心、抽屉、遮罩），其 CSS 必须在全局作用域中定义。

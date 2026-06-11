@@ -2,7 +2,8 @@
 
 ## 附录C：经营分析会页面价值主张设计方案
 
-> 状态：`design` | 作者：AI Assistant | 日期：2026-05-23
+> 状态：`implemented` | 作者：AI Assistant | 日期：2026-05-23 | 实现验证：v0.4.0
+> **关联设计文档**：[经营分析会-功能设计文档](../01-Product产品/经营分析会-功能设计文档.md) — M10 价值主张横幅、M8 场景场次指标卡
 
 ### C.1 设计目标
 
@@ -471,7 +472,8 @@ const sceneCounts = KNOWN_SCENES.reduce((acc, key) => {
 
 ## 附录D：会议主视图与编辑页面设计方案
 
-> 状态：`design` | 作者：AI Assistant | 日期：2026-05-23
+> 状态：`implemented` | 作者：AI Assistant | 日期：2026-05-23 | 实现验证：v0.4.0
+> **关联设计文档**：[经营分析会-功能设计文档](../01-Product产品/经营分析会-功能设计文档.md) — M9 会议主视图与编辑
 
 ### D.1 设计目标
 
@@ -1526,7 +1528,8 @@ const meetings = window._meetingsData;
 
 ## 附录E：日历视图设计方案
 
-> 状态：`design` | 作者：AI Assistant | 日期：2026-05-23
+> 状态：`implemented` | 作者：AI Assistant | 日期：2026-05-23 | 实现验证：v0.4.0
+> **关联设计文档**：[经营分析会-功能设计文档](../01-Product产品/经营分析会-功能设计文档.md) — M6 日历视图模块
 
 ### E.1 设计目标
 
