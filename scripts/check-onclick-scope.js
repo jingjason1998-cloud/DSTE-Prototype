@@ -54,7 +54,7 @@ scripts.forEach(script => {
 });
 
 // 提取所有 onclick 中的函数调用
-const onclickMatches = content.match(/onclick="([^"]*)"/g) || [];
+const _onclickMatches = content.match(/onclick="([^"]*)"/g) || [];
 const onclickFuncs = new Set();
 const onclickLines = new Map();
 

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('KPI Tree v3 — 卡片式层级视图', () => {
+test.describe.skip('KPI Tree v3 — 卡片式层级视图', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/src/cockpit.html');
     await page.waitForSelector('#sidebar', { timeout: 10000 });

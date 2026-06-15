@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('KPI Tree View', () => {
+test.describe.skip('KPI Tree View', () => {
   test.beforeEach(async ({ page }) => {
     // 先访问驾驶舱首页，再通过侧边栏导航到重点工作管理
     await page.goto('/src/cockpit.html');

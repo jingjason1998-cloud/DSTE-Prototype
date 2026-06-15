@@ -1,3 +1,5 @@
+import { showToast, Storage } from '../../lib/utils.js';
+
 import {
     validateIssueRow, safeIssueId, hasCsvFormulaInjection, sanitizeCsvCell,
     checkStorageCapacity, parseCSV, buildIssueFromRow, importIssuesFromPaste,
@@ -26,14 +28,14 @@ const CURRENT_USER = '销售总监'; // 演示用：当前登录用户
 let _cachedTopics = null;
 let _deleteTargetId = null;
 let _currentTab = 'all';
-let _sortConfig = { field: 'priority', direction: 'desc' };
+const _sortConfig = { field: 'priority', direction: 'desc' };
 
 // ===== API 同步配置 =====
 const API_BASE = (() => {
     // 生产环境使用 Cloudflare Worker，开发环境可覆盖
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
-        return localStorage.getItem('dste_api_base') || '';
+        return Storage.getString('dste_api_base');
     }
     return 'https://dste-api.jasonxspace.workers.dev';
 })();
@@ -47,7 +49,7 @@ function redirectToCasLogin() {
 async function apiSave(endpoint, data) {
     if (!API_BASE) return;
     try {
-        const token = localStorage.getItem('dste-token');
+        const token = Storage.getString('dste-token');
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         const resp = await fetch(API_BASE + endpoint, {
@@ -60,14 +62,14 @@ async function apiSave(endpoint, data) {
             return;
         }
     } catch (e) {
-        console.warn('API save failed (offline?), data kept in localStorage:', e.message);
+        console.warn('API save failed (offline?), data kept in 本地存储:', e.message);
     }
 }
 
 async function apiLoad(endpoint) {
     if (!API_BASE) return null;
     try {
-        const token = localStorage.getItem('dste-token');
+        const token = Storage.getString('dste-token');
         const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
         const resp = await fetch(API_BASE + endpoint, { headers });
         if (resp.status === 401) {
@@ -84,10 +86,10 @@ async function apiLoad(endpoint) {
 
 function loadTopics() {
     if (_cachedTopics) return [..._cachedTopics];
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = Storage.getString(STORAGE_KEY);
     if (!raw) return [];
     try {
-        let topics = JSON.parse(raw);
+        const topics = JSON.parse(raw);
         // 数据迁移：为没有 year 字段的旧数据补 year
         let migrated = false;
         topics.forEach(t => {
@@ -97,7 +99,7 @@ function loadTopics() {
             }
         });
         if (migrated) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
+            Storage.set(STORAGE_KEY, topics);
         }
         _cachedTopics = topics;
         return [..._cachedTopics];
@@ -108,7 +110,7 @@ function loadTopics() {
 
 function saveTopics(topics) {
     _cachedTopics = topics;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
+    Storage.set(STORAGE_KEY, topics);
     apiSave('/api/topics', topics); // 同步到云端
 }
 
@@ -395,7 +397,7 @@ function safeId(id) {
 // ===================== Phase 1: Issue Data Layer (v2.1) =====================
 
 function migrateV1ToV2() {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = Storage.getString(STORAGE_KEY);
     if (!raw) return false;
     try {
         const topics = JSON.parse(raw);
@@ -416,7 +418,7 @@ function migrateV1ToV2() {
             }
         });
         if (migrated) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
+            Storage.set(STORAGE_KEY, topics);
             _cachedTopics = topics;
         }
         return migrated;
@@ -447,8 +449,8 @@ function simpleHash(str) {
 
 // ===================== Phase 2: Issue Import UI =====================
 
-let _importRows = null;
-let _importFileName = null;
+const _importRows = null;
+const _importFileName = null;
 
 
 
@@ -460,8 +462,8 @@ let _importFileName = null;
 
 
 
-let _currentLinkTopicId = null;
-let _linkIssuesFilter = 'all';
+const _currentLinkTopicId = null;
+const _linkIssuesFilter = 'all';
 
 
 
@@ -470,8 +472,8 @@ let _linkIssuesFilter = 'all';
 
 
 // ===================== AI 智能匹配 =====================
-let _aiMatchTopicId = null;
-let _aiMatchResults = [];
+const _aiMatchTopicId = null;
+const _aiMatchResults = [];
 
 
 
@@ -494,7 +496,7 @@ let _aiMatchResults = [];
 
 
 
-let _currentReportType = null;
+const _currentReportType = null;
 
 
 
@@ -958,7 +960,7 @@ function removeYear(year) {
     const topics = loadTopics();
     const count = topics.filter(t => t.year === year).length;
     if (count > 0) {
-        alert(`该年度下有 ${count} 个专题，请先修改这些专题的年度后再删除。`);
+        showToast(`该年度下有 ${count} 个专题，请先修改这些专题的年度后再删除。`, 'warning');
         return;
     }
     if (!confirm(`确认删除年份 ${year}？`)) return;
@@ -1071,7 +1073,7 @@ function saveTopic() {
     const name = document.getElementById('fName').value.trim();
     const owner = document.getElementById('fOwner').value.trim();
     if (!name || !owner) {
-        alert('请填写必填字段：专题名称、负责人');
+        showToast('请填写必填字段：专题名称、负责人', 'warning');
         return;
     }
 
@@ -1106,7 +1108,7 @@ function saveTopic() {
         updatedAt: now,
     };
 
-    let topics = loadTopics();
+    const topics = loadTopics();
     if (id) {
         const idx = topics.findIndex(t => t.id === id);
         if (idx >= 0) topics[idx] = topicData;
@@ -1279,7 +1281,7 @@ function openDeleteModal(id) {
 
 function confirmDeleteTopic() {
     if (!_deleteTargetId) return;
-    let topics = loadTopics().filter(t => t.id !== _deleteTargetId);
+    const topics = loadTopics().filter(t => t.id !== _deleteTargetId);
     saveTopics(topics);
     _deleteTargetId = null;
     closeModal('deleteModal');
@@ -1309,13 +1311,13 @@ function importTopicsFromFile(event) {
             const data = JSON.parse(e.target.result);
             const topics = data.topics || data;
             if (!Array.isArray(topics)) {
-                alert('备份文件格式错误：未找到 topics 数组');
+                showToast('备份文件格式错误：未找到 topics 数组', 'error');
                 return;
             }
             // Validate topic structure
             const validTopics = topics.filter(t => t.id && t.name);
             if (validTopics.length === 0) {
-                alert('备份文件中未找到有效的专题数据');
+                showToast('备份文件中未找到有效的专题数据', 'error');
                 return;
             }
             const confirmed = confirm(`确认导入备份？\n- 备份时间：${data.exportTime || '未知'}\n- 专题数量：${validTopics.length}\n- 当前专题数量：${loadTopics().length}\n\n⚠️ 导入将覆盖当前所有专题数据！`);
@@ -1331,9 +1333,9 @@ function importTopicsFromFile(event) {
             renderTable();
             renderStats();
             renderDeptFilter();
-            alert(`导入成功！共恢复 ${validTopics.length} 个专题`);
+            showToast(`导入成功！共恢复 ${validTopics.length} 个专题`, 'success');
         } catch (err) {
-            alert('备份文件解析失败：' + err.message);
+            showToast('备份文件解析失败：' + err.message, 'error');
         }
     };
     reader.readAsText(file);
@@ -1390,7 +1392,7 @@ async function init() {
     // 优先从云端加载数据
     const remoteTopics = await apiLoad('/api/topics');
     if (remoteTopics && remoteTopics.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteTopics));
+        Storage.set(STORAGE_KEY, remoteTopics);
         _cachedTopics = remoteTopics;
     }
 
@@ -1419,8 +1421,8 @@ async function init() {
         // 按 sourceSystem 分组保存
         const stIssues = remoteIssues.filter(i => i.sourceSystem === 'ST');
         const atIssues = remoteIssues.filter(i => i.sourceSystem === 'AT');
-        localStorage.setItem(ISSUE_STORAGE_KEY + '_ST', JSON.stringify(stIssues));
-        localStorage.setItem(ISSUE_STORAGE_KEY + '_AT', JSON.stringify(atIssues));
+        Storage.set(ISSUE_STORAGE_KEY + '_ST', stIssues);
+        Storage.set(ISSUE_STORAGE_KEY + '_AT', atIssues);
     }
 
     renderTable();
@@ -1729,31 +1731,8 @@ function handleDelegatedInput(e) {
     }
 }
 
-// DSTE 主题切换
-(function() {
-    const btn = document.getElementById('theme-toggle');
-    if (btn) {
-        const updateIcon = function() {
-            var t = document.documentElement.getAttribute('data-theme');
-            btn.textContent = t === 'dark' ? '☀️' : '🌙';
-        };
-        updateIcon();
-        btn.addEventListener('click', function() {
-            var current = document.documentElement.getAttribute('data-theme');
-            var next = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('dste-theme', next);
-            updateIcon();
-        });
-    }
-    window.addEventListener('storage', function(e) {
-        if (e.key === 'dste-theme') {
-            document.documentElement.setAttribute('data-theme', e.newValue);
-            var b = document.getElementById('theme-toggle');
-            if (b) b.textContent = e.newValue === 'dark' ? '☀️' : '🌙';
-        }
-    });
-})();
+// 主题切换由全局 assets/js/main.js 的 ThemeManager 统一处理，
+// 业务专题页面不再重复绑定，避免同一按钮触发两次切换导致无变化。
 
 // Expose helper functions needed by imported modules (topic-issues.js, etc.)
 window.loadTopics = loadTopics;

@@ -404,23 +404,23 @@
       const API_BASE = (() => {
         const host = window.location.hostname;
         if (host === 'localhost' || host === '127.0.0.1') {
-          return localStorage.getItem('dste_api_base') || '';
+          return DSTE.Storage.getString('dste_api_base');
         }
         return 'https://dste-api.jasonxspace.workers.dev';
       })();
 
       async function apiSave(endpoint, data) {
-        // 无论 API 是否可用，都先保存到 localStorage 作为兜底，防止数据丢失
+        // 无论 API 是否可用，都先保存到 本地存储 作为兜底，防止数据丢失
         if (endpoint === '/api/meetings') {
           try {
-            localStorage.setItem('dste_meetings', JSON.stringify(data));
+            DSTE.Storage.set('dste_meetings', data);
           } catch (e) {
-            console.warn('localStorage save failed:', e.message);
+            console.warn('本地存储 save failed:', e.message);
           }
         }
         if (!API_BASE) return;
         try {
-          const token = localStorage.getItem('dste-token');
+          const token = DSTE.Storage.getString('dste-token');
           const headers = { 'Content-Type': 'application/json' };
           if (token) headers['Authorization'] = `Bearer ${token}`;
           const resp = await fetch(API_BASE + endpoint, {
@@ -457,8 +457,8 @@
           const resp = await fetch(`${API_BASE}/api/auth/cas/login?ticket=${encodeURIComponent(ticket)}&service=${service}`);
           const json = await resp.json();
           if (json.success && json.token) {
-            localStorage.setItem('dste-token', json.token);
-            localStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+            DSTE.Storage.setString('dste-token', json.token);
+            DSTE.Storage.setString('dste-user', json.user?.name || json.user?.username || '');
             sessionStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
             updateUserUI();
             return true;
@@ -471,7 +471,7 @@
 
       // 检查登录状态：验证 token 是否有效
       async function checkLoginStatus() {
-        const token = localStorage.getItem('dste-token');
+        const token = DSTE.Storage.getString('dste-token');
         if (!token) return false;
 
         try {
@@ -481,7 +481,7 @@
           if (resp.ok) {
             const json = await resp.json();
             if (json.success && json.user) {
-              localStorage.setItem('dste-user', json.user.name || json.user.username || '');
+              DSTE.Storage.setString('dste-user', json.user.name || json.user.username || '');
               sessionStorage.setItem('dste-user', json.user.name || json.user.username || '');
               updateUserUI();
               return true;
@@ -491,15 +491,15 @@
           console.warn('Login status check failed:', e);
         }
 
-        localStorage.removeItem('dste-token');
-        localStorage.removeItem('dste-user');
+        DSTE.Storage.remove('dste-token');
+        DSTE.Storage.remove('dste-user');
         sessionStorage.removeItem('dste-user');
         return false;
       }
 
       // 更新用户 UI（头像、下拉菜单名）
       function updateUserUI() {
-        const user = localStorage.getItem('dste-user') || sessionStorage.getItem('dste-user') || '张';
+        const user = DSTE.Storage.getString('dste-user') || sessionStorage.getItem('dste-user') || '张';
         const avatar = document.getElementById('user-avatar');
         const dropdownName = document.getElementById('user-dropdown-name');
         if (avatar) avatar.textContent = user.charAt(0);
@@ -508,7 +508,7 @@
 
       // 登出
       async function logout() {
-        const token = localStorage.getItem('dste-token');
+        const token = DSTE.Storage.getString('dste-token');
         if (token) {
           try {
             await fetch(`${API_BASE}/api/auth/logout`, {
@@ -519,8 +519,8 @@
             console.warn('Logout API failed:', e);
           }
         }
-        localStorage.removeItem('dste-token');
-        localStorage.removeItem('dste-user');
+        DSTE.Storage.remove('dste-token');
+        DSTE.Storage.remove('dste-user');
         sessionStorage.removeItem('dste-user');
         window.location.reload();
       }
@@ -529,7 +529,7 @@
         let apiData = null;
         if (API_BASE) {
           try {
-            const token = localStorage.getItem('dste-token');
+            const token = DSTE.Storage.getString('dste-token');
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
             const resp = await fetch(API_BASE + endpoint, { headers });
             if (resp.status === 401) {
@@ -543,15 +543,15 @@
           }
         }
         if (apiData && apiData.length > 0) return apiData;
-        // API 无数据或失败时 fallback 到 localStorage
+        // API 无数据或失败时 fallback 到 本地存储
         if (endpoint === '/api/meetings') {
-          const local = localStorage.getItem('dste_meetings');
+          const local = DSTE.Storage.getString('dste_meetings');
           if (local) {
             try {
               const parsed = JSON.parse(local);
               if (parsed && parsed.length > 0) return parsed;
             } catch (e) {
-              console.warn('localStorage parse failed:', e);
+              console.warn('本地存储 parse failed:', e);
             }
           }
         }
@@ -667,19 +667,17 @@
       function omp_initData() {
         // 版本号检测：代码更新时自动清理旧数据
         const DATA_VERSION = 'canvas-v10';
-        const storedVersion = localStorage.getItem('dste_omp_data_version');
+        const storedVersion = DSTE.Storage.getString('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
-          // 清除所有 DSTE 相关 localStorage
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('dste_')) localStorage.removeItem(key);
+          // 清除所有 DSTE 相关 本地存储
+          DSTE.Storage.getKeys('dste_').forEach(key => {
+            DSTE.Storage.remove(key);
           });
-          localStorage.setItem('dste_omp_data_version', DATA_VERSION);
+          DSTE.Storage.setString('dste_omp_data_version', DATA_VERSION);
           console.log('[OMP] Data cleared for version:', DATA_VERSION);
-          // 强制刷新页面以加载最新代码（避免 Vite HTML 缓存）
-          window.location.reload(true);
-          return;
+          // 不再强制刷新页面，避免 E2E 测试和首次用户体验不稳定；清除后继续初始化即可
         }
-        if (!localStorage.getItem(OMP_STORAGE.indicators)) {
+        if (!DSTE.Storage.getString(OMP_STORAGE.indicators)) {
           const indicators = [
             // === 结果指标 (result) ===
             { id: 'ind_sales_d', code: 'SALES_D', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
@@ -695,16 +693,16 @@
             { id: 'ind_visit', code: 'VISIT', name: '客户拜访次数', description: '当期实际拜访客户次数', formula: 'COUNT(拜访记录)', unit: '次', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
             { id: 'ind_conversion', code: 'CONVERSION', name: '合同转化率', description: '商机转化为合同的比例', formula: '成交合同数/商机总数*100', unit: '%', frequency: 'quarterly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'percentage' },
           ];
-          localStorage.setItem(OMP_STORAGE.indicators, JSON.stringify(indicators));
+          DSTE.Storage.set(OMP_STORAGE.indicators, indicators);
         }
-        if (!localStorage.getItem('dste_cycles_v1')) {
-          localStorage.setItem('dste_cycles_v1', JSON.stringify([
+        if (!DSTE.Storage.getString('dste_cycles_v1')) {
+          DSTE.Storage.set('dste_cycles_v1', [
             { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null },
             { id: 'cycle_2025_marketing', year: 2025, name: '2025年度 — 营销线', phase: 'archived', organization: '营销线', parentCycleId: null },
-          ]));
+          ]);
         }
-        if (!localStorage.getItem(OMP_STORAGE.kpiInstances)) {
-          localStorage.setItem(OMP_STORAGE.kpiInstances, JSON.stringify([
+        if (!DSTE.Storage.getString(OMP_STORAGE.kpiInstances)) {
+          DSTE.Storage.set(OMP_STORAGE.kpiInstances, [
             // === L0: 财务维度 ===
             { id: 'kpi_sales_d', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 178623, challengeValue: 214348, actualValue: 171478, achievementRate: 96, weight: 10, owner: '陈总监', dept: '营销线', status: 'achieved', parentId: null, level: 0, bscDimension: 'financial', history: [92, 88, 94, 96] , x: null, y: null, width: 170, height: 100 },
             { id: 'kpi_collection_k', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 130097, challengeValue: 156116, actualValue: 113835, achievementRate: 87.5, weight: 25, owner: '陈总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [95, 90, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
@@ -739,20 +737,20 @@
             // === L2: FDL 战区分解 ===
             { id: 'kpi_fdl_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 1600, challengeValue: 1920, actualValue: 1200, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [75, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
             { id: 'kpi_fdl_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 1700, challengeValue: 2040, actualValue: 1275, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [74, 75, 76, 75] , x: null, y: null, width: 170, height: 100 },
-          ]));
+          ]);
         }
-        if (!localStorage.getItem(OMP_STORAGE.tasks)) {
-          localStorage.setItem(OMP_STORAGE.tasks, JSON.stringify([
+        if (!DSTE.Storage.getString(OMP_STORAGE.tasks)) {
+          DSTE.Storage.set(OMP_STORAGE.tasks, [
             { id: 'task_1', cycleId: 'cycle_2026_marketing', seq: 1, name: '大客户经营能力提升', bscDimension: 'customer', kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1376824175', owner: '陈总监', status: 'active', description: '提升大客户经营能力，建立深度合作关系', type: 'strategic', priority: 'P0', progress: 65, dept: '销售部', startDate: '2026-01-01', endDate: '2026-12-31', relatedKpiIds: [], budget: 500, actualCost: 200 },
             { id: 'task_2', cycleId: 'cycle_2026_marketing', seq: 2, name: '垂直细分客户运营', bscDimension: 'customer', kmsUrl: '#', owner: '王总监', status: 'active', description: '按行业/区域细分客户群体，差异化运营', type: 'strategic', priority: 'P0', progress: 45, dept: '市场部', startDate: '2026-02-01', endDate: '2026-10-31', relatedKpiIds: [], budget: 300, actualCost: 120 },
             { id: 'task_3', cycleId: 'cycle_2026_marketing', seq: 3, name: '新产品推广（简道云&FDL）项目', bscDimension: 'customer', kmsUrl: '#', owner: '李经理', status: 'planning', description: '新产品线市场推广和销售赋能', type: 'strategic', priority: 'P0', progress: 20, dept: '产品部', startDate: '2026-03-01', endDate: '2026-09-30', relatedKpiIds: [], budget: 400, actualCost: 50 },
             { id: 'task_4', cycleId: 'cycle_2026_marketing', seq: 4, name: '业务破圈（财务&供应链&一号位）项目', bscDimension: 'customer', kmsUrl: '#', owner: '张总监', status: 'planning', description: '打破业务壁垒，实现跨部门协同', type: 'improvement', priority: 'P1', progress: 15, dept: '运营部', startDate: '2026-04-01', endDate: '2026-12-31', relatedKpiIds: [], budget: 250, actualCost: 30 },
             { id: 'task_5', cycleId: 'cycle_2026_marketing', seq: 5, name: '数据治理：（优先业务破圈数据治理）', bscDimension: 'customer', kmsUrl: '#', owner: '赵经理', status: 'planning', description: '建立数据标准，提升数据质量', type: 'capability', priority: 'P1', progress: 10, dept: '数据部', startDate: '2026-05-01', endDate: '2026-11-30', relatedKpiIds: [], budget: 180, actualCost: 20 },
             { id: 'task_6', cycleId: 'cycle_2026_marketing', seq: 6, name: 'MTL流程项目', bscDimension: 'process', kmsUrl: '#', owner: '刘经理', status: 'active', description: '市场到线索流程优化，提升获客效率', type: 'improvement', priority: 'P0', progress: 55, dept: '流程部', startDate: '2026-01-01', endDate: '2026-08-31', relatedKpiIds: [], budget: 200, actualCost: 100 },
-          ]));
+          ]);
         }
-        if (!localStorage.getItem(OMP_STORAGE.milestones)) {
-          localStorage.setItem(OMP_STORAGE.milestones, JSON.stringify([
+        if (!DSTE.Storage.getString(OMP_STORAGE.milestones)) {
+          DSTE.Storage.set(OMP_STORAGE.milestones, [
             { id: 'ms_1', taskId: 'task_1', name: '渠道调研完成', planDate: '2026-04-15', actualDate: '2026-04-10', status: 'completed' },
             { id: 'ms_2', taskId: 'task_1', name: '合作伙伴签约', planDate: '2026-05-30', actualDate: '2026-05-28', status: 'completed' },
             { id: 'ms_3', taskId: 'task_1', name: '首批渠道培训', planDate: '2026-06-30', actualDate: null, status: 'pending' },
@@ -771,25 +769,25 @@
             { id: 'ms_16', taskId: 'task_6', name: '培训需求调研', planDate: '2026-03-15', actualDate: '2026-03-14', status: 'completed' },
             { id: 'ms_17', taskId: 'task_6', name: '课程开发', planDate: '2026-05-31', actualDate: null, status: 'pending' },
             { id: 'ms_18', taskId: 'task_6', name: '全员培训', planDate: '2026-07-31', actualDate: null, status: 'pending' },
-          ]));
+          ]);
         }
-        if (!localStorage.getItem(OMP_STORAGE.progressRecords)) {
-          localStorage.setItem(OMP_STORAGE.progressRecords, JSON.stringify([
+        if (!DSTE.Storage.getString(OMP_STORAGE.progressRecords)) {
+          DSTE.Storage.set(OMP_STORAGE.progressRecords, [
             { id: 'rec_1', taskId: 'task_1', date: '2026-04-30', progress: 40, content: '完成渠道调研，签约5家合作伙伴', problems: '部分地区准入门槛较高', reporter: '李经理' },
             { id: 'rec_2', taskId: 'task_1', date: '2026-05-31', progress: 70, content: '合作伙伴培训完成，开始产生首单', problems: '', reporter: '李经理' },
             { id: 'rec_3', taskId: 'task_2', date: '2026-04-30', progress: 35, content: '完成UI设计和核心模块开发', problems: '第三方接口对接延迟', reporter: '王总监' },
             { id: 'rec_4', taskId: 'task_3', date: '2026-03-31', progress: 30, content: '完成现状诊断和问题清单', problems: '部分供应商配合度不高', reporter: '张总监' },
-          ]));
+          ]);
         }
       }
 
-      // ===== OMP 数据层：localStorage + 后端 API 双写 =====
+      // ===== OMP 数据层：本地存储 + 后端 API 双写 =====
       window._ompApiCache = {};
 
       async function apiLoadOmp(entity) {
         if (!API_BASE) return null;
         try {
-          const token = localStorage.getItem('dste_token');
+          const token = DSTE.Storage.getString('dste_token');
           const resp = await fetch(API_BASE + '/api/omp/' + entity, {
             headers: token ? { 'Authorization': 'Bearer ' + token } : {},
           });
@@ -806,7 +804,7 @@
       async function apiSaveOmp(entity, data) {
         if (!API_BASE) return false;
         try {
-          const token = localStorage.getItem('dste_token');
+          const token = DSTE.Storage.getString('dste_token');
           const resp = await fetch(API_BASE + '/api/omp/' + entity, {
             method: 'POST',
             headers: {
@@ -826,8 +824,8 @@
         for (const entity of entities) {
           const data = await apiLoadOmp(entity);
           if (data !== null) {
-            // 如果 API 有数据，更新 localStorage
-            try { localStorage.setItem(OMP_STORAGE[entity], JSON.stringify(data)); } catch(e) {}
+            // 如果 API 有数据，更新 本地存储
+            try { DSTE.Storage.set(OMP_STORAGE[entity], data); } catch(e) {}
           }
         }
         console.log('[OMP] Sync complete');
@@ -836,15 +834,15 @@
       function omp_load(key) {
         // 优先从内存缓存读取（API 同步后的最新数据）
         if (window._ompApiCache[key]) return window._ompApiCache[key];
-        // Fallback 到 localStorage
-        try { const raw = localStorage.getItem(OMP_STORAGE[key]); return raw ? JSON.parse(raw) : []; } catch(e) { return []; }
+        // Fallback 到 本地存储
+        try { return DSTE.Storage.get(OMP_STORAGE[key], []); } catch(e) { return []; }
       }
 
       function omp_save(key, data) {
         // 1. 更新内存缓存
         window._ompApiCache[key] = data;
-        // 2. 保存到 localStorage（fallback，保证离线可用）
-        try { localStorage.setItem(OMP_STORAGE[key], JSON.stringify(data)); } catch(e) { console.warn('[OMP] local save failed:', e); }
+        // 2. 保存到 本地存储（fallback，保证离线可用）
+        try { DSTE.Storage.set(OMP_STORAGE[key], data); } catch(e) { console.warn('[OMP] local save failed:', e); }
         // 3. 异步保存到后端 API（不阻塞 UI）
         apiSaveOmp(key, data);
       }
@@ -870,6 +868,7 @@
 
       // ===== 战略指标库页面 =====
       function renderIndicatorSystem() {
+        omp_initData();
         const indicators = omp_load('indicators');
         const state = window._indicatorState;
 
@@ -1142,7 +1141,7 @@
       const PAGES = {
         'dashboard': renderDashboard,
         'dashboard/roadmap': renderDevTimeline,
-        'sp/strategy-map': () => renderPlaceholder('🗺️ 战略地图', '可视化展示企业战略地图，基于平衡计分卡四维度构建战略目标体系。'),
+        'sp/strategy-map': () => { window.location.href = 'strategy-map-list.html'; return ''; },
         'sp/insights-topics': renderInsightsTopics,
         'bp/kpi': renderIndicatorSystem,
         'bp/bem': () => renderPlaceholder('🔧 BEM 战略解码', '基于 BEM 六步解码法，将战略转化为可执行的行动计划。'),
@@ -1191,7 +1190,7 @@
           });
         }
 
-        // 加载会议数据：优先 API，其次 localStorage（由 apiLoad 处理），最后由 renderMeetings 创建 mock
+        // 加载会议数据：优先 API，其次 本地存储（由 apiLoad 处理），最后由 renderMeetings 创建 mock
         const remoteMeetings = await apiLoad('/api/meetings');
         if (remoteMeetings && remoteMeetings.length > 0) {
           window._meetingsData = remoteMeetings;
@@ -1514,7 +1513,7 @@
         const challengePct = parseFloat(document.getElementById('ap-edit-challenge-pct')?.value) / 100;
         const scoringRule = document.getElementById('ap-edit-scoring')?.value?.trim();
         if (!targetValue || isNaN(targetValue)) {
-          alert('请输入有效的目标值');
+          showToast('请输入有效的目标值', 'warning');
           return;
         }
         kpis[idx] = { ...kpis[idx], targetValue, weight, h1Ratio, baselinePct, challengePct, scoringRule };
@@ -1567,7 +1566,7 @@
         const weight = parseFloat(document.getElementById('ap-add-weight')?.value) || 10;
         const bscDimension = document.getElementById('ap-add-dim')?.value || 'financial';
         if (!indicatorId || !targetValue || isNaN(targetValue)) {
-          alert('请选择指标并输入有效的目标值');
+          showToast('请选择指标并输入有效的目标值', 'warning');
           return;
         }
         const indicators = omp_load('indicators');
@@ -1710,7 +1709,7 @@
         const kmsUrl = document.getElementById('ap-kt-kmsurl')?.value?.trim() || '#';
         const owner = document.getElementById('ap-kt-owner')?.value?.trim() || '';
         const status = document.getElementById('ap-kt-status')?.value || 'planning';
-        if (!name || isNaN(seq)) { alert('请输入工作名称和序号'); return; }
+        if (!name || isNaN(seq)) { showToast('请输入工作名称和序号', 'warning'); return; }
         const kts = omp_load('tasks');
         const editId = window._apEditingKeyTaskId;
         if (editId === 'new') {
@@ -1802,7 +1801,7 @@
               <button class="btn btn-primary" onclick="window.ap_confirmDecompose('${kpiId}')">保存分解</button>
             </div>
           `, true);
-        } catch (err) { console.error('[AP] decompose error:', err); alert('分解弹窗出错: ' + err.message); }
+        } catch (err) { console.error('[AP] decompose error:', err); showToast('分解弹窗出错: ' + err.message, 'error'); }
       };
       window.ap_switchDecomposeDim = function(dimKey) {
         const parentId = window._apDecomposeParentId;
@@ -1849,7 +1848,7 @@
         if (!parent) return;
         const dimKey = window._apDecomposeDim || 'warzone';
         const dimCfg = DECOMPOSE_DIMENSIONS[dimKey];
-        if (!dimCfg) { alert('分解维度配置错误'); return; }
+        if (!dimCfg) { showToast('分解维度配置错误', 'error'); return; }
         const items = dimCfg.items;
         let totalTarget = 0;
         let totalWeight = 0;
@@ -1886,7 +1885,7 @@
           if (!confirm(`子目标合计 (${totalTarget}) 超过父目标 (${parent.targetValue})，是否继续？`)) return;
         }
         if (Math.abs(totalWeight - 100) > 1) {
-          alert(`权重合计为 ${totalWeight}%，必须等于 100%`);
+          showToast(`权重合计为 ${totalWeight}%，必须等于 100%`, 'warning');
           return;
         }
         kpis.push(...children);
@@ -1900,26 +1899,33 @@
       // ===== 渲染顶部导航 =====
       function renderTopNav() {
         const container = document.getElementById('top-nav-links');
-        container.innerHTML = TOP_NAV.map(item => `
-          <li><a href="#${item.defaultPage}" data-phase="${item.id}" class="top-nav-item">
-            <span>${item.icon}</span>
-            <span>${item.label}</span>
-            <span class="nav-full-label">${item.full}</span>
-          </a></li>
-        `).join('');
+        container.replaceChildren();
+        TOP_NAV.forEach(item => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = '#' + item.defaultPage;
+          a.dataset.phase = item.id;
+          a.className = 'top-nav-item';
+          const iconSpan = document.createElement('span');
+          iconSpan.textContent = item.icon;
+          const labelSpan = document.createElement('span');
+          labelSpan.textContent = item.label;
+          const fullSpan = document.createElement('span');
+          fullSpan.className = 'nav-full-label';
+          fullSpan.textContent = item.full;
+          a.appendChild(iconSpan);
+          a.appendChild(labelSpan);
+          a.appendChild(fullSpan);
+          li.appendChild(a);
+          container.appendChild(li);
+        });
 
         container.querySelectorAll('a').forEach(link => {
           link.addEventListener('click', (e) => {
             e.preventDefault();
             const phase = link.dataset.phase;
             const defaultPage = TOP_NAV.find(n => n.id === phase).defaultPage;
-            // 如果已经在该phase，跳转到默认页
-            if (currentPhase === phase) {
-              navigate(defaultPage);
-            } else {
-              // 切换phase，跳转到默认页
-              navigate(defaultPage);
-            }
+            navigate(defaultPage);
           });
         });
       }
@@ -1929,25 +1935,30 @@
         const select = document.getElementById('global-cycle-select');
         if (!select) return;
         try {
-          let cycles = JSON.parse(localStorage.getItem('dste_cycles_v1') || '[]');
+          let cycles = JSON.parse(DSTE.Storage.getString('dste_cycles_v1') || '[]');
           // fallback: 如果周期数据不存在，自动创建默认值
           if (!cycles || cycles.length === 0) {
             cycles = [
               { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null },
               { id: 'cycle_2025_marketing', year: 2025, name: '2025年度 — 营销线', phase: 'archived', organization: '营销线', parentCycleId: null },
             ];
-            localStorage.setItem('dste_cycles_v1', JSON.stringify(cycles));
+            DSTE.Storage.set('dste_cycles_v1', cycles);
           }
           const currentId = window._dsteState.currentCycleId;
-          select.innerHTML = cycles.map(c =>
-            `<option value="${c.id}" ${c.id === currentId ? 'selected' : ''}>${c.name}</option>`
-          ).join('');
+          select.replaceChildren();
+          cycles.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.id;
+            option.textContent = c.name;
+            if (c.id === currentId) option.selected = true;
+            select.appendChild(option);
+          });
         } catch(e) {}
       }
 
       function getCurrentCycle() {
         try {
-          const cycles = JSON.parse(localStorage.getItem('dste_cycles_v1') || '[]');
+          const cycles = JSON.parse(DSTE.Storage.getString('dste_cycles_v1') || '[]');
           return cycles.find(c => c.id === window._dsteState.currentCycleId) || { year: 2026, name: '2026年度 — 营销线' };
         } catch(e) { return { year: 2026, name: '2026年度 — 营销线' }; }
       }
@@ -1957,7 +1968,9 @@
       const EXTERNAL_PAGES = {
         'exe/meeting-review': 'reviewer.html',
         'exe/business-topics': 'business-topics.html',
-        'exe/meetings': 'meetings.html'
+        'exe/meetings': 'meetings.html',
+        'sp/strategy-map': 'strategy-map-list.html',
+        'sp/strategy-map-detail': 'strategy-map.html'
       };
 
       function navigate(pageId, pushState = true) {
@@ -2016,7 +2029,7 @@
         // 更新标题
         const pageNames = {
           'dashboard': '驾驶舱',
-          'sp/strategy-map': '战略地图', 'sp/insights-topics': '战略洞察与专题',
+          'sp/strategy-map': '战略地图', 'sp/strategy-map-detail': '战略地图详情', 'sp/insights-topics': '战略洞察与专题',
           'bp/kpi': '战略指标库', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
           'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/meetings': '经营分析会', 'exe/meetings/edit': '编辑会议', 'exe/meeting-review': '会议材料审核',
           'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
@@ -2165,7 +2178,7 @@
                 break;
               case 'ap-publish':
                 if (!confirm('确定要发布到执行阶段吗？发布后KPI树结构将冻结。')) break;
-                alert('已发布到执行阶段（演示）');
+                showToast('已发布到执行阶段（演示）', 'success');
                 break;
               case 'ap-add-keytask':
                 window.ap_addKeyTask();
@@ -3192,7 +3205,7 @@
 
         function migrateTopicsFromV1() {
           try {
-            const legacy = localStorage.getItem(STORAGE_KEY_TOPICS_LEGACY);
+            const legacy = DSTE.Storage.getString(STORAGE_KEY_TOPICS_LEGACY);
             if (!legacy) return false;
             const topics = JSON.parse(legacy);
             const migrated = topics.map(t => {
@@ -3200,15 +3213,15 @@
               const year = t.startDate ? parseInt(t.startDate.split('-')[0], 10) : 2026;
               return { ...t, year };
             });
-            localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(migrated));
-            localStorage.removeItem(STORAGE_KEY_TOPICS_LEGACY);
+            DSTE.Storage.set(STORAGE_KEY_TOPICS, migrated);
+            DSTE.Storage.remove(STORAGE_KEY_TOPICS_LEGACY);
             return true;
           } catch(e) { return false; }
         }
 
         function loadInsights() {
           try {
-            const data = localStorage.getItem(STORAGE_KEY_INSIGHTS);
+            const data = DSTE.Storage.getString(STORAGE_KEY_INSIGHTS);
             if (data) return JSON.parse(data);
           } catch(e) {}
           return [
@@ -3221,13 +3234,13 @@
         }
 
         function saveInsights(insights) {
-          localStorage.setItem(STORAGE_KEY_INSIGHTS, JSON.stringify(insights));
+          DSTE.Storage.set(STORAGE_KEY_INSIGHTS, insights);
         }
 
         function loadTopics() {
           migrateTopicsFromV1();
           try {
-            const data = localStorage.getItem(STORAGE_KEY_TOPICS);
+            const data = DSTE.Storage.getString(STORAGE_KEY_TOPICS);
             if (data) return JSON.parse(data);
           } catch(e) {}
           return [
@@ -3241,7 +3254,7 @@
         }
 
         function saveTopics(topics) {
-          localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(topics));
+          DSTE.Storage.set(STORAGE_KEY_TOPICS, topics);
         }
 
         const insights = loadInsights();
@@ -3384,7 +3397,7 @@
         // 加载专题数据
         function loadTopics() {
           try {
-            const data = localStorage.getItem(STORAGE_KEY_TOPICS);
+            const data = DSTE.Storage.getString(STORAGE_KEY_TOPICS);
             if (data) return JSON.parse(data);
           } catch(e) {}
           return [];
@@ -3392,7 +3405,7 @@
 
         // 保存专题数据
         function saveTopics(topics) {
-          localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(topics));
+          DSTE.Storage.set(STORAGE_KEY_TOPICS, topics);
         }
 
         // 获取未删除的专题
@@ -4021,18 +4034,37 @@
         if (!text) return;
 
         const area = document.getElementById('ai-chat-area');
-        area.innerHTML += `<div class="ai-message user">${escapeHtml(text)}</div>`;
-        area.innerHTML += `<div class="ai-message bot" id="ai-thinking"><strong>🤖</strong> 正在分析战略数据...</div>`;
+        const userMsg = document.createElement('div');
+        userMsg.className = 'ai-message user';
+        userMsg.textContent = text;
+        area.appendChild(userMsg);
+        const thinking = document.createElement('div');
+        thinking.className = 'ai-message bot';
+        thinking.id = 'ai-thinking';
+        const strong = document.createElement('strong');
+        strong.textContent = '🤖';
+        thinking.appendChild(strong);
+        thinking.appendChild(document.createTextNode(' 正在分析战略数据...'));
+        area.appendChild(thinking);
         area.scrollTop = area.scrollHeight;
         input.value = '';
 
         setTimeout(() => {
           const thinking = document.getElementById('ai-thinking');
           if (thinking) {
-            thinking.innerHTML = `<strong>🤖 AI 战略助手</strong><br><br>
-              基于当前数据，关于「${escapeHtml(text)}」的分析如下：<br><br>
-              该功能为演示版本，完整 AI 分析能力将接入企业知识库与 BI 数据引擎，支持自然语言查询、多维度钻取和 What-if 模拟。<br><br>
-              你可以尝试问："Q1 营收差距的根因"、"战略地图客户维度预警" 等。`;
+            thinking.replaceChildren();
+            const title = document.createElement('strong');
+            title.textContent = '🤖 AI 战略助手';
+            thinking.appendChild(title);
+            thinking.appendChild(document.createElement('br'));
+            thinking.appendChild(document.createElement('br'));
+            thinking.appendChild(document.createTextNode(`基于当前数据，关于「${text}」的分析如下：`));
+            thinking.appendChild(document.createElement('br'));
+            thinking.appendChild(document.createElement('br'));
+            thinking.appendChild(document.createTextNode('该功能为演示版本，完整 AI 分析能力将接入企业知识库与 BI 数据引擎，支持自然语言查询、多维度钻取和 What-if 模拟。'));
+            thinking.appendChild(document.createElement('br'));
+            thinking.appendChild(document.createElement('br'));
+            thinking.appendChild(document.createTextNode('你可以尝试问："Q1 营收差距的根因"、"战略地图客户维度预警" 等。'));
           }
           area.scrollTop = area.scrollHeight;
         }, 1200);
@@ -4670,7 +4702,7 @@
         const owner = document.getElementById('omp-kpi-owner')?.value?.trim();
         const actual = parseFloat(document.getElementById('omp-kpi-actual')?.value) || 0;
         const period = document.getElementById('omp-kpi-period')?.value?.trim() || '2026-Q2';
-        if (!dept || !owner) { alert('请填写必填项（部门、责任人）'); return; }
+        if (!dept || !owner) { showToast('请填写必填项（部门、责任人）', 'warning'); return; }
         const kpis = omp_load('kpiInstances');
         const editId = window._ompState.editingKpiId;
         if (editId === 'new') {
@@ -4679,8 +4711,8 @@
           const target = parseFloat(document.getElementById('omp-kpi-target')?.value);
           const challenge = parseFloat(document.getElementById('omp-kpi-challenge')?.value) || 0;
           const weight = parseFloat(document.getElementById('omp-kpi-weight')?.value) || 20;
-          if (!indicatorId) { alert('请选择指标'); return; }
-          if (isNaN(target)) { alert('请输入目标值'); return; }
+          if (!indicatorId) { showToast('请选择指标', 'warning'); return; }
+          if (isNaN(target)) { showToast('请输入目标值', 'warning'); return; }
           const achievementRate = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
           kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate), parentId: null, level: 0 });
         } else {
@@ -4720,7 +4752,7 @@
         const actualCost = parseFloat(document.getElementById('omp-task-cost')?.value) || 0;
         const kpiSelect = document.getElementById('omp-task-kpis');
         const relatedKpiIds = kpiSelect ? Array.from(kpiSelect.selectedOptions).map(o => o.value) : [];
-        if (!name || !owner || !dept || !endDate) { alert('请填写必填项（名称、负责人、部门、截止日期）'); return; }
+        if (!name || !owner || !dept || !endDate) { showToast('请填写必填项（名称、负责人、部门、截止日期）', 'warning'); return; }
         const tasks = omp_load('tasks');
         const editId = window._ompState.editingTaskId;
         if (editId === 'new') {
@@ -4802,7 +4834,7 @@
         if (state.draggingNode) {
           const node = document.querySelector(`.omp-canvas-node[data-id="${state.draggingNode}"]`);
           if (node) node.classList.remove('selected');
-          // Save position to localStorage
+          // Save position to 本地存储
           const kpis = omp_load('kpiInstances');
           const kpi = kpis.find(k => k.id === state.draggingNode);
           if (kpi && node) {
@@ -4945,7 +4977,7 @@
           }
         });
         omp_save('kpiInstances', kpis);
-        alert('布局已保存');
+        showToast('布局已保存', 'success');
       };
 
       window.omp_newTask = function() {
@@ -4985,7 +5017,26 @@
         const row = document.createElement('div');
         row.className = 'omp-decompose-row';
         row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-        row.innerHTML = `<input type="text" class="omp-d-name" placeholder="如: 销售部合同额" style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><input type="text" class="omp-d-dept" placeholder="部门" style="width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><input type="number" class="omp-d-target" placeholder="目标" style="width:70px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;"><input type="number" class="omp-d-weight" placeholder="权重" style="width:50px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;"><button onclick="this.parentElement.remove(); window.omp_updateDecomposeValidation();" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:16px;width:30px;">✕</button>`;
+        const fields = [
+          { cls: 'omp-d-name', placeholder: '如: 销售部合同额', type: 'text', style: 'flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;' },
+          { cls: 'omp-d-dept', placeholder: '部门', type: 'text', style: 'width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;' },
+          { cls: 'omp-d-target', placeholder: '目标', type: 'number', style: 'width:70px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;' },
+          { cls: 'omp-d-weight', placeholder: '权重', type: 'number', style: 'width:50px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;text-align:right;' }
+        ];
+        fields.forEach(f => {
+          const input = document.createElement('input');
+          input.type = f.type;
+          input.className = f.cls;
+          input.placeholder = f.placeholder;
+          input.style.cssText = f.style;
+          row.appendChild(input);
+        });
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '✕';
+        removeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:16px;width:30px;';
+        removeBtn.onclick = () => { row.remove(); window.omp_updateDecomposeValidation(); };
+        row.appendChild(removeBtn);
         container.appendChild(row);
         window.omp_updateDecomposeValidation();
       };
@@ -5020,7 +5071,7 @@
 
       window.omp_saveDecomposition = function() {
         const rows = document.querySelectorAll('.omp-decompose-row');
-        if (rows.length === 0) { alert('请至少添加一个子级'); return; }
+        if (rows.length === 0) { showToast('请至少添加一个子级', 'warning'); return; }
         let totalWeight = 0;
         let totalTarget = 0;
         const children = [];
@@ -5029,16 +5080,16 @@
           const dept = r.querySelector('.omp-d-dept')?.value?.trim();
           const target = parseFloat(r.querySelector('.omp-d-target')?.value);
           const weight = parseFloat(r.querySelector('.omp-d-weight')?.value);
-          if (!name || !dept || isNaN(target) || isNaN(weight)) { alert('请填写完整的子级信息'); return; }
+          if (!name || !dept || isNaN(target) || isNaN(weight)) { showToast('请填写完整的子级信息', 'warning'); return; }
           totalWeight += weight;
           totalTarget += target;
           children.push({ name, dept, target, weight });
         }
-        if (Math.abs(totalWeight - 100) > 0.01) { alert('子级权重之和必须等于 100%，当前为 ' + totalWeight + '%'); return; }
+        if (Math.abs(totalWeight - 100) > 0.01) { showToast('子级权重之和必须等于 100%，当前为 ' + totalWeight + '%', 'warning'); return; }
         const parentId = window._ompState.decomposingKpiId;
         const kpis = omp_load('kpiInstances');
         const parentKpi = kpis.find(k => k.id === parentId);
-        if (!parentKpi) { alert('父级 KPI 不存在'); return; }
+        if (!parentKpi) { showToast('父级 KPI 不存在', 'error'); return; }
         if (totalTarget > parentKpi.targetValue) {
           if (!confirm('子级目标值之和 (' + totalTarget + ') 超过父级目标 (' + parentKpi.targetValue + ')，是否继续？')) return;
         }
@@ -5065,7 +5116,7 @@
       window.omp_deleteKpi = function(id) {
         const kpis = omp_load('kpiInstances');
         const hasChildren = kpis.some(k => k.parentId === id);
-        if (hasChildren) { alert('该 KPI 下有子级分解，请先删除所有子级。'); return; }
+        if (hasChildren) { showToast('该 KPI 下有子级分解，请先删除所有子级。', 'warning'); return; }
         if (!confirm('确定要删除这个 KPI 吗？此操作不可恢复。')) return;
         const filtered = kpis.filter(k => k.id !== id);
         omp_save('kpiInstances', filtered);
@@ -5103,7 +5154,7 @@
           if (usedByKpis.length > 0) msg += `\n- ${usedByKpis.length} 个 KPI 实例`;
           if (usedByTasks.length > 0) msg += `\n- ${usedByTasks.length} 个重点工作`;
           msg += '\n\n请先将关联项改为其他指标。';
-          alert(msg);
+          showToast(msg, 'info');
           return;
         }
         if (!confirm(`确定要删除指标「${ind.name}」吗？此操作不可恢复。`)) return;
@@ -5245,7 +5296,20 @@
           const cat = document.getElementById('ind-category').value;
           const subSelect = document.getElementById('ind-subcategory');
           const subs = subCats[cat] || [];
-          subSelect.innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('') || '<option value="">请选择分类</option>';
+          subSelect.replaceChildren();
+          if (subs.length === 0) {
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '请选择分类';
+            subSelect.appendChild(placeholder);
+          } else {
+            subs.forEach(s => {
+              const option = document.createElement('option');
+              option.value = s;
+              option.textContent = s;
+              subSelect.appendChild(option);
+            });
+          }
         };
       };
 
@@ -5266,14 +5330,14 @@
         const status = document.getElementById('ind-status')?.value || 'active';
 
         if (!code || !name || !description || !category || !indicatorType || !dataType) {
-          alert('请填写必填项（编码、名称、定义、分类、指标类型、数据类型）');
+          showToast('请填写必填项（编码、名称、定义、分类、指标类型、数据类型）', 'warning');
           return;
         }
 
         const indicators = omp_load('indicators');
         if (id === 'new') {
           if (indicators.some(i => i.code === code)) {
-            alert(`指标编码「${code}」已存在，请使用其他编码。`);
+            showToast(`指标编码「${code}」已存在，请使用其他编码。`, 'warning');
             return;
           }
           indicators.push({
@@ -5305,8 +5369,8 @@
   <div id="app-version" style="position:fixed;bottom:4px;right:8px;font-size:11px;color:var(--text-tertiary);opacity:0.6;z-index:9999;pointer-events:none;"></div>
   <script type="module">
     (function() {
-      var v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
-      var el = document.getElementById('app-version');
+      const v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+      const el = document.getElementById('app-version');
       if (el) el.textContent = 'v' + v;
     })();
   </script>

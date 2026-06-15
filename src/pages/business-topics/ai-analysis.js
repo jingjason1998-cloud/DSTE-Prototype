@@ -1,3 +1,4 @@
+import { showToast, Storage } from '../../lib/utils.js';
 import { loadIssues, loadAllIssues } from './issue-import.js';
 
 let _currentReportType = null;
@@ -168,7 +169,7 @@ function computeCharOverlap(a, b) {
 
 export function computeAiMatchScore(topic, issue) {
     let score = 0;
-    let reasons = [];
+    const reasons = [];
     let relationSuggestion = 'support';
 
     // 1. 负责人/提交人匹配 (权重 0.15)
@@ -396,7 +397,7 @@ export function applyAiMatches() {
     });
     closeModal('aiMatchModal');
     if (linkedCount > 0) {
-        alert(`AI 智能关联完成！已关联 ${linkedCount} 条议题`);
+        showToast(`AI 智能关联完成！已关联 ${linkedCount} 条议题`, 'success');
         const linkModal = document.getElementById('linkIssuesModal');
         if (linkModal && linkModal.classList.contains('active')) {
             if (typeof window !== 'undefined' && window.renderLinkIssuesList) {
@@ -759,7 +760,7 @@ export function generateGlobalReport(issues, reportType) {
 
 export function loadCachedReport(reportType, checksum) {
     try {
-        const raw = localStorage.getItem('dste_ai_reports_v1_' + reportType);
+        const raw = Storage.getString('dste_ai_reports_v1_' + reportType);
         if (!raw) return null;
         const cache = JSON.parse(raw);
         // schemaVersion check: invalidate old cache when report structure changes
@@ -771,7 +772,7 @@ export function loadCachedReport(reportType, checksum) {
 export function saveCachedReport(reportType, checksum, report) {
     try {
         report.schemaVersion = 2;
-        localStorage.setItem('dste_ai_reports_v1_' + reportType, JSON.stringify({ checksum, report, cachedAt: new Date().toISOString() }));
+        Storage.set('dste_ai_reports_v1_' + reportType, { checksum, report, cachedAt: new Date().toISOString() });
     } catch (e) { console.warn('[ReportCache] 缓存保存失败:', e.message); }
 }
 
@@ -911,7 +912,7 @@ export function openAiReportModal(reportType) {
 
 export function regenerateAiReport() {
     if (!_currentReportType) return;
-    localStorage.removeItem('dste_ai_reports_v1_' + _currentReportType + '_GLOBAL');
+    Storage.remove('dste_ai_reports_v1_' + _currentReportType + '_GLOBAL');
     document.getElementById('aiReportContent').innerHTML = '<div style="text-align:center; padding:60px;"><div style="font-size:32px; margin-bottom:12px;">🔄</div><div style="color:var(--text-secondary);">正在重新分析...</div></div>';
     setTimeout(() => {
         openAiReportModal(_currentReportType);

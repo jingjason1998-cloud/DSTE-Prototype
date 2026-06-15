@@ -75,7 +75,7 @@ function initPostMessage() {
     if (loading) loading.style.display = 'none';
 
     // 向子页面发送主题信息
-    const theme = localStorage.getItem('dste-theme') || 'light';
+    const theme = DSTE.Storage.getString('dste-theme');
     iframe.contentWindow.postMessage({
       type: 'dste-theme',
       theme: theme

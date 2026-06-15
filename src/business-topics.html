@@ -9,9 +9,10 @@
     <title>业务专题管理 - DSTE战略管理平台</title>
     <link rel="stylesheet" href="../assets/css/main.css?v=2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="../assets/js/main.js"></script>
     <script>
         (function() {
-            const theme = localStorage.getItem('dste-theme') || 'light';
+            const theme = DSTE.Storage.getString('dste-theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
 
             // 嵌入模式：在 iframe 中使用时隐藏导航外壳
@@ -70,7 +71,7 @@
         const API_BASE = (() => {
             const host = window.location.hostname;
             if (host === 'localhost' || host === '127.0.0.1') {
-                return localStorage.getItem('dste_api_base') || '';
+                return DSTE.Storage.getString('dste_api_base') || '';
             }
             return 'https://dste-api.jasonxspace.workers.dev';
         })();
@@ -98,8 +99,8 @@
                 const resp = await fetch(`${API_BASE}/api/auth/cas/login?ticket=${encodeURIComponent(ticket)}&service=${service}`);
                 const json = await resp.json();
                 if (json.success && json.token) {
-                    localStorage.setItem('dste-token', json.token);
-                    localStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+                    DSTE.Storage.setString('dste-token', json.token);
+                    DSTE.Storage.setString('dste-user', json.user?.name || json.user?.username || '');
                     sessionStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
                     updateUserUI();
                     return true;
@@ -112,7 +113,7 @@
 
         // 检查登录状态
         async function checkLoginStatus() {
-            const token = localStorage.getItem('dste-token');
+            const token = DSTE.Storage.getString('dste-token');
             if (!token) return false;
 
             try {
@@ -122,7 +123,7 @@
                 if (resp.ok) {
                     const json = await resp.json();
                     if (json.success && json.user) {
-                        localStorage.setItem('dste-user', json.user.name || json.user.username || '');
+                        DSTE.Storage.setString('dste-user', json.user.name || json.user.username || '');
                         sessionStorage.setItem('dste-user', json.user.name || json.user.username || '');
                         updateUserUI();
                         return true;
@@ -132,15 +133,15 @@
                 console.warn('Login status check failed:', e);
             }
 
-            localStorage.removeItem('dste-token');
-            localStorage.removeItem('dste-user');
+            DSTE.Storage.remove('dste-token');
+            DSTE.Storage.remove('dste-user');
             sessionStorage.removeItem('dste-user');
             return false;
         }
 
         // 更新用户 UI
         function updateUserUI() {
-            const user = localStorage.getItem('dste-user') || sessionStorage.getItem('dste-user') || '张';
+            const user = DSTE.Storage.getString('dste-user') || sessionStorage.getItem('dste-user') || '张';
             const avatar = document.getElementById('user-avatar');
             const dropdownName = document.getElementById('user-dropdown-name');
             if (avatar) avatar.textContent = user.charAt(0);
@@ -149,7 +150,7 @@
 
         // 登出
         async function logout() {
-            const token = localStorage.getItem('dste-token');
+            const token = DSTE.Storage.getString('dste-token');
             if (token) {
                 try {
                     await fetch(`${API_BASE}/api/auth/logout`, {
@@ -160,8 +161,8 @@
                     console.warn('Logout API failed:', e);
                 }
             }
-            localStorage.removeItem('dste-token');
-            localStorage.removeItem('dste-user');
+            DSTE.Storage.remove('dste-token');
+            DSTE.Storage.remove('dste-user');
             sessionStorage.removeItem('dste-user');
             window.location.reload();
         }

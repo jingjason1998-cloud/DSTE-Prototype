@@ -255,8 +255,8 @@ function checkAICollaboration() {
     console.log(`${C.green}✅ SonarQube 配置存在${C.reset}`);
   }
 
-  // 检查 ESLint 配置
-  if (!fs.existsSync('.eslintrc.js')) {
+  // 检查 ESLint 配置（支持传统 .eslintrc.js 和新 flat config eslint.config.js）
+  if (!fs.existsSync('.eslintrc.js') && !fs.existsSync('eslint.config.js')) {
     console.log(`${C.red}🔴 ESLint 配置不存在${C.reset}`);
     passed = false;
   } else {

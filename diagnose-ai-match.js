@@ -51,7 +51,7 @@
     // 模拟计算得分分布
     const scores = candidates.map(issue => {
         let score = 0;
-        let reasons = [];
+        const reasons = [];
 
         // 1. 负责人匹配
         const extractNames = (text) => {

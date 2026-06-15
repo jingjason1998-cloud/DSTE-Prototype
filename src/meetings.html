@@ -171,23 +171,23 @@
       const API_BASE = (() => {
         const host = window.location.hostname;
         if (host === 'localhost' || host === '127.0.0.1') {
-          return localStorage.getItem('dste_api_base') || 'https://dste-api.jasonxspace.workers.dev';
+          return DSTE.Storage.getString('dste_api_base') || 'https://dste-api.jasonxspace.workers.dev';
         }
         return 'https://dste-api.jasonxspace.workers.dev';
       })();
 
       async function apiSave(endpoint, data) {
-        // 无论 API 是否可用，都先保存到 localStorage 作为兜底，防止数据丢失
+        // 无论 API 是否可用，都先保存到 本地存储 作为兜底，防止数据丢失
         if (endpoint === '/api/meetings') {
           try {
-            localStorage.setItem('dste_meetings', JSON.stringify(data));
+            DSTE.Storage.set('dste_meetings', data);
           } catch (e) {
-            console.warn('localStorage save failed:', e.message);
+            console.warn('本地存储 save failed:', e.message);
           }
         }
         if (!API_BASE) return;
         try {
-          const token = localStorage.getItem('dste-token');
+          const token = DSTE.Storage.getString('dste-token');
           const headers = { 'Content-Type': 'application/json' };
           if (token) headers['Authorization'] = `Bearer ${token}`;
           const resp = await fetch(API_BASE + endpoint, {
@@ -224,8 +224,8 @@
           const resp = await fetch(`${API_BASE}/api/auth/cas/login?ticket=${encodeURIComponent(ticket)}&service=${service}`);
           const json = await resp.json();
           if (json.success && json.token) {
-            localStorage.setItem('dste-token', json.token);
-            localStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+            DSTE.Storage.setString('dste-token', json.token);
+            DSTE.Storage.setString('dste-user', json.user?.name || json.user?.username || '');
             sessionStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
             updateUserUI();
             return true;
@@ -238,7 +238,7 @@
 
       // 检查登录状态：验证 token 是否有效
       async function checkLoginStatus() {
-        const token = localStorage.getItem('dste-token');
+        const token = DSTE.Storage.getString('dste-token');
         if (!token) return false;
 
         try {
@@ -248,7 +248,7 @@
           if (resp.ok) {
             const json = await resp.json();
             if (json.success && json.user) {
-              localStorage.setItem('dste-user', json.user.name || json.user.username || '');
+              DSTE.Storage.setString('dste-user', json.user.name || json.user.username || '');
               sessionStorage.setItem('dste-user', json.user.name || json.user.username || '');
               updateUserUI();
               return true;
@@ -258,15 +258,15 @@
           console.warn('Login status check failed:', e);
         }
 
-        localStorage.removeItem('dste-token');
-        localStorage.removeItem('dste-user');
+        DSTE.Storage.remove('dste-token');
+        DSTE.Storage.remove('dste-user');
         sessionStorage.removeItem('dste-user');
         return false;
       }
 
       // 更新用户 UI（头像、下拉菜单名）
       function updateUserUI() {
-        const user = localStorage.getItem('dste-user') || sessionStorage.getItem('dste-user') || '张';
+        const user = DSTE.Storage.getString('dste-user') || sessionStorage.getItem('dste-user') || '张';
         const avatar = document.getElementById('user-avatar');
         const dropdownName = document.getElementById('user-dropdown-name');
         if (avatar) avatar.textContent = user.charAt(0);
@@ -275,7 +275,7 @@
 
       // 登出
       async function logout() {
-        const token = localStorage.getItem('dste-token');
+        const token = DSTE.Storage.getString('dste-token');
         if (token) {
           try {
             await fetch(`${API_BASE}/api/auth/logout`, {
@@ -286,8 +286,8 @@
             console.warn('Logout API failed:', e);
           }
         }
-        localStorage.removeItem('dste-token');
-        localStorage.removeItem('dste-user');
+        DSTE.Storage.remove('dste-token');
+        DSTE.Storage.remove('dste-user');
         sessionStorage.removeItem('dste-user');
         window.location.reload();
       }
@@ -296,7 +296,7 @@
         let apiData = null;
         if (API_BASE) {
           try {
-            const token = localStorage.getItem('dste-token');
+            const token = DSTE.Storage.getString('dste-token');
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
             const resp = await fetch(API_BASE + endpoint, { headers });
             if (resp.status === 401) {
@@ -310,15 +310,15 @@
           }
         }
         if (apiData && apiData.length > 0) return apiData;
-        // API 无数据或失败时 fallback 到 localStorage
+        // API 无数据或失败时 fallback 到 本地存储
         if (endpoint === '/api/meetings') {
-          const local = localStorage.getItem('dste_meetings');
+          const local = DSTE.Storage.getString('dste_meetings');
           if (local) {
             try {
               const parsed = JSON.parse(local);
               if (parsed && parsed.length > 0) return parsed;
             } catch (e) {
-              console.warn('localStorage parse failed:', e);
+              console.warn('本地存储 parse failed:', e);
             }
           }
         }
@@ -740,12 +740,12 @@
 
         // ---- 数据模型 ----
         if (!window._meetingsData) {
-          const localMeetings = localStorage.getItem('dste_meetings');
+          const localMeetings = DSTE.Storage.getString('dste_meetings');
           if (localMeetings) {
             try {
               window._meetingsData = JSON.parse(localMeetings);
             } catch (e) {
-              console.warn('localStorage parse failed:', e);
+              console.warn('本地存储 parse failed:', e);
             }
           }
         }
@@ -1045,7 +1045,7 @@
                 <div style="display: flex; gap: 8px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; align-items: center;">
                   <span>✅ 行动 ${m.actions?.filter(a => a.status === 'completed' || a.status === 'implemented').length || 0}/${m.actions?.length || 0}</span>
                 </div>
-                ${m.effectiveness ? `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 14px; font-weight: 700; color: ${getScoreColor(m.effectiveness.overallScore)};">⭐ ${m.effectiveness.overallScore}</span><span style="font-size: 10px; color: var(--text-tertiary);">${getScoreLabel(m.effectiveness.overallScore)}</span></div>` : (m.status === 'completed' ? `<div style="font-size: 11px; color: var(--text-tertiary); padding: 2px 6px; background: var(--bg-page); border-radius: 4px;">未评估</div>` : '')}
+                ${m.effectiveness ? `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 14px; font-weight: 700; color: ${getScoreColor(m.effectiveness.overallScore)};">⭐ ${m.effectiveness.overallScore}</span><span style="font-size: 10px; color: var(--text-tertiary);">${getScoreLabel(m.effectiveness.overallScore)}</span></div>` : (m.status === 'completed' ? `<div style="font-size: 11px; color: var(--text-tertiary); padding: 2px 6px; background: var(--bg-page); border-radius: 4px;">未评估</div>` : (() => { const r = computeMeetingReadiness(m); const color = r.status === 'ready' ? 'var(--success)' : r.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)'; const label = r.status === 'ready' ? '已就绪' : r.status === 'in_progress' ? '准备中' : '未开始'; return `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 12px; font-weight: 600; color: ${color};">📋 ${r.percentage}%</span><span style="font-size: 10px; color: ${color};">${label}</span></div>`; })())}
               </div>
               ${agendaTags ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">${agendaTags}${moreAgenda}</div>` : ''}
               ${renderPipeline(m)}
@@ -1141,7 +1141,8 @@
             status: 'planned', location: '', host: '', recorder: '',
             pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
             meeting_link: '', upstreamMeeting: null, downstreamMeeting: null,
-            agenda_items: [{ type: 'goal_management', title: '', duration: 30, owner: '', material_link: '' }],
+            pre_report_id: '', minutes_report_id: '',
+            agenda_items: [{ type: 'goal_management', title: '', duration: 30, owner: '', material_link: '', data_views: [], pre_report_section: '' }],
             actions: [], decisions: [], hasMinutes: false, minutesStatus: null, minutes_content: '',
             metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
             effectiveness: null
@@ -1157,7 +1158,7 @@
 
         window.cloneMeeting = function(id) {
           const source = meetings.find(m => m.id === id);
-          if (!source) { alert('会议不存在'); return; }
+          if (!source) { showToast('会议不存在', 'warning'); return; }
           const cloned = JSON.parse(JSON.stringify(source));
           cloned.id = 'new_' + Date.now();
           cloned.title = (cloned.title || '未命名会议') + '（复制）';
@@ -1175,6 +1176,12 @@
           cloned.upstreamMeeting = null;
           cloned.downstreamMeeting = null;
           cloned.meeting_link = '';
+          cloned.pre_report_id = '';
+          cloned.minutes_report_id = '';
+          (cloned.agenda_items || []).forEach(a => {
+            if (!Array.isArray(a.data_views)) a.data_views = [];
+            if (typeof a.pre_report_section !== 'string') a.pre_report_section = '';
+          });
           window._meetingEditData = cloned;
           renderEditorForm();
           const ov = document.getElementById('meeting-editor-overlay');
@@ -1190,7 +1197,7 @@
          * @param {string} id - 会议 ID
          */
         window.openMeetingDetail = function(id) {
-          const m = meetings.find(x => x.id === id);
+          const m = window._meetingsData.find(x => x.id === id);
           if (!m) return;
           window._currentDetailMeetingId = id;
           renderMeetingDetail(m);
@@ -1201,7 +1208,7 @@
         function getMaterialScore(url) {
           if (!url) return null;
           try {
-            const map = JSON.parse(localStorage.getItem('dste_review_scores') || '{}');
+            const map = DSTE.Storage.get('dste_review_scores', {});
             return map[url]?.maxScore || null;
           } catch (e) { return null; }
         }
@@ -1217,6 +1224,82 @@
           if (score >= 80) return '良好';
           if (score >= 60) return '合格';
           return '待改进';
+        }
+
+        // ---- 会前准备度计算 ----
+        function getReportAssets() {
+          try { return DSTE.Storage.get('dste_report_assets', {}); }
+          catch (e) { return {}; }
+        }
+        function saveReportAssets(assets) {
+          try { DSTE.Storage.set('dste_report_assets', assets); }
+          catch (e) {}
+        }
+        function computeMeetingReadiness(meeting) {
+          const reportAssets = getReportAssets();
+          let reviewScores = {};
+          try { reviewScores = DSTE.Storage.get('dste_review_scores', {}); }
+          catch (e) { reviewScores = {}; }
+          const checks = [];
+
+          const hasPreReport = Boolean(meeting.pre_report_id?.trim());
+          checks.push({
+            key: 'pre_report',
+            label: '会前报告',
+            passed: hasPreReport,
+            optional: false,
+            detail: hasPreReport ? '已关联' : '未关联会前报告'
+          });
+
+          (meeting.agenda_items || []).forEach((item, idx) => {
+            const title = item.title || `议程${idx + 1}`;
+            if (item.data_views && item.data_views.length > 0) {
+              const missing = item.data_views.filter(id => !reportAssets[id]);
+              const passed = missing.length === 0;
+              checks.push({
+                key: `topic_report_${idx}`,
+                label: `议题报表：${title}`,
+                passed,
+                optional: false,
+                detail: passed
+                  ? `${item.data_views.length}/${item.data_views.length} 报表已注册`
+                  : `${missing.length} 个报表未注册`
+              });
+            }
+            if (item.material_link?.trim()) {
+              const url = item.material_link.trim();
+              const info = reviewScores[url];
+              const score = info?.maxScore ?? null;
+              const passed = score !== null && score >= 60;
+              checks.push({
+                key: `material_${idx}`,
+                label: `材料诊断：${title}`,
+                passed,
+                optional: false,
+                detail: score === null ? '未诊断' : `${score}分`
+              });
+            }
+          });
+
+          checks.push({
+            key: 'attendees',
+            label: '参会确认',
+            passed: false,
+            optional: true,
+            detail: '待实现'
+          });
+
+          const requiredChecks = checks.filter(c => !c.optional);
+          const totalCount = requiredChecks.length;
+          const passedCount = requiredChecks.filter(c => c.passed).length;
+          const allPassed = totalCount > 0 && passedCount === totalCount;
+          const percentage = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 100;
+
+          let status = 'pending';
+          if (allPassed) status = 'ready';
+          else if (percentage >= 60) status = 'in_progress';
+
+          return { percentage, passedCount, totalCount, allPassed, status, checks };
         }
         // ---- 自动评分算法（AI推荐） ----
         function calculateAutoScore(meeting) {
@@ -1285,11 +1368,8 @@
         };
         window.openEditorFromDetail = function() {
           const id = window._currentDetailMeetingId;
-          closeMeetingDetail();
           if (id) {
-            // 和列表页编辑按钮走相同流程（路由导航），更稳定
-            window._editMeetingId = id;
-            navigate('exe/meetings/edit');
+            openMeetingEditor(id);
           }
         };
 
@@ -1310,7 +1390,7 @@
         window.openMeetingEvalModal = function(meetingId) {
           const m = meetings.find(x => x.id === meetingId);
           if (!m) return;
-          if (m.status !== 'completed') { alert('仅已完成的会议可以评估'); return; }
+          if (m.status !== 'completed') { showToast('仅已完成的会议可以评估', 'warning'); return; }
           window._evalMeetingId = meetingId;
           let data;
           if (m.effectiveness) {
@@ -1400,13 +1480,119 @@
           };
           const orig = window._meetingsData.find(x => x.id === window._evalMeetingId);
           if (orig) orig.effectiveness = JSON.parse(JSON.stringify(m.effectiveness));
-          localStorage.setItem('dste_meetings', JSON.stringify(window._meetingsData));
+          DSTE.Storage.set('dste_meetings', window._meetingsData);
           apiSave('/api/meetings', window._meetingsData);
           closeMeetingEvalModal();
           if (window._currentDetailMeetingId === window._evalMeetingId) {
             renderMeetingDetail(m);
           }
-          alert('评估已保存');
+          showToast('评估已保存', 'success');
+        };
+
+        // ---- 会前准备浮层 ----
+        window.openMeetingPreparation = function(meetingId) {
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m) return;
+          window._prepMeetingId = meetingId;
+          renderMeetingPreparation(m);
+          const ov = document.getElementById('meeting-preparation-overlay');
+          if (ov) ov.style.display = 'flex';
+        };
+        window.closeMeetingPreparation = function() {
+          const ov = document.getElementById('meeting-preparation-overlay');
+          if (ov) ov.style.display = 'none';
+          window._prepMeetingId = null;
+        };
+        function renderMeetingPreparation(m) {
+          const content = document.getElementById('meeting-preparation-content');
+          const header = document.getElementById('meeting-preparation-header-title');
+          const markBtn = document.getElementById('preparation-mark-done-btn');
+          if (!content) return;
+          if (header) header.textContent = `📋 会前准备 · ${m.title || '未命名会议'}`;
+
+          const readiness = computeMeetingReadiness(m);
+          const statusColor = readiness.status === 'ready' ? 'var(--success)' : readiness.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)';
+          const statusLabel = readiness.status === 'ready' ? '已就绪' : readiness.status === 'in_progress' ? '准备中' : '未开始';
+
+          const checkRows = readiness.checks.map(c => {
+            const icon = c.passed ? '✅' : c.optional ? '⏸️' : '❌';
+            const color = c.passed ? 'var(--success)' : c.optional ? 'var(--text-tertiary)' : 'var(--danger)';
+            const badge = c.passed
+              ? '<span class="status-badge status-success">已通过</span>'
+              : c.optional
+                ? '<span class="status-badge status-default">待实现</span>'
+                : '<span class="status-badge status-danger">待完成</span>';
+            return `
+              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
+                <span style="font-size: 16px; width: 24px; text-align: center;">${icon}</span>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${c.label}</span>
+                    ${badge}
+                  </div>
+                  <div style="font-size: 11px; color: ${color}; margin-top: 2px;">${c.detail}</div>
+                </div>
+                ${!c.passed && !c.optional ? `<button type="button" onclick="openEditMeeting('${m.id}')" style="padding: 3px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">去编辑</button>` : ''}
+              </div>
+            `;
+          }).join('');
+
+          content.innerHTML = `
+            <div style="margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;">
+                <div>
+                  <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">准备度</div>
+                  <div style="display: flex; align-items: baseline; gap: 8px;">
+                    <span style="font-size: 36px; font-weight: 700; color: ${statusColor};">${readiness.percentage}%</span>
+                    <span style="font-size: 13px; font-weight: 500; color: ${statusColor};">${statusLabel}</span>
+                  </div>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary);">${readiness.passedCount}/${readiness.totalCount} 项已完成</div>
+              </div>
+              <div style="width: 100%; height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
+                <div style="width: ${readiness.percentage}%; height: 100%; background: ${statusColor}; border-radius: 3px; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+            <div style="background: var(--bg-page); border-radius: 8px; padding: 0 12px; margin-bottom: 16px;">
+              ${checkRows || '<div style="padding: 16px; text-align: center; color: var(--text-secondary); font-size: 13px;">暂无检查项</div>'}
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 12px; background: var(--primary-light); border-radius: 8px; font-size: 12px; color: var(--primary);">
+              <span>💡</span>
+              <span>所有检查项通过后，可一键标记「会前评审完成」。未达到 100% 时标记将弹出确认提示。</span>
+            </div>
+          `;
+
+          if (markBtn) {
+            markBtn.textContent = m.pipeline?.preReviewDone ? '取消会前评审完成' : '标记会前评审完成';
+            markBtn.style.borderColor = readiness.allPassed ? 'var(--success)' : 'var(--warning)';
+            markBtn.style.background = readiness.allPassed ? 'rgba(34,197,94,0.08)' : 'rgba(250,173,20,0.08)';
+            markBtn.style.color = readiness.allPassed ? 'var(--success)' : 'var(--warning)';
+          }
+        }
+        window.togglePipelineStepFromPreparation = function() {
+          const meetingId = window._prepMeetingId;
+          if (!meetingId) return;
+          const m = meetings.find(x => x.id === meetingId);
+          if (!m) return;
+          const readiness = computeMeetingReadiness(m);
+          if (!m.pipeline) m.pipeline = {};
+          const currentDone = !!m.pipeline.preReviewDone;
+          if (!currentDone && !readiness.allPassed) {
+            const unpassed = readiness.checks.filter(c => !c.optional && !c.passed).map(c => `· ${c.label}: ${c.detail}`).join('\n');
+            if (!confirm(`准备度尚未达到 100%，以下检查项未完成：\n${unpassed}\n\n仍要标记会前评审完成吗？`)) return;
+          }
+          m.pipeline.preReviewDone = !currentDone;
+          const orig = window._meetingsData.find(x => x.id === meetingId);
+          if (orig && orig.pipeline) orig.pipeline.preReviewDone = m.pipeline.preReviewDone;
+          DSTE.Storage.set('dste_meetings', window._meetingsData);
+          apiSave('/api/meetings', window._meetingsData);
+          renderMeetingPreparation(m);
+          document.getElementById('page-content').innerHTML = renderMeetings();
+          bindPageEvents(document.getElementById('page-content'));
+          if (window._currentDetailMeetingId === meetingId) {
+            renderMeetingDetail(m);
+          }
+          showToast(m.pipeline.preReviewDone ? '已标记会前评审完成' : '已取消会前评审完成', 'success');
         };
 
         /**
@@ -1450,6 +1636,12 @@
                 ['🏢', '层级', m.level],
                 ['📊', '状态', `<span class="status-badge ${st.badgeClass}">${st.label}</span>`],
                 ['🔗', 'KMS', m.meeting_link ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 140px;">${m.meeting_link.replace(/^https?:\/\//, '')}</a>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未设置</span>'],
+                ['📋', '会前准备', (() => {
+                  const readiness = computeMeetingReadiness(m);
+                  const color = readiness.status === 'ready' ? 'var(--success)' : readiness.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)';
+                  const label = readiness.status === 'ready' ? '已就绪' : readiness.status === 'in_progress' ? '准备中' : '未开始';
+                  return `<span style="font-size: 12px; font-weight: 600; color: ${color};">${readiness.percentage}% · ${label}</span>`;
+                })()],
                 ['⭐', '评估', m.effectiveness ? `<span style="font-size: 12px; font-weight: 600; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore} · ${getScoreLabel(m.effectiveness.overallScore)}${m.effectiveness.auto ? '（系统）' : ''}</span>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未评估</span>']
               ].map(([icon, label, value]) => `
                 <div style="display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--border-light);">
@@ -1460,7 +1652,9 @@
               ${pipelineSummary}
               ${m.status === 'completed' ? `<div style="padding: 10px 0 4px; text-align: center;">
                 <button type="button" onclick="openMeetingEvalModal('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--warning); border-radius: 6px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; font-weight: 500; width: 100%;">${m.effectiveness ? '⭐ 重新评估' : '⭐ 评估会议'}</button>
-              </div>` : ''}
+              </div>` : `<div style="padding: 10px 0 4px; text-align: center;">
+                <button type="button" onclick="openMeetingPreparation('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500; width: 100%;">📋 会前准备</button>
+              </div>`}
             </div>
           `;
 
@@ -1715,6 +1909,14 @@
                 break;
               }
             }
+            // 会前评审步骤额外检查准备度
+            if (stepKey === 'preReviewDone') {
+              const readiness = computeMeetingReadiness(meeting);
+              if (!readiness.allPassed) {
+                const unpassed = readiness.checks.filter(c => !c.optional && !c.passed).map(c => `· ${c.label}: ${c.detail}`).join('\n');
+                if (!confirm(`准备度尚未达到 100%，以下检查项未完成：\n${unpassed}\n\n仍要标记会前评审完成吗？`)) return;
+              }
+            }
           } else {
             // 取消完成：检查后面是否有已完成步骤
             for (let i = stepIdx + 1; i < PIPELINE_STEPS.length; i++) {
@@ -1744,7 +1946,7 @@
 
         window.loadNotificationConfig = function() {
           let cfg;
-          try { cfg = JSON.parse(localStorage.getItem(NOTIF_CONFIG_KEY) || JSON.stringify(NOTIF_DEFAULT)); }
+          try { cfg = DSTE.Storage.get(NOTIF_CONFIG_KEY, NOTIF_DEFAULT); }
           catch (e) { cfg = JSON.parse(JSON.stringify(NOTIF_DEFAULT)); }
           // 兼容旧配置：单 webhookUrl 迁移为 webhooks 数组
           if (cfg.webhookUrl && (!cfg.webhooks || cfg.webhooks.length === 0)) {
@@ -1756,7 +1958,7 @@
           return cfg;
         };
         window.saveNotificationConfig = function(cfg) {
-          localStorage.setItem(NOTIF_CONFIG_KEY, JSON.stringify(cfg));
+          DSTE.Storage.set(NOTIF_CONFIG_KEY, cfg);
         };
         window.renderNotificationMessage = function(type, data) {
           switch (type) {
@@ -1793,7 +1995,7 @@
         };
         window.sendWeComNotification = async function(type, payload, webhookUrl) {
           const cfg = loadNotificationConfig();
-          if (!webhookUrl) { alert('请先选择发送目标群'); return { success: false, msg: '未选择发送目标' }; }
+          if (!webhookUrl) { showToast('请先选择发送目标群', 'warning'); return { success: false, msg: '未选择发送目标' }; }
           const enabledKey = type.startsWith('alert') ? 'alert' : type.startsWith('agenda') ? 'agenda' : type;
           if (!cfg.enabledTypes[enabledKey]) return { success: false, msg: '该类型推送已禁用' };
           const msg = renderNotificationMessage(type, payload);
@@ -1822,18 +2024,18 @@
           const payload = window._webhookSelectorPayload;
           if (!payload) return;
           const selected = document.querySelector('input[name="webhook-select"]:checked');
-          if (!selected) { alert('请选择一个发送目标'); return; }
+          if (!selected) { showToast('请选择一个发送目标', 'warning'); return; }
           const webhookUrl = selected.value;
           closeWebhookSelector();
           const res = await sendWeComNotification(payload.type, payload.data, webhookUrl);
-          alert(res.success ? '发送成功 ✅' : '发送失败：' + res.msg);
+          if (res.success) { showToast('发送成功 ✅', 'success'); } else { showToast('发送失败：' + res.msg, 'error'); }
         };
         window.openWebhookSelector = function(type, data) {
           const cfg = loadNotificationConfig();
-          if (!cfg.webhooks || cfg.webhooks.length === 0) { alert('请先配置企业微信群 Webhook'); openNotificationConfig(); return; }
+          if (!cfg.webhooks || cfg.webhooks.length === 0) { showToast('请先配置企业微信群 Webhook', 'warning'); openNotificationConfig(); return; }
           if (cfg.webhooks.length === 1) {
             sendWeComNotification(type, data, cfg.webhooks[0].url).then(res => {
-              alert(res.success ? '发送成功 ✅' : '发送失败：' + res.msg);
+              if (res.success) { showToast('发送成功 ✅', 'success'); } else { showToast('发送失败：' + res.msg, 'error'); }
             });
             return;
           }
@@ -2000,7 +2202,7 @@
           };
           saveNotificationConfig(cfg);
           closeNotificationConfig();
-          alert('通知配置已保存 ✅');
+          showToast('通知配置已保存 ✅', 'success');
         };
 
         // ---- 编辑弹窗函数 ----
@@ -2173,6 +2375,8 @@
           document.getElementById('edit-status').value = d.status || 'planned';
           const kmsInput = document.getElementById('edit-kms-link');
           if (kmsInput) kmsInput.value = d.meeting_link || '';
+          const preReportInput = document.getElementById('edit-pre-report-id');
+          if (preReportInput) preReportInput.value = d.pre_report_id || '';
           const minutesInput = document.getElementById('edit-minutes-content');
           if (minutesInput) minutesInput.value = d.minutes_content || '';
           renderAgendaList();
@@ -2197,7 +2401,7 @@
           const fieldMap = {
             'edit-title': 'title', 'edit-date': 'date', 'edit-location': 'location',
             'edit-host': 'host', 'edit-recorder': 'recorder',
-            'edit-scenario': 'scenario', 'edit-level': 'level', 'edit-status': 'status', 'edit-kms-link': 'meeting_link', 'edit-minutes-content': 'minutes_content'
+            'edit-scenario': 'scenario', 'edit-level': 'level', 'edit-status': 'status', 'edit-kms-link': 'meeting_link', 'edit-pre-report-id': 'pre_report_id', 'edit-minutes-content': 'minutes_content'
           };
           // 追踪用户手动编辑的字段（autoFill 不覆盖用户手改的值）
           window._userEditedFields = window._userEditedFields || new Set();
@@ -2233,21 +2437,49 @@
           const container = document.getElementById('edit-agenda-list');
           if (!d || !container) return;
           const list = d.agenda_items || [];
-          container.innerHTML = list.map((item, idx) => `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <span style="font-size: 12px; color: var(--text-tertiary); width: 22px;">${idx + 1}.</span>
-              <select onchange="updateAgendaType(${idx}, this.value)" style="padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); width: 110px;">
-                ${Object.entries(AGENDA_TYPE_LABELS).map(([k, v]) => `<option value="${k}" ${item.type === k ? 'selected' : ''}>${v}</option>`).join('')}
-              </select>
-              <input type="text" value="${item.title}" onchange="updateAgendaTitle(${idx}, this.value)" placeholder="议程标题" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-              <input type="number" value="${item.duration}" onchange="updateAgendaDuration(${idx}, this.value)" placeholder="分钟" min="1" style="width: 60px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-              <input type="text" value="${item.material_link || ''}" onchange="updateAgendaMaterialLink(${idx}, this.value)" placeholder="材料链接" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-              <input type="text" value="${item.owner}" onchange="updateAgendaOwner(${idx}, this.value)" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-              <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↑</button>
-              <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↓</button>
-              <button type="button" onclick="removeAgendaItem(${idx})" ${list.length <= 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+          const batchMode = window._agendaReviewMode;
+          container.innerHTML = list.map((item, idx) => {
+            const url = item.material_link?.trim() || '';
+            const reviewing = window._agendaReviewing.has(idx);
+            let scoreHtml = '';
+            if (reviewing) {
+              scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--primary-light); color: var(--primary); white-space: nowrap;">⏳ 评审中...</span>`;
+            } else if (!url) {
+              scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--bg-page); color: var(--text-tertiary); white-space: nowrap; border: 1px solid var(--border-light);">🔍 送审</span>`;
+            } else {
+              const info = getMaterialReviewInfo(url);
+              if (info) {
+                const color = info.score >= 80 ? 'var(--success)' : info.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+                scoreHtml = `<span onclick="event.stopPropagation(); openAgendaReviewDetail('${url.replace(/'/g, "\\'")}')" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: ${color}18; color: ${color}; cursor: pointer; white-space: nowrap; font-weight: 600;">✅ ${info.score}分</span>`;
+              } else {
+                scoreHtml = `<button type="button" onclick="event.stopPropagation(); reviewSingleAgenda(${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">🔍 送审</button>`;
+              }
+            }
+            const checkbox = batchMode ? `<input type="checkbox" ${window._agendaBatchSelections.has(idx) ? 'checked' : ''} onchange="updateBatchReviewSelection(${idx}, this.checked)" style="cursor: pointer;" ${!url ? 'disabled' : ''} />` : '';
+            return `
+            <div style="margin-bottom: 12px; padding: 10px; background: var(--bg-page); border-radius: 8px; border: 1px solid var(--border-light);">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                ${batchMode ? `<div style="width: 18px; display: flex; align-items: center;">${checkbox}</div>` : `<span style="font-size: 12px; color: var(--text-tertiary); width: 22px;">${idx + 1}.</span>`}
+                <select onchange="updateAgendaType(${idx}, this.value)" style="padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); width: 110px;">
+                  ${Object.entries(AGENDA_TYPE_LABELS).map(([k, v]) => `<option value="${k}" ${item.type === k ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+                <input type="text" value="${item.title}" onchange="updateAgendaTitle(${idx}, this.value)" placeholder="议程标题" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <input type="number" value="${item.duration}" onchange="updateAgendaDuration(${idx}, this.value)" placeholder="分钟" min="1" style="width: 60px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <input type="text" value="${item.material_link || ''}" onchange="updateAgendaMaterialLink(${idx}, this.value)" placeholder="材料链接" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <div style="width: 72px; display: flex; align-items: center; justify-content: center;">${scoreHtml}</div>
+                <input type="text" value="${item.owner}" onchange="updateAgendaOwner(${idx}, this.value)" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↑</button>
+                <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↓</button>
+                <button type="button" onclick="removeAgendaItem(${idx})" ${list.length <= 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; padding-left: ${batchMode ? '26px' : '30px'};">
+                <input type="text" value="${(item.data_views || []).join(', ')}" onchange="updateAgendaDataViews(${idx}, this.value)" placeholder="关联报表 ID，逗号分隔" style="flex: 1; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-primary);" />
+                <input type="text" value="${item.pre_report_section || ''}" onchange="updateAgendaPreReportSection(${idx}, this.value)" placeholder="报告章节，如 §2.1" style="width: 130px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-primary);" />
+                <button type="button" onclick="openReportAssetManager(${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">📊 报表</button>
+              </div>
             </div>
-          `).join('');
+          `;
+          }).join('');
           const total = list.reduce((s, a) => s + (parseInt(a.duration) || 0), 0);
           document.getElementById('edit-agenda-total').textContent = '总时长：' + total + ' 分钟';
         }
@@ -2256,15 +2488,23 @@
         window.updateAgendaDuration = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].duration = parseInt(val) || 0; renderAgendaList(); };
         window.updateAgendaOwner = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].owner = val; };
         window.updateAgendaMaterialLink = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].material_link = val; };
+        window.updateAgendaDataViews = function(idx, val) {
+          if (!window._meetingEditData?.agenda_items?.[idx]) return;
+          const ids = val.split(',').map(s => s.trim()).filter(Boolean);
+          window._meetingEditData.agenda_items[idx].data_views = ids;
+        };
+        window.updateAgendaPreReportSection = function(idx, val) {
+          if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].pre_report_section = val.trim();
+        };
         window.addAgendaItem = function() {
           if (!window._meetingEditData) return;
           if (!window._meetingEditData.agenda_items) window._meetingEditData.agenda_items = [];
-          window._meetingEditData.agenda_items.push({ type: 'goal_management', title: '新议程项', duration: 15, owner: '' });
+          window._meetingEditData.agenda_items.push({ type: 'goal_management', title: '新议程项', duration: 15, owner: '', material_link: '', data_views: [], pre_report_section: '' });
           renderAgendaList();
         };
         window.removeAgendaItem = function(idx) {
           if (!window._meetingEditData?.agenda_items) return;
-          if (window._meetingEditData.agenda_items.length <= 1) { alert('至少保留一个议程项'); return; }
+          if (window._meetingEditData.agenda_items.length <= 1) { showToast('至少保留一个议程项', 'warning'); return; }
           window._meetingEditData.agenda_items.splice(idx, 1);
           renderAgendaList();
         };
@@ -2275,6 +2515,266 @@
           if (newIdx < 0 || newIdx >= arr.length) return;
           [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
           renderAgendaList();
+        };
+
+        // ---- 议程材料评审（ reviewer API ） ----
+        window._agendaReviewMode = false;
+        window._agendaBatchSelections = new Set();
+        window._agendaReviewing = new Set();
+        window._batchReviewTaskId = null;
+        window._batchReviewTimer = null;
+
+        function getReviewerProxyUrl() {
+          const custom = DSTE.Storage.getString('meetingReviewerProxyUrl');
+          if (custom) return custom;
+          const host = window.location.hostname;
+          if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:8766';
+          return '';
+        }
+        function getReviewerScene(scenario) {
+          const map = { lagging_region: 'lagging-region-review', lagging_vertical: 'vertical-segment-review' };
+          return map[scenario] || 'general-topic-review';
+        }
+        function getMaterialReviewInfo(url) {
+          if (!url) return null;
+          try {
+            const map = DSTE.Storage.get('dste_review_scores', {});
+            const entry = map[url];
+            if (!entry) return null;
+            return { score: entry.maxScore, lastReviewAt: entry.lastReviewAt, dimensionScores: entry.dimensionScores || {}, issues: entry.issues || [], report: entry.report || '' };
+          } catch (e) { return null; }
+        }
+        function renderAgendaReviewScoreHtml(url) {
+          if (!url) return '';
+          const info = getMaterialReviewInfo(url);
+          if (!info) return `<button type="button" onclick="event.stopPropagation(); reviewSingleAgenda(this.dataset.idx)" data-idx="" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">🔍 送审</button>`;
+          const color = info.score >= 80 ? 'var(--success)' : info.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+          return `<span onclick="event.stopPropagation(); openAgendaReviewDetail('${url.replace(/'/g, "\\'")}')" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: ${color}18; color: ${color}; cursor: pointer; white-space: nowrap; font-weight: 600;">✅ ${info.score}分</span>`;
+        }
+        window.toggleAgendaReviewMode = function() {
+          window._agendaReviewMode = !window._agendaReviewMode;
+          window._agendaBatchSelections.clear();
+          const batchBtn = document.getElementById('batch-review-btn');
+          const toggleBtn = event?.target;
+          if (window._agendaReviewMode) {
+            const d = window._meetingEditData;
+            (d?.agenda_items || []).forEach((a, i) => { if (a.material_link?.trim()) window._agendaBatchSelections.add(i); });
+            if (batchBtn) batchBtn.style.display = 'inline-block';
+            if (toggleBtn) toggleBtn.style.display = 'none';
+          } else {
+            if (batchBtn) batchBtn.style.display = 'none';
+            if (toggleBtn) toggleBtn.style.display = 'inline-block';
+          }
+          if (batchBtn) batchBtn.textContent = '📦 批量送审 (' + window._agendaBatchSelections.size + ')';
+          renderAgendaList();
+        };
+        window.updateBatchReviewSelection = function(idx, checked) {
+          if (checked) window._agendaBatchSelections.add(idx);
+          else window._agendaBatchSelections.delete(idx);
+          const count = window._agendaBatchSelections.size;
+          const btn = document.getElementById('batch-review-btn');
+          if (btn) btn.textContent = `📦 批量送审 (${count})`;
+        };
+        window.reviewSingleAgenda = async function(idx) {
+          const d = window._meetingEditData;
+          if (!d?.agenda_items?.[idx]) return;
+          const item = d.agenda_items[idx];
+          const url = item.material_link?.trim();
+          if (!url) { showToast('请先填写材料链接', 'warning'); return; }
+          if (window._agendaReviewing.has(idx)) return;
+          window._agendaReviewing.add(idx);
+          renderAgendaList();
+          const proxyUrl = getReviewerProxyUrl();
+          try {
+            const resp = await fetch(proxyUrl + '/api/review', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url, scene: getReviewerScene(d.scenario) })
+            });
+            const data = await resp.json();
+            if (data.success) {
+              const map = DSTE.Storage.get('dste_review_scores', {});
+              const cur = map[url];
+              if (!cur || (data.total_score || 0) > cur.maxScore) {
+                map[url] = { maxScore: data.total_score || 0, lastReviewAt: Date.now() };
+                DSTE.Storage.set('dste_review_scores', map);
+              }
+            } else {
+              showToast('评审失败：' + (data.error || '未知错误'), 'error');
+            }
+          } catch (e) {
+            showToast('评审服务不可用，请检查 reviewer 后端是否启动（' + proxyUrl + '）', 'error');
+          }
+          window._agendaReviewing.delete(idx);
+          renderAgendaList();
+        };
+        window.openBatchReviewModal = function() {
+          const d = window._meetingEditData;
+          const count = window._agendaBatchSelections.size;
+          if (count === 0) { showToast('请至少选择一个议程项', 'warning'); return; }
+          const scene = getReviewerScene(d?.scenario);
+          const sceneName = { 'general-topic-review': '通用议题材料审核', 'lagging-region-review': '落后战区业绩承诺会', 'vertical-segment-review': '垂直客群-落后述职' }[scene] || scene;
+          document.getElementById('batch-review-scene-display').textContent = sceneName;
+          document.getElementById('batch-review-count').textContent = count;
+          document.getElementById('batch-review-progress').style.display = 'none';
+          document.getElementById('batch-review-confirm-btn').style.display = 'inline-block';
+          document.getElementById('batch-review-overlay').style.display = 'flex';
+        };
+        window.closeBatchReviewModal = function() {
+          document.getElementById('batch-review-overlay').style.display = 'none';
+          if (window._batchReviewTimer) { clearInterval(window._batchReviewTimer); window._batchReviewTimer = null; }
+        };
+        window.startBatchReview = async function() {
+          const d = window._meetingEditData;
+          const indices = Array.from(window._agendaBatchSelections).sort((a, b) => a - b);
+          const urls = indices.map(i => d.agenda_items[i]?.material_link?.trim()).filter(Boolean);
+          if (urls.length === 0) { showToast('没有有效的材料链接', 'warning'); return; }
+          const scene = getReviewerScene(d?.scenario);
+          const proxyUrl = getReviewerProxyUrl();
+          document.getElementById('batch-review-confirm-btn').style.display = 'none';
+          document.getElementById('batch-review-progress').style.display = 'block';
+          try {
+            const resp = await fetch(proxyUrl + '/api/batch', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ urls, scene_id: scene })
+            });
+            const data = await resp.json();
+            if (!data.success) { showToast('创建批量任务失败：' + (data.error || '未知错误'), 'error'); closeBatchReviewModal(); return; }
+            window._batchReviewTaskId = data.task_id;
+            let pollCount = 0;
+            window._batchReviewTimer = setInterval(async () => {
+              pollCount++;
+              try {
+                const pResp = await fetch(proxyUrl + '/api/batch/' + data.task_id);
+                const pData = await pResp.json();
+                if (pData.success && pData.task) {
+                  const t = pData.task;
+                  const pct = t.total > 0 ? Math.round(((t.completed || 0) / t.total) * 100) : 0;
+                  document.getElementById('batch-review-progress-bar').style.width = pct + '%';
+                  const statusLabel = t.status === 'running' ? '评审中' : t.status === 'completed' ? '已完成' : t.status === 'failed' ? '失败' : t.status;
+                  document.getElementById('batch-review-progress-text').textContent = `${t.completed || 0}/${t.total || 0} (${t.failed || 0} 失败) · ${statusLabel}`;
+                  if (t.status === 'completed' || t.status === 'failed') {
+                    clearInterval(window._batchReviewTimer); window._batchReviewTimer = null;
+                    const rResp = await fetch(proxyUrl + '/api/batch/' + data.task_id + '/results');
+                    const rData = await rResp.json();
+                    if (rData.success) {
+                      const map = DSTE.Storage.get('dste_review_scores', {});
+                      for (const r of rData.results || []) {
+                        if (r.status === 'completed' && r.total_score != null) {
+                          const cur = map[r.url];
+                          if (!cur || r.total_score > cur.maxScore) {
+                            map[r.url] = { maxScore: r.total_score, lastReviewAt: Date.now(), dimensionScores: r.dimension_scores || {}, issues: (r.issues || []).slice(0, 5), report: r.report || '' };
+                          }
+                        }
+                      }
+                      DSTE.Storage.set('dste_review_scores', map);
+                    }
+                    renderAgendaList();
+                    setTimeout(() => closeBatchReviewModal(), 800);
+                    return;
+                  }
+                  // 超时保护：轮询超过 80 次（约 2 分钟）后提示用户
+                  if (pollCount > 80) {
+                    clearInterval(window._batchReviewTimer); window._batchReviewTimer = null;
+                    document.getElementById('batch-review-progress-text').textContent = '评审耗时较长，后台仍在处理，请稍后到「会议材料审核」页面查看结果';
+                  }
+                }
+              } catch (e) { /* ignore polling errors */ }
+            }, 1500);
+          } catch (e) {
+            showToast('批量评审服务不可用，请检查 reviewer 后端是否启动', 'error');
+            closeBatchReviewModal();
+          }
+        };
+        window._agendaReviewDetailUrl = '';
+        window.openAgendaReviewDetail = function(url) {
+          const info = getMaterialReviewInfo(url);
+          if (!info) return;
+          window._agendaReviewDetailUrl = url;
+          const color = info.score >= 80 ? 'var(--success)' : info.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+          document.getElementById('agenda-review-detail-score').innerHTML = `<span style="font-size: 32px; font-weight: 700; color: ${color};">${info.score}</span><span style="font-size: 14px; color: var(--text-secondary);"> 分</span>`;
+          document.getElementById('agenda-review-detail-url').textContent = url;
+          document.getElementById('agenda-review-detail-time').textContent = info.lastReviewAt ? new Date(info.lastReviewAt).toLocaleString() : '-';
+          const label = info.score >= 90 ? '卓越' : info.score >= 80 ? '良好' : info.score >= 60 ? '合格' : '待改进';
+          const labelColor = info.score >= 80 ? 'var(--success)' : info.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+          document.getElementById('agenda-review-detail-label').innerHTML = `<span style="padding: 2px 10px; border-radius: 4px; background: ${labelColor}18; color: ${labelColor}; font-size: 13px; font-weight: 600;">${label}</span>`;
+          // 维度得分
+          const dims = Object.entries(info.dimensionScores || {});
+          document.getElementById('agenda-review-detail-dims').innerHTML = dims.length === 0 ? '<div style="font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 8px;">暂无维度得分</div>' : dims.map(([k, v]) => {
+            const barColor = v >= 25 ? 'var(--success)' : v >= 15 ? 'var(--warning)' : 'var(--danger)';
+            return `<div style="margin-bottom: 8px;"><div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;"><span style="color: var(--text-secondary);">${k}</span><span style="font-weight: 600; color: var(--text-primary);">${v}</span></div><div style="height: 4px; background: var(--bg-page); border-radius: 2px;"><div style="height: 100%; width: ${Math.min(100, v)}%; background: ${barColor}; border-radius: 2px;"></div></div></div>`;
+          }).join('');
+          // 问题清单
+          const issues = info.issues || [];
+          document.getElementById('agenda-review-detail-issues').innerHTML = issues.length === 0 ? '<div style="font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 8px;">未发现问题</div>' : issues.map(i => {
+            const issueColor = i.level === '致命' ? 'var(--danger)' : i.level === '严重' ? 'var(--danger)' : i.level === '警告' ? 'var(--warning)' : 'var(--info)';
+            return `<div style="display: flex; gap: 6px; align-items: flex-start; margin-bottom: 6px; font-size: 12px;"><span style="padding: 1px 5px; border-radius: 3px; background: ${issueColor}18; color: ${issueColor}; font-weight: 600; white-space: nowrap; flex-shrink: 0;">${i.level}</span><span style="color: var(--text-secondary); line-height: 1.4;">${i.description}</span></div>`;
+          }).join('');
+          // 缓存完整报告
+          window._agendaReviewDetailReport = info.report || '';
+          showAgendaReviewSummary();
+          document.getElementById('agenda-review-detail-overlay').style.display = 'flex';
+        };
+        window.reReviewAgendaMaterial = async function() {
+          const url = window._agendaReviewDetailUrl;
+          if (!url) return;
+          const d = window._meetingEditData;
+          const scene = getReviewerScene(d?.scenario);
+          const proxyUrl = getReviewerProxyUrl();
+          const btn = document.getElementById('agenda-review-detail-rereview-btn');
+          if (btn) { btn.textContent = '⏳ 评审中...'; btn.disabled = true; }
+          try {
+            const resp = await fetch(proxyUrl + '/api/review', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url, scene })
+            });
+            const data = await resp.json();
+            if (data.success) {
+              const map = DSTE.Storage.get('dste_review_scores', {});
+              const cur = map[url];
+              if (!cur || (data.total_score || 0) > cur.maxScore) {
+                map[url] = { maxScore: data.total_score || 0, lastReviewAt: Date.now(), dimensionScores: data.dimension_scores || {}, issues: (data.issues || []).slice(0, 5), report: data.report || '' };
+                DSTE.Storage.set('dste_review_scores', map);
+              }
+              // 刷新弹窗内容
+              openAgendaReviewDetail(url);
+              // 刷新议程列表
+              renderAgendaList();
+              showToast('重新评审完成 ✅', 'success');
+            } else {
+              showToast('评审失败：' + (data.error || '未知错误'), 'error');
+            }
+          } catch (e) {
+            showToast('评审服务不可用，请检查 reviewer 后端是否启动', 'error');
+          }
+          if (btn) { btn.textContent = '🔄 重新送审'; btn.disabled = false; }
+        };
+        window.showAgendaReviewSummary = function() {
+          document.getElementById('agenda-review-detail-summary').style.display = 'block';
+          document.getElementById('agenda-review-detail-report').style.display = 'none';
+          document.getElementById('agenda-review-detail-report-btn').style.display = 'inline-block';
+          document.getElementById('agenda-review-detail-back-btn').style.display = 'none';
+        };
+        window.showAgendaReviewReport = function() {
+          const report = window._agendaReviewDetailReport || '';
+          const el = document.getElementById('agenda-review-detail-report-body');
+          if (report) {
+            // 简单 markdown → HTML：标题、粗体、换行
+            const html = report
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/^#{1,6}\s+(.+)$/gm, '<div style="font-size:14px;font-weight:700;color:var(--text-primary);margin:10px 0 4px;">$1</div>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
+          .replace(/\n/g, '<br>');
+            el.innerHTML = html;
+          } else {
+            el.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:20px;">暂无完整报告缓存，请重新送审获取</div>';
+          }
+          document.getElementById('agenda-review-detail-summary').style.display = 'none';
+          document.getElementById('agenda-review-detail-report').style.display = 'block';
+          document.getElementById('agenda-review-detail-report-btn').style.display = 'none';
+          document.getElementById('agenda-review-detail-back-btn').style.display = 'inline-block';
+        };
+        window.closeAgendaReviewDetail = function() {
+          document.getElementById('agenda-review-detail-overlay').style.display = 'none';
         };
 
         // ---- 行动项编辑 ----
@@ -2369,20 +2869,20 @@
 
         /**
          * 保存会议数据（新建或更新）
-         * 数据持久化到 API 和 localStorage
+         * 数据持久化到 API 和 本地存储
          */
         window.saveMeeting = function() {
           const meetings = window._meetingsData;
           try {
             const d = window._meetingEditData;
-            if (!d) { console.warn('saveMeeting: _meetingEditData is null'); alert('编辑数据丢失，请重新打开编辑窗口'); return; }
+            if (!d) { console.warn('saveMeeting: _meetingEditData is null'); showToast('编辑数据丢失，请重新打开编辑窗口', 'error'); return; }
             const id = document.getElementById('edit-meeting-id').value;
             const isNew = id.startsWith('new_');
             const idx = meetings.findIndex(m => m.id === id);
             const titleVal = document.getElementById('edit-title').value.trim();
             const dateVal = document.getElementById('edit-date').value.trim();
-            if (!titleVal) { alert('会议名称不能为空'); return; }
-            if (!dateVal) { alert('会议日期不能为空'); return; }
+            if (!titleVal) { showToast('会议名称不能为空', 'warning'); return; }
+            if (!dateVal) { showToast('会议日期不能为空', 'warning'); return; }
             const scenarioVal = document.getElementById('edit-scenario').value;
             const statusVal = document.getElementById('edit-status').value;
             if (isNew || idx === -1) {
@@ -2395,6 +2895,8 @@
                 host: document.getElementById('edit-host').value.trim() || '待定',
                 recorder: document.getElementById('edit-recorder').value.trim() || '待定',
                 meeting_link: document.getElementById('edit-kms-link')?.value.trim() || '',
+                pre_report_id: document.getElementById('edit-pre-report-id')?.value.trim() || '',
+                minutes_report_id: d.minutes_report_id || '',
                 minutes_content: document.getElementById('edit-minutes-content')?.value.trim() || '',
                 hasMinutes: !!document.getElementById('edit-minutes-content')?.value.trim(),
                 minutesStatus: document.getElementById('edit-minutes-content')?.value.trim() ? 'draft' : null,
@@ -2426,6 +2928,8 @@
               meetings[idx].host = document.getElementById('edit-host').value.trim() || '待定';
               meetings[idx].recorder = document.getElementById('edit-recorder').value.trim() || '待定';
               meetings[idx].meeting_link = document.getElementById('edit-kms-link')?.value.trim() || '';
+              meetings[idx].pre_report_id = document.getElementById('edit-pre-report-id')?.value.trim() || '';
+              meetings[idx].minutes_report_id = d.minutes_report_id || '';
               meetings[idx].minutes_content = document.getElementById('edit-minutes-content')?.value.trim() || '';
               meetings[idx].hasMinutes = !!document.getElementById('edit-minutes-content')?.value.trim();
               meetings[idx].minutesStatus = document.getElementById('edit-minutes-content')?.value.trim() ? 'draft' : null;
@@ -2450,7 +2954,7 @@
             }
           } catch (err) {
             console.error('saveMeeting error:', err);
-            alert('保存失败：' + err.message);
+            showToast('保存失败：' + err.message, 'error');
           }
         };
         window.deleteMeeting = function() {
@@ -2838,6 +3342,10 @@
                     <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">KMS 链接</label>
                     <input type="url" id="edit-kms-link" placeholder="https://kms.example.com/docs/..." style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
                   </div>
+                  <div style="grid-column: 1 / -1;">
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会前报告 URL / ID</label>
+                    <input type="text" id="edit-pre-report-id" placeholder="https://kms.example.com/report/... 或 report_id" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                  </div>
                 </div>
 
                 <div style="margin-bottom: 12px;">
@@ -2846,7 +3354,11 @@
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                  <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">议程项</div>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">议程项</span>
+                    <button type="button" onclick="toggleAgendaReviewMode()" style="padding: 3px 10px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">📦 批量送审</button>
+                    <button type="button" id="batch-review-btn" onclick="openBatchReviewModal()" style="display: none; padding: 3px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📦 批量送审 (0)</button>
+                  </div>
                   <div id="edit-agenda-total" style="font-size: 12px; color: var(--text-tertiary);">总时长：0 分钟</div>
                 </div>
                 <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
@@ -2960,6 +3472,10 @@
                   <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">KMS 链接</label>
                   <input type="url" id="edit-kms-link" placeholder="https://kms.example.com/docs/..." style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
                 </div>
+                <div style="grid-column: 1 / -1;">
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">会前报告 URL / ID</label>
+                  <input type="text" id="edit-pre-report-id" placeholder="https://kms.example.com/report/... 或 report_id" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                </div>
               </div>
 
               <div style="margin-bottom: 12px;">
@@ -2968,7 +3484,11 @@
               </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">议程项</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">议程项</span>
+                  <button type="button" onclick="toggleAgendaReviewMode()" style="padding: 3px 10px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">📦 批量送审</button>
+                  <button type="button" id="batch-review-btn" onclick="openBatchReviewModal()" style="display: none; padding: 3px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📦 批量送审 (0)</button>
+                </div>
                 <div id="edit-agenda-total" style="font-size: 12px; color: var(--text-tertiary);">总时长：0 分钟</div>
               </div>
               <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
@@ -3057,6 +3577,15 @@
         if (remoteMeetings && remoteMeetings.length > 0) {
           window._meetingsData = remoteMeetings;
         }
+        // 数据模型向后兼容：补齐新增字段
+        (window._meetingsData || []).forEach(m => {
+          if (typeof m.pre_report_id !== 'string') m.pre_report_id = '';
+          if (typeof m.minutes_report_id !== 'string') m.minutes_report_id = '';
+          (m.agenda_items || []).forEach(a => {
+            if (!Array.isArray(a.data_views)) a.data_views = [];
+            if (typeof a.pre_report_section !== 'string') a.pre_report_section = '';
+          });
+        });
 
         const content = document.getElementById('page-content');
         if (content) {
@@ -3099,6 +3628,85 @@
         }
       }
 
+        // ---- 报表资产注册表 ----
+        window.openReportAssetManager = function(agendaIdx) {
+          window._reportAssetAgendaIdx = typeof agendaIdx === 'number' ? agendaIdx : null;
+          renderReportAssetManager();
+          const ov = document.getElementById('report-asset-manager-overlay');
+          if (ov) ov.style.display = 'flex';
+        };
+        window.closeReportAssetManager = function() {
+          const ov = document.getElementById('report-asset-manager-overlay');
+          if (ov) ov.style.display = 'none';
+          window._reportAssetAgendaIdx = null;
+        };
+        function renderReportAssetManager() {
+          const container = document.getElementById('report-asset-manager-list');
+          if (!container) return;
+          const assets = getReportAssets();
+          const ids = Object.keys(assets);
+          const agendaIdx = window._reportAssetAgendaIdx;
+          const selectedIds = new Set();
+          if (agendaIdx !== null && window._meetingEditData?.agenda_items?.[agendaIdx]) {
+            (window._meetingEditData.agenda_items[agendaIdx].data_views || []).forEach(id => selectedIds.add(id));
+          }
+          container.innerHTML = ids.length === 0
+            ? '<div style="padding: 16px; text-align: center; color: var(--text-secondary); font-size: 13px;">暂无注册报表，请添加第一条报表资产</div>'
+            : ids.map(id => {
+                const a = assets[id];
+                const isSelected = selectedIds.has(id);
+                return `
+                  <div style="padding: 12px; background: var(--bg-page); border-radius: 8px; margin-bottom: 8px; border: 1px solid ${isSelected ? 'var(--primary)' : 'var(--border-light)'};">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                      <input type="text" value="${a.name || ''}" onchange="updateReportAsset('${id}', 'name', this.value)" placeholder="报表名称" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                      <select onchange="updateReportAsset('${id}', 'type', this.value)" style="width: 90px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
+                        <option value="fr" ${a.type === 'fr' ? 'selected' : ''}>FR</option>
+                        <option value="bi" ${a.type === 'bi' ? 'selected' : ''}>BI</option>
+                        <option value="external" ${a.type === 'external' ? 'selected' : ''}>外部</option>
+                      </select>
+                      ${agendaIdx !== null ? `<button type="button" onclick="toggleReportAssetSelection('${id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid ${isSelected ? 'var(--danger)' : 'var(--primary)'}; border-radius: 4px; background: ${isSelected ? 'rgba(245,34,45,0.08)' : 'var(--primary-light)'}; color: ${isSelected ? 'var(--danger)' : 'var(--primary)'}; cursor: pointer;">${isSelected ? '移除' : '关联'}</button>` : ''}
+                      <button type="button" onclick="deleteReportAsset('${id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); color: var(--danger); cursor: pointer;">删除</button>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <input type="text" value="${a.url || ''}" onchange="updateReportAsset('${id}', 'url', this.value)" placeholder="报表 URL" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                      <input type="text" value="${a.owner || ''}" onchange="updateReportAsset('${id}', 'owner', this.value)" placeholder="责任人" style="width: 100px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                    </div>
+                  </div>
+                `;
+              }).join('');
+        }
+        window.addReportAsset = function() {
+          const assets = getReportAssets();
+          const id = 'ra_' + Date.now();
+          assets[id] = { id, name: '', type: 'fr', url: '', owner: '', business_domain: '', meeting_scenarios: [], update_frequency: 'daily', created_at: new Date().toISOString() };
+          saveReportAssets(assets);
+          renderReportAssetManager();
+        };
+        window.updateReportAsset = function(id, field, value) {
+          const assets = getReportAssets();
+          if (!assets[id]) return;
+          assets[id][field] = value;
+          saveReportAssets(assets);
+        };
+        window.deleteReportAsset = function(id) {
+          if (!confirm('确定删除该报表资产吗？')) return;
+          const assets = getReportAssets();
+          delete assets[id];
+          saveReportAssets(assets);
+          renderReportAssetManager();
+        };
+        window.toggleReportAssetSelection = function(id) {
+          const agendaIdx = window._reportAssetAgendaIdx;
+          if (agendaIdx === null || !window._meetingEditData?.agenda_items?.[agendaIdx]) return;
+          const item = window._meetingEditData.agenda_items[agendaIdx];
+          if (!Array.isArray(item.data_views)) item.data_views = [];
+          const idx = item.data_views.indexOf(id);
+          if (idx > -1) item.data_views.splice(idx, 1);
+          else item.data_views.push(id);
+          renderReportAssetManager();
+          renderAgendaList();
+        };
+
       init();
       console.log('DSTE Meetings v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'));
     })();
@@ -3108,8 +3716,8 @@
   <div id="app-version" style="position:fixed;bottom:4px;right:8px;font-size:11px;color:var(--text-tertiary);opacity:0.6;z-index:9999;pointer-events:none;"></div>
   <script type="module">
     (function() {
-      var v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
-      var el = document.getElementById('app-version');
+      const v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+      const el = document.getElementById('app-version');
       if (el) el.textContent = 'v' + v;
     })();
   </script>
@@ -3172,7 +3780,21 @@
       </div>
       <div id="notification-center-list" style="flex: 1; overflow-y: auto; padding: 16px 20px;"></div>
       <div style="padding: 12px 20px; border-top: 1px solid var(--border-light); flex-shrink: 0;">
-        <button type="button" onclick="localStorage.setItem('dste_notification_config', JSON.stringify({...JSON.parse(localStorage.getItem('dste_notification_config')||'{}'), lastSent: []})); openNotificationCenter();" style="width: 100%; padding: 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">清除记录</button>
+        <button type="button" onclick="DSTE.Storage.set('dste_notification_config', {...DSTE.Storage.get('dste_notification_config', {}), lastSent: []}); openNotificationCenter();" style="width: 100%; padding: 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">清除记录</button>
+      </div>
+    </div>
+  </div>
+  <!-- 会前准备浮层 -->
+  <div id="meeting-preparation-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3300; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); width: 720px; max-width: 92vw; max-height: 90vh; box-shadow: 0 8px 32px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <h3 id="meeting-preparation-header-title" style="margin: 0; font-size: 16px; font-weight: 600;">📋 会前准备</h3>
+        <button onclick="closeMeetingPreparation()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div id="meeting-preparation-content" style="flex: 1; overflow-y: auto; padding: 20px;"></div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border-light); display: flex; gap: 10px; flex-shrink: 0; justify-content: flex-end;">
+        <button type="button" onclick="closeMeetingPreparation()" style="padding: 8px 16px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">关闭</button>
+        <button type="button" id="preparation-mark-done-btn" onclick="togglePipelineStepFromPreparation()" style="padding: 8px 16px; font-size: 13px; border: 1px solid var(--success); border-radius: 6px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500;">标记会前评审完成</button>
       </div>
     </div>
   </div>
@@ -3206,6 +3828,97 @@
       <div style="padding: 14px 20px; border-top: 1px solid var(--border-light); display: flex; gap: 10px; flex-shrink: 0;">
         <button type="button" onclick="closeMeetingEvalModal()" style="flex: 1; padding: 10px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">取消</button>
         <button type="button" onclick="saveMeetingEvaluation()" style="flex: 1; padding: 10px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">保存评估</button>
+      </div>
+    </div>
+  </div>
+  <!-- 批量送审弹窗 -->
+  <div id="batch-review-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3200; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); width: 420px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.15);">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">📦 批量材料评审</h3>
+        <button onclick="closeBatchReviewModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div style="padding: 20px;">
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">评审场景</div>
+          <div id="batch-review-scene-display" style="font-size: 14px; font-weight: 600; color: var(--text-primary); padding: 8px 12px; background: var(--bg-page); border-radius: 6px; border: 1px solid var(--border-light);">通用议题材料审核</div>
+          <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">场景根据会议类型自动匹配，如需调整请前往「会议材料审核」页面</div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">送审数量</div>
+          <div style="font-size: 14px; font-weight: 600; color: var(--primary);"><span id="batch-review-count">0</span> 个议程项</div>
+        </div>
+        <div id="batch-review-progress" style="display: none;">
+          <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">评审进度</div>
+          <div style="height: 8px; background: var(--bg-page); border-radius: 4px; overflow: hidden; margin-bottom: 6px;">
+            <div id="batch-review-progress-bar" style="height: 100%; width: 0%; background: var(--primary); border-radius: 4px; transition: width 0.3s;"></div>
+          </div>
+          <div id="batch-review-progress-text" style="font-size: 12px; color: var(--text-secondary);">0/0 (0 失败)</div>
+        </div>
+      </div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border-light); display: flex; gap: 10px;">
+        <button type="button" onclick="closeBatchReviewModal()" style="flex: 1; padding: 10px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">取消</button>
+        <button type="button" id="batch-review-confirm-btn" onclick="startBatchReview()" style="flex: 1; padding: 10px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">开始评审</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 议程评分详情弹窗 -->
+  <div id="agenda-review-detail-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3300; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); width: 420px; max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.15);">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">📊 材料评分详情</h3>
+        <button onclick="closeAgendaReviewDetail()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div style="padding: 20px; overflow-y: auto; flex: 1;">
+        <div style="text-align: center; margin-bottom: 16px;">
+          <div id="agenda-review-detail-score" style="margin-bottom: 8px;"></div>
+          <div id="agenda-review-detail-label" style="margin-bottom: 8px;"></div>
+        </div>
+        <div id="agenda-review-detail-summary">
+          <div style="margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">维度得分</div>
+            <div id="agenda-review-detail-dims" style="padding: 10px; background: var(--bg-page); border-radius: 8px; border: 1px solid var(--border-light);"></div>
+          </div>
+          <div style="margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">问题清单</div>
+            <div id="agenda-review-detail-issues" style="padding: 10px; background: var(--bg-page); border-radius: 8px; border: 1px solid var(--border-light);"></div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">材料链接</div>
+            <div id="agenda-review-detail-url" style="font-size: 12px; color: var(--text-secondary); word-break: break-all; padding: 8px; background: var(--bg-page); border-radius: 6px; border: 1px solid var(--border-light);"></div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">评审时间</div>
+            <div id="agenda-review-detail-time" style="font-size: 13px; color: var(--text-primary);"></div>
+          </div>
+        </div>
+        <div id="agenda-review-detail-report" style="display: none;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">完整评审报告</div>
+          <div id="agenda-review-detail-report-body" style="padding: 12px; background: var(--bg-page); border-radius: 8px; border: 1px solid var(--border-light); font-size: 12px; line-height: 1.7; color: var(--text-secondary); max-height: 400px; overflow-y: auto;"></div>
+        </div>
+      </div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border-light); display: flex; gap: 10px; flex-shrink: 0;">
+        <button type="button" onclick="closeAgendaReviewDetail()" style="flex: 1; padding: 10px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">关闭</button>
+        <button type="button" id="agenda-review-detail-report-btn" onclick="showAgendaReviewReport()" style="flex: 1; padding: 10px; font-size: 13px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500;">📋 查看完整报告</button>
+        <button type="button" id="agenda-review-detail-rereview-btn" onclick="reReviewAgendaMaterial()" style="flex: 1; padding: 10px; font-size: 13px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">🔄 重新送审</button>
+        <button type="button" id="agenda-review-detail-back-btn" onclick="showAgendaReviewSummary()" style="display: none; flex: 1; padding: 10px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">← 返回摘要</button>
+      </div>
+    </div>
+  </div>
+  <!-- 报表资产管理浮层 -->
+  <div id="report-asset-manager-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 3350; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); width: 600px; max-width: 92vw; max-height: 85vh; box-shadow: 0 8px 32px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">📊 报表资产管理</h3>
+        <button onclick="closeReportAssetManager()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
+      </div>
+      <div style="padding: 12px 20px; border-bottom: 1px solid var(--border-light); flex-shrink: 0;">
+        <button type="button" onclick="addReportAsset()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加报表</button>
+      </div>
+      <div id="report-asset-manager-list" style="flex: 1; overflow-y: auto; padding: 16px 20px;"></div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; flex-shrink: 0;">
+        <button type="button" onclick="closeReportAssetManager()" style="padding: 8px 16px; font-size: 13px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-secondary); cursor: pointer;">关闭</button>
       </div>
     </div>
   </div>

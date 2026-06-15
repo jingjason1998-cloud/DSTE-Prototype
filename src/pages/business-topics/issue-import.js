@@ -1,3 +1,5 @@
+import { showToast, Storage } from '../../lib/utils.js';
+
 // 被 main.js 导入，请勿删除 export
 export const ISSUE_STORAGE_KEY = 'dste_issues_v1';
 
@@ -33,7 +35,7 @@ let _importRows = null;
 let _importFileName = null;
 export function loadIssues(sourceSystem) {
     const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
-    const raw = localStorage.getItem(key);
+    const raw = Storage.getString(key);
     if (!raw) return [];
     try {
         const data = JSON.parse(raw);
@@ -46,7 +48,7 @@ export function loadIssues(sourceSystem) {
 
 export function saveIssues(issues, sourceSystem) {
     const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
-    localStorage.setItem(key, JSON.stringify(issues || []));
+    Storage.set(key, issues || []);
     // 同步到云端（合并 ST + AT）
     const allIssues = [...loadIssues('ST'), ...loadIssues('AT')];
     apiSave('/api/issues', allIssues);
@@ -120,11 +122,10 @@ export function sanitizeCsvCell(text) {
 export function checkStorageCapacity() {
     const STORAGE_LIMIT = 5 * 1024 * 1024;
     let used = 0;
-    for (let key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-            used += (localStorage.getItem(key) || '').length * 2;
-        }
-    }
+    const keys = Storage.getKeys();
+    keys.forEach(key => {
+        used += (Storage.getString(key) || '').length * 2;
+    });
     const ratio = used / STORAGE_LIMIT;
     return {
         usedBytes: used,
@@ -327,7 +328,7 @@ export function handleFileSelect(e) {
 export function processImportFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-        alert('不支持的文件格式，请上传 .xlsx .xls 或 .csv 文件');
+        showToast('不支持的文件格式，请上传 .xlsx .xls 或 .csv 文件', 'warning');
         return;
     }
     const reader = new FileReader();
@@ -342,7 +343,7 @@ export function processImportFile(file) {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                if (jsonData.length < 2) { alert('文件内容为空或格式不正确'); return; }
+                if (jsonData.length < 2) { showToast('文件内容为空或格式不正确', 'warning'); return; }
                 const headers = jsonData[0].map(h => String(h || '').trim());
                 rows = jsonData.slice(1).map(row => {
                     const obj = {};
@@ -359,7 +360,7 @@ export function processImportFile(file) {
                 '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" data-action="import-file-select">';
             updateImportPreview();
         } catch (err) {
-            alert('解析文件失败: ' + err.message);
+            showToast('解析文件失败: ' + err.message, 'error');
         }
     };
     if (ext === 'csv') reader.readAsText(file);
@@ -465,7 +466,7 @@ export function confirmImport() {
     let msg = '导入成功！共导入 ' + result.success.length + ' 条议题';
     if (result.errors.length > 0) msg += '，' + result.errors.length + ' 条失败';
     if (result.warnings.length > 0) msg += '，' + result.warnings.length + ' 条警告';
-    alert(msg);
+    showToast(msg, 'info');
     closeModal('importModal');
 }
 

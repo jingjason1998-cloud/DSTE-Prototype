@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>战略地图 - DSTE战略管理平台</title>
+  <link rel="stylesheet" href="../assets/css/main.css?v=2">
+  <link rel="stylesheet" href="./styles/shell.css">
+  <script src="../assets/js/main.js"></script>
+  <script>
+    (function() {
+      const theme = DSTE.Storage.getString('dste-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      if (new URLSearchParams(location.search).get('embed') === '1') {
+        document.documentElement.setAttribute('data-embed', 'true');
+        if (window !== window.top) {
+          let lastHeight = 0;
+          const reportHeight = () => {
+            const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+            if (h !== lastHeight) { lastHeight = h; window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*'); }
+          };
+          reportHeight();
+          let timer;
+          window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+          if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+            ro.observe(document.body);
+          }
+        }
+      }
+      document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (menuToggle && sidebar && overlay) {
+          menuToggle.addEventListener('click', () => { sidebar.classList.toggle('open'); overlay.classList.toggle('open'); });
+          overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
+          sidebar.addEventListener('click', (e) => { if (e.target.closest('.sidebar-item')) { sidebar.classList.remove('open'); overlay.classList.remove('open'); } });
+        }
+      });
+    })();
+  </script>
+  <style>
+    /* ========== 战略地图页面样式 ========== */
+    :root {
+      --sm-fin: #1677FF;
+      --sm-cus: #52C41A;
+      --sm-int: #FAAD14;
+      --sm-lea: #722ED1;
+      --sm-bg: #f8fafc;
+      --sm-card-bg: #fff;
+      --sm-border: #e5e7eb;
+      --sm-text: #1f2937;
+      --sm-text-secondary: #6b7280;
+      --sm-text-tertiary: #9ca3af;
+    }
+
+    .sm-container { display: flex; height: calc(100vh - 52px); }
+    .sm-main { flex: 1; overflow: auto; background: var(--sm-bg); position: relative; }
+
+    /* 顶部栏 */
+    .sm-header {
+      height: 52px; background: #fff; border-bottom: 1px solid var(--sm-border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; flex-shrink: 0;
+    }
+    .sm-header-left { display: flex; align-items: center; gap: 12px; }
+    .sm-back { color: var(--sm-text-secondary); text-decoration: none; font-size: 13px; }
+    .sm-title { font-size: 15px; font-weight: 600; }
+    .sm-meta { font-size: 11px; color: var(--sm-text-tertiary); }
+
+    /* 地图选择器 */
+    .map-selector {
+      display: flex; align-items: center; gap: 6px;
+      background: #f3f4f6; border-radius: 6px; padding: 3px 8px;
+    }
+    .map-selector label { font-size: 12px; color: var(--sm-text-secondary); white-space: nowrap; }
+    .map-selector select {
+      border: none; background: transparent; font-size: 12px; color: var(--sm-text);
+      cursor: pointer; outline: none; max-width: 180px;
+    }
+    .map-selector .map-config-btn {
+      border: none; background: transparent; cursor: pointer; font-size: 14px;
+      color: var(--sm-text-secondary); padding: 2px 4px; border-radius: 4px;
+    }
+    .map-selector .map-config-btn:hover { background: #e5e7eb; }
+
+    /* 年度视角切换 */
+    .annual-toggle {
+      display: flex; align-items: center; gap: 4px;
+      background: #f3f4f6; border-radius: 6px; padding: 3px;
+    }
+    .annual-toggle .label { font-size: 12px; color: var(--sm-text-secondary); margin: 0 4px; }
+    .annual-btn {
+      padding: 5px 10px; border: none; border-radius: 5px;
+      font-size: 12px; cursor: pointer; background: transparent; color: var(--sm-text-secondary);
+      transition: all 0.2s;
+    }
+    .annual-btn:hover { background: #e5e7eb; }
+    .annual-btn.active { background: var(--primary); color: #fff; font-weight: 500; }
+    .annual-btn .fire { color: #f59e0b; margin-left: 2px; font-size: 10px; }
+    .annual-btn.active .fire { color: #fbbf24; }
+
+    .global-toggle-btn {
+      padding: 5px 12px; border: 1px solid var(--sm-border); border-radius: 6px;
+      background: #fff; font-size: 12px; color: #4b5563; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .global-toggle-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+    .global-toggle-btn.active { background: #eff6ff; border-color: var(--primary); color: var(--primary); }
+
+    /* 画布 */
+    .sm-canvas-wrap {
+      max-width: 1100px; margin: 16px auto; padding: 0 16px;
+    }
+    .sm-canvas {
+      background: var(--sm-card-bg); border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: relative; overflow: hidden;
+    }
+
+    /* SVG 箭头 */
+    .links-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+    .link-path { fill: none; transition: all 0.2s; cursor: pointer; pointer-events: auto; }
+    .link-path.drives { stroke: #94a3b8; stroke-width: 1.8; marker-end: url(#arrowhead); }
+    .link-path.influences { stroke: #b4b4b8; stroke-width: 1.5; stroke-dasharray: 6,4; marker-end: url(#arrowhead-dashed); }
+    .link-path.supports { stroke: #e5e7eb; stroke-width: 1.2; stroke-dasharray: 2,4; marker-end: url(#arrowhead-supports); opacity: 0.5; }
+    .link-path:hover { stroke: var(--primary); stroke-width: 2.5; }
+    .link-path.chain-highlight { stroke: var(--primary); stroke-width: 2.8; opacity: 1; }
+    .link-path.chain-dimmed { opacity: 0.08; }
+
+    /* 因果链 tooltip */
+    .link-tooltip {
+      position: fixed; z-index: 4000;
+      background: rgba(31, 41, 55, 0.95); color: #fff;
+      padding: 8px 12px; border-radius: 6px; font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      pointer-events: none; opacity: 0; transform: translateY(4px);
+      transition: opacity 0.15s, transform 0.15s; max-width: 260px; line-height: 1.5;
+    }
+    .link-tooltip.show { opacity: 1; transform: translateY(0); }
+    .link-tooltip .tt-title { font-weight: 600; margin-bottom: 2px; }
+    .link-tooltip .tt-type { font-size: 11px; color: #d1d5db; }
+
+    /* 因果链高亮 */
+    .obj-card.chain-highlight {
+      box-shadow: 0 0 0 2px var(--primary), 0 6px 16px rgba(22,119,255,0.2);
+      transform: translateY(-2px); z-index: 5;
+    }
+    .obj-card.chain-dimmed { opacity: 0.25 !important; filter: grayscale(0.8); }
+
+    /* 四维度区域 */
+    .dim-section {
+      padding: 16px 24px; position: relative;
+      border-bottom: 1px dashed var(--sm-border);
+    }
+    .dim-section:last-child { border-bottom: none; }
+
+    .dim-header {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 12px; font-size: 13px; font-weight: 600;
+    }
+    .dim-header.fin { color: var(--sm-fin); }
+    .dim-header.cus { color: var(--sm-cus); }
+    .dim-header.int { color: #d97706; }
+    .dim-header.lea { color: var(--sm-lea); }
+    .dim-header .dim-icon { font-size: 15px; }
+    .dim-header .dim-name { font-size: 13px; }
+    .dim-header .dim-desc { font-size: 11px; color: var(--sm-text-tertiary); font-weight: 400; margin-left: 4px; }
+
+    .dim-content { display: flex; gap: 14px; flex-wrap: wrap; min-height: 80px; position: relative; z-index: 2; }
+
+    /* 一级指标行 */
+    .dim-row-primary { display: flex; gap: 14px; flex-wrap: wrap; position: relative; z-index: 2; }
+    /* 二级指标行 */
+    .dim-row-secondary {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      margin-top: 12px; padding-left: 24px;
+      position: relative; z-index: 2;
+    }
+    .dim-row-secondary::before {
+      content: '';
+      position: absolute; left: 6px; top: -12px; bottom: 50%;
+      width: 1px; border-left: 1px dashed #d1d5db;
+    }
+    .dim-row-secondary::after {
+      content: '';
+      position: absolute; left: 6px; top: 50%;
+      width: 16px; height: 1px; border-top: 1px dashed #d1d5db;
+    }
+
+    /* 目标卡片 */
+    .obj-card {
+      width: 175px; background: var(--sm-card-bg); border-radius: 8px;
+      border: 1px solid var(--sm-border); padding: 10px 12px 8px 12px;
+      position: relative; cursor: pointer; transition: all 0.25s ease; z-index: 2;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      display: flex; flex-direction: column;
+    }
+    .obj-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.08); transform: translateY(-1px); border-color: #d1d5db; }
+    .obj-card.dimmed { opacity: 0.35; filter: grayscale(0.6); }
+
+    /* 二级指标卡片 */
+    .obj-card.secondary-level {
+      width: 130px; background: #fafbfc;
+      padding: 8px 10px 6px 10px;
+      border-top: 2px dashed;
+    }
+    .obj-card.secondary-level.dim-fin { border-top-color: var(--sm-fin); }
+    .obj-card.secondary-level.dim-cus { border-top-color: var(--sm-cus); }
+    .obj-card.secondary-level.dim-int { border-top-color: var(--sm-int); }
+    .obj-card.secondary-level.dim-lea { border-top-color: var(--sm-lea); }
+    .obj-card.secondary-level .obj-bar { width: 0; }
+    .obj-card.secondary-level .obj-name { font-size: 11px; padding-left: 0; }
+    .obj-card.secondary-level .obj-desc { font-size: 9px; padding-left: 0; }
+
+    .obj-bar {
+      position: absolute; left: 0; top: 6px; bottom: 6px;
+      width: 3px; border-radius: 0 3px 3px 0;
+    }
+    .obj-bar.fin { background: var(--sm-fin); }
+    .obj-bar.cus { background: var(--sm-cus); }
+    .obj-bar.int { background: var(--sm-int); }
+    .obj-bar.lea { background: var(--sm-lea); }
+
+    .obj-name {
+      font-size: 12px; font-weight: 600; margin-bottom: 4px;
+      padding-left: 6px; display: flex; align-items: center; gap: 4px; line-height: 1.3;
+    }
+    .obj-focus { font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 500; white-space: nowrap; }
+    .obj-focus.primary { background: #fef3c7; color: #d97706; }
+    .obj-focus.secondary { background: #f3f4f6; color: var(--sm-text-secondary); }
+
+    .obj-desc { font-size: 10px; color: var(--sm-text-tertiary); line-height: 1.4; margin-bottom: 6px; padding-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* 里程碑 */
+    .ms-toggle {
+      padding: 2px 6px; border: none; background: transparent;
+      color: #d1d5db; font-size: 10px; cursor: pointer;
+      transition: color 0.2s; border-radius: 4px;
+      display: inline-flex; align-items: center; gap: 2px; opacity: 0.5;
+    }
+    .obj-card:hover .ms-toggle { color: #9ca3af; opacity: 1; }
+    .ms-toggle:hover { color: #6b7280; background: #f9fafb; }
+
+    .ms-wrap {
+      width: 100%; box-sizing: border-box;
+      background: var(--sm-card-bg); border: 1px solid var(--sm-border);
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 0 10px;
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+      opacity: 0; margin-top: 0;
+    }
+    .ms-wrap.open { max-height: 300px; opacity: 1; padding: 8px 10px; margin-top: 8px; }
+
+    .ms-pills { display: flex; gap: 4px; }
+    .ms-pill { flex: 1; text-align: center; padding: 4px 2px; border-radius: 4px; font-size: 10px; }
+    .ms-pill.primary { background: #fef3c7; border: 1px solid #fcd34d; }
+    .ms-pill.secondary { background: #f3f4f6; border: 1px solid var(--sm-border); }
+    .ms-pill .yr { font-weight: 600; color: #374151; }
+    .ms-pill .val { color: var(--sm-text-secondary); }
+
+    .ms-box { background: #f8fafc; border-radius: 5px; padding: 8px 10px; }
+    .ms-box-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .ms-box-year { font-size: 11px; font-weight: 600; color: #374151; }
+    .ms-box-status { font-size: 9px; padding: 1px 6px; border-radius: 8px; }
+    .ms-box-status.on_track { background: #d1fae5; color: #047857; }
+    .ms-box-status.at_risk { background: #fee2e2; color: #dc2626; }
+    .ms-box-status.not_started { background: #f3f4f6; color: var(--sm-text-tertiary); }
+    .ms-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    .ms-row label { color: var(--sm-text-tertiary); font-size: 10px; }
+    .ms-row .target { font-weight: 600; color: var(--sm-text); }
+    .ms-row .actual { color: var(--sm-text-secondary); font-size: 10px; }
+    .ms-progress { flex: 1; height: 4px; background: var(--sm-border); border-radius: 2px; overflow: hidden; margin-left: 2px; }
+    .ms-progress-fill { height: 100%; border-radius: 2px; }
+    .ms-progress-fill.on_track { background: var(--sm-cus); }
+    .ms-progress-fill.at_risk { background: #ef4444; }
+    .ms-progress-fill.not_started { background: #d1d5db; }
+
+    /* 连接点 */
+    .obj-ports { display: flex; justify-content: space-between; align-items: center; padding: 0 2px; margin-top: 6px; }
+    .port { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #d1d5db; background: #fff; transition: all 0.2s; }
+    .port:hover { border-color: var(--primary); background: #dbeafe; transform: scale(1.3); }
+
+    /* 详情面板 */
+    .detail-panel {
+      position: fixed; right: 0; top: 52px; bottom: 0; width: 300px;
+      background: var(--sm-card-bg); border-left: 1px solid var(--sm-border);
+      padding: 16px; overflow-y: auto; z-index: 10;
+      transform: translateX(100%); transition: transform 0.3s ease;
+    }
+    .detail-panel.open { transform: translateX(0); }
+    .detail-close { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; border-radius: 5px; border: none; background: #f3f4f6; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--sm-text-secondary); }
+    .detail-close:hover { background: #e5e7eb; }
+    .detail-dim { font-size: 11px; color: var(--sm-text-tertiary); margin-bottom: 3px; }
+    .detail-name { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+    .detail-desc { font-size: 12px; color: #4b5563; line-height: 1.6; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f3f4f6; }
+    .detail-section { margin-bottom: 16px; }
+    .detail-section-title { font-size: 11px; font-weight: 600; color: var(--sm-text-secondary); margin-bottom: 8px; }
+    .detail-tag { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 11px; background: #f3f4f6; color: #4b5563; margin-right: 4px; margin-bottom: 4px; }
+    .ms-table { width: 100%; }
+    .ms-table th, .ms-table td { text-align: left; padding: 6px 4px; font-size: 11px; }
+    .ms-table th { color: var(--sm-text-tertiary); font-weight: 500; border-bottom: 1px solid #f3f4f6; }
+    .ms-table td { color: #374151; border-bottom: 1px solid #f9fafb; }
+    .focus-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 3px; }
+    .focus-dot.primary { background: #f59e0b; }
+    .focus-dot.secondary { background: #d1d5db; }
+
+    /* 弹窗 */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--sm-card-bg); border-radius: 10px; width: 480px; max-width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--sm-border); display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .modal-close { width: 28px; height: 28px; border-radius: 6px; border: none; background: #f3f4f6; cursor: pointer; font-size: 16px; color: var(--sm-text-secondary); }
+    .modal-close:hover { background: #e5e7eb; }
+    .modal-body { padding: 16px 20px; }
+    .form-row { margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 500; margin-bottom: 4px; display: block; color: var(--sm-text); }
+    .form-label .req { color: #ef4444; }
+    .form-input, .form-textarea, .form-select {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--sm-border); border-radius: 6px;
+      font-size: 13px; font-family: inherit; background: #fff; color: var(--sm-text);
+    }
+    .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(22,119,255,0.1); }
+    .form-textarea { min-height: 60px; resize: vertical; }
+    .form-radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
+    .form-radio { display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; }
+    .form-radio input { margin: 0; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid var(--sm-border); display: flex; justify-content: flex-end; gap: 8px; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+    .btn-default { background: #fff; border-color: var(--sm-border); color: var(--sm-text); }
+    .btn-default:hover { background: #f9fafb; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger { background: #fff; border-color: #fee2e2; color: #dc2626; }
+    .btn-danger:hover { background: #fef2f2; }
+
+    /* 里程碑编辑表格 */
+    .ms-edit-table { width: 100%; border-collapse: collapse; }
+    .ms-edit-table th, .ms-edit-table td { padding: 6px; font-size: 11px; border: 1px solid var(--sm-border); text-align: center; }
+    .ms-edit-table th { background: #f8fafc; color: var(--sm-text-secondary); font-weight: 500; }
+    .ms-edit-table td input, .ms-edit-table td select { width: 100%; padding: 4px 6px; border: 1px solid var(--sm-border); border-radius: 4px; font-size: 11px; }
+    .ms-edit-table td input:focus, .ms-edit-table td select:focus { outline: none; border-color: var(--primary); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 16px; border-radius: 8px;
+      font-size: 13px; color: #fff; background: var(--sm-text); z-index: 3000;
+      transform: translateY(20px); opacity: 0; transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: var(--sm-cus); }
+    .toast.error { background: #ef4444; }
+
+    /* 工具栏 */
+    .toolbar {
+      display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+      background: #fff; border-bottom: 1px solid var(--sm-border);
+    }
+    .toolbar-group { display: flex; align-items: center; gap: 4px; }
+    .toolbar-sep { width: 1px; height: 20px; background: var(--sm-border); margin: 0 4px; }
+    .tool-btn {
+      padding: 5px 10px; border: 1px solid transparent; border-radius: 5px;
+      background: transparent; font-size: 12px; cursor: pointer; color: var(--sm-text-secondary);
+      display: flex; align-items: center; gap: 4px; transition: all 0.15s;
+    }
+    .tool-btn:hover { background: #f3f4f6; }
+    .tool-btn.active { background: #eff6ff; border-color: var(--primary); color: var(--primary); }
+    .tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* 维度筛选按钮 */
+    .dim-filter-btn {
+      padding: 5px 10px; border: 1px solid var(--sm-border); border-radius: 5px;
+      background: #fff; font-size: 12px; cursor: pointer; color: var(--sm-text-secondary);
+      display: flex; align-items: center; gap: 5px; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .dim-filter-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+    .dim-filter-btn.active { border-color: currentColor; background: #fff; color: var(--sm-text); font-weight: 500; }
+    .dim-filter-btn:not(.active) { opacity: 0.5; }
+    .dim-filter-btn .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* 左侧目标列表面板 */
+    .obj-list-panel {
+      position: fixed; right: 12px; top: 120px;
+      width: 220px; max-height: calc(100vh - 140px);
+      background: var(--sm-card-bg); border: 1px solid var(--sm-border);
+      border-radius: 10px;
+      box-shadow: -2px 4px 16px rgba(0,0,0,0.08);
+      z-index: 15; overflow: hidden;
+      transition: transform 0.3s ease, opacity 0.2s ease;
+    }
+    .obj-list-panel.collapsed {
+      transform: translateX(calc(100% + 12px));
+      opacity: 0;
+      pointer-events: none;
+    }
+    .obj-list-toggle-fab {
+      position: fixed; right: 12px; top: 120px;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--sm-card-bg); border: 1px solid var(--sm-border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 14; font-size: 14px; color: var(--sm-text-secondary);
+      transition: all 0.2s;
+    }
+    .obj-list-toggle-fab:hover { background: #f3f4f6; }
+    .obj-list-panel:not(.collapsed) ~ .obj-list-toggle-fab { display: none; }
+    .obj-list-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 12px; cursor: pointer;
+      border-bottom: 1px solid var(--sm-border);
+      background: #f8fafc; user-select: none;
+    }
+    .obj-list-header:hover { background: #f3f4f6; }
+    .obj-list-title { font-size: 13px; font-weight: 600; flex: 1; }
+    .obj-list-count {
+      font-size: 11px; color: var(--sm-text-tertiary);
+      background: #e5e7eb; padding: 1px 6px; border-radius: 8px;
+    }
+    .obj-list-toggle {
+      font-size: 11px; color: var(--sm-text-tertiary);
+      transition: transform 0.2s;
+    }
+    .obj-list-panel.collapsed .obj-list-toggle { transform: rotate(180deg); }
+    .obj-list-body {
+      padding: 8px 10px; overflow-y: auto; max-height: calc(100vh - 170px);
+      transition: opacity 0.2s;
+    }
+    .obj-list-body .obj-list-item {
+      padding: 7px 10px; border-radius: 6px; font-size: 12px;
+      margin-bottom: 3px; cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.15s; color: var(--sm-text);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .obj-list-body .obj-list-item:hover { background: #f3f4f6; }
+    .obj-list-body .obj-list-item.dimmed { opacity: 0.35; }
+    .obj-list-body .obj-list-item .item-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    /* 侧边栏筛选激活态 */
+    .sidebar-item.active { background: #eff6ff !important; color: var(--primary) !important; font-weight: 500; }
+    [data-theme="dark"] .sidebar-item.active { background: rgba(22,119,255,0.15) !important; }
+
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+      .sm-canvas-wrap { padding: 0 8px; }
+      .dim-content { gap: 8px; }
+      .obj-card { width: calc(50% - 4px); }
+      .detail-panel { width: 100%; }
+      .obj-list-panel,
+      .obj-list-toggle-fab { display: none; }
+      .toolbar { flex-wrap: wrap; gap: 4px; padding: 8px 12px; }
+      .map-selector { max-width: 140px; }
+      .map-selector select { max-width: 90px; }
+    }
+    @media (max-width: 480px) {
+      .sm-canvas-wrap { padding: 0 4px; }
+      .obj-card { width: 100%; }
+      .obj-card.secondary-level { width: 100%; }
+      .dim-row-secondary { padding-left: 12px; }
+      .dim-row-secondary::before { left: 2px; }
+      .dim-row-secondary::after { left: 2px; width: 8px; }
+      .detail-panel { top: 0; width: 100vw; z-index: 100; }
+      .toolbar-group { flex-wrap: wrap; }
+      .annual-toggle { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== Shell 框架 ===== -->
+<div class="app">
+  <!-- 顶部导航 -->
+  <nav class="top-nav">
+    <div class="top-nav-brand">
+      <div class="top-nav-logo">D</div>
+      <span class="top-nav-title">DSTE 战略管理平台</span>
+    </div>
+    <ul class="top-nav-links">
+      <li><a href="cockpit.html#dashboard" title="驾驶舱">🎛️ <span class="nav-full-label">驾驶舱</span></a></li>
+      <li><a href="cockpit.html#sp/strategy-map" class="active" title="战略制定">🎯 <span class="nav-full-label">SP</span></a></li>
+      <li><a href="cockpit.html#bp/kpi" title="战略解码">🔧 <span class="nav-full-label">BP</span></a></li>
+      <li><a href="cockpit.html#exe/tasks" title="战略执行">🚀 <span class="nav-full-label">执行</span></a></li>
+      <li><a href="cockpit.html#rev/performance" title="战略评估">📊 <span class="nav-full-label">评估</span></a></li>
+      <li><a href="cockpit.html#ai" title="AI 助手">🤖 <span class="nav-full-label">AI</span></a></li>
+    </ul>
+    <div class="top-nav-actions">
+      <span id="current-user" style="font-size:13px;color:var(--text-secondary);">👤 用户</span>
+    </div>
+  </nav>
+
+  <!-- 主体 -->
+  <div class="app-body">
+    <!-- 左侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-group">
+        <div class="sidebar-group-title">战略制定 (SP)</div>
+        <a href="strategy-map-list.html" class="sidebar-item active"><span class="icon">🗺️</span>战略地图</a>
+        <a href="cockpit.html#sp/insights-topics" class="sidebar-item"><span class="icon">🔭</span>战略洞察与专题</a>
+      </div>
+      <div class="sidebar-quick">快捷工具</div>
+      <div class="sidebar-group">
+        <a href="reviewer.html" class="sidebar-item"><span class="icon">📋</span>会议材料审核</a>
+      </div>
+    </aside>
+
+    <!-- 内容区 -->
+    <main class="content-area" id="mainArea">
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <a href="strategy-map-list.html" class="sm-back" style="margin-right: 8px;">← 返回列表</a>
+        <div class="map-selector">
+          <label>🗺️ 战略地图</label>
+          <select id="mapSelect"></select>
+          <button class="map-config-btn" id="mapConfigBtn" title="地图配置">⚙️</button>
+        </div>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group">
+        <span style="font-size:12px;color:var(--sm-text-secondary);margin-right:4px;">📅 年度视角</span>
+        <div class="annual-toggle">
+          <button class="annual-btn active" data-year="all">全部</button>
+          <button class="annual-btn" data-year="2025">2025</button>
+          <button class="annual-btn" data-year="2026">2026<span class="fire">🔥</span></button>
+          <button class="annual-btn" data-year="2027">2027</button>
+        </div>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group">
+        <button class="tool-btn" id="globalToggle" data-action="toggle-all-ms">
+          <span id="globalToggleText">▼ 展开全部分解</span>
+        </button>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group">
+        <span style="font-size:12px;color:var(--sm-text-secondary);margin-right:4px;">🔍 维度筛选</span>
+        <button class="dim-filter-btn active" data-action="filter-dim" data-dim="fin" title="财务维度">
+          <span class="dot" style="background:#1677FF;"></span>财务
+        </button>
+        <button class="dim-filter-btn active" data-action="filter-dim" data-dim="cus" title="客户维度">
+          <span class="dot" style="background:#52C41A;"></span>客户
+        </button>
+        <button class="dim-filter-btn active" data-action="filter-dim" data-dim="int" title="内部流程维度">
+          <span class="dot" style="background:#FAAD14;"></span>内部流程
+        </button>
+        <button class="dim-filter-btn active" data-action="filter-dim" data-dim="lea" title="学习成长维度">
+          <span class="dot" style="background:#722ED1;"></span>学习成长
+        </button>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group">
+        <button class="tool-btn" data-action="new-obj">➕ 新建目标</button>
+        <button class="tool-btn" data-action="export-map">📥 导出</button>
+      </div>
+    </div>
+
+    <div class="sm-canvas-wrap">
+      <div class="sm-canvas" id="canvas">
+        <svg class="links-svg" id="linksSvg">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+            </marker>
+            <marker id="arrowhead-dashed" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#b4b4b8" />
+            </marker>
+            <marker id="arrowhead-supports" markerWidth="6" markerHeight="5" refX="5" refY="2.5" orient="auto">
+              <polygon points="0 0, 6 2.5, 0 5" fill="#e5e7eb" />
+            </marker>
+          </defs>
+        </svg>
+
+        <!-- 财务维度 -->
+        <div class="dim-section">
+          <div class="dim-header fin">
+            <span class="dim-icon">💰</span>
+            <span class="dim-name">财务维度</span>
+            <span class="dim-desc">股东价值最大化</span>
+          </div>
+          <div class="dim-content" id="dim-fin"></div>
+        </div>
+
+        <!-- 客户维度 -->
+        <div class="dim-section">
+          <div class="dim-header cus">
+            <span class="dim-icon">🤝</span>
+            <span class="dim-name">客户维度</span>
+            <span class="dim-desc">客户价值主张</span>
+          </div>
+          <div class="dim-content" id="dim-cus"></div>
+        </div>
+
+        <!-- 内部流程维度 -->
+        <div class="dim-section">
+          <div class="dim-header int">
+            <span class="dim-icon">⚙️</span>
+            <span class="dim-name">内部流程维度</span>
+            <span class="dim-desc">运营卓越</span>
+          </div>
+          <div class="dim-content" id="dim-int"></div>
+        </div>
+
+        <!-- 学习与成长维度 -->
+        <div class="dim-section">
+          <div class="dim-header lea">
+            <span class="dim-icon">📚</span>
+            <span class="dim-name">学习与成长维度</span>
+            <span class="dim-desc">组织能力建设</span>
+          </div>
+          <div class="dim-content" id="dim-lea"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 详情面板 -->
+<div class="detail-panel" id="detailPanel">
+  <button class="detail-close" data-action="close-detail">×</button>
+  <div id="detailContent"></div>
+</div>
+
+<!-- 右侧目标列表面板 -->
+<div class="obj-list-panel collapsed" id="objListPanel">
+  <div class="obj-list-header" data-action="toggle-obj-list">
+    <span class="obj-list-title">📋 目标列表</span>
+    <span class="obj-list-count" id="objListCount">0</span>
+    <span class="obj-list-toggle" id="objListToggle">◀</span>
+  </div>
+  <div class="obj-list-body" id="objListBody">
+    <div id="objList"></div>
+  </div>
+</div>
+<div class="obj-list-toggle-fab" id="objListFab" data-action="toggle-obj-list" title="展开目标列表">📋</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal-overlay" id="objModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">编辑战略目标</span>
+      <button class="modal-close" onclick="closeObjModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">目标名称 <span class="req">*</span></label>
+        <input type="text" class="form-input" id="modalObjName" placeholder="如：营收增长30%">
+      </div>
+      <div class="form-row">
+        <label class="form-label">所属维度 <span class="req">*</span></label>
+        <div class="form-radio-group">
+          <label class="form-radio"><input type="radio" name="modalDim" value="fin"> 💰 财务</label>
+          <label class="form-radio"><input type="radio" name="modalDim" value="cus"> 🤝 客户</label>
+          <label class="form-radio"><input type="radio" name="modalDim" value="int"> ⚙️ 内部流程</label>
+          <label class="form-radio"><input type="radio" name="modalDim" value="lea"> 📚 学习成长</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">目标描述</label>
+        <textarea class="form-textarea" id="modalObjDesc" placeholder="描述该战略目标的具体内容..."></textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">负责人</label>
+        <input type="text" class="form-input" id="modalObjOwner" placeholder="如：销售总监">
+      </div>
+      <div class="form-row">
+        <label class="form-label">📅 年度里程碑（2025-2027）</label>
+        <table class="ms-edit-table">
+          <tr><th>年份</th><th>目标值</th><th>重点级别</th></tr>
+          <tr>
+            <td>2025</td>
+            <td><input type="text" id="ms2025Target" placeholder="如：10%"></td>
+            <td>
+              <select id="ms2025Focus">
+                <option value="primary">🔥 重点</option>
+                <option value="secondary">○ 次要</option>
+                <option value="none">— 不关注</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>2026</td>
+            <td><input type="text" id="ms2026Target" placeholder="如：20%"></td>
+            <td>
+              <select id="ms2026Focus">
+                <option value="primary">🔥 重点</option>
+                <option value="secondary">○ 次要</option>
+                <option value="none">— 不关注</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>2027</td>
+            <td><input type="text" id="ms2027Target" placeholder="如：30%"></td>
+            <td>
+              <select id="ms2027Focus">
+                <option value="primary">🔥 重点</option>
+                <option value="secondary">○ 次要</option>
+                <option value="none">— 不关注</option>
+              </select>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeObjModal()">取消</button>
+      <button class="btn btn-danger" id="modalDeleteBtn" onclick="deleteObj()" style="display:none;">删除</button>
+      <button class="btn btn-primary" onclick="saveObjModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import {
+  MapConfigStore, ObjectiveStore, LinkStore,
+  exportMapData, LINK_TYPES, DEFAULT_MAP_ID
+} from './lib/strategy-map-data.js';
+import { render, drawLinks, getCausalChain, getObjById } from './lib/strategy-map-render.js';
+import {
+  ToastManager, ModalManager, DetailPanelManager,
+  TooltipManager, ChainHighlighter, bindGlobalModalHandlers
+} from './lib/strategy-map-ui.js';
+
+// ========== 状态 ==========
+const state = {
+  mapId: DEFAULT_MAP_ID,
+  mapConfig: null,
+  objectives: [],
+  links: [],
+  currentView: 'all',
+  activeDimFilter: null,
+  allExpanded: false,
+};
+
+// ========== 初始化 ==========
+function init() {
+  bindGlobalModalHandlers();
+  loadUrlState();
+  loadCurrentMap();
+  renderMapSelector();
+  updateToolbarState();
+  bindEvents();
+  refresh();
+  window.addEventListener('resize', () => requestAnimationFrame(redrawLinks));
+
+  const canvas = document.getElementById('canvas');
+  if (canvas && typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(redrawLinks);
+    });
+    ro.observe(canvas);
+  }
+}
+
+function loadCurrentMap() {
+  state.mapId = MapConfigStore.getCurrentId();
+  state.mapConfig = MapConfigStore.get(state.mapId);
+  state.objectives = ObjectiveStore.load(state.mapId);
+  state.links = LinkStore.load(state.mapId);
+
+  if (!state.mapConfig) {
+    state.mapId = DEFAULT_MAP_ID;
+    MapConfigStore.setCurrentId(state.mapId);
+    state.mapConfig = MapConfigStore.get(state.mapId);
+    state.objectives = ObjectiveStore.load(state.mapId);
+    state.links = LinkStore.load(state.mapId);
+  }
+}
+
+function switchMap(mapId) {
+  if (mapId === state.mapId) return;
+  MapConfigStore.setCurrentId(mapId);
+  loadCurrentMap();
+  renderMapSelector();
+  refresh();
+  syncUrlState();
+}
+
+// ========== 渲染 ==========
+function refresh() {
+  render({
+    objectives: state.objectives,
+    currentView: state.currentView,
+    activeDimFilter: state.activeDimFilter,
+    allExpanded: state.allExpanded
+  });
+  requestAnimationFrame(redrawLinks);
+  updateToolbarState();
+}
+
+function redrawLinks() {
+  drawLinks({ links: state.links, objectives: state.objectives });
+  bindLinkEvents();
+}
+
+function updateToolbarState() {
+  document.querySelectorAll('.annual-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.year === state.currentView);
+  });
+
+  const dimBtns = { fin: 'dimFilter-fin', cus: 'dimFilter-cus', int: 'dimFilter-int', lea: 'dimFilter-lea' };
+  Object.entries(dimBtns).forEach(([dim, id]) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle('active', state.activeDimFilter === null || state.activeDimFilter === dim);
+  });
+
+  const globalToggle = document.getElementById('globalToggle');
+  const globalToggleText = document.getElementById('globalToggleText');
+  if (globalToggle && globalToggleText) {
+    globalToggle.classList.toggle('active', state.allExpanded);
+    globalToggleText.textContent = state.allExpanded ? '▲ 收起全部分解' : '▼ 展开全部分解';
+  }
+}
+
+function renderMapSelector() {
+  const select = document.getElementById('mapSelect');
+  if (!select) return;
+  const maps = MapConfigStore.getAll();
+  select.innerHTML = maps.map(m =>
+    `<option value="${m.id}" ${m.id === state.mapId ? 'selected' : ''}>${m.name}</option>`
+  ).join('');
+}
+
+// ========== 事件绑定 ==========
+function bindEvents() {
+  document.querySelector('.toolbar').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+
+    switch (action) {
+      case 'toggle-all-ms':
+        toggleAllMs();
+        break;
+      case 'filter-dim':
+        filterDim(btn.dataset.dim);
+        break;
+      case 'new-obj':
+        openObjModal();
+        break;
+      case 'export-map':
+        exportMap();
+        break;
+    }
+  });
+
+  document.querySelectorAll('.annual-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.currentView = btn.dataset.year;
+      refresh();
+      syncUrlState();
+    });
+  });
+
+  document.getElementById('mapSelect')?.addEventListener('change', (e) => {
+    switchMap(e.target.value);
+  });
+
+  document.getElementById('mapConfigBtn')?.addEventListener('click', () => {
+    ModalManager.openMapConfigModal({
+      config: state.mapConfig,
+      onSave: handleMapConfigSave
+    });
+  });
+
+  document.getElementById('canvas').addEventListener('click', (e) => {
+    const card = e.target.closest('.obj-card');
+    const toggleBtn = e.target.closest('[data-action="toggle-ms"]');
+
+    if (toggleBtn) {
+      const cid = toggleBtn.dataset.ms;
+      toggleMs(cid, toggleBtn);
+      return;
+    }
+
+    if (card) {
+      const obj = getObjById(state.objectives, card.dataset.id);
+      if (obj) DetailPanelManager.open(obj);
+    }
+  });
+
+  document.body.addEventListener('click', (e) => {
+    const actionEl = e.target.closest('[data-action]');
+    if (!actionEl) return;
+    const action = actionEl.dataset.action;
+
+    switch (action) {
+      case 'close-detail':
+        DetailPanelManager.close();
+        break;
+      case 'toggle-obj-list':
+        document.getElementById('objListPanel')?.classList.toggle('collapsed');
+        break;
+      case 'edit-obj':
+        openObjModal(actionEl.dataset.id);
+        break;
+      case 'close-map-config':
+        ModalManager.closeMapConfigModal();
+        break;
+      case 'save-map-config':
+        ModalManager.saveMapConfigModal();
+        break;
+    }
+  });
+
+  document.getElementById('detailPanel')?.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('[data-action="edit-obj"]');
+    if (editBtn) openObjModal(editBtn.dataset.id);
+  });
+
+  document.getElementById('objList')?.addEventListener('click', (e) => {
+    const item = e.target.closest('.obj-list-item');
+    if (!item) return;
+    const obj = getObjById(state.objectives, item.dataset.id);
+    if (obj) DetailPanelManager.open(obj);
+  });
+
+  document.getElementById('objModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'objModal') ModalManager.closeObjModal();
+  });
+
+  document.getElementById('canvas')?.addEventListener('click', (e) => {
+    if (e.target.id === 'canvas' || e.target.closest('.dim-section')) {
+      if (ChainHighlighter.isActive()) ChainHighlighter.clear();
+    }
+  });
+}
+
+function bindLinkEvents() {
+  const svg = document.getElementById('linksSvg');
+  if (!svg) return;
+
+  svg.querySelectorAll('.link-path').forEach(path => {
+    path.addEventListener('mouseenter', (e) => {
+      const fromId = path.dataset.from;
+      const toId = path.dataset.to;
+      const fromObj = getObjById(state.objectives, fromId);
+      const toObj = getObjById(state.objectives, toId);
+      const type = state.links.find(l => l.from === fromId && l.to === toId)?.type || 'drives';
+      const typeInfo = LINK_TYPES[type] || LINK_TYPES.drives;
+      const html = `
+        <div class="tt-title">${fromObj?.name || fromId} → ${toObj?.name || toId}</div>
+        <div class="tt-type">${typeInfo.label}：${typeInfo.desc}</div>
+      `;
+      TooltipManager.show(html, e.clientX, e.clientY);
+    });
+
+    path.addEventListener('mousemove', (e) => {
+      const fromId = path.dataset.from;
+      const toId = path.dataset.to;
+      const fromObj = getObjById(state.objectives, fromId);
+      const toObj = getObjById(state.objectives, toId);
+      const type = state.links.find(l => l.from === fromId && l.to === toId)?.type || 'drives';
+      const typeInfo = LINK_TYPES[type] || LINK_TYPES.drives;
+      const html = `
+        <div class="tt-title">${fromObj?.name || fromId} → ${toObj?.name || toId}</div>
+        <div class="tt-type">${typeInfo.label}：${typeInfo.desc}</div>
+      `;
+      TooltipManager.show(html, e.clientX, e.clientY);
+    });
+
+    path.addEventListener('mouseleave', () => {
+      TooltipManager.hide();
+    });
+
+    path.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const fromId = path.dataset.from;
+      const toId = path.dataset.to;
+      const chain = getCausalChain(fromId, toId, state.links);
+      ChainHighlighter.highlight({ fromId, toId, links: state.links, ...chain });
+    });
+  });
+}
+
+// ========== 交互逻辑 ==========
+function toggleMs(cid, btn) {
+  const el = document.getElementById(cid);
+  if (!el) return;
+  const open = el.classList.toggle('open');
+  btn.innerHTML = `<span>${open ? '▲' : '▼'}</span> 分解`;
+  requestAnimationFrame(redrawLinks);
+}
+
+function toggleAllMs() {
+  state.allExpanded = !state.allExpanded;
+  document.querySelectorAll('.ms-wrap').forEach(el => el.classList.toggle('open', state.allExpanded));
+  document.querySelectorAll('[data-action="toggle-ms"]').forEach(btn => {
+    btn.innerHTML = `<span>${state.allExpanded ? '▲' : '▼'}</span> 分解`;
+  });
+  updateToolbarState();
+  requestAnimationFrame(redrawLinks);
+}
+
+function filterDim(dim) {
+  state.activeDimFilter = state.activeDimFilter === dim ? null : dim;
+  refresh();
+  syncUrlState();
+}
+
+function openObjModal(objId) {
+  ModalManager.openObjModal({
+    objId,
+    objectives: state.objectives,
+    onSave: handleObjSave,
+    onDelete: handleObjDelete
+  });
+}
+
+function handleObjSave({ id, name, dim, desc, owner, milestones }) {
+  if (id) {
+    ObjectiveStore.update(state.mapId, id, { name, dim, desc, owner, milestones });
+    ToastManager.show('目标已更新', 'success');
+  } else {
+    const newId = 'so_' + dim + '_' + Date.now();
+    ObjectiveStore.create(state.mapId, { id: newId, name, desc, dim, milestones, owner, level: 'primary', kpiRef: null, taskRef: null });
+    ToastManager.show('目标已创建', 'success');
+  }
+  state.objectives = ObjectiveStore.load(state.mapId);
+  ModalManager.closeObjModal();
+  refresh();
+}
+
+function handleObjDelete(id) {
+  ObjectiveStore.delete(state.mapId, id);
+  LinkStore.deleteByObjective(state.mapId, id);
+  state.objectives = ObjectiveStore.load(state.mapId);
+  state.links = LinkStore.load(state.mapId);
+  ModalManager.closeObjModal();
+  DetailPanelManager.close();
+  refresh();
+  ToastManager.show('目标已删除', 'success');
+}
+
+function handleMapConfigSave(config) {
+  const isNew = !config.id;
+  let mapId = config.id;
+
+  if (isNew) {
+    mapId = MapConfigStore.buildId(config.dept, config.cycle.startYear, config.cycle.endYear);
+    if (MapConfigStore.get(mapId)) {
+      ToastManager.show('该部门与周期的战略地图已存在', 'error');
+      return;
+    }
+  }
+
+  const saved = MapConfigStore.save({ ...config, id: mapId });
+
+  if (isNew) {
+    ObjectiveStore.save(mapId, []);
+    LinkStore.save(mapId, []);
+  }
+
+  ModalManager.closeMapConfigModal();
+  ToastManager.show(isNew ? '战略地图已创建' : '地图配置已更新', 'success');
+
+  MapConfigStore.setCurrentId(saved.id);
+  loadCurrentMap();
+  renderMapSelector();
+  refresh();
+  syncUrlState();
+}
+
+function exportMap() {
+  const data = exportMapData(state.mapId, state.objectives, state.links);
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const label = state.mapConfig?.cycle
+    ? `${state.mapConfig.cycle.startYear}-${state.mapConfig.cycle.endYear}`
+    : '2025-2027';
+  a.download = `战略地图_${state.mapConfig?.deptName || '未命名'}_${label}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  ToastManager.show('战略地图已导出', 'success');
+}
+
+// ========== URL 状态 ==========
+function loadUrlState() {
+  const params = new URLSearchParams(location.search);
+  const year = params.get('year');
+  const dim = params.get('dim');
+  // 优先读取 ?id=，兼容旧 ?map=
+  const mapId = params.get('id') || params.get('map');
+
+  if (year && ['all', '2025', '2026', '2027'].includes(year)) {
+    state.currentView = year;
+  }
+  if (dim && ['fin', 'cus', 'int', 'lea'].includes(dim)) {
+    state.activeDimFilter = dim;
+  }
+  if (mapId) {
+    MapConfigStore.setCurrentId(mapId);
+  }
+}
+
+function syncUrlState() {
+  const params = new URLSearchParams();
+  if (state.currentView !== 'all') params.set('year', state.currentView);
+  if (state.activeDimFilter) params.set('dim', state.activeDimFilter);
+  if (state.mapId !== DEFAULT_MAP_ID) params.set('id', state.mapId);
+  const qs = params.toString();
+  const url = qs ? `${location.pathname}?${qs}` : location.pathname;
+  history.replaceState(null, '', url);
+}
+
+// ========== 启动 ==========
+init();
+</script>
+
+</body>
+</html>

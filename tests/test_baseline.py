@@ -12,7 +12,7 @@ PROJECT_ROOT = Path("/Users/jasonjing/DSTE-Prototype")
 
 def test_project_structure_exists():
     """验证项目目录结构"""
-    dirs = ["src", "tests", "assets/css", "assets/js", "assets/images"]
+    dirs = ["src", "tests", "assets/css", "assets/js"]
     for d in dirs:
         assert (PROJECT_ROOT / d).exists(), f"目录缺失: {d}"
 

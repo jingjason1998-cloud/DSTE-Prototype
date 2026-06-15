@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>战略地图 - DSTE战略管理平台</title>
+  <link rel="stylesheet" href="../assets/css/main.css?v=2">
+  <link rel="stylesheet" href="./styles/shell.css">
+  <script src="../assets/js/main.js"></script>
+  <script>
+    (function() {
+      const theme = DSTE.Storage.getString('dste-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      if (new URLSearchParams(location.search).get('embed') === '1') {
+        document.documentElement.setAttribute('data-embed', 'true');
+        if (window !== window.top) {
+          let lastHeight = 0;
+          const reportHeight = () => {
+            const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+            if (h !== lastHeight) { lastHeight = h; window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*'); }
+          };
+          reportHeight();
+          let timer;
+          window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+          if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+            ro.observe(document.body);
+          }
+        }
+      }
+      document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (menuToggle && sidebar && overlay) {
+          menuToggle.addEventListener('click', () => { sidebar.classList.toggle('open'); overlay.classList.toggle('open'); });
+          overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
+          sidebar.addEventListener('click', (e) => { if (e.target.closest('.sidebar-item')) { sidebar.classList.remove('open'); overlay.classList.remove('open'); } });
+        }
+      });
+    })();
+  </script>
+  <style>
+    /* ========== 战略地图列表页样式 ========== */
+    :root {
+      --sm-bg: #f8fafc;
+      --sm-card-bg: #fff;
+      --sm-border: #e5e7eb;
+      --sm-text: #1f2937;
+      --sm-text-secondary: #6b7280;
+      --sm-text-tertiary: #9ca3af;
+    }
+
+    .sm-list-container { min-height: calc(100vh - 52px); background: var(--sm-bg); }
+    .sm-list-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* 页面标题 */
+    .sm-list-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; gap: 16px; flex-wrap: wrap;
+    }
+    .sm-list-title { font-size: 22px; font-weight: 600; color: var(--sm-text); }
+    .sm-list-subtitle { font-size: 13px; color: var(--sm-text-secondary); margin-top: 4px; }
+
+    /* 工具栏 */
+    .sm-list-toolbar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      background: var(--sm-card-bg); border: 1px solid var(--sm-border);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
+    }
+    .sm-list-toolbar .search-box {
+      position: relative; flex: 1; min-width: 200px; max-width: 320px;
+    }
+    .sm-list-toolbar .search-box input {
+      width: 100%; padding: 7px 12px 7px 32px; border: 1px solid var(--sm-border);
+      border-radius: 6px; font-size: 13px; outline: none;
+    }
+    .sm-list-toolbar .search-box input:focus { border-color: var(--primary); }
+    .sm-list-toolbar .search-box::before {
+      content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      font-size: 12px; opacity: 0.5;
+    }
+    .sm-list-toolbar select {
+      padding: 7px 28px 7px 12px; border: 1px solid var(--sm-border);
+      border-radius: 6px; font-size: 13px; background: #fff; cursor: pointer;
+    }
+    .sm-list-toolbar .toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+    /* 统计 */
+    .sm-list-stats {
+      display: flex; gap: 16px; margin-bottom: 16px; font-size: 13px; color: var(--sm-text-secondary);
+    }
+    .sm-list-stats span strong { color: var(--sm-text); margin-right: 3px; }
+
+    /* 卡片网格 */
+    .sm-list-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    /* 地图卡片 */
+    .sm-map-card {
+      background: var(--sm-card-bg); border: 1px solid var(--sm-border);
+      border-radius: 10px; padding: 16px;
+      transition: all 0.2s ease; cursor: pointer;
+      position: relative; overflow: hidden;
+    }
+    .sm-map-card:hover {
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      transform: translateY(-2px); border-color: #d1d5db;
+    }
+    .sm-map-card.archived { opacity: 0.75; background: #fafbfc; }
+
+    .sm-map-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 10px; gap: 12px;
+    }
+    .sm-map-card-title {
+      font-size: 15px; font-weight: 600; color: var(--sm-text);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sm-map-card-title .icon { font-size: 18px; }
+    .sm-map-card-actions { display: flex; gap: 6px; }
+
+    .sm-map-card-meta {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      font-size: 12px; color: var(--sm-text-secondary); margin-bottom: 10px;
+    }
+    .sm-map-card-meta .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    .sm-map-card-desc {
+      font-size: 13px; color: var(--sm-text-secondary); line-height: 1.5;
+      margin-bottom: 12px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .sm-map-card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--sm-text-tertiary);
+      border-top: 1px solid #f3f4f6; padding-top: 12px;
+    }
+    .sm-map-card-dims { display: flex; gap: 10px; flex-wrap: wrap; }
+    .sm-map-card-dims span { display: flex; align-items: center; gap: 3px; }
+
+    /* 状态徽章扩展 */
+    .status-archived {
+      background: rgba(148, 163, 184, 0.12); color: #64748b;
+    }
+    .status-archived::before { background: #94a3b8; }
+
+    /* 空状态 */
+    .sm-list-empty {
+      text-align: center; padding: 80px 20px; color: var(--sm-text-secondary);
+    }
+    .sm-list-empty .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .sm-list-empty .title { font-size: 16px; font-weight: 600; color: var(--sm-text); margin-bottom: 8px; }
+    .sm-list-empty .desc { font-size: 13px; margin-bottom: 16px; }
+
+    /* 操作按钮 */
+    .btn-icon {
+      width: 28px; height: 28px; border: 1px solid transparent; border-radius: 6px;
+      background: transparent; cursor: pointer; font-size: 13px; color: var(--sm-text-secondary);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-icon:hover { background: #f3f4f6; color: var(--sm-text); }
+    .btn-icon.danger:hover { background: #fee2e2; color: #dc2626; }
+    .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* 弹窗 */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--sm-card-bg); border-radius: 10px; width: 520px;
+      max-width: 90vw; max-height: 85vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--sm-border);
+    }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .modal-close {
+      width: 28px; height: 28px; border: none; background: #f3f4f6; border-radius: 6px;
+      cursor: pointer; font-size: 16px; color: var(--sm-text-secondary);
+    }
+    .modal-close:hover { background: #e5e7eb; }
+    .modal-body { padding: 20px; }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding: 14px 20px; border-top: 1px solid var(--sm-border);
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--sm-text); }
+    .form-label .required { color: var(--danger); margin-left: 2px; }
+    .form-input, .form-textarea, .form-select {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--sm-border);
+      border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;
+    }
+    .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--primary); }
+    .form-textarea { min-height: 80px; resize: vertical; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+
+    .confirm-body { font-size: 14px; line-height: 1.6; color: var(--sm-text); }
+    .confirm-body .warn { color: var(--danger); font-weight: 500; }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <a href="../index.html" class="logo">DSTE</a>
+      <nav class="top-nav-links">
+        <a href="cockpit.html">驾驶舱</a>
+        <a href="cockpit.html#sp/strategy-map" class="active">SP</a>
+        <a href="cockpit.html#bp/kpi">BP</a>
+        <a href="cockpit.html#exe/tasks">执行</a>
+        <a href="cockpit.html#rev/performance">评估</a>
+        <a href="cockpit.html#ai">AI</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <button class="theme-toggle" id="theme-toggle" title="切换主题">🌓</button>
+      <div class="user-menu">
+        <button class="user-avatar" id="user-avatar">张</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="sm-list-container">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">战略制定 (SP)</div>
+      <nav class="sidebar-nav">
+        <a href="cockpit.html#sp/strategy-map" class="sidebar-item active">
+          <span class="sidebar-icon">🗺️</span>
+          <span class="sidebar-label">战略地图</span>
+        </a>
+        <a href="cockpit.html#sp/insights-topics" class="sidebar-item">
+          <span class="sidebar-icon">🔭</span>
+          <span class="sidebar-label">战略洞察与专题</span>
+        </a>
+      </nav>
+      <div class="sidebar-section-title">快捷工具</div>
+      <nav class="sidebar-nav">
+        <a href="reviewer.html" class="sidebar-item">
+          <span class="sidebar-icon">📋</span>
+          <span class="sidebar-label">会议材料审核</span>
+        </a>
+      </nav>
+    </aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- 主内容 -->
+    <main class="sm-list-main">
+      <div class="sm-list-header">
+        <div>
+          <div class="sm-list-title">战略地图</div>
+          <div class="sm-list-subtitle">管理战略规划周期，查看、编辑和发布战略地图</div>
+        </div>
+        <button class="btn btn-primary" data-action="new-map">+ 新建战略地图</button>
+      </div>
+
+      <div class="sm-list-toolbar">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="搜索地图名称或描述..." data-action="search">
+        </div>
+        <select id="filterStatus" data-action="filter-status">
+          <option value="">全部状态</option>
+          <option value="draft">草稿</option>
+          <option value="review">审批中</option>
+          <option value="approved">已发布</option>
+          <option value="archived">已归档</option>
+        </select>
+        <select id="filterCycle" data-action="filter-cycle">
+          <option value="">全部周期</option>
+        </select>
+        <div class="toolbar-actions">
+          <button class="btn btn-secondary" data-action="refresh">🔄 刷新</button>
+        </div>
+      </div>
+
+      <div class="sm-list-stats" id="listStats">
+        <span>共 <strong id="statTotal">0</strong> 张地图</span>
+        <span>已发布 <strong id="statApproved">0</strong></span>
+        <span>草稿 <strong id="statDraft">0</strong></span>
+      </div>
+
+      <div class="sm-list-grid" id="mapListGrid"></div>
+      <div class="sm-list-empty" id="emptyState" style="display: none;">
+        <div class="icon">🗺️</div>
+        <div class="title">暂无战略地图</div>
+        <div class="desc">点击右上角「新建战略地图」创建第一张地图</div>
+        <button class="btn btn-primary" data-action="new-map">新建战略地图</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- 地图创建/编辑弹窗 -->
+  <div class="modal-overlay" id="mapModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="mapModalTitle">新建战略地图</div>
+        <button class="modal-close" data-action="close-map-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="mapModalId">
+        <div class="form-group">
+          <label class="form-label">地图名称 <span class="required">*</span></label>
+          <input type="text" class="form-input" id="mapModalName" placeholder="如：2025-2027战略规划地图">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">部门编码</label>
+            <input type="text" class="form-input" id="mapModalDept" placeholder="如：yx">
+          </div>
+          <div class="form-group">
+            <label class="form-label">部门名称</label>
+            <input type="text" class="form-input" id="mapModalDeptName" placeholder="如：营销线">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">起始年 <span class="required">*</span></label>
+            <input type="number" class="form-input" id="mapModalStartYear" value="2025">
+          </div>
+          <div class="form-group">
+            <label class="form-label">结束年 <span class="required">*</span></label>
+            <input type="number" class="form-input" id="mapModalEndYear" value="2027">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">状态</label>
+          <select class="form-select" id="mapModalStatus">
+            <option value="draft">草稿</option>
+            <option value="review">审批中</option>
+            <option value="approved">已发布</option>
+            <option value="archived">已归档</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">版本标签</label>
+          <input type="text" class="form-input" id="mapModalVersionLabel" placeholder="如：v1.0 初始版">
+        </div>
+        <div class="form-group">
+          <label class="form-label">描述</label>
+          <textarea class="form-textarea" id="mapModalDesc" placeholder="简述该战略地图的规划范围与目标..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" data-action="close-map-modal">取消</button>
+        <button class="btn btn-primary" data-action="save-map">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除确认弹窗 -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="width: 420px;">
+      <div class="modal-header">
+        <div class="modal-title">确认删除</div>
+        <button class="modal-close" data-action="close-delete-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="confirm-body">
+          确定删除战略地图「<span id="deleteMapName"></span>」？
+          <br>该地图下的 <span id="deleteObjCount" class="warn">0</span> 个目标、<span id="deleteLinkCount" class="warn">0</span> 条因果链将一并删除。
+          <br>此操作不可恢复。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" data-action="close-delete-modal">取消</button>
+        <button class="btn btn-danger" data-action="confirm-delete">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" style="position: fixed; right: 20px; bottom: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 8px;"></div>
+
+  <script type="module" src="./lib/strategy-map-list.js"></script>
+</body>
+</html>

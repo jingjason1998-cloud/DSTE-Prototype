@@ -50,7 +50,7 @@ test.describe('Meeting clone', () => {
     await page.locator('#edit-title').fill(newTitle);
 
     // 保存
-    await page.locator('#meeting-editor-overlay button:has-text("保存")').click();
+    await page.locator('#meeting-editor-overlay button[onclick="saveMeeting()"]').click();
 
     // 验证进入详情页且标题正确
     const detailOverlay = page.locator('#meeting-detail-overlay');

@@ -27,32 +27,41 @@ test.describe('Meeting Create', () => {
     // 等待编辑弹窗出现
     await page.waitForSelector('#meeting-editor-overlay', { state: 'visible' });
 
+    // Debug: check edit-meeting-id and active overlay
+    const debugInfo = await page.evaluate(() => {
+      const allIds = document.querySelectorAll('#edit-meeting-id');
+      const activeOverlay = document.getElementById('meeting-editor-overlay');
+      return {
+        idCount: allIds.length,
+        firstId: allIds[0]?.value,
+        firstIdDisplay: window.getComputedStyle(allIds[0]?.closest('#meeting-editor-overlay, div') || allIds[0]).display,
+        overlayDisplay: activeOverlay?.style.display,
+        overlayId: activeOverlay?.querySelector('#edit-meeting-id')?.value,
+      };
+    });
+    console.log('Debug after open new:', debugInfo);
+
     // 填写会议名称
-    await page.fill('#edit-title', '片联年初季度会议');
+    await page.fill('#meeting-editor-overlay #edit-title', '片联年初季度会议');
+    await page.fill('#meeting-editor-overlay #edit-date', '2026-01-15');
+    await page.fill('#meeting-editor-overlay #edit-location', '总部大会议室');
+    await page.fill('#meeting-editor-overlay #edit-host', '陈总裁');
+    await page.fill('#meeting-editor-overlay #edit-recorder', 'Jason.Jing');
+    await page.selectOption('#meeting-editor-overlay #edit-scenario', 'union_quarterly');
+    await page.selectOption('#meeting-editor-overlay #edit-level', 'L1');
+    await page.selectOption('#meeting-editor-overlay #edit-status', 'planned');
 
-    // 填写日期
-    await page.fill('#edit-date', '2026-01-15');
-
-    // 填写地点
-    await page.fill('#edit-location', '总部大会议室');
-
-    // 填写主持人
-    await page.fill('#edit-host', '陈总裁');
-
-    // 填写记录人
-    await page.fill('#edit-recorder', 'Jason.Jing');
-
-    // 选择场景
-    await page.selectOption('#edit-scenario', 'union_quarterly');
-
-    // 选择层级
-    await page.selectOption('#edit-level', 'L1');
-
-    // 选择状态
-    await page.selectOption('#edit-status', 'planned');
+    const beforeSave = await page.evaluate(() => {
+      const allIds = document.querySelectorAll('#edit-meeting-id');
+      return {
+        idCount: allIds.length,
+        values: Array.from(allIds).map((el, i) => ({ i, value: el.value, display: window.getComputedStyle(el.closest('#meeting-editor-overlay, div') || el).display }))
+      };
+    });
+    console.log('Debug before save:', beforeSave);
 
     // 点击保存
-    const saveBtn = page.locator('#meeting-editor-overlay button:has-text("保存")');
+    const saveBtn = page.locator('#meeting-editor-overlay button[onclick="saveMeeting()"]');
     await saveBtn.click();
 
     // 等待详情弹窗出现（新建成功后自动打开详情）

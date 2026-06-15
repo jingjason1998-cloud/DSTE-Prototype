@@ -3,6 +3,13 @@
 // ---- 日历视图状态与渲染 ----
 window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
 
+function escapeHtml(text) {
+  if (text == null) return '';
+  const div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
 function renderCalendarMonth(year, month) {
   console.log('[Calendar] renderCalendarMonth called:', year, month);
   const header = document.getElementById('calendar-header');
@@ -61,8 +68,8 @@ function renderCalendarMonth(year, month) {
         ${dayMeetings.slice(0, 2).map(m => {
           const sc = window.SCENARIO_CONFIG[m.scenario] || { color: 'var(--text-secondary)', icon: '📋' };
           const st = window.STATUS_CONFIG[m.status] || window.STATUS_CONFIG.planned;
-          const title = m.title.slice(0, 12) + (m.title.length > 12 ? '...' : '');
-          const location = m.location ? m.location.slice(0, 6) + (m.location.length > 6 ? '...' : '') : '';
+          const title = escapeHtml(m.title).slice(0, 12) + (m.title.length > 12 ? '...' : '');
+          const location = m.location ? escapeHtml(m.location).slice(0, 6) + (m.location.length > 6 ? '...' : '') : '';
           const actionCount = (m.actions || []).length;
           const decisionCount = (m.decisions || []).length;
           return `<div data-calendar-meeting onclick="openMeetingDetail('${m.id}')" onmouseenter="showMeetingTooltip(this, true)" onmouseleave="showMeetingTooltip(this, false)" style="position: relative; padding: 2px 5px; border-radius: 3px; font-size: 10px; cursor: pointer; background: ${sc.color}18; color: ${sc.color}; border-left: 3px solid ${sc.color};">
@@ -73,11 +80,11 @@ function renderCalendarMonth(year, month) {
             <div class="meeting-tooltip" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 100; width: max-content; max-width: 280px; padding-top: 4px;">
               <div style="padding: 10px 14px; background: var(--bg-page); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); font-size: 12px; white-space: normal; line-height: 1.5; position: relative;">
                 <div style="position: absolute; top: -5px; left: 14px; width: 8px; height: 8px; background: var(--bg-page); border-left: 1px solid var(--border-color); border-top: 1px solid var(--border-color); transform: rotate(45deg);"></div>
-                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">${m.title}</div>
+                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">${escapeHtml(m.title)}</div>
                 <div style="color: var(--text-tertiary);">
-                  <div>📅 ${m.date} · ${sc.icon} ${sc.label}</div>
-                  <div>📍 ${m.location || '待定'} · 👤 ${m.host || '待定'}</div>
-                  <div>📊 ${st.label}${decisionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
+                  <div>📅 ${m.date} · ${sc.icon} ${escapeHtml(sc.label)}</div>
+                  <div>📍 ${escapeHtml(m.location) || '待定'} · 👤 ${escapeHtml(m.host) || '待定'}</div>
+                  <div>📊 ${escapeHtml(st.label)}${decisionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
                 </div>
                 <div style="margin-top: 8px; border-top: 1px solid var(--border-light); padding-top: 8px;">
                   <button type="button" onclick="event.stopPropagation(); cloneMeeting('${m.id}');" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; font-weight: 500; pointer-events: auto;">📋 复制此会议</button>
@@ -113,11 +120,11 @@ function renderCalendarMonth(year, month) {
           return `<div onclick="openMeetingDetail('${m.id}')" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s; border-left: 3px solid ${sc.color};">
             <span style="font-size: 12px; color: var(--text-tertiary); min-width: 60px;">${m.date.slice(5)}</span>
             <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.title}</div>
-              <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">📍 ${m.location || '待定'} · 👤 ${m.host || '待定'}${actionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
+              <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(m.title)}</div>
+              <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">📍 ${escapeHtml(m.location) || '待定'} · 👤 ${escapeHtml(m.host) || '待定'}${actionCount ? ' · ✅ ' + decisionCount + ' 决议' : ''}${actionCount ? ' · 🏃 ' + actionCount + ' 行动' : ''}</div>
             </div>
-            <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: ${sc.color}15; color: ${sc.color}; white-space: nowrap;">${sc.icon} ${sc.label}</span>
-            <span class="status-badge ${st.badgeClass}" style="font-size: 11px; white-space: nowrap;">${st.label}</span>
+            <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: ${sc.color}15; color: ${sc.color}; white-space: nowrap;">${sc.icon} ${escapeHtml(sc.label)}</span>
+            <span class="status-badge ${st.badgeClass}" style="font-size: 11px; white-space: nowrap;">${escapeHtml(st.label)}</span>
           </div>`;
         }).join('')}
       </div>
@@ -167,7 +174,7 @@ function renderCalendarYear(year) {
       const isToday = isCurrentMonth && d === today.getDate();
       const hasMeeting = dayMeetings.length > 0;
       const sc = hasMeeting ? window.SCENARIO_CONFIG[dayMeetings[0].scenario] : null;
-      miniGrid += `<div style="position: relative; display: flex; align-items: center; justify-content: center; height: 22px; font-size: 10px; color: ${isToday ? '#fff' : hasMeeting ? sc.color : 'var(--text-tertiary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; border-radius: 3px; cursor: ${hasMeeting ? 'pointer' : 'default'};" ${hasMeeting ? `onclick="switchCalendarView('month'); window._calendarState.year=${year}; window._calendarState.month=${m}; renderCalendarMonth(${year}, ${m});" title="${dayMeetings.map(dm => dm.title).join(', ')}"` : ''}>
+      miniGrid += `<div style="position: relative; display: flex; align-items: center; justify-content: center; height: 22px; font-size: 10px; color: ${isToday ? '#fff' : hasMeeting ? sc.color : 'var(--text-tertiary)'}; background: ${isToday ? 'var(--primary)' : 'transparent'}; border-radius: 3px; cursor: ${hasMeeting ? 'pointer' : 'default'};" ${hasMeeting ? `onclick="switchCalendarView('month'); window._calendarState.year=${year}; window._calendarState.month=${m}; renderCalendarMonth(${year}, ${m});" title="${dayMeetings.map(dm => escapeHtml(dm.title)).join(', ')}"` : ''}>
         ${d}
         ${hasMeeting ? `<div style="position: absolute; bottom: 2px; left: 20%; right: 20%; height: 2px; background: ${sc.color}; border-radius: 1px;"></div>` : ''}
       </div>`;

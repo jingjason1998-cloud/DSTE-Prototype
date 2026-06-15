@@ -44,10 +44,45 @@
 - **经营分析会保存失败**：`saveMeeting`/`deleteMeeting` 函数在全局作用域定义，但引用了 `renderMeetings` 内部的局部变量 `meetings`，导致 `ReferenceError: meetings is not defined`
   - 修复：在 `saveMeeting` 和 `deleteMeeting` 函数开头添加 `const meetings = window._meetingsData`
 
+## [v0.4.11] - 2026-06-15
+
+### Added
+- **战略地图模块**：
+  - 战略地图列表页（`src/strategy-map-list.html` + `src/lib/strategy-map-list.js`）：支持地图卡片展示、搜索/筛选/新建/编辑/删除
+  - 战略地图可视化详情页（`src/strategy-map.html` + `src/lib/strategy-map-data.js` / `strategy-map-render.js` / `strategy-map-ui.js`）：BSC 四维度战略目标、因果链高亮、CRUD、导出 JSON
+  - 顶部导航与侧边栏接入 `sp/strategy-map` 路由
+- **会前准备度**：
+  - 会议卡片与详情页展示准备度百分比
+  - 会前准备弹窗（`#meeting-preparation-overlay`）展示检查清单
+  - `computeMeetingReadiness` 计算会前报告、议题报表、材料诊断等维度
+- **统一本地存储封装 `DSTE.Storage`**（`assets/js/main.js` + `src/lib/utils.js`）：
+  - 提供 `get` / `set` / `remove` / `getString` / `setString` / `getKeys`
+  - 支持 JSON 自动序列化与容错兜底
+- **会议材料评审 API 封装**（`src/meetings/utils/reviewer.js`）：
+  - `reviewMaterial` / `createBatchReview` / `getBatchReviewProgress` / `getBatchReviewResults`
+  - 与 reviewer 后端代理统一交互，自动同步 `dste_review_scores`
+- **经营分析会通用辅助函数**（`src/meetings/utils/helpers.js`）：
+  - `getMaterialScore` / `getReportAssets` / `saveReportAssets` / `computeMeetingReadiness`
+- **测试补充**：
+  - E2E：`strategy-map.spec.js` / `strategy-map-list.spec.js` / `meeting-preparation.spec.js`
+  - 单元测试：`tests/unit/reviewer.test.js` / `tests/unit/meeting-readiness.test.js`
+
+### Changed
+- 全站 `localStorage` 直接调用迁移到 `DSTE.Storage`，统一错误处理与兜底值
+- `src/lib/shell.js` 的 `renderTopNav` / `renderSidebar` 从 `innerHTML` 改为 DOM 创建，提升安全性
+- 多处 `alert()` 替换为 `showToast()` 提示（登录页、经营分析会等）
+- `cockpit.html` OMP 数据版本清理后不再强制刷新页面，避免 E2E/首次加载不稳定
+
+### Fixed
+- **会议保存后详情浮层不显示**：`saveMeeting` 写入 `window._meetingsData`，但 `openMeetingDetail` 仍使用 `renderMeetings` 内的旧副本 `meetings`，导致新建/复制会议后找不到会议对象
+- **详情页编辑按钮失效**：详情页「编辑」按钮调用不存在的 `openEditMeeting`，改为 `openMeetingEditor`
+- **`src/lib/utils.js` SSR 兼容性**：`showToast` 中 `!document` 在 Node 环境会抛 `ReferenceError`，改为 `typeof document === 'undefined'`
+- **`scripts/health-check.cjs` 误报**：ESLint 配置检查只识别 `.eslintrc.js`，已兼容 `eslint.config.js`
+- **E2E 测试稳定性**：`test-sp-nav-verify.spec.js` 期望更新；`strategy-map-list.spec.js` 增加测试隔离，避免状态串扰
+
 ## [Unreleased]
 
 ### 计划中
-- 战略地图可视化页面（BSC 四维度）
 - KPI 详情下钻
 - 用户权限系统（替换当前模拟登录）
 - ST/AT 议题 Excel 模板下载

@@ -34,8 +34,9 @@ def test_reviewer_html_theme_sync():
     js_content = (SRC / "pages" / "reviewer" / "main.js").read_text(encoding="utf-8")
     combined = content + js_content
     assert "dste-theme" in combined, "未使用 dste-theme 键同步主题"
-    assert "localStorage.getItem('dste-theme')" in combined, "未读取DSTE主题"
-    assert "localStorage.setItem('dste-theme'" in combined, "未设置DSTE主题"
+    # 项目已统一使用 DSTE.Storage 封装 localStorage
+    assert "DSTE.Storage.getString('dste-theme')" in combined or "localStorage.getItem('dste-theme')" in combined, "未读取DSTE主题"
+    assert "DSTE.Storage.setString('dste-theme'" in combined or "localStorage.setItem('dste-theme'" in combined, "未设置DSTE主题"
     assert "storage" in combined, "未监听 storage 事件跨页面同步"
 
 def test_cockpit_has_strategy_topics_renderer():
@@ -148,13 +149,13 @@ def test_business_topics_theme_sync():
     """业务专题页面支持与DSTE主题同步（JS模块化后检查HTML和JS）"""
     html = (SRC / "business-topics.html").read_text(encoding="utf-8")
     assert "dste-theme" in html, "未使用 dste-theme 键同步主题"
-    # 主题读取在HTML头部内联script中（避免FOUC）
-    assert "localStorage.getItem('dste-theme')" in html, "未读取DSTE主题"
+    # 主题读取在HTML头部内联script中（避免FOUC），项目已统一使用 DSTE.Storage 封装
+    assert "DSTE.Storage.getString('dste-theme')" in html or "localStorage.getItem('dste-theme')" in html, "未读取DSTE主题"
     # 主题写入和storage监听在外部JS模块中
     js_file = SRC / "pages" / "business-topics" / "main.js"
     assert js_file.exists(), "业务专题JS模块不存在"
     js = js_file.read_text(encoding="utf-8")
-    assert "localStorage.setItem('dste-theme'" in js, "未设置DSTE主题"
+    assert "Storage.setString('dste-theme'" in js or "DSTE.Storage.setString('dste-theme'" in js or "localStorage.setItem('dste-theme'" in js, "未设置DSTE主题"
 
 def test_business_topics_light_override():
     """业务专题页面包含Light主题覆盖（在外部CSS文件中）"""
@@ -215,8 +216,8 @@ def test_meeting_list_has_edit_button():
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
     # 卡片内应有编辑按钮（通过 data-edit-id 属性标识）
     assert "data-edit-id" in content, "会议卡片缺少 data-edit-id 编辑按钮属性"
-    # 编辑按钮点击事件应导航到独立页面而非打开弹窗
-    assert "navigate('exe/meetings/edit')" in content, "编辑按钮未导航到独立编辑页面"
+    # 编辑按钮点击事件应渲染独立编辑页面而非打开弹窗
+    assert "renderMeetingEditPage()" in content, "编辑按钮未导航到独立编辑页面"
 
 def test_meeting_edit_page_route_exists():
     """经营分析会独立页面存在且包含编辑功能"""
@@ -334,21 +335,21 @@ def test_apiSave_persists_to_localStorage():
     """apiSave 必须在 API 不可用时保存到 localStorage 作为兜底，防止数据丢失"""
     content = (SRC / "cockpit.html").read_text(encoding="utf-8")
     apiSave_section = content.split("async function apiSave(")[1] if "async function apiSave(" in content else ""
-    # 无论 API_BASE 是否为空，都应先保存到 localStorage
-    assert "localStorage.setItem('dste_meetings'" in apiSave_section, "apiSave 未保存到 localStorage"
+    # 无论 API_BASE 是否为空，都应先保存到 dste_meetings（通过 DSTE.Storage 封装）
+    assert "DSTE.Storage.set('dste_meetings'" in apiSave_section, "apiSave 未保存到 dste_meetings"
     # 保存操作应在 API 调用之前执行
     apiSave_body = apiSave_section.split("async function apiLoad(")[0] if "async function apiLoad(" in apiSave_section else apiSave_section
-    localStorage_idx = apiSave_body.find("localStorage.setItem('dste_meetings'")
+    storage_idx = apiSave_body.find("DSTE.Storage.set('dste_meetings'")
     api_base_return_idx = apiSave_body.find("if (!API_BASE) return")
-    assert localStorage_idx != -1, "apiSave 中未找到 localStorage 保存逻辑"
-    assert api_base_return_idx == -1 or localStorage_idx < api_base_return_idx, "localStorage 保存应在 API_BASE 检查之前执行"
+    assert storage_idx != -1, "apiSave 中未找到 dste_meetings 保存逻辑"
+    assert api_base_return_idx == -1 or storage_idx < api_base_return_idx, "dste_meetings 保存应在 API_BASE 检查之前执行"
 
 def test_apiLoad_fallback_to_localStorage():
     """apiLoad 在 API 失败或无数据时应 fallback 到 localStorage"""
     content = (SRC / "cockpit.html").read_text(encoding="utf-8")
     apiLoad_section = content.split("async function apiLoad(")[1] if "async function apiLoad(" in content else ""
     apiLoad_body = apiLoad_section.split("async function init(")[0] if "async function init(" in apiLoad_section else apiLoad_section
-    assert "localStorage.getItem('dste_meetings'" in apiLoad_body, "apiLoad 未从 localStorage fallback"
+    assert "DSTE.Storage.getString('dste_meetings')" in apiLoad_body or "localStorage.getItem('dste_meetings')" in apiLoad_body, "apiLoad 未从 localStorage fallback"
     assert "JSON.parse" in apiLoad_body, "apiLoad 未解析 localStorage 数据"
 
 def test_init_sets_window_meetingsData():
@@ -365,9 +366,9 @@ def test_renderMeetings_uses_localStorage_fallback():
     """renderMeetings 初始化时应优先从 localStorage 加载，避免刷新后数据丢失"""
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
     meetings_section = content.split("function renderMeetings()")[1] if "function renderMeetings()" in content else ""
-    # 在 if (!window._meetingsData) 分支中应有 localStorage 读取逻辑
+    # 在 if (!window._meetingsData) 分支中应有 localStorage 读取逻辑（通过 DSTE.Storage 封装）
     data_model_section = meetings_section.split("// ---- 数据模型 ----")[1] if "// ---- 数据模型 ----" in meetings_section else meetings_section
-    assert "localStorage.getItem('dste_meetings'" in data_model_section, "renderMeetings 未从 localStorage fallback"
+    assert "DSTE.Storage.getString('dste_meetings')" in data_model_section or "localStorage.getItem('dste_meetings')" in data_model_section, "renderMeetings 未从 localStorage fallback"
     assert "JSON.parse" in data_model_section, "renderMeetings 未解析 localStorage 数据"
 
 def test_renderEditorForm_auto_save_draft():
@@ -447,9 +448,10 @@ def test_score_color_rules():
 def test_reviewer_syncs_score_to_localStorage():
     """reviewer 保存审核结果时应同步最高分到 localStorage"""
     js_content = (SRC / "pages" / "reviewer" / "main.js").read_text(encoding="utf-8")
-    save_section = js_content.split("function saveReviewRecord(")[1] if "function saveReviewRecord(" in js_content else ""
+    save_section = js_content.split("async function saveReviewRecord(")[1] if "async function saveReviewRecord(" in js_content else ""
     assert "dste_review_scores" in save_section, "saveReviewRecord 未同步到 dste_review_scores"
-    assert "localStorage.setItem" in save_section, "saveReviewRecord 未使用 localStorage.setItem"
+    # 项目已统一使用 DSTE.Storage 封装 localStorage
+    assert "DSTE.Storage.set('dste_review_scores'" in save_section or "localStorage.setItem" in save_section, "saveReviewRecord 未写入 localStorage"
     assert "total_score" in save_section, "saveReviewRecord 未读取 total_score"
 
 

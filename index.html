@@ -924,7 +924,7 @@
       const btnLogin = document.getElementById('btn-login');
 
       // 记住的用户名
-      const savedUser = localStorage.getItem('dste-remember-user');
+      const savedUser = DSTE.Storage.getString('dste-remember-user');
       if (savedUser) {
         usernameInput.value = savedUser;
         rememberCheckbox.checked = true;
@@ -948,12 +948,12 @@
 
       // 检查是否已登录（有有效 token）
       async function checkAlreadyLoggedIn() {
-        const token = localStorage.getItem('dste-token');
+        const token = DSTE.Storage.getString('dste-token');
         if (!token) return false;
         const API_BASE = (() => {
           const host = window.location.hostname;
           if (host === 'localhost' || host === '127.0.0.1') {
-            return localStorage.getItem('dste_api_base') || '';
+            return DSTE.Storage.getString('dste_api_base');
           }
           return 'https://dste-api.jasonxspace.workers.dev';
         })();
@@ -969,8 +969,8 @@
             }
           }
         } catch (e) {}
-        localStorage.removeItem('dste-token');
-        localStorage.removeItem('dste-user');
+        DSTE.Storage.remove('dste-token');
+        DSTE.Storage.remove('dste-user');
         return false;
       }
 
@@ -1009,9 +1009,9 @@
 
         // 本地开发快速登录（仅用于开发测试）
         if (rememberCheckbox.checked) {
-          localStorage.setItem('dste-remember-user', username);
+          DSTE.Storage.setString('dste-remember-user', username);
         } else {
-          localStorage.removeItem('dste-remember-user');
+          DSTE.Storage.remove('dste-remember-user');
         }
         setLoading(true);
         setTimeout(() => devQuickLogin(username), 300);
@@ -1035,11 +1035,11 @@
       // 辅助链接
       document.getElementById('forgot-link').addEventListener('click', (e) => {
         e.preventDefault();
-        alert('请联系管理员重置密码');
+        showToast('请联系管理员重置密码', 'info');
       });
       document.getElementById('apply-link').addEventListener('click', (e) => {
         e.preventDefault();
-        alert('试用申请功能即将上线，请联系管理员开通账号');
+        showToast('试用申请功能即将上线，请联系管理员开通账号', 'info');
       });
 
       function showError(msg) {

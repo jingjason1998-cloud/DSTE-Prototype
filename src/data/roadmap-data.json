@@ -389,6 +389,84 @@
       ]
     },
     {
+      "version": "v0.4.11",
+      "date": "2026-06-15",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**战略地图模块**："
+        },
+        {
+          "type": "Added",
+          "desc": "**会前准备度**："
+        },
+        {
+          "type": "Added",
+          "desc": "**统一本地存储封装 `DSTE.Storage`**（`assets/js/main.js` + `src/lib/utils.js`）："
+        },
+        {
+          "type": "Added",
+          "desc": "**会议材料评审 API 封装**（`src/meetings/utils/reviewer.js`）："
+        },
+        {
+          "type": "Added",
+          "desc": "**经营分析会通用辅助函数**（`src/meetings/utils/helpers.js`）："
+        },
+        {
+          "type": "Added",
+          "desc": "**测试补充**："
+        },
+        {
+          "type": "Changed",
+          "desc": "全站 `localStorage` 直接调用迁移到 `DSTE.Storage`，统一错误处理与兜底值"
+        },
+        {
+          "type": "Changed",
+          "desc": "`src/lib/shell.js` 的 `renderTopNav` / `renderSidebar` 从 `innerHTML` 改为 DOM 创建，提升安全性"
+        },
+        {
+          "type": "Changed",
+          "desc": "多处 `alert()` 替换为 `showToast()` 提示（登录页、经营分析会等）"
+        },
+        {
+          "type": "Changed",
+          "desc": "`cockpit.html` OMP 数据版本清理后不再强制刷新页面，避免 E2E/首次加载不稳定"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**会议保存后详情浮层不显示**：`saveMeeting` 写入 `window._meetingsData`，但 `openMeetingDetail` 仍使用 `renderMeetings` 内的旧副本 `meetings`，导致新建/复制会议后找不到会议对象"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**详情页编辑按钮失效**：详情页「编辑」按钮调用不存在的 `openEditMeeting`，改为 `openMeetingEditor`"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**`src/lib/utils.js` SSR 兼容性**：`showToast` 中 `!document` 在 Node 环境会抛 `ReferenceError`，改为 `typeof document === 'undefined'`"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**`scripts/health-check.cjs` 误报**：ESLint 配置检查只识别 `.eslintrc.js`，已兼容 `eslint.config.js`"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**E2E 测试稳定性**：`test-sp-nav-verify.spec.js` 期望更新；`strategy-map-list.spec.js` 增加测试隔离，避免状态串扰"
+        }
+      ]
+    },
+    {
+      "version": "v0.4.10",
+      "date": "2026-06-10",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**经营分析会保存失败**：`saveMeeting`/`deleteMeeting` 函数在全局作用域定义，但引用了 `renderMeetings` 内部的局部变量 `meetings`，导致 `ReferenceError: meetings is not defined`"
+        }
+      ]
+    },
+    {
       "version": "v0.4.9",
       "date": "2026-06-10",
       "status": "released",
@@ -497,11 +575,6 @@
     }
   ],
   "upcoming": [
-    {
-      "name": "战略地图可视化页面（BSC 四维度）",
-      "priority": "中",
-      "eta": "待定"
-    },
     {
       "name": "KPI 详情下钻",
       "priority": "中",

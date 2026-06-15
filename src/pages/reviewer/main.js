@@ -11,8 +11,8 @@
         } else if (window.location.hostname === 'dste.fineres.com' || window.location.hostname === 'Dste.fineres.com') {
             PROXY_URL = '';  // 使用相对路径，由 nginx 反向代理到后端审核服务
         }
-        // 允许 localStorage 覆盖（高级用户调试）
-        PROXY_URL = localStorage.getItem('meetingReviewerProxyUrl') || PROXY_URL;
+        // 允许 本地存储 覆盖（高级用户调试）
+        PROXY_URL = DSTE.Storage.getString('meetingReviewerProxyUrl') || PROXY_URL;
 
         let currentPrompt = '';
         let currentReport = '';
@@ -460,16 +460,16 @@
             });
             const data = await resp.json();
             if (!data.success) throw new Error(data.error || '保存失败');
-            // 同步最高分到 localStorage，供 cockpit 议程展示使用
+            // 同步最高分到 本地存储，供 cockpit 议程展示使用
             try {
-                const map = JSON.parse(localStorage.getItem('dste_review_scores') || '{}');
+                const map = DSTE.Storage.get('dste_review_scores', {});
                 const url = record.url;
                 const current = map[url];
                 if (!current || (record.total_score || 0) > current.maxScore) {
                     map[url] = { maxScore: record.total_score || 0, lastReviewAt: record.timestamp };
-                    localStorage.setItem('dste_review_scores', JSON.stringify(map));
+                    DSTE.Storage.set('dste_review_scores', map);
                 }
-            } catch (e) { /* ignore localStorage errors */ }
+            } catch (e) { /* ignore 本地存储 errors */ }
             return data;
         }
 
@@ -899,10 +899,10 @@
         }
 
         function toggleHistoryPanel() {
-            var panel = document.getElementById('historyPanel');
-            var listEl = document.getElementById('historyList');
+            const panel = document.getElementById('historyPanel');
+            const listEl = document.getElementById('historyList');
             if (!panel) { setStatus('错误：找不到面板', 'error'); return; }
-            var hasHidden = panel.classList.contains('hidden');
+            const hasHidden = panel.classList.contains('hidden');
             if (hasHidden) {
                 panel.classList.remove('hidden');
                 panel.style.setProperty('display', 'block', 'important');
@@ -920,21 +920,21 @@
 
         // 绑定按钮事件（只绑定一次，避免重复触发）
         (function() {
-            var hb = document.getElementById('historyBtn');
-            var hcb = document.getElementById('historyCloseBtn');
+            const hb = document.getElementById('historyBtn');
+            const hcb = document.getElementById('historyCloseBtn');
             if (hb) hb.onclick = toggleHistoryPanel;
             if (hcb) hcb.onclick = toggleHistoryPanel;
         })();
 
         // ==================== 批量审核功能 ====================
         function toggleBatchInput() {
-            var area = document.getElementById('batchInputArea');
+            const area = document.getElementById('batchInputArea');
             if (!area) return;
             if (area.style.display === 'none') {
-                var sceneSelect = document.getElementById('sceneSelect');
-                var label = document.getElementById('batchSceneLabel');
+                const sceneSelect = document.getElementById('sceneSelect');
+                const label = document.getElementById('batchSceneLabel');
                 if (sceneSelect && label) {
-                    var text = sceneSelect.options[sceneSelect.selectedIndex].text || '默认场景';
+                    const text = sceneSelect.options[sceneSelect.selectedIndex].text || '默认场景';
                     label.textContent = text;
                 }
                 area.style.display = 'block';
@@ -944,16 +944,16 @@
         }
         
         async function startBatchReview() {
-            var textarea = document.getElementById('batchUrls');
-            var statusEl = document.getElementById('batchStatus');
-            var progressDiv = document.getElementById('batchProgress');
-            var progressBar = document.getElementById('batchProgressBar');
-            var progressText = document.getElementById('batchProgressText');
-            var progressList = document.getElementById('batchProgressList');
-            var actionsDiv = document.getElementById('batchActions');
+            const textarea = document.getElementById('batchUrls');
+            const statusEl = document.getElementById('batchStatus');
+            const progressDiv = document.getElementById('batchProgress');
+            const progressBar = document.getElementById('batchProgressBar');
+            const progressText = document.getElementById('batchProgressText');
+            const progressList = document.getElementById('batchProgressList');
+            const actionsDiv = document.getElementById('batchActions');
             
             if (!textarea) return;
-            var urls = textarea.value.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+            const urls = textarea.value.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
             if (urls.length === 0) {
                 statusEl.textContent = '请输入至少一个链接';
                 statusEl.style.color = '#dc2626';
@@ -964,12 +964,12 @@
             statusEl.style.color = '#2563eb';
             
             try {
-                var resp = await fetch(PROXY_URL + '/api/batch', {
+                const resp = await fetch(PROXY_URL + '/api/batch', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({urls: urls, scene_id: document.getElementById('sceneSelect').value})
                 });
-                var data = await resp.json();
+                const data = await resp.json();
                 if (!data.success) {
                     statusEl.textContent = data.error || '创建失败';
                     statusEl.style.color = '#dc2626';
@@ -989,37 +989,37 @@
         async function pollBatchProgress(taskId, pollCount) {
             if (pollCount === undefined) pollCount = 0;
             pollCount++;
-            var MAX_POLL = 300; // 最多轮询300次，约10分钟
+            const MAX_POLL = 300; // 最多轮询300次，约10分钟
             
-            var progressBar = document.getElementById('batchProgressBar');
-            var progressText = document.getElementById('batchProgressText');
-            var progressList = document.getElementById('batchProgressList');
-            var statusEl = document.getElementById('batchStatus');
-            var actionsDiv = document.getElementById('batchActions');
+            const progressBar = document.getElementById('batchProgressBar');
+            const progressText = document.getElementById('batchProgressText');
+            const progressList = document.getElementById('batchProgressList');
+            const statusEl = document.getElementById('batchStatus');
+            const actionsDiv = document.getElementById('batchActions');
             
             try {
-                var resp = await fetch(PROXY_URL + '/api/batch/' + taskId);
-                var data = await resp.json();
+                const resp = await fetch(PROXY_URL + '/api/batch/' + taskId);
+                const data = await resp.json();
                 if (!data.success) return;
                 
-                var task = data.task;
-                var total = task.total || 1;
-                var completed = task.completed || 0;
-                var pct = Math.round((completed / total) * 100);
+                const task = data.task;
+                const total = task.total || 1;
+                const completed = task.completed || 0;
+                const pct = Math.round((completed / total) * 100);
                 
                 progressBar.style.width = pct + '%';
                 progressText.textContent = completed + '/' + total + ' 已完成';
                 
-                var rresp = await fetch(PROXY_URL + '/api/batch/' + taskId + '/results');
-                var rdata = await rresp.json();
+                const rresp = await fetch(PROXY_URL + '/api/batch/' + taskId + '/results');
+                const rdata = await rresp.json();
                 if (rdata.success && rdata.results) {
-                    var html = '';
+                    let html = '';
                     rdata.results.forEach(function(res) {
-                        var icon = res.status === 'completed' ? '✅' : (res.status === 'failed' ? '❌' : '⏳');
-                        var score = res.total_score ? ' · <strong style="color:' + (res.total_score >= 80 ? '#16a34a' : (res.total_score >= 60 ? '#ca8a04' : '#dc2626')) + ';">' + res.total_score + '分</strong>' : '';
-                        var titleColor = res.status === 'failed' ? '#dc2626' : '#374151';
-                        var rawTitle = res.title || res.url || '';
-                        var displayTitle = escapeHtml(rawTitle.length > 40 ? rawTitle.substring(0, 40) + '...' : rawTitle);
+                        const icon = res.status === 'completed' ? '✅' : (res.status === 'failed' ? '❌' : '⏳');
+                        const score = res.total_score ? ' · <strong style="color:' + (res.total_score >= 80 ? '#16a34a' : (res.total_score >= 60 ? '#ca8a04' : '#dc2626')) + ';">' + res.total_score + '分</strong>' : '';
+                        const titleColor = res.status === 'failed' ? '#dc2626' : '#374151';
+                        const rawTitle = res.title || res.url || '';
+                        const displayTitle = escapeHtml(rawTitle.length > 40 ? rawTitle.substring(0, 40) + '...' : rawTitle);
                         html += '<div style="margin-bottom:4px;color:#6b7280;">' + icon + ' <span style="color:' + titleColor + ';">' + displayTitle + '</span>' + score + '</div>';
                     });
                     progressList.innerHTML = html;
@@ -1045,7 +1045,7 @@
         }
         
         function closeCompareMatrixModal() {
-            var modal = document.getElementById('compareMatrixModal');
+            const modal = document.getElementById('compareMatrixModal');
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.setProperty('display', 'none', 'important');
@@ -1053,13 +1053,13 @@
         }
         
         async function showCompareMatrix() {
-            var taskId = window._lastBatchTaskId;
+            const taskId = window._lastBatchTaskId;
             if (!taskId) {
                 setStatus('请先完成批量审核', 'warning');
                 return;
             }
-            var modal = document.getElementById('compareMatrixModal');
-            var content = document.getElementById('compareMatrixContent');
+            const modal = document.getElementById('compareMatrixModal');
+            const content = document.getElementById('compareMatrixContent');
             if (!modal || !content) return;
             
             content.innerHTML = '<p class="review-msg review-msg-info">正在生成对比矩阵...</p>';
@@ -1067,8 +1067,8 @@
             modal.style.setProperty('display', 'flex', 'important');
             
             try {
-                var resp = await fetch(PROXY_URL + '/api/batch/' + taskId + '/compare');
-                var data = await resp.json();
+                const resp = await fetch(PROXY_URL + '/api/batch/' + taskId + '/compare');
+                const data = await resp.json();
                 if (!data.success) {
                     content.innerHTML = '<p class="review-msg review-msg-error">' + escapeHtml(data.error || '生成失败') + '</p>';
                     return;
@@ -1080,7 +1080,7 @@
         }
         
         function renderCompareMatrix(data) {
-            var content = document.getElementById('compareMatrixContent');
+            const content = document.getElementById('compareMatrixContent');
             if (!content) return;
             if (!data.matrix || !Array.isArray(data.matrix) || data.matrix.length === 0) {
                 content.innerHTML = '<p class="review-msg review-msg-error">对比矩阵数据为空</p>';
@@ -1091,38 +1091,38 @@
                 return;
             }
             
-            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            var colKeys = Object.keys(data.matrix[0]).filter(function(k) { return k !== 'dimension'; });
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const colKeys = Object.keys(data.matrix[0]).filter(function(k) { return k !== 'dimension'; });
             
             // 建立 url -> title 映射
-            var urlTitleMap = {};
+            const urlTitleMap = {};
             (data.scores || []).forEach(function(s) {
                 urlTitleMap[s.url] = s.title || s.url;
             });
             
             // 按总分排序（高->低）
-            var sortedScores = (data.scores || []).slice().sort(function(a, b) {
+            const sortedScores = (data.scores || []).slice().sort(function(a, b) {
                 return (b.total_score || 0) - (a.total_score || 0);
             });
-            var sortedColKeys = sortedScores.map(function(s) { return s.url; });
+            const sortedColKeys = sortedScores.map(function(s) { return s.url; });
             
             // 合格线
-            var PASS_LINE = 80;
+            const PASS_LINE = 80;
             
-            var html = '';
+            let html = '';
             
             // ===== 排名卡片区域 =====
             html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">';
             sortedScores.forEach(function(s, idx) {
-                var rankColors = ['#f59e0b', '#9ca3af', '#b45309']; // 金、银、铜
-                var rankBg = idx < 3 ? 'background:linear-gradient(135deg,' + rankColors[idx] + '15,transparent);' : '';
-                var rankBorder = idx < 3 ? 'border-color:' + rankColors[idx] + '40;' : '';
-                var passed = (s.total_score || 0) >= PASS_LINE;
-                var statusBadge = passed 
+                const rankColors = ['#f59e0b', '#9ca3af', '#b45309']; // 金、银、铜
+                const rankBg = idx < 3 ? 'background:linear-gradient(135deg,' + rankColors[idx] + '15,transparent);' : '';
+                const rankBorder = idx < 3 ? 'border-color:' + rankColors[idx] + '40;' : '';
+                const passed = (s.total_score || 0) >= PASS_LINE;
+                const statusBadge = passed 
                     ? '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#dcfce7;color:#166534;font-weight:600;">✅ 合格</span>'
                     : '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#fee2e2;color:#991b1b;font-weight:600;">❌ 不合格</span>';
-                var scoreColor = s.total_score >= 80 ? '#16a34a' : (s.total_score >= 60 ? '#ca8a04' : '#dc2626');
-                var titleShort = (s.title || s.url || '未知').substring(0, 20) + ((s.title || s.url || '').length > 20 ? '...' : '');
+                const scoreColor = s.total_score >= 80 ? '#16a34a' : (s.total_score >= 60 ? '#ca8a04' : '#dc2626');
+                const titleShort = (s.title || s.url || '未知').substring(0, 20) + ((s.title || s.url || '').length > 20 ? '...' : '');
                 html += '<div style="flex:1;min-width:160px;max-width:220px;padding:14px;border-radius:10px;border:1px solid #e5e7eb;' + rankBg + rankBorder + 'box-shadow:0 1px 3px rgba(0,0,0,0.04);">';
                 html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
                 html += '<span style="font-size:1.1em;font-weight:800;color:' + (idx < 3 ? rankColors[idx] : '#6b7280') + ';">#' + (idx + 1) + '</span>';
@@ -1135,10 +1135,10 @@
             html += '</div>';
             
             // ===== 热力图表格 =====
-            var theadBorder = '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb');
-            var cellBorder = '1px solid ' + (isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6');
-            var dimTextColor = isDark ? '#ccc' : '#374151';
-            var thBg = isDark ? 'rgba(255,255,255,0.03)' : '#f9fafb';
+            const theadBorder = '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb');
+            const cellBorder = '1px solid ' + (isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6');
+            const dimTextColor = isDark ? '#ccc' : '#374151';
+            const thBg = isDark ? 'rgba(255,255,255,0.03)' : '#f9fafb';
             
             html += '<div style="overflow-x:auto;border-radius:10px;border:1px solid #e5e7eb;">';
             html += '<table style="width:100%;border-collapse:collapse;font-size:0.85em;">';
@@ -1147,8 +1147,8 @@
             html += '<thead><tr style="background:' + thBg + ';">';
             html += '<th style="padding:10px 8px;border-bottom:' + theadBorder + ';text-align:left;font-weight:600;color:#6b7280;font-size:0.8em;white-space:nowrap;">维度 \ 材料</th>';
             sortedColKeys.forEach(function(k) {
-                var title = urlTitleMap[k] || k;
-                var shortTitle = title.substring(0, 12) + (title.length > 12 ? '...' : '');
+                const title = urlTitleMap[k] || k;
+                const shortTitle = title.substring(0, 12) + (title.length > 12 ? '...' : '');
                 html += '<th style="padding:10px 8px;border-bottom:' + theadBorder + ';text-align:center;font-weight:600;color:#374151;font-size:0.8em;min-width:80px;" title="' + escapeHtml(title) + '">' + escapeHtml(shortTitle) + '</th>';
             });
             html += '</tr></thead><tbody>';
@@ -1158,14 +1158,14 @@
                 html += '<tr style="border-bottom:' + cellBorder + ';">';
                 html += '<td style="padding:10px 8px;text-align:left;font-weight:500;color:' + dimTextColor + ';white-space:nowrap;font-size:0.85em;">' + escapeHtml(row.dimension) + '</td>';
                 sortedColKeys.forEach(function(k) {
-                    var score = row[k] || 0;
-                    var maxScore = data.scores.find(function(s) { return s.url === k; });
+                    const score = row[k] || 0;
+                    const maxScore = data.scores.find(function(s) { return s.url === k; });
                     // 热力图背景色
-                    var heatBg = '';
+                    let heatBg = '';
                     if (score >= 8) heatBg = 'background:rgba(22,163,74,0.08);';
                     else if (score >= 5) heatBg = 'background:rgba(202,138,4,0.08);';
                     else heatBg = 'background:rgba(220,38,38,0.06);';
-                    var scoreColor = score >= 8 ? '#16a34a' : (score >= 5 ? '#ca8a04' : '#dc2626');
+                    const scoreColor = score >= 8 ? '#16a34a' : (score >= 5 ? '#ca8a04' : '#dc2626');
                     html += '<td style="padding:10px 8px;text-align:center;font-weight:600;color:' + scoreColor + ';font-size:0.9em;' + heatBg + '">' + score + '</td>';
                 });
                 html += '</tr>';
@@ -1175,9 +1175,9 @@
             html += '<tr style="background:' + thBg + ';font-weight:700;border-top:2px solid #e5e7eb;">';
             html += '<td style="padding:10px 8px;text-align:left;color:#1f2937;font-size:0.9em;white-space:nowrap;">🏆 总分</td>';
             sortedColKeys.forEach(function(k) {
-                var s = sortedScores.find(function(item) { return item.url === k; });
-                var total = s ? (s.total_score || 0) : 0;
-                var totalColor = total >= 80 ? '#16a34a' : (total >= 60 ? '#ca8a04' : '#dc2626');
+                const s = sortedScores.find(function(item) { return item.url === k; });
+                const total = s ? (s.total_score || 0) : 0;
+                const totalColor = total >= 80 ? '#16a34a' : (total >= 60 ? '#ca8a04' : '#dc2626');
                 html += '<td style="padding:10px 8px;text-align:center;font-size:1.1em;font-weight:800;color:' + totalColor + ';">' + total + '</td>';
             });
             html += '</tr>';
@@ -1186,8 +1186,8 @@
             html += '<tr style="border-top:1px dashed #e5e7eb;">';
             html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">📊 平均分</td>';
             sortedColKeys.forEach(function(k) {
-                var scores = data.matrix.map(function(row) { return row[k] || 0; });
-                var avg = scores.length ? (scores.reduce(function(a,b){return a+b;}, 0) / scores.length).toFixed(1) : 0;
+                const scores = data.matrix.map(function(row) { return row[k] || 0; });
+                const avg = scores.length ? (scores.reduce(function(a,b){return a+b;}, 0) / scores.length).toFixed(1) : 0;
                 html += '<td style="padding:10px 8px;text-align:center;color:#6b7280;font-size:0.8em;">' + avg + '</td>';
             });
             html += '</tr>';
@@ -1196,8 +1196,8 @@
             html += '<tr>';
             html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">⬆️ 最高分</td>';
             sortedColKeys.forEach(function(k) {
-                var scores = data.matrix.map(function(row) { return row[k] || 0; });
-                var max = scores.length ? Math.max.apply(null, scores) : 0;
+                const scores = data.matrix.map(function(row) { return row[k] || 0; });
+                const max = scores.length ? Math.max.apply(null, scores) : 0;
                 html += '<td style="padding:10px 8px;text-align:center;color:#16a34a;font-size:0.8em;">' + max + '</td>';
             });
             html += '</tr>';
@@ -1206,8 +1206,8 @@
             html += '<tr>';
             html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">⬇️ 最低分</td>';
             sortedColKeys.forEach(function(k) {
-                var scores = data.matrix.map(function(row) { return row[k] || 0; });
-                var min = scores.length ? Math.min.apply(null, scores) : 0;
+                const scores = data.matrix.map(function(row) { return row[k] || 0; });
+                const min = scores.length ? Math.min.apply(null, scores) : 0;
                 html += '<td style="padding:10px 8px;text-align:center;color:#dc2626;font-size:0.8em;">' + min + '</td>';
             });
             html += '</tr>';
@@ -1227,7 +1227,7 @@
         
         // 批量输入区默认收起
         (function() {
-            var area = document.getElementById('batchInputArea');
+            const area = document.getElementById('batchInputArea');
             if (area) area.style.display = 'none';
         })();
         
@@ -2043,7 +2043,7 @@
             if (conclusion) {
                 concCard.style.display = 'block';
                 // 将 markdown 简单转换为 HTML，并保留AI输出的颜色标签
-                let html = renderRichComment(conclusion)
+                const html = renderRichComment(conclusion)
                     .replace(/\n/g, '<br>');
                 const box = document.getElementById('conclusionBox');
                 box.innerHTML = html;
@@ -2413,7 +2413,7 @@
         
         async function loadConfig() {
             // 先填充本地保存的后端地址
-            document.getElementById('cfgProxyUrl').value = localStorage.getItem('meetingReviewerProxyUrl') || '';
+            document.getElementById('cfgProxyUrl').value = DSTE.Storage.getString('meetingReviewerProxyUrl');
             
             try {
                 const resp = await fetch(PROXY_URL + '/api/config', { method: 'GET', mode: 'cors' });
@@ -2444,10 +2444,10 @@
         }
         
         async function saveConfig() {
-            // 保存后端地址到 localStorage
+            // 保存后端地址到 本地存储
             const proxyUrl = document.getElementById('cfgProxyUrl').value.trim();
             if (proxyUrl) {
-                localStorage.setItem('meetingReviewerProxyUrl', proxyUrl);
+                DSTE.Storage.setString('meetingReviewerProxyUrl', proxyUrl);
                 PROXY_URL = proxyUrl;
             }
             
@@ -2501,31 +2501,8 @@
         // 页面加载时自动加载配置
         loadConfig();
         
-        // DSTE 主题切换
-        (function() {
-            const btn = document.getElementById('theme-toggle');
-            if (btn) {
-                const updateIcon = function() {
-                    var t = document.documentElement.getAttribute('data-theme');
-                    btn.textContent = t === 'dark' ? '☀️' : '🌙';
-                };
-                updateIcon();
-                btn.addEventListener('click', function() {
-                    var current = document.documentElement.getAttribute('data-theme');
-                    var next = current === 'dark' ? 'light' : 'dark';
-                    document.documentElement.setAttribute('data-theme', next);
-                    localStorage.setItem('dste-theme', next);
-                    updateIcon();
-                });
-            }
-            window.addEventListener('storage', function(e) {
-                if (e.key === 'dste-theme') {
-                    document.documentElement.setAttribute('data-theme', e.newValue);
-                    var b = document.getElementById('theme-toggle');
-                    if (b) b.textContent = e.newValue === 'dark' ? '☀️' : '🌙';
-                }
-            });
-        })();
+        // 主题切换由全局 assets/js/main.js 的 ThemeManager 统一处理，
+        // reviewer 页面不再重复绑定，避免同一按钮触发两次切换导致无变化。
 
         // 暴露解析函数供测试使用（不影响生产功能）
         window._testParseDimensionScores = parseDimensionScores;

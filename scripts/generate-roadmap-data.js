@@ -51,7 +51,7 @@ function extractChangelogSection(changelog, tag) {
 
 function parseYamlPlans(yamlText) {
   const plans = [];
-  const planBlocks = yamlText.split(/^  - id:/m).slice(1);
+  const planBlocks = yamlText.split(/^ {2}- id:/m).slice(1);
   for (const block of planBlocks) {
     const lines = ('  - id:' + block).split('\n');
     const plan = {};

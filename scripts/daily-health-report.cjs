@@ -10,13 +10,6 @@ const { execSync } = require('child_process');
 
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
 
-// ─── 颜色映射 ───
-const COLOR = {
-  '🔴': '#FF5630',  // 严重
-  '⚠️': '#FFAB00',  // 警告
-  '✅': '#36B37E',  // 通过
-};
-
 // ─── 运行体检 ───
 function runHealthCheck() {
   try {
@@ -35,7 +28,6 @@ function runHealthCheck() {
 function parseReport(output) {
   const lines = output.split('\n');
   const issues = [];
-  let currentSection = '';
   let score = 0;
   let total = 0;
 

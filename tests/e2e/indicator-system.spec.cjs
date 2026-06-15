@@ -9,9 +9,9 @@ test('Indicator system page loads and shows indicators', async ({ page }) => {
   
   const body = await page.locator('body').innerHTML();
   
-  expect(body).toContain('KPI 指标体系');
+  expect(body).toContain('战略指标库');
   expect(body).toContain('指标分类');
-  expect(body).toContain('合同额');
+  expect(body).toContain('销售额-D');
   expect(body).toContain('新建指标');
   expect(errors).toEqual([]);
 });
@@ -24,14 +24,17 @@ test('Indicator category filter works', async ({ page }) => {
   await page.waitForTimeout(500);
   
   const body = await page.locator('body').innerHTML();
-  expect(body).toContain('合同额');
-  expect(body).toContain('毛利率');
+  expect(body).toContain('销售额-D');
+  expect(body).toContain('营销线贡献利润率');
 });
 
 test('Indicator detail panel shows on row click', async ({ page }) => {
   await page.goto('/src/cockpit.html#bp/kpi');
   await page.waitForTimeout(2000);
-  
+
+  // 等待指标表格渲染完成
+  await page.waitForSelector('table tbody tr', { timeout: 10000 });
+
   // Click on first table row
   const row = page.locator('table tbody tr').first();
   await row.click();
@@ -60,7 +63,7 @@ test('Search filter works', async ({ page }) => {
   await page.goto('/src/cockpit.html#bp/kpi');
   await page.waitForTimeout(2000);
   
-  await page.locator('#ind-search').fill('合同');
+  await page.locator('#ind-search').fill('销售额');
   await page.waitForTimeout(500);
   
   const body = await page.locator('body').innerHTML();

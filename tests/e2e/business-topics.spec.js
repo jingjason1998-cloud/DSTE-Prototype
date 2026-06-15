@@ -39,7 +39,7 @@ test.describe('Business Topics - Page Load', () => {
     expect(['light', 'dark']).toContain(initialTheme);
 
     await page.locator('#theme-toggle').click();
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
 
     const newTheme = await html.getAttribute('data-theme');
     expect(newTheme).not.toEqual(initialTheme);

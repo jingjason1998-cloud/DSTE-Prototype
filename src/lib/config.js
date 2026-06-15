@@ -68,12 +68,15 @@ export const SIDEBAR_CONFIG = {
 export const EXTERNAL_PAGES = {
   'exe/meeting-review': 'reviewer.html',
   'exe/business-topics': 'business-topics.html',
-  'exe/meetings': 'meetings.html'
+  'exe/meetings': 'meetings.html',
+  'sp/strategy-map': 'strategy-map-list.html',
+  'sp/strategy-map-detail': 'strategy-map.html'
 };
 
 export const PAGE_NAMES = {
   'dashboard': '驾驶舱',
   'sp/strategy-map': '战略地图',
+  'sp/strategy-map-detail': '战略地图详情',
   'sp/insights-topics': '战略洞察与专题',
   'bp/kpi': 'KPI 指标体系',
   'bp/bem': 'BEM 战略解码',

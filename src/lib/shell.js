@@ -14,13 +14,28 @@ export function renderTopNav(activePhase, onNavigate) {
   const container = document.getElementById('top-nav-links');
   if (!container) return;
 
-  container.innerHTML = TOP_NAV.map(item => `
-    <li><a href="#${item.defaultPage}" data-phase="${item.id}" class="top-nav-item">
-      <span>${item.icon}</span>
-      <span>${item.label}</span>
-      <span class="nav-full-label">${item.full}</span>
-    </a></li>
-  `).join('');
+  container.innerHTML = '';
+  TOP_NAV.forEach(item => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = `#${item.defaultPage}`;
+    a.dataset.phase = item.id;
+    a.className = 'top-nav-item';
+
+    const iconSpan = document.createElement('span');
+    iconSpan.textContent = item.icon;
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = item.label;
+    const fullSpan = document.createElement('span');
+    fullSpan.className = 'nav-full-label';
+    fullSpan.textContent = item.full;
+
+    a.appendChild(iconSpan);
+    a.appendChild(labelSpan);
+    a.appendChild(fullSpan);
+    li.appendChild(a);
+    container.appendChild(li);
+  });
 
   container.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', (e) => {
@@ -65,26 +80,50 @@ export function renderSidebar(phase, activePage, onNavigate) {
   }
   container.classList.remove('collapsed');
 
-  let html = '';
+  container.innerHTML = '';
   config.forEach(item => {
     if (item.type === 'item') {
-      html += `<a class="sidebar-item" data-page="${item.id}" href="#${item.id}">
-        <span class="icon">${item.icon}</span><span>${item.label}</span>
-      </a>`;
+      const a = document.createElement('a');
+      a.className = 'sidebar-item';
+      a.dataset.page = item.id;
+      a.href = `#${item.id}`;
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'icon';
+      iconSpan.textContent = item.icon;
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = item.label;
+      a.appendChild(iconSpan);
+      a.appendChild(labelSpan);
+      container.appendChild(a);
     } else if (item.type === 'quick') {
-      html += `<div class="sidebar-quick">${item.label}</div>`;
+      const div = document.createElement('div');
+      div.className = 'sidebar-quick';
+      div.textContent = item.label;
+      container.appendChild(div);
     } else if (item.type === 'group') {
-      html += `<div class="sidebar-group">
-        <div class="sidebar-group-title">${item.title}</div>
-        ${item.items.map(sub => `
-          <a class="sidebar-item" data-page="${sub.id}" href="#${sub.id}">
-            <span class="icon">${sub.icon}</span><span>${sub.label}</span>
-          </a>
-        `).join('')}
-      </div>`;
+      const group = document.createElement('div');
+      group.className = 'sidebar-group';
+      const title = document.createElement('div');
+      title.className = 'sidebar-group-title';
+      title.textContent = item.title;
+      group.appendChild(title);
+      item.items.forEach(sub => {
+        const a = document.createElement('a');
+        a.className = 'sidebar-item';
+        a.dataset.page = sub.id;
+        a.href = `#${sub.id}`;
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'icon';
+        iconSpan.textContent = sub.icon;
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = sub.label;
+        a.appendChild(iconSpan);
+        a.appendChild(labelSpan);
+        group.appendChild(a);
+      });
+      container.appendChild(group);
     }
   });
-  container.innerHTML = html;
 
   // 绑定点击
   container.querySelectorAll('.sidebar-item').forEach(item => {

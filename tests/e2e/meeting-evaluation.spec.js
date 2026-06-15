@@ -71,7 +71,8 @@ test.describe('Meeting Evaluation', () => {
     await page.locator('button:has-text("保存评估")').click();
     await expect(page.locator('#meeting-eval-overlay')).toBeHidden();
     await page.waitForTimeout(500);
-    expect(dialogMsg).toContain('评估已保存');
+    // 当前实现使用 toast 提示保存成功，而非 alert
+    await expect(page.locator('#dste-toast-container')).toContainText('评估已保存');
   });
 
   test('eval tab shows score with progress bars when evaluated', async ({ page }) => {

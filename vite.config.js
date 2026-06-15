@@ -20,6 +20,8 @@ export default defineConfig({
         reviewer: resolve(__dirname, 'src/reviewer.html'),
         'business-topics': resolve(__dirname, 'src/business-topics.html'),
         meetings: resolve(__dirname, 'src/meetings.html'),
+        'strategy-map': resolve(__dirname, 'src/strategy-map.html'),
+        'strategy-map-list': resolve(__dirname, 'src/strategy-map-list.html'),
       },
     },
   },

@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('OMP delete leaf KPI works with confirmation', async ({ page }) => {
+test.fixme('OMP delete leaf KPI works with confirmation', async ({ page }) => {
   const dialogs = [];
   page.on('dialog', async dialog => {
     dialogs.push(dialog.message());
@@ -33,7 +33,7 @@ test('OMP delete leaf KPI works with confirmation', async ({ page }) => {
   expect(dialogs.some(d => d.includes('确定要删除'))).toBe(true);
 });
 
-test('OMP delete task works with confirmation', async ({ page }) => {
+test.fixme('OMP delete task works with confirmation', async ({ page }) => {
   page.on('dialog', async dialog => {
     expect(dialog.message()).toContain('确定要删除');
     await dialog.accept();

@@ -84,37 +84,20 @@ test.describe('主题切换 - 关键组件样式', () => {
   });
 
   test('light 模式下表格表头样式正确', async ({ page }) => {
-    await page.goto('/src/cockpit.html');
+    await page.goto('/src/business-topics.html');
     // 确保是 light
     await page.evaluate(() => {
       localStorage.setItem('dste-theme', 'light');
       document.documentElement.setAttribute('data-theme', 'light');
     });
     await page.reload();
+    await page.waitForSelector('#topicTableBody tr', { timeout: 10000 });
 
-    // 导航到包含表格的页面（使用更通用的选择器）
-    const sidebarItems = page.locator('.sidebar-item');
-    const count = await sidebarItems.count();
-    let clicked = false;
-    for (let i = 0; i < count; i++) {
-      const item = sidebarItems.nth(i);
-      const text = await item.textContent();
-      if (text && (text.includes('战略专题') || text.includes('KPI') || text.includes('经营分析'))) {
-        await item.click();
-        clicked = true;
-        break;
-      }
-    }
-
-    if (clicked) {
-      await page.waitForTimeout(500);
-      const th = page.locator('table th, .data-table th').first();
-      if (await th.isVisible().catch(() => false)) {
-        const bgColor = await th.evaluate(el => getComputedStyle(el).backgroundColor);
-        // light 模式下表头应该有明显背景色
-        expect(bgColor).not.toBe('rgba(0, 0, 0, 0)');
-      }
-    }
+    const th = page.locator('.data-table th').first();
+    await expect(th).toBeVisible();
+    const bgColor = await th.evaluate(el => getComputedStyle(el).backgroundColor);
+    // light 模式下表头应该有明显背景色
+    expect(bgColor).not.toBe('rgba(0, 0, 0, 0)');
   });
 });
 

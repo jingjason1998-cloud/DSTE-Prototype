@@ -48,8 +48,9 @@ def test_v1_migration_logic_exists():
     insights_section = content.split("function renderInsightsTopics()")[1] if "function renderInsightsTopics()" in content else ""
     # 迁移逻辑应检测 v1 数据
     assert "dste_strategy_topics_v1" in insights_section, "缺少 v1 数据检测逻辑"
-    # 迁移后应删除 v1 数据（通过变量或硬编码）
-    assert "removeItem" in insights_section and "STORAGE_KEY_TOPICS_LEGACY" in insights_section, "迁移后未清理 v1 数据"
+    # 迁移后应删除 v1 数据（通过 DSTE.Storage.remove 或 localStorage.removeItem）
+    assert "STORAGE_KEY_TOPICS_LEGACY" in insights_section, "迁移后未清理 v1 数据"
+    assert ("DSTE.Storage.remove" in insights_section and "STORAGE_KEY_TOPICS_LEGACY" in insights_section) or "removeItem" in insights_section, "迁移后未清理 v1 数据"
 
 
 def test_migration_infers_year_from_startDate():
