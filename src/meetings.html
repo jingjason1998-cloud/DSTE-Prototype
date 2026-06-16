@@ -163,7 +163,18 @@
   </div>
 
   <script src="../assets/js/main.js"></script>
-  <script>
+  <script type="module">
+    // 将决议中心纯函数模块暴露到 window，供 IIFE 脚本使用
+    import {
+      normalizeResolution,
+      canTransitionResolutionStatus,
+      advanceResolutionStatus,
+    } from './meetings/utils/resolution-helpers.js';
+    window.normalizeResolution = normalizeResolution;
+    window.canTransitionResolutionStatus = canTransitionResolutionStatus;
+    window.advanceResolutionStatus = advanceResolutionStatus;
+  </script>
+  <script defer>
     (function() {
       'use strict';
         // ---- 决议中心辅助函数（精简为 3 状态） ----
@@ -203,32 +214,6 @@
             default:
               return 'pending';
           }
-        }
-        function normalizeResolution(d, meeting) {
-          if (!d || typeof d !== 'object') d = {};
-          const actionIds = Array.isArray(d.actions) ? d.actions : [];
-          const status = RESOLUTION_STATUSES.includes(d.status)
-            ? d.status
-            : migrateResolutionStatus(d.status);
-          const now = new Date().toISOString();
-          return {
-            id: d.id || generateResolutionId(),
-            content: d.content || '',
-            owner: d.owner || '',
-            deadline: d.deadline || '',
-            status,
-            sourceMeetingId: d.sourceMeetingId || (meeting ? meeting.id : '') || '',
-            sourceTopicId: d.sourceTopicId || '',
-            sourceMeetingTitle: d.sourceMeetingTitle || (meeting ? meeting.title : '') || '',
-            decider: d.decider || '',
-            approvalLogs: Array.isArray(d.approvalLogs) ? d.approvalLogs : [],
-            actions: actionIds,
-            progress: typeof d.progress === 'number' ? d.progress : 0,
-            closedAt: d.closedAt || null,
-            kmsUrl: d.kmsUrl || '',
-            createdAt: d.createdAt || now,
-            updatedAt: d.updatedAt || now,
-          };
         }
         function computeResolutionProgress(decision, actionsMap) {
           if (!decision || !Array.isArray(decision.actions) || decision.actions.length === 0) {
@@ -289,24 +274,6 @@
             time: new Date().toISOString(),
           });
           decision.updatedAt = new Date().toISOString();
-        }
-        function canTransitionResolutionStatus(from, to) {
-          if (!from || !to) return false;
-          if (from === to) return true;
-          return (RESOLUTION_TRANSITIONS[from] || []).includes(to);
-        }
-        function advanceResolutionStatus(decision, newStatus, user, comment) {
-          if (!decision) return { success: false, error: '决议不存在' };
-          if (!RESOLUTION_STATUSES.includes(newStatus)) return { success: false, error: '无效状态' };
-          if (!canTransitionResolutionStatus(decision.status, newStatus)) {
-            return { success: false, error: `不允许从 ${decision.status} 流转到 ${newStatus}` };
-          }
-          const now = new Date().toISOString();
-          decision.status = newStatus;
-          decision.updatedAt = now;
-          if (newStatus === 'closed') decision.closedAt = now;
-          addApprovalLog(decision, newStatus, user, comment);
-          return { success: true };
         }
 
         // ---- 决议中心抽屉 ----
