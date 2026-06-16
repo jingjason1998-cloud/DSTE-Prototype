@@ -13,6 +13,18 @@
 - **未完成**：Tab 1(总览看板) / 删除功能 / CSS 变量修复
 - **注意**：所有 OMP 函数加 `omp_` 前缀；事件委托在 bindPageEvents 中处理；弹窗内 onclick 使用 window 全局函数
 
+## 经分会-决议中心 — 功能主体已完成
+
+- **当前步骤**：核心状态机、单测、抽屉 UI/交互、E2E 测试均已完成；剩余可选优化：以 ES Module 方式真正引用 `resolution-helpers.js`、确认生产数据迁移、版本号升级
+- **代码位置**：`src/meetings.html`（内联状态机函数 ~line 169、编辑表单 ~line 2880、抽屉 DOM+渲染 ~line 3260）、`src/meetings/utils/resolution-helpers.js`
+- **数据存储**：localStorage 键 `dste_resolutions_v2`；单条决议随会议数据 localStorage + 后端同步
+- **页面路由**：无独立页面，目前作为 `src/meetings.html` 右侧抽屉 `#decisions-drawer` 存在
+- **状态体系**：3 状态（pending → approved → closed），旧 9 状态已迁移映射到这 3 个状态
+- **已完成**：新状态机设计、`resolution-helpers.js` 工具模块、31 个单元测试全部通过、meetings.html 内联函数（已移至 IIFE 顶部）、编辑表单升级、新增决议后迁移同步、抽屉 HTML 结构、抽屉内联渲染（筛选/统计/卡片/进度/状态badge切换/日志/KMS/跳转）、旧组件引用废弃、E2E 测试新增/更新
+- **验证**：vitest 112 passed；meeting + resolution-center E2E 39 passed, 3 skipped；`npx vite build` 通过
+- **注意**：meetings.html 主脚本在 IIFE 中，局部函数不能被 onclick 访问；抽屉/弹窗内 onclick 需用 window 全局函数；事件委托在 bindPageEvents 中处理
+- **任务文件**：`.ai/tasks/active/T030-resolution-center.md`
+
 ## T010 需求管理中心 — 需求池列表页
 
 - **当前步骤**：未开始（Step 1: 页面骨架与路由注册）

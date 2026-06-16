@@ -2,6 +2,40 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-16 (Claude)
+- **主题**：RoadMap 新一版迭代 + 按周展示开发进度的看板
+- **操作**：
+  - 按 `docs/01-Product产品/roadmap-优化方案.md` 完成 P0 + P1：执行摘要 KPI、双栏/单栏布局、版本详情折叠、纵向/横向时间线、全局筛选联动、搜索过滤、看板卡片优化
+  - 新增「周视图」看板：按 ISO 自然周展示版本节点、开发计划、upcoming 里程碑
+  - 更新 `tests/e2e/roadmap.spec.js`：14 个用例覆盖新布局与周视图
+  - 修复数据预加载路径为 `/roadmap-data.json`，确保 dev/preview 双模式可用
+  - 更新 Claude 记忆：`roadmap-iteration-weekly-view.md`
+- **验证**：
+  - `npm run build` → 通过
+  - `npx playwright test tests/e2e/roadmap.spec.js` → 14 passed
+  - `npx playwright test tests/e2e/navigation.spec.js tests/e2e/prod-verify.spec.js` → 10 passed
+  - `npx eslint src/cockpit.html tests/e2e/roadmap.spec.js` → 0 errors
+
+## 2026-06-15 18:55 ~ 20:20 (Kimi)
+- **主题**：继续开发经分会-决议中心功能
+- **操作**：
+  - 先补充项目记忆：创建 `.ai/tasks/active/T030-resolution-center.md`，更新 current-focus / checkpoint / session-log
+  - 决策采用「方案 A」：废弃旧组件 `/meetings-components/DecisionsDrawer.js`，把抽屉渲染逻辑内联到 `src/meetings.html`
+  - 修复关键作用域 bug：内联状态机/抽屉函数原本被插在某个嵌套函数内部，导致 `init()` 中调用 `normalizeResolution` 报 `is not defined`；用脚本将整段函数移动到 IIFE 顶部
+  - 实现抽屉内联渲染：9 状态筛选 pills、统计摘要、决议卡片、执行进度条、状态流转下拉 + 确定按钮、审批日志折叠、KMS 链接、跳转源会议
+  - 移除旧 `DecisionsDrawer.js` 的 `<script>` 引用
+  - 更新 E2E：`meeting-decision-edit.spec.js` placeholder「决策人」→「责任人」
+  - 新增 E2E：`tests/e2e/resolution-center.spec.js`（打开抽屉/9 状态筛选/状态流转）
+- **后续精简**：
+  - 用户要求状态精简，从 9 状态改为 3 状态：pending（待审批）/ approved（已通过）/ closed（已闭环）
+  - 同步修改 `resolution-helpers.js`、meetings.html 内联函数、编辑表单、抽屉渲染、单元测试、E2E 测试
+  - 用户要求抽屉卡片只保留一个状态变更入口：去掉「选择流转...」下拉 +「确定」按钮，改为点击状态 badge 本身出现下拉选择，选中即生效
+- **验证**：
+  - `npx vitest run tests/unit/resolution-helpers.test.js` → 29 passed
+  - `npx playwright test tests/e2e/meeting-*.spec.js tests/e2e/resolution-center.spec.js tests/e2e/calendar-view.spec.js` → 39 passed, 3 skipped
+  - `npx vite build` 构建通过
+- **状态**：complete，决议中心功能主体已完成（3 状态精简版）
+
 ## 2026-06-09 17:30 (Claude)
 - **主题**：年度计划 vs OMP 边界厘清 + CSS 硬编码颜色全修复
 - **操作**：
