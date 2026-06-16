@@ -17,6 +17,10 @@ venv/
 # 测试缓存
 .baseline_test_results.txt
 
+# KV cleanup backups
+scripts/kv-backup-*/
+scripts/.tmp-kv-*.json
+
 # 部署包
 *.tar.gz
 

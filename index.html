@@ -953,7 +953,7 @@
         const API_BASE = (() => {
           const host = window.location.hostname;
           if (host === 'localhost' || host === '127.0.0.1') {
-            return DSTE.Storage.getString('dste_api_base');
+            return DSTE.Storage.getString('dste_api_base') || '';
           }
           return 'https://dste-api.jasonxspace.workers.dev';
         })();

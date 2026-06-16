@@ -1,0 +1,11 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:3456",
+      "localStorage": [
+        { "name": "dste_api_base", "value": "" }
+      ]
+    }
+  ]
+}

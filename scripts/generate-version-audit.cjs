@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /**
  * 生成版本审计数据
- * 用法: node scripts/generate-version-audit.cjs
- * 输出: 控制台打印 JSON 负载，可手动 POST 到 /api/version-audit
- * 生产部署时，应由 CI/CD 或发布脚本调用并写入 Cloudflare KV。
+ * 用法:
+ *   node scripts/generate-version-audit.cjs
+ *   node scripts/generate-version-audit.cjs --publish   # 生成后直接写入 Cloudflare KV
+ * 输出: public/version-audit.json
+ * 生产部署时，可用 --publish 直接写入 KV，或手动 POST /api/version-audit（需带 token）。
  */
 
 const fs = require('fs');
@@ -122,6 +124,16 @@ function main() {
   const outputPath = path.join(PUBLIC, 'version-audit.json');
   fs.writeFileSync(outputPath, JSON.stringify(audit, null, 2));
   console.log(`Generated ${outputPath}`);
+
+  if (process.argv.includes('--publish')) {
+    console.log('Publishing version-audit to Cloudflare KV...');
+    const wranglerDir = path.join(ROOT, 'api-worker');
+    execSync(
+      `npx wrangler kv:key put dste_version_audit_v1 --path="${outputPath}" --binding=DSTE_KV`,
+      { cwd: wranglerDir, stdio: 'inherit' }
+    );
+    console.log('Published version-audit to KV.');
+  }
 }
 
 main();

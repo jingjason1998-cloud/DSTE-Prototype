@@ -10,6 +10,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3456',
     trace: 'on-first-retry',
+    storageState: './tests/e2e/storage-state.json',
   },
   projects: [
     {

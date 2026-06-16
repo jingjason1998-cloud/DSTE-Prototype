@@ -406,7 +406,7 @@
       const API_BASE = (() => {
         const host = window.location.hostname;
         if (host === 'localhost' || host === '127.0.0.1') {
-          return DSTE.Storage.getString('dste_api_base');
+          return DSTE.Storage.getString('dste_api_base') || '';
         }
         return 'https://dste-api.jasonxspace.workers.dev';
       })();
@@ -683,18 +683,18 @@
         if (!DSTE.Storage.getString(OMP_STORAGE.indicators)) {
           const indicators = [
             // === 结果指标 (result) ===
-            { id: 'ind_sales_d', code: 'SALES_D', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_collection_k', code: 'COLLECTION_K', name: '回款额-K', description: '当期实际回款金额（营销线）', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_profit_margin', code: 'PROFIT_MARGIN', name: '营销线贡献利润率', description: '营销线利润贡献比例（减去人力成本及结算分摊）', formula: '(营收-成本-人力-分摊)/营收*100', unit: '%', frequency: 'quarterly', category: '财务', subCategory: '利润类', dataSource: '财务系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'percentage' },
-            { id: 'ind_new_product', code: 'NEW_PRODUCT_D', name: '新产品销售额-D', description: '新产品线销售收入（JDY&FDL）', formula: 'SUM(新产品合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '创新收入', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_benchmark', code: 'BENCHMARK', name: '市场标杆得分', description: '市场认知与品牌影响力综合评分', formula: 'AVG(各维度评分)', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '市场认知', dataSource: '调研系统', responsibleDept: '市场部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'score' },
-            { id: 'ind_arr', code: 'ARR', name: '年度经常性收入（ARR）', description: 'SaaS订阅收入年化金额', formula: 'SUM(MRR)*12', unit: '万元', frequency: 'quarterly', category: '客户', subCategory: '订阅收入', dataSource: '财务系统', responsibleDept: '客户成功部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_jdy', code: 'JDY', name: 'JDY销售额', description: '简道云产品线销售收入', formula: 'SUM(JDY合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_fdl', code: 'FDL', name: 'FDL销售额', description: 'FDL产品线销售收入', formula: 'SUM(FDL合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: 'CRM系统', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_sales_d', code: 'IND_001', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_collection_k', code: 'IND_002', name: '回款额-K', description: '当期实际回款金额（营销线）', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_profit_margin', code: 'IND_003', name: '营销线贡献利润率', description: '营销线利润贡献比例（减去人力成本及结算分摊）', formula: '(营收-成本-人力-分摊)/营收*100', unit: '%', frequency: 'quarterly', category: '财务', subCategory: '利润类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'percentage' },
+            { id: 'ind_new_product', code: 'IND_004', name: '新产品销售额-D', description: '新产品线销售收入（JDY&FDL）', formula: 'SUM(新产品合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '创新收入', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_benchmark', code: 'IND_005', name: '市场标杆得分', description: '市场认知与品牌影响力综合评分', formula: 'AVG(各维度评分)', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '市场认知', dataSource: '帆软数仓', responsibleDept: '市场部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'score' },
+            { id: 'ind_arr', code: 'IND_006', name: '年度经常性收入（ARR）', description: 'SaaS订阅收入年化金额', formula: 'SUM(MRR)*12', unit: '万元', frequency: 'quarterly', category: '客户', subCategory: '订阅收入', dataSource: '帆软数仓', responsibleDept: '客户成功部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_jdy', code: 'IND_007', name: 'JDY销售额', description: '简道云产品线销售收入', formula: 'SUM(JDY合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_fdl', code: 'IND_008', name: 'FDL销售额', description: 'FDL产品线销售收入', formula: 'SUM(FDL合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
             // === 过程指标 (process) ===
-            { id: 'ind_opportunity', code: 'OPPORTUNITY', name: '有效商机数', description: '当期有效商机数量（已确认需求且预算到位）', formula: 'COUNT(有效商机)', unit: '个', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
-            { id: 'ind_visit', code: 'VISIT', name: '客户拜访次数', description: '当期实际拜访客户次数', formula: 'COUNT(拜访记录)', unit: '次', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
-            { id: 'ind_conversion', code: 'CONVERSION', name: '合同转化率', description: '商机转化为合同的比例', formula: '成交合同数/商机总数*100', unit: '%', frequency: 'quarterly', category: '流程', subCategory: '运营效率', dataSource: 'CRM系统', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'percentage' },
+            { id: 'ind_opportunity', code: 'IND_009', name: '有效商机数', description: '当期有效商机数量（已确认需求且预算到位）', formula: 'COUNT(有效商机)', unit: '个', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
+            { id: 'ind_visit', code: 'IND_010', name: '客户拜访次数', description: '当期实际拜访客户次数', formula: 'COUNT(拜访记录)', unit: '次', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
+            { id: 'ind_conversion', code: 'IND_011', name: '合同转化率', description: '商机转化为合同的比例', formula: '成交合同数/商机总数*100', unit: '%', frequency: 'quarterly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'percentage' },
           ];
           DSTE.Storage.set(OMP_STORAGE.indicators, indicators);
         }
@@ -1152,12 +1152,7 @@
         'dashboard/version-audit': window.renderVersionAudit,
         'sp/strategy-map': () => { window.location.href = 'strategy-map-list.html'; return ''; },
         'sp/insights-topics': renderInsightsTopics,
-        'bp/kpi': function() {
-          if (window.__indicatorSystem && window.__indicatorSystem.render) {
-            return window.__indicatorSystem.render();
-          }
-          return '<div class="card" style="text-align:center;padding:60px 20px;"><div style="font-size:32px;margin-bottom:16px;">⏳</div><div style="font-size:16px;color:var(--text-primary);">战略指标库模块加载中...</div></div>';
-        },
+        'bp/kpi': renderIndicatorSystem,
         'bp/bem': () => renderPlaceholder('🔧 BEM 战略解码', '基于 BEM 六步解码法，将战略转化为可执行的行动计划。'),
         'bp/annual-plan': renderAnnualPlan,
         'exe/tasks': renderTasks,
@@ -4818,6 +4813,18 @@
         link.click();
       };
 
+      function generateIndicatorCode() {
+        const indicators = omp_load('indicators') || [];
+        let maxNum = 0;
+        indicators.forEach(i => {
+          const match = String(i.code).match(/^IND_(\d+)$/);
+          if (match) {
+            maxNum = Math.max(maxNum, parseInt(match[1], 10));
+          }
+        });
+        return `IND_${String(maxNum + 1).padStart(3, '0')}`;
+      }
+
       window.ind_openModal = function(mode, id) {
         const indicators = omp_load('indicators');
         const isEdit = mode === 'edit';
@@ -4850,8 +4857,8 @@
         omp_openModal(isEdit ? '编辑指标' : '新建指标', `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
             <div>
-              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标编码 *</label>
-              <input type="text" id="ind-code" value="${isEdit ? ind.code : ''}" placeholder="如: REVENUE" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;" ${isEdit ? 'disabled' : ''}>
+              <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标编码（系统自动生成）</label>
+              <input type="text" id="ind-code" value="${isEdit ? ind.code : generateIndicatorCode()}" placeholder="系统自动生成" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-page);color:var(--text-secondary);font-size:13px;" disabled>
             </div>
             <div>
               <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标名称 *</label>
@@ -4902,7 +4909,7 @@
             </div>
             <div>
               <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">数据来源</label>
-              <input type="text" id="ind-source" value="${isEdit ? ind.dataSource : ''}" placeholder="如: CRM系统" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              <input type="text" id="ind-source" value="${isEdit ? ind.dataSource : '帆软数仓'}" placeholder="帆软数仓" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
             </div>
             <div>
               <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任部门</label>
@@ -4953,7 +4960,6 @@
       };
 
       window.ind_save = function(id) {
-        const code = document.getElementById('ind-code')?.value?.trim();
         const name = document.getElementById('ind-name')?.value?.trim();
         const description = document.getElementById('ind-desc')?.value?.trim();
         const formula = document.getElementById('ind-formula')?.value?.trim();
@@ -4968,16 +4974,16 @@
         const isPositive = document.getElementById('ind-positive')?.value === 'true';
         const status = document.getElementById('ind-status')?.value || 'active';
 
-        if (!code || !name || !description || !category || !indicatorType || !dataType) {
-          showToast('请填写必填项（编码、名称、定义、分类、指标类型、数据类型）', 'warning');
+        if (!name || !description || !category || !indicatorType || !dataType) {
+          showToast('请填写必填项（名称、定义、分类、指标类型、数据类型）', 'warning');
           return;
         }
 
         const indicators = omp_load('indicators');
+        let code = document.getElementById('ind-code')?.value?.trim();
         if (id === 'new') {
-          if (indicators.some(i => i.code === code)) {
-            showToast(`指标编码「${code}」已存在，请使用其他编码。`, 'warning');
-            return;
+          while (indicators.some(i => i.code === code)) {
+            code = generateIndicatorCode();
           }
           indicators.push({
             id: 'ind_' + Date.now(),
@@ -5023,25 +5029,6 @@
   </script>
   <div id="app-version" style="position:fixed;bottom:4px;right:8px;font-size:11px;color:var(--text-tertiary);opacity:0.6;z-index:9999;pointer-events:none;"></div>
 
-  <!-- 战略指标库模块 -->
-  <script type="module">
-    import { initIndicatorSystem, render } from './pages/indicator-system/index.js';
-
-    window.__indicatorSystem = { render };
-    window.__initIndicatorSystem = initIndicatorSystem;
-
-    // 页面渲染后挂载模块事件
-    window.__afterNavigate = function(pageId, container) {
-      if (pageId === 'bp/kpi' && typeof window.__initIndicatorSystem === 'function') {
-        window.__initIndicatorSystem(container, { skipRender: true });
-      }
-    };
-
-    // 如果当前已在战略指标库页面，用模块重新渲染
-    if (window.location.hash === '#bp/kpi' && typeof window.navigate === 'function') {
-      window.navigate('bp/kpi', false);
-    }
-  </script>
 
   <script type="module">
     (function() {

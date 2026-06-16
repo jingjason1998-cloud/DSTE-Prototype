@@ -35,7 +35,7 @@ const API_BASE = (() => {
     // 生产环境使用 Cloudflare Worker，开发环境可覆盖
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
-        return Storage.getString('dste_api_base');
+        return Storage.getString('dste_api_base') || '';
     }
     return 'https://dste-api.jasonxspace.workers.dev';
 })();
@@ -1397,10 +1397,11 @@ async function init() {
     }
 
     let topics = loadTopics();
+    const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     if (topics.length === 0) {
-        topics = initDefaultData();
-    } else {
-        // Ensure all default topics are present (merge missing ones)
+        topics = isLocalDev ? initDefaultData() : [];
+    } else if (isLocalDev) {
+        // Ensure all default topics are present (merge missing ones) — only on localhost
         const defaults = initDefaultData(false);
         const existingIds = new Set(topics.map(t => t.id));
         let added = 0;
@@ -1414,6 +1415,8 @@ async function init() {
             saveTopics(topics);
         }
     }
+
+    _cachedTopics = topics;
 
     // 同步加载云端议题数据
     const remoteIssues = await apiLoad('/api/issues');

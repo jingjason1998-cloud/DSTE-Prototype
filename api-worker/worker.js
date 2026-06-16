@@ -78,6 +78,23 @@ function extractToken(request) {
   return match ? match[1] : null;
 }
 
+// 校验 Bearer token 是否有效
+async function requireAuth(request, env) {
+  const token = extractToken(request);
+  if (!token) {
+    return { valid: false, error: 'Unauthorized', status: 401 };
+  }
+  const userJson = await env.DSTE_KV.get(`token:${token}`);
+  if (!userJson) {
+    return { valid: false, error: 'Token expired', status: 401 };
+  }
+  try {
+    return { valid: true, user: JSON.parse(userJson) };
+  } catch (e) {
+    return { valid: false, error: 'Invalid token', status: 401 };
+  }
+}
+
 // CAS Ticket 验证
 async function validateCasTicket(ticket, service) {
   const validateUrl = `${CAS_CONFIG.server}/cas/serviceValidate?service=${encodeURIComponent(service)}&ticket=${encodeURIComponent(ticket)}`;
@@ -227,6 +244,10 @@ export default {
           return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
         }
         if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
           const body = await request.json();
           await env.DSTE_KV.put(KEYS.topics, JSON.stringify(body));
           return jsonResponse({ success: true, message: 'topics saved' }, 200, request);
@@ -240,6 +261,10 @@ export default {
           return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
         }
         if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
           const body = await request.json();
           await env.DSTE_KV.put(KEYS.issues, JSON.stringify(body));
           return jsonResponse({ success: true, message: 'issues saved' }, 200, request);
@@ -253,6 +278,10 @@ export default {
           return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
         }
         if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
           const body = await request.json();
           await env.DSTE_KV.put(KEYS.meetings, JSON.stringify(body));
           return jsonResponse({ success: true, message: 'meetings saved' }, 200, request);
@@ -272,6 +301,10 @@ export default {
           return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
         }
         if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
           const body = await request.json();
           await env.DSTE_KV.put(kvKey, JSON.stringify(body));
           return jsonResponse({ success: true, message: entity + ' saved' }, 200, request);
@@ -328,6 +361,10 @@ export default {
           return jsonResponse({ success: true, ...audit }, 200, request);
         }
         if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
           const body = await request.json();
           const audit = {
             environment: 'production',
