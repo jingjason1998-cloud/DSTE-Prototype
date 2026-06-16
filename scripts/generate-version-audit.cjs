@@ -91,11 +91,14 @@ function main() {
   };
 
   // 生产：从独立配置文件读取，不存在时使用本地数据占位
+  // 配置文件通常是上次从生产环境下载的 version-audit.json，取其 local 部分作为生产数据
   const prodConfigPath = path.join(ROOT, 'version-audit-production.json');
   let production = null;
   if (fs.existsSync(prodConfigPath)) {
     try {
-      production = JSON.parse(fs.readFileSync(prodConfigPath, 'utf-8'));
+      const prodRaw = JSON.parse(fs.readFileSync(prodConfigPath, 'utf-8'));
+      production = prodRaw.local || prodRaw;
+      production.fetched_at = prodRaw.generated_at;
     } catch (e) {
       console.warn('Failed to read production config:', e.message);
     }
