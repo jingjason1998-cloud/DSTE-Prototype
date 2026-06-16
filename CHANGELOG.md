@@ -7,6 +7,28 @@
 
 ---
 
+## [v0.5.1] - 2026-06-16
+
+### Added
+- **版本审计看板**：在驾驶舱系统管理中新增 `#dashboard/version-audit` 入口
+  - 生产环境状态卡片与三环境（本地/Git/生产）版本对比表格
+  - 部署检查清单（构建/tag/生产/测试）
+  - 刷新与复制报告按钮
+  - 配套数据生成脚本 `scripts/generate-version-audit.cjs` 与 E2E 测试
+- **RoadMap 周视图看板**：按 ISO 自然周展示版本节点、开发计划与 upcoming 里程碑
+
+### Changed
+- **决议中心架构收尾**：`src/meetings.html` 改为通过 `<script type="module">` 引入 `src/meetings/utils/resolution-helpers.js`，删除内联副本，消除双源维护
+- 升级构建工具链：`vite` 5.4.21 → 6.4.3，`esbuild` 0.25.x → 0.28.1，`js-yaml` 4.1.1 → 4.2.0
+
+### Security
+- 修复 `npm audit` 报告的 2 high + 1 moderate 漏洞（Vite/esbuild/JS-YAML）
+
+### Removed
+- 删除误放到项目根目录的 `proxy_server.py`
+
+---
+
 ## [v0.4.9] - 2026-06-10
 
 ### Added
