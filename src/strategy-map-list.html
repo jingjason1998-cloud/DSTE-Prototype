@@ -44,24 +44,15 @@
   <style>
     /* ========== 战略地图列表页样式 ========== */
     :root {
-      --sm-bg: #f8fafc;
-      --sm-card-bg: #fff;
-      --sm-border: #e5e7eb;
-      --sm-text: #1f2937;
-      --sm-text-secondary: #6b7280;
-      --sm-text-tertiary: #9ca3af;
+      --sm-bg: var(--bg-page, #f8fafc);
+      --sm-card-bg: var(--bg-card, #fff);
+      --sm-border: var(--border-color, #e5e7eb);
+      --sm-text: var(--text-primary, #1f2937);
+      --sm-text-secondary: var(--text-secondary, #6b7280);
+      --sm-text-tertiary: var(--text-tertiary, #9ca3af);
     }
 
-    .sm-list-container { min-height: calc(100vh - 52px); background: var(--sm-bg); }
-    .sm-list-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
-
-    /* 页面标题 */
-    .sm-list-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 20px; gap: 16px; flex-wrap: wrap;
-    }
-    .sm-list-title { font-size: 22px; font-weight: 600; color: var(--sm-text); }
-    .sm-list-subtitle { font-size: 13px; color: var(--sm-text-secondary); margin-top: 4px; }
+    .sm-list-main { max-width: 1100px; margin: 0 auto; padding: 0 0 48px; }
 
     /* 工具栏 */
     .sm-list-toolbar {
@@ -74,7 +65,8 @@
     }
     .sm-list-toolbar .search-box input {
       width: 100%; padding: 7px 12px 7px 32px; border: 1px solid var(--sm-border);
-      border-radius: 6px; font-size: 13px; outline: none;
+      border-radius: 6px; font-size: 13px; outline: none; background: transparent;
+      color: var(--sm-text);
     }
     .sm-list-toolbar .search-box input:focus { border-color: var(--primary); }
     .sm-list-toolbar .search-box::before {
@@ -83,7 +75,8 @@
     }
     .sm-list-toolbar select {
       padding: 7px 28px 7px 12px; border: 1px solid var(--sm-border);
-      border-radius: 6px; font-size: 13px; background: #fff; cursor: pointer;
+      border-radius: 6px; font-size: 13px; background: var(--sm-card-bg); cursor: pointer;
+      color: var(--sm-text);
     }
     .sm-list-toolbar .toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
 
@@ -136,6 +129,17 @@
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
       overflow: hidden;
     }
+
+    .sm-map-card-links {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+    }
+    .sm-map-link {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 5px; font-size: 12px;
+      background: #eff6ff; color: var(--primary); text-decoration: none;
+      transition: background 0.15s;
+    }
+    .sm-map-link:hover { background: #dbeafe; }
 
     .sm-map-card-footer {
       display: flex; align-items: center; justify-content: space-between;
@@ -202,6 +206,7 @@
     .form-input, .form-textarea, .form-select {
       width: 100%; padding: 8px 12px; border: 1px solid var(--sm-border);
       border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;
+      background: transparent; color: var(--sm-text);
     }
     .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--primary); }
     .form-textarea { min-height: 80px; resize: vertical; }
@@ -213,94 +218,104 @@
   </style>
 </head>
 <body>
-  <!-- 顶部导航 -->
-  <header class="top-nav">
-    <div class="nav-left">
-      <a href="../index.html" class="logo">DSTE</a>
-      <nav class="top-nav-links">
-        <a href="cockpit.html">驾驶舱</a>
-        <a href="cockpit.html#sp/strategy-map" class="active">SP</a>
-        <a href="cockpit.html#bp/kpi">BP</a>
-        <a href="cockpit.html#exe/tasks">执行</a>
-        <a href="cockpit.html#rev/performance">评估</a>
-        <a href="cockpit.html#ai">AI</a>
-      </nav>
+  <div class="app">
+    <!-- 顶部导航 (与 cockpit.html / business-topics.html 一致) -->
+    <nav class="top-nav">
+      <div style="display: flex; align-items: center;">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单">☰</button>
+        <div class="top-nav-brand">
+          <div class="top-nav-logo">D</div>
+          <span class="top-nav-title">DSTE 战略管理平台</span>
+        </div>
+      </div>
+      <ul class="top-nav-links" id="top-nav-links">
+        <li><a href="cockpit.html#dashboard" data-phase="dashboard"><span>🎛️</span><span>驾驶舱</span><span class="nav-full-label">驾驶舱</span></a></li>
+        <li><a href="cockpit.html#sp/strategy-map" data-phase="sp" class="active"><span>🎯</span><span>SP</span><span class="nav-full-label">战略制定</span></a></li>
+        <li><a href="cockpit.html#bp/kpi" data-phase="bp"><span>🔧</span><span>BP</span><span class="nav-full-label">战略解码</span></a></li>
+        <li><a href="cockpit.html#exe/tasks" data-phase="exe"><span>🚀</span><span>执行</span><span class="nav-full-label">战略执行</span></a></li>
+        <li><a href="cockpit.html#rev/performance" data-phase="rev"><span>📊</span><span>评估</span><span class="nav-full-label">战略评估</span></a></li>
+        <li><a href="cockpit.html#ai" data-phase="ai"><span>🤖</span><span>AI</span><span class="nav-full-label">AI 助手</span></a></li>
+      </ul>
+      <div class="top-nav-actions">
+        <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
+        <button class="icon-btn" title="通知">🔔</button>
+        <div class="user-avatar" id="user-avatar">张</div>
+      </div>
+    </nav>
+
+    <div class="app-body">
+      <!-- 侧边栏遮罩层 -->
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+      <!-- 左侧边栏 (SP 阶段) -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-group">
+          <div class="sidebar-group-title">战略制定 (SP)</div>
+          <a class="sidebar-item active" href="strategy-map-list.html"><span class="icon">🗺️</span><span>战略地图</span></a>
+          <a class="sidebar-item" href="cockpit.html#sp/insights-topics"><span class="icon">🔭</span><span>战略洞察与专题</span></a>
+        </div>
+        <div class="sidebar-quick">快捷工具</div>
+        <a class="sidebar-item" href="reviewer.html"><span class="icon">📋</span><span>会议材料审核</span></a>
+      </aside>
+
+      <!-- 内容区 -->
+      <main class="content-area">
+        <div class="page-container">
+          <div class="breadcrumb">
+            <a href="cockpit.html#dashboard">驾驶舱</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="cockpit.html#sp/strategy-map">战略制定</a>
+            <span class="breadcrumb-separator">/</span>
+            <span>战略地图</span>
+          </div>
+
+          <div class="page-header">
+            <div>
+              <div class="page-title">战略地图</div>
+              <div class="page-subtitle">管理战略规划周期，查看、编辑和发布战略地图</div>
+            </div>
+            <div class="nav-actions">
+              <button class="btn btn-primary" data-action="new-map">+ 新建战略地图</button>
+            </div>
+          </div>
+
+          <div class="page-content">
+            <div class="sm-list-toolbar">
+              <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索地图名称或描述..." data-action="search">
+              </div>
+              <select id="filterStatus" data-action="filter-status">
+                <option value="">全部状态</option>
+                <option value="draft">草稿</option>
+                <option value="review">审批中</option>
+                <option value="approved">已发布</option>
+                <option value="archived">已归档</option>
+              </select>
+              <select id="filterCycle" data-action="filter-cycle">
+                <option value="">全部周期</option>
+              </select>
+              <div class="toolbar-actions">
+                <button class="btn btn-ghost" data-action="refresh">🔄 刷新</button>
+              </div>
+            </div>
+
+            <div class="sm-list-stats" id="listStats">
+              <span>共 <strong id="statTotal">0</strong> 张地图</span>
+              <span>已发布 <strong id="statApproved">0</strong></span>
+              <span>草稿 <strong id="statDraft">0</strong></span>
+            </div>
+
+            <div class="sm-list-grid" id="mapListGrid"></div>
+            <div class="sm-list-empty" id="emptyState" style="display: none;">
+              <div class="icon">🗺️</div>
+              <div class="title">暂无战略地图</div>
+              <div class="desc">点击右上角「新建战略地图」创建第一张地图</div>
+              <button class="btn btn-primary" data-action="new-map">新建战略地图</button>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
-    <div class="nav-right">
-      <button class="theme-toggle" id="theme-toggle" title="切换主题">🌓</button>
-      <div class="user-menu">
-        <button class="user-avatar" id="user-avatar">张</button>
-      </div>
-    </div>
-  </header>
-
-  <div class="sm-list-container">
-    <!-- 侧边栏 -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">战略制定 (SP)</div>
-      <nav class="sidebar-nav">
-        <a href="cockpit.html#sp/strategy-map" class="sidebar-item active">
-          <span class="sidebar-icon">🗺️</span>
-          <span class="sidebar-label">战略地图</span>
-        </a>
-        <a href="cockpit.html#sp/insights-topics" class="sidebar-item">
-          <span class="sidebar-icon">🔭</span>
-          <span class="sidebar-label">战略洞察与专题</span>
-        </a>
-      </nav>
-      <div class="sidebar-section-title">快捷工具</div>
-      <nav class="sidebar-nav">
-        <a href="reviewer.html" class="sidebar-item">
-          <span class="sidebar-icon">📋</span>
-          <span class="sidebar-label">会议材料审核</span>
-        </a>
-      </nav>
-    </aside>
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-    <!-- 主内容 -->
-    <main class="sm-list-main">
-      <div class="sm-list-header">
-        <div>
-          <div class="sm-list-title">战略地图</div>
-          <div class="sm-list-subtitle">管理战略规划周期，查看、编辑和发布战略地图</div>
-        </div>
-        <button class="btn btn-primary" data-action="new-map">+ 新建战略地图</button>
-      </div>
-
-      <div class="sm-list-toolbar">
-        <div class="search-box">
-          <input type="text" id="searchInput" placeholder="搜索地图名称或描述..." data-action="search">
-        </div>
-        <select id="filterStatus" data-action="filter-status">
-          <option value="">全部状态</option>
-          <option value="draft">草稿</option>
-          <option value="review">审批中</option>
-          <option value="approved">已发布</option>
-          <option value="archived">已归档</option>
-        </select>
-        <select id="filterCycle" data-action="filter-cycle">
-          <option value="">全部周期</option>
-        </select>
-        <div class="toolbar-actions">
-          <button class="btn btn-secondary" data-action="refresh">🔄 刷新</button>
-        </div>
-      </div>
-
-      <div class="sm-list-stats" id="listStats">
-        <span>共 <strong id="statTotal">0</strong> 张地图</span>
-        <span>已发布 <strong id="statApproved">0</strong></span>
-        <span>草稿 <strong id="statDraft">0</strong></span>
-      </div>
-
-      <div class="sm-list-grid" id="mapListGrid"></div>
-      <div class="sm-list-empty" id="emptyState" style="display: none;">
-        <div class="icon">🗺️</div>
-        <div class="title">暂无战略地图</div>
-        <div class="desc">点击右上角「新建战略地图」创建第一张地图</div>
-        <button class="btn btn-primary" data-action="new-map">新建战略地图</button>
-      </div>
-    </main>
   </div>
 
   <!-- 地图创建/编辑弹窗 -->
@@ -348,6 +363,19 @@
         <div class="form-group">
           <label class="form-label">版本标签</label>
           <input type="text" class="form-input" id="mapModalVersionLabel" placeholder="如：v1.0 初始版">
+        </div>
+        <div class="form-group">
+          <label class="form-label">KMS 链接</label>
+          <input type="url" class="form-input" id="mapModalSource" placeholder="如：https://kms.fineres.com/pages/viewpage.action?pageId=xxx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">宣贯 PPT</label>
+          <input type="url" class="form-input" id="mapModalPresentationUrl" placeholder="如：飞书/腾讯文档/OneDrive 链接">
+          <div class="file-upload" id="mapModalPresentationUpload" style="margin-top:8px;">
+            <input type="file" id="mapModalPresentationFile" accept=".ppt,.pptx,.pdf" style="display:none;">
+            <button type="button" class="btn btn-default" id="mapModalPresentationBtn" style="width:100%;">📎 上传 PPT/PDF</button>
+            <div class="file-upload-name" id="mapModalPresentationName" style="margin-top:6px;font-size:12px;color:var(--sm-text-secondary);"></div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">描述</label>

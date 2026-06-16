@@ -128,6 +128,8 @@ test.describe('Strategy Map List', () => {
     await page.locator('#mapModalStartYear').fill('2027');
     await page.locator('#mapModalEndYear').fill('2029');
     await page.locator('#mapModalStatus').selectOption('draft');
+    await page.locator('#mapModalSource').fill('https://kms.example.com/page/123');
+    await page.locator('#mapModalPresentationUrl').fill('https://ppt.example.com/slide/456');
     await page.locator('#mapModalDesc').fill('这是一个测试地图');
 
     await page.locator('[data-action="save-map"]').click();
@@ -135,6 +137,8 @@ test.describe('Strategy Map List', () => {
     await expect(page.locator('.sm-map-card:has-text("测试新建地图")')).toBeVisible();
     await expect(page.locator('.sm-map-card:has-text("测试新建地图")')).toContainText('测试部门');
     await expect(page.locator('.sm-map-card:has-text("测试新建地图")')).toContainText('2027-2029');
+    await expect(page.locator('.sm-map-card:has-text("测试新建地图")')).toContainText('KMS 链接');
+    await expect(page.locator('.sm-map-card:has-text("测试新建地图")')).toContainText('宣贯 PPT');
   });
 
   test('edits an existing map', async ({ page }) => {

@@ -86,6 +86,15 @@
     }
     .map-selector .map-config-btn:hover { background: #e5e7eb; }
 
+    .map-links { display: flex; align-items: center; gap: 6px; margin-left: 8px; }
+    .map-link {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 4px 8px; border-radius: 5px; font-size: 11px;
+      background: #eff6ff; color: var(--primary); text-decoration: none;
+      white-space: nowrap; transition: background 0.15s;
+    }
+    .map-link:hover { background: #dbeafe; }
+
     /* 年度视角切换 */
     .annual-toggle {
       display: flex; align-items: center; gap: 4px;
@@ -107,8 +116,22 @@
       background: #fff; font-size: 12px; color: #4b5563; cursor: pointer;
       transition: all 0.2s; white-space: nowrap;
     }
-    .global-toggle-btn:hover { background: #f9fafb; border-color: #d1d5db; }
-    .global-toggle-btn.active { background: #eff6ff; border-color: var(--primary); color: var(--primary); }
+    /* 模式切换 */
+    .mode-toggle { display: flex; background: #f3f4f6; border-radius: 6px; padding: 2px; gap: 2px; }
+    .mode-btn {
+      padding: 5px 12px; border: none; border-radius: 5px;
+      font-size: 12px; cursor: pointer; background: transparent; color: var(--sm-text-secondary);
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .mode-btn:hover { color: var(--sm-text); }
+    .mode-btn.active { background: var(--primary); color: #fff; font-weight: 500; }
+
+    /* 查看模式下隐藏编辑控件 */
+    body:not(.edit-mode) .edit-only { display: none !important; }
+    body.edit-mode .view-only { display: none !important; }
+
+    /* 查看模式下端口不显示 hover 效果（虽然连线功能暂未实现） */
+    body:not(.edit-mode) .port { pointer-events: none; }
 
     /* 画布 */
     .sm-canvas-wrap {
@@ -126,8 +149,20 @@
     .link-path.influences { stroke: #b4b4b8; stroke-width: 1.5; stroke-dasharray: 6,4; marker-end: url(#arrowhead-dashed); }
     .link-path.supports { stroke: #e5e7eb; stroke-width: 1.2; stroke-dasharray: 2,4; marker-end: url(#arrowhead-supports); opacity: 0.5; }
     .link-path:hover { stroke: var(--primary); stroke-width: 2.5; }
+    .link-path.selected { stroke: var(--primary); stroke-width: 3; filter: drop-shadow(0 0 3px rgba(22,119,255,0.3)); }
     .link-path.chain-highlight { stroke: var(--primary); stroke-width: 2.8; opacity: 1; }
     .link-path.chain-dimmed { opacity: 0.08; }
+
+    /* 拖拽临时线 */
+    .link-drag-temp { fill: none; stroke: var(--primary); stroke-width: 2; stroke-dasharray: 5,5; pointer-events: none; opacity: 0.8; }
+
+    /* 拖拽投放目标 */
+    .obj-card.drop-target { box-shadow: 0 0 0 3px var(--primary), 0 4px 14px rgba(0,0,0,0.08); }
+    .obj-card.drop-invalid { box-shadow: 0 0 0 3px #ef4444; }
+
+    /* 编辑模式下端口可拖拽 */
+    body.edit-mode .port { cursor: grab; pointer-events: auto; }
+    body.edit-mode .port:active { cursor: grabbing; }
 
     /* 因果链 tooltip */
     .link-tooltip {
@@ -170,13 +205,34 @@
 
     .dim-content { display: flex; gap: 14px; flex-wrap: wrap; min-height: 80px; position: relative; z-index: 2; }
 
+    /* 目标分组：一级指标 + 下钻展开的二级指标 */
+    .obj-group { display: flex; flex-direction: column; align-self: flex-start; }
+
     /* 一级指标行 */
     .dim-row-primary { display: flex; gap: 14px; flex-wrap: wrap; position: relative; z-index: 2; }
     /* 二级指标行 */
     .dim-row-secondary {
-      display: flex; gap: 10px; flex-wrap: wrap;
-      margin-top: 12px; padding-left: 24px;
-      position: relative; z-index: 2;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 0;
+      padding-left: 24px;
+      position: relative;
+      z-index: 2;
+      opacity: 0;
+      visibility: hidden;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease, visibility 0.25s ease;
+    }
+    .dim-row-secondary.open {
+      max-height: 300px;
+      margin-top: 12px;
+      opacity: 1;
+      visibility: visible;
+    }
+    .dim-row-secondary-inner {
+      display: contents;
     }
     .dim-row-secondary::before {
       content: '';
@@ -188,6 +244,7 @@
       position: absolute; left: 6px; top: 50%;
       width: 16px; height: 1px; border-top: 1px dashed #d1d5db;
     }
+    .dim-row-secondary.open::before { top: -12px; }
 
     /* 目标卡片 */
     .obj-card {
@@ -227,6 +284,14 @@
       font-size: 12px; font-weight: 600; margin-bottom: 4px;
       padding-left: 6px; display: flex; align-items: center; gap: 4px; line-height: 1.3;
     }
+    .drill-toggle {
+      margin-left: auto; padding: 1px 4px; border: none; background: transparent;
+      color: #9ca3af; font-size: 10px; cursor: pointer; border-radius: 4px;
+      transition: all 0.25s ease; line-height: 1;
+      transform: rotate(0deg);
+    }
+    .drill-toggle:hover { color: var(--primary); background: #eff6ff; }
+    .drill-toggle.expanded { transform: rotate(180deg); color: var(--primary); }
     .obj-focus { font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 500; white-space: nowrap; }
     .obj-focus.primary { background: #fef3c7; color: #d97706; }
     .obj-focus.secondary { background: #f3f4f6; color: var(--sm-text-secondary); }
@@ -252,14 +317,18 @@
       transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
       opacity: 0; margin-top: 0;
     }
-    .ms-wrap.open { max-height: 300px; opacity: 1; padding: 8px 10px; margin-top: 8px; }
+    .ms-wrap.open { max-height: 120px; opacity: 1; padding: 6px 8px; margin-top: 6px; }
 
-    .ms-pills { display: flex; gap: 4px; }
-    .ms-pill { flex: 1; text-align: center; padding: 4px 2px; border-radius: 4px; font-size: 10px; }
+    .ms-pills { display: flex; gap: 6px; }
+    .ms-pill {
+      flex: 1; text-align: center; padding: 5px 4px; border-radius: 5px; font-size: 10px;
+      line-height: 1.35; min-width: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
     .ms-pill.primary { background: #fef3c7; border: 1px solid #fcd34d; }
     .ms-pill.secondary { background: #f3f4f6; border: 1px solid var(--sm-border); }
-    .ms-pill .yr { font-weight: 600; color: #374151; }
-    .ms-pill .val { color: var(--sm-text-secondary); }
+    .ms-pill .yr { font-size: 9px; color: #6b7280; margin-bottom: 1px; }
+    .ms-pill .val { font-size: 11px; font-weight: 600; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
     .ms-box { background: #f8fafc; border-radius: 5px; padding: 8px 10px; }
     .ms-box-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
@@ -517,8 +586,14 @@
         <div class="map-selector">
           <label>🗺️ 战略地图</label>
           <select id="mapSelect"></select>
-          <button class="map-config-btn" id="mapConfigBtn" title="地图配置">⚙️</button>
+          <button class="map-config-btn edit-only" id="mapConfigBtn" title="地图配置">⚙️</button>
         </div>
+        <div class="map-links" id="mapLinks"></div>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group mode-toggle">
+        <button class="mode-btn active" data-action="set-mode" data-mode="view" title="查看模式">👁 查看</button>
+        <button class="mode-btn" data-action="set-mode" data-mode="edit" title="编辑模式">✏️ 编辑</button>
       </div>
       <div class="toolbar-sep"></div>
       <div class="toolbar-group">
@@ -554,7 +629,7 @@
       </div>
       <div class="toolbar-sep"></div>
       <div class="toolbar-group">
-        <button class="tool-btn" data-action="new-obj">➕ 新建目标</button>
+        <button class="tool-btn edit-only" data-action="new-obj">➕ 新建目标</button>
         <button class="tool-btn" data-action="export-map">📥 导出</button>
       </div>
     </div>
@@ -726,7 +801,8 @@ import {
 import { render, drawLinks, getCausalChain, getObjById } from './lib/strategy-map-render.js';
 import {
   ToastManager, ModalManager, DetailPanelManager,
-  TooltipManager, ChainHighlighter, bindGlobalModalHandlers
+  TooltipManager, ChainHighlighter, bindGlobalModalHandlers,
+  LinkModalManager, LinkSelectionManager, LinkDragManager
 } from './lib/strategy-map-ui.js';
 
 // ========== 状态 ==========
@@ -738,6 +814,9 @@ const state = {
   currentView: 'all',
   activeDimFilter: null,
   allExpanded: false,
+  isEditMode: false,
+  selectedLink: null,
+  expandedParents: new Set(),
 };
 
 // ========== 初始化 ==========
@@ -765,6 +844,7 @@ function loadCurrentMap() {
   state.mapConfig = MapConfigStore.get(state.mapId);
   state.objectives = ObjectiveStore.load(state.mapId);
   state.links = LinkStore.load(state.mapId);
+  state.expandedParents.clear();
 
   if (!state.mapConfig) {
     state.mapId = DEFAULT_MAP_ID;
@@ -773,15 +853,24 @@ function loadCurrentMap() {
     state.objectives = ObjectiveStore.load(state.mapId);
     state.links = LinkStore.load(state.mapId);
   }
+
+  renderMapLinks();
 }
 
 function switchMap(mapId) {
   if (mapId === state.mapId) return;
   MapConfigStore.setCurrentId(mapId);
+  state.expandedParents.clear();
   loadCurrentMap();
   renderMapSelector();
   refresh();
   syncUrlState();
+}
+
+function setEditMode(value) {
+  state.isEditMode = value;
+  updateToolbarState();
+  ToastManager.show(value ? '已切换到编辑模式' : '已切换到查看模式', 'success');
 }
 
 // ========== 渲染 ==========
@@ -790,15 +879,41 @@ function refresh() {
     objectives: state.objectives,
     currentView: state.currentView,
     activeDimFilter: state.activeDimFilter,
-    allExpanded: state.allExpanded
+    allExpanded: state.allExpanded,
+    expandedParents: state.expandedParents
   });
   requestAnimationFrame(redrawLinks);
   updateToolbarState();
 }
 
 function redrawLinks() {
-  drawLinks({ links: state.links, objectives: state.objectives });
+  const visibleIds = getVisibleObjectiveIds();
+  drawLinks({ links: state.links, objectives: state.objectives, visibleIds });
   bindLinkEvents();
+  // 重绘后恢复选中状态
+  if (state.selectedLink) {
+    const { from, to } = state.selectedLink;
+    const path = document.querySelector(`.link-path[data-from="${from}"][data-to="${to}"]`);
+    if (path) LinkSelectionManager.select(path);
+  }
+}
+
+function getVisibleObjectiveIds() {
+  const ids = new Set();
+  const secondaryByParent = new Map();
+  state.objectives.filter(o => o.level === 'secondary').forEach(o => {
+    const pid = o.parentId || '_unassigned';
+    if (!secondaryByParent.has(pid)) secondaryByParent.set(pid, []);
+    secondaryByParent.get(pid).push(o);
+  });
+  state.objectives.forEach(obj => {
+    if (obj.level === 'secondary') return;
+    ids.add(obj.id);
+    if (state.expandedParents.has(obj.id)) {
+      (secondaryByParent.get(obj.id) || []).forEach(child => ids.add(child.id));
+    }
+  });
+  return ids;
 }
 
 function updateToolbarState() {
@@ -818,6 +933,14 @@ function updateToolbarState() {
     globalToggle.classList.toggle('active', state.allExpanded);
     globalToggleText.textContent = state.allExpanded ? '▲ 收起全部分解' : '▼ 展开全部分解';
   }
+
+  // 模式切换按钮状态
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === (state.isEditMode ? 'edit' : 'view'));
+  });
+
+  // 根据模式切换 body class
+  document.body.classList.toggle('edit-mode', state.isEditMode);
 }
 
 function renderMapSelector() {
@@ -827,6 +950,39 @@ function renderMapSelector() {
   select.innerHTML = maps.map(m =>
     `<option value="${m.id}" ${m.id === state.mapId ? 'selected' : ''}>${m.name}</option>`
   ).join('');
+}
+
+function renderMapLinks() {
+  const container = document.getElementById('mapLinks');
+  if (!container || !state.mapConfig) return;
+
+  const source = (state.mapConfig.source || '').trim();
+  const pres = state.mapConfig.presentation || {};
+  const presUrl = (pres.url || '').trim();
+  const presFile = pres.fileName && pres.fileData ? pres : null;
+
+  const escape = (str) => {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  const links = [];
+  if (source) {
+    links.push(`<a class="map-link" href="${escape(source)}" target="_blank" rel="noopener">🔗 KMS</a>`);
+  }
+  if (presUrl) {
+    links.push(`<a class="map-link" href="${escape(presUrl)}" target="_blank" rel="noopener">📎 PPT</a>`);
+  }
+  if (presFile) {
+    links.push(`<a class="map-link" href="${escape(presFile.fileData)}" download="${escape(presFile.fileName)}">📎 ${escape(presFile.fileName)}</a>`);
+  }
+
+  container.innerHTML = links.join('');
 }
 
 // ========== 事件绑定 ==========
@@ -844,10 +1000,17 @@ function bindEvents() {
         filterDim(btn.dataset.dim);
         break;
       case 'new-obj':
+        if (!state.isEditMode) {
+          ToastManager.show('请先切换到编辑模式', 'warning');
+          return;
+        }
         openObjModal();
         break;
       case 'export-map':
         exportMap();
+        break;
+      case 'set-mode':
+        setEditMode(btn.dataset.mode === 'edit');
         break;
     }
   });
@@ -865,6 +1028,10 @@ function bindEvents() {
   });
 
   document.getElementById('mapConfigBtn')?.addEventListener('click', () => {
+    if (!state.isEditMode) {
+      ToastManager.show('请先切换到编辑模式', 'warning');
+      return;
+    }
     ModalManager.openMapConfigModal({
       config: state.mapConfig,
       onSave: handleMapConfigSave
@@ -874,6 +1041,13 @@ function bindEvents() {
   document.getElementById('canvas').addEventListener('click', (e) => {
     const card = e.target.closest('.obj-card');
     const toggleBtn = e.target.closest('[data-action="toggle-ms"]');
+    const drillBtn = e.target.closest('[data-action="toggle-children"]');
+
+    if (drillBtn) {
+      e.stopPropagation();
+      toggleChildren(drillBtn.dataset.id);
+      return;
+    }
 
     if (toggleBtn) {
       const cid = toggleBtn.dataset.ms;
@@ -883,8 +1057,35 @@ function bindEvents() {
 
     if (card) {
       const obj = getObjById(state.objectives, card.dataset.id);
-      if (obj) DetailPanelManager.open(obj);
+      if (obj) DetailPanelManager.open(obj, state.isEditMode);
     }
+  });
+
+  // 端口拖拽创建连线（仅编辑模式）
+  document.getElementById('canvas').addEventListener('mousedown', (e) => {
+    const port = e.target.closest('.port');
+    if (!port || !state.isEditMode) return;
+    const card = port.closest('.obj-card');
+    if (!card) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const canvas = document.getElementById('canvas');
+    const canvasRect = canvas.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const startX = cardRect.left + cardRect.width / 2 - canvasRect.left;
+    const startY = cardRect.top + cardRect.height / 2 - canvasRect.top;
+
+    LinkDragManager.start({
+      sourceId: card.dataset.id,
+      startX,
+      startY,
+      svg: document.getElementById('linksSvg'),
+      canvas,
+      onCreate: handleLinkCreate,
+      onValidate: validateLinkTarget
+    });
   });
 
   document.body.addEventListener('click', (e) => {
@@ -900,6 +1101,10 @@ function bindEvents() {
         document.getElementById('objListPanel')?.classList.toggle('collapsed');
         break;
       case 'edit-obj':
+        if (!state.isEditMode) {
+          ToastManager.show('请先切换到编辑模式', 'warning');
+          return;
+        }
         openObjModal(actionEl.dataset.id);
         break;
       case 'close-map-config':
@@ -920,7 +1125,7 @@ function bindEvents() {
     const item = e.target.closest('.obj-list-item');
     if (!item) return;
     const obj = getObjById(state.objectives, item.dataset.id);
-    if (obj) DetailPanelManager.open(obj);
+    if (obj) DetailPanelManager.open(obj, state.isEditMode);
   });
 
   document.getElementById('objModal')?.addEventListener('click', (e) => {
@@ -930,6 +1135,18 @@ function bindEvents() {
   document.getElementById('canvas')?.addEventListener('click', (e) => {
     if (e.target.id === 'canvas' || e.target.closest('.dim-section')) {
       if (ChainHighlighter.isActive()) ChainHighlighter.clear();
+      if (state.selectedLink) {
+        LinkSelectionManager.clear();
+        state.selectedLink = null;
+      }
+    }
+  });
+
+  // 键盘删除选中连线
+  document.addEventListener('keydown', (e) => {
+    if (!state.isEditMode) return;
+    if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedLink) {
+      handleLinkDelete(state.selectedLink.from, state.selectedLink.to);
     }
   });
 }
@@ -975,6 +1192,27 @@ function bindLinkEvents() {
       e.stopPropagation();
       const fromId = path.dataset.from;
       const toId = path.dataset.to;
+
+      if (state.isEditMode) {
+        // 编辑模式：打开连线编辑弹窗
+        ChainHighlighter.clear();
+        LinkSelectionManager.select(path);
+        state.selectedLink = { from: fromId, to: toId };
+        const fromObj = getObjById(state.objectives, fromId);
+        const toObj = getObjById(state.objectives, toId);
+        const link = state.links.find(l => l.from === fromId && l.to === toId);
+        LinkModalManager.open({
+          link,
+          fromObj,
+          toObj,
+          objectives: state.objectives,
+          onSave: handleLinkUpdate,
+          onDelete: ({ from, to }) => handleLinkDelete(from, to)
+        });
+        return;
+      }
+
+      // 查看模式：高亮因果链
       const chain = getCausalChain(fromId, toId, state.links);
       ChainHighlighter.highlight({ fromId, toId, links: state.links, ...chain });
     });
@@ -988,6 +1226,15 @@ function toggleMs(cid, btn) {
   const open = el.classList.toggle('open');
   btn.innerHTML = `<span>${open ? '▲' : '▼'}</span> 分解`;
   requestAnimationFrame(redrawLinks);
+}
+
+function toggleChildren(parentId) {
+  if (state.expandedParents.has(parentId)) {
+    state.expandedParents.delete(parentId);
+  } else {
+    state.expandedParents.add(parentId);
+  }
+  refresh();
 }
 
 function toggleAllMs() {
@@ -1038,6 +1285,44 @@ function handleObjDelete(id) {
   DetailPanelManager.close();
   refresh();
   ToastManager.show('目标已删除', 'success');
+}
+
+function validateLinkTarget(from, to) {
+  if (from === to) return false;
+  return !LinkStore.hasLink(state.mapId, from, to);
+}
+
+function handleLinkCreate({ from, to }) {
+  try {
+    LinkStore.create(state.mapId, { from, to, type: 'drives' });
+    state.links = LinkStore.load(state.mapId);
+    refresh();
+    ToastManager.show('因果链已创建', 'success');
+  } catch (err) {
+    ToastManager.show(err.message || '创建失败', 'error');
+  }
+}
+
+function handleLinkUpdate({ from, to, type, _oldFrom, _oldTo }) {
+  try {
+    LinkStore.update(state.mapId, _oldFrom || from, _oldTo || to, { from, to, type });
+    state.links = LinkStore.load(state.mapId);
+    state.selectedLink = null;
+    LinkSelectionManager.clear();
+    refresh();
+    ToastManager.show('因果链已更新', 'success');
+  } catch (err) {
+    ToastManager.show(err.message || '更新失败', 'error');
+  }
+}
+
+function handleLinkDelete(from, to) {
+  LinkStore.delete(state.mapId, from, to);
+  state.links = LinkStore.load(state.mapId);
+  state.selectedLink = null;
+  LinkSelectionManager.clear();
+  refresh();
+  ToastManager.show('因果链已删除', 'success');
 }
 
 function handleMapConfigSave(config) {

@@ -73,7 +73,8 @@ const DEFAULT_MAPS = [
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     approvedAt: '2025-01-01T00:00:00Z',
-    source: 'https://kms.fineres.com/pages/viewpage.action?pageId=1340311504'
+    source: 'https://kms.fineres.com/pages/viewpage.action?pageId=1340311504',
+    presentation: { url: '', fileName: '', fileData: '' }
   }
 ];
 
@@ -147,6 +148,16 @@ function safeJsonParse(str, fallback) {
 
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function normalizePresentation(value) {
+  if (!value) return { url: '', fileName: '', fileData: '' };
+  if (typeof value === 'string') return { url: value, fileName: '', fileData: '' };
+  return {
+    url: value.url || '',
+    fileName: value.fileName || '',
+    fileData: value.fileData || ''
+  };
 }
 
 function generateMapId(dept, startYear, endYear) {
@@ -253,7 +264,8 @@ export const MapConfigStore = {
       updatedBy: currentUser,
       createdAt: now,
       updatedAt: now,
-      source: config.source || ''
+      source: config.source || '',
+      presentation: normalizePresentation(config.presentation)
     };
 
     maps.push(payload);
@@ -350,7 +362,8 @@ export const ObjectiveStore = {
   load(mapId) {
     ensureVersion();
     const data = Storage.getString(STORAGE_KEYS.objectives(mapId));
-    return data ? safeJsonParse(data, []) : deepClone(DEFAULT_OBJECTIVES);
+    // 无显式保存时返回空数组；默认地图的数据由 ensureVersion 显式初始化
+    return data ? safeJsonParse(data, []) : [];
   },
 
   save(mapId, objectives) {
@@ -385,12 +398,44 @@ export const ObjectiveStore = {
   }
 };
 
+// ========== 工具函数：成环检测 ==========
+export function hasCycle(links, candidateLink = null) {
+  const allLinks = candidateLink ? [...links, candidateLink] : links;
+  const adj = new Map();
+  allLinks.forEach(l => {
+    if (!adj.has(l.from)) adj.set(l.from, []);
+    adj.get(l.from).push(l.to);
+  });
+
+  const visited = new Set();
+  const stack = new Set();
+
+  function dfs(node) {
+    if (stack.has(node)) return true;
+    if (visited.has(node)) return false;
+    visited.add(node);
+    stack.add(node);
+    const neighbors = adj.get(node) || [];
+    for (const neighbor of neighbors) {
+      if (dfs(neighbor)) return true;
+    }
+    stack.delete(node);
+    return false;
+  }
+
+  for (const node of adj.keys()) {
+    if (dfs(node)) return true;
+  }
+  return false;
+}
+
 // ========== LinkStore ==========
 export const LinkStore = {
   load(mapId) {
     ensureVersion();
     const data = Storage.getString(STORAGE_KEYS.links(mapId));
-    return data ? safeJsonParse(data, []) : deepClone(DEFAULT_LINKS);
+    // 无显式保存时返回空数组；默认地图的链接由 ensureVersion 显式初始化
+    return data ? safeJsonParse(data, []) : [];
   },
 
   save(mapId, links) {
@@ -399,6 +444,45 @@ export const LinkStore = {
 
   getDefaults() {
     return deepClone(DEFAULT_LINKS);
+  },
+
+  hasLink(mapId, from, to) {
+    return this.load(mapId).some(l => l.from === from && l.to === to);
+  },
+
+  create(mapId, { from, to, type }) {
+    if (from === to) throw new Error('不能连接自身');
+    const links = this.load(mapId);
+    if (links.some(l => l.from === from && l.to === to)) throw new Error('因果链已存在');
+    if (hasCycle(links, { from, to, type: type || 'drives' })) throw new Error('不能创建循环依赖');
+    links.push({ from, to, type: type || 'drives' });
+    this.save(mapId, links);
+    return links;
+  },
+
+  update(mapId, from, to, updates) {
+    const links = this.load(mapId);
+    const idx = links.findIndex(l => l.from === from && l.to === to);
+    if (idx < 0) throw new Error('因果链不存在');
+    const newLink = { ...links[idx], ...updates };
+    // 如果端点变化，需避免与已有链接重复
+    const newFrom = newLink.from ?? from;
+    const newTo = newLink.to ?? to;
+    if (newFrom === newTo) throw new Error('不能连接自身');
+    const duplicate = links.some((l, i) => i !== idx && l.from === newFrom && l.to === newTo);
+    if (duplicate) throw new Error('因果链已存在');
+    // 端点或类型变化后重新检查成环
+    const others = links.filter((_, i) => i !== idx);
+    if (hasCycle(others, newLink)) throw new Error('修改后会产生循环依赖');
+    links[idx] = newLink;
+    this.save(mapId, links);
+    return links;
+  },
+
+  delete(mapId, from, to) {
+    const links = this.load(mapId).filter(l => !(l.from === from && l.to === to));
+    this.save(mapId, links);
+    return links;
   },
 
   deleteByObjective(mapId, objId) {

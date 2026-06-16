@@ -47,9 +47,9 @@ test.describe('Meeting Decision Edit', () => {
     const newContent = '测试决议_' + Date.now();
     await decisionInputs.last().fill(newContent);
 
-    // 填写决策人
-    const ownerInputs = page.locator('#edit-decision-list input[placeholder="决策人"]');
-    await ownerInputs.last().fill('测试决策人');
+    // 填写责任人
+    const ownerInputs = page.locator('#edit-decision-list input[placeholder="责任人"]');
+    await ownerInputs.last().fill('测试责任人');
 
     // 点击保存
     const saveBtn = page.locator('button:has-text("保存")').first();
@@ -69,7 +69,7 @@ test.describe('Meeting Decision Edit', () => {
 
     expect(savedDecisions).not.toBeNull();
     expect(savedDecisions.length).toBeGreaterThanOrEqual(beforeCount + 1);
-    const found = savedDecisions.some(d => d.content === newContent && d.owner === '测试决策人');
+    const found = savedDecisions.some(d => d.content === newContent && d.owner === '测试责任人');
     expect(found).toBe(true);
   });
 

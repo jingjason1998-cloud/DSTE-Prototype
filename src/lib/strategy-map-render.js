@@ -26,7 +26,7 @@ function calcProgress(actual, target) {
 
 // ========== 主渲染入口 ==========
 export function render(state) {
-  const { objectives, currentView, activeDimFilter, allExpanded, containerIds } = state;
+  const { objectives, currentView, activeDimFilter, allExpanded, expandedParents = new Set(), containerIds } = state;
   const containers = {
     fin: document.getElementById(containerIds?.fin || 'dim-fin'),
     cus: document.getElementById(containerIds?.cus || 'dim-cus'),
@@ -45,28 +45,47 @@ export function render(state) {
     if (objs.length === 0 || !containers[dim]) return;
 
     const primary = objs.filter(o => o.level !== 'secondary');
-    const secondary = objs.filter(o => o.level === 'secondary');
+    const secondaryByParent = new Map();
+    objs.filter(o => o.level === 'secondary').forEach(o => {
+      const pid = o.parentId || '_unassigned';
+      if (!secondaryByParent.has(pid)) secondaryByParent.set(pid, []);
+      secondaryByParent.get(pid).push(o);
+    });
 
-    const primaryRow = document.createElement('div');
-    primaryRow.className = 'dim-row-primary';
-    primary.forEach(obj => primaryRow.appendChild(buildCard({ obj, year, allExpanded, currentView })));
-    containers[dim].appendChild(primaryRow);
+    primary.forEach(obj => {
+      const group = document.createElement('div');
+      group.className = 'obj-group';
 
-    if (secondary.length > 0) {
-      const secondaryRow = document.createElement('div');
-      secondaryRow.className = 'dim-row-secondary';
-      secondary.forEach((obj, idx) => {
-        const card = buildCard({ obj, year, allExpanded, currentView });
-        if (idx === 0) {
-          const branch = document.createElement('span');
-          branch.className = 'branch-icon';
-          branch.textContent = '└─';
-          card.appendChild(branch);
-        }
-        secondaryRow.appendChild(card);
-      });
-      containers[dim].appendChild(secondaryRow);
-    }
+      const hasChildren = secondaryByParent.has(obj.id);
+      const expanded = hasChildren && expandedParents.has(obj.id);
+
+      const primaryRow = document.createElement('div');
+      primaryRow.className = 'dim-row-primary';
+      primaryRow.appendChild(buildCard({ obj, year, allExpanded, currentView, hasChildren, expanded }));
+      group.appendChild(primaryRow);
+
+      if (hasChildren) {
+        const children = secondaryByParent.get(obj.id);
+        const secondaryRow = document.createElement('div');
+        secondaryRow.className = `dim-row-secondary ${expanded ? 'open' : ''}`;
+        const inner = document.createElement('div');
+        inner.className = 'dim-row-secondary-inner';
+        children.forEach((child, idx) => {
+          const card = buildCard({ obj: child, year, allExpanded, currentView });
+          if (idx === 0) {
+            const branch = document.createElement('span');
+            branch.className = 'branch-icon';
+            branch.textContent = '└─';
+            card.appendChild(branch);
+          }
+          inner.appendChild(card);
+        });
+        secondaryRow.appendChild(inner);
+        group.appendChild(secondaryRow);
+      }
+
+      containers[dim].appendChild(group);
+    });
   });
 
   renderSidebar({ objectives, currentView, activeDimFilter });
@@ -87,7 +106,7 @@ export function render(state) {
 }
 
 // ========== 卡片构建 ==========
-export function buildCard({ obj, year, allExpanded, currentView }) {
+export function buildCard({ obj, year, allExpanded, currentView, hasChildren = false, expanded = false }) {
   const card = document.createElement('div');
   const isSecondary = obj.level === 'secondary';
   card.className = `obj-card dim-${obj.dim}${isSecondary ? ' secondary-level' : ''}`;
@@ -122,15 +141,19 @@ export function buildCard({ obj, year, allExpanded, currentView }) {
     else if (fl === 'secondary') badge = `<span class="obj-focus secondary">○ 次要</span>`;
   }
 
+  const drillToggle = (!isSecondary && hasChildren)
+    ? `<button class="drill-toggle ${expanded ? 'expanded' : ''}" data-action="toggle-children" data-id="${obj.id}" title="${expanded ? '收起二级指标' : '展开二级指标'}">▼</button>`
+    : '';
+
   const cid = `ms-${obj.id}`;
   card.innerHTML = `
     <div class="obj-bar ${obj.dim}"></div>
-    <div class="obj-name">${escapeHtml(obj.name)} ${badge}</div>
+    <div class="obj-name">${escapeHtml(obj.name)} ${badge}${drillToggle}</div>
     <div class="obj-desc">${escapeHtml(obj.desc)}</div>
     <div class="obj-ports">
-      <div class="port"></div>
+      <div class="port" data-port="left"></div>
       <button class="ms-toggle" data-action="toggle-ms" data-ms="${cid}"><span>${allExpanded ? '▲' : '▼'}</span> 分解</button>
-      <div class="port"></div>
+      <div class="port" data-port="right"></div>
     </div>
     <div class="ms-wrap ${allExpanded ? 'open' : ''}" id="${cid}" data-ms-wrap="${obj.id}">${msHtml}</div>
   `;
@@ -161,7 +184,7 @@ export function renderSidebar({ objectives, currentView, _activeDimFilter }) {
 }
 
 // ========== SVG 因果链绘制 ==========
-export function drawLinks({ links, objectives, svgId, canvasId }) {
+export function drawLinks({ links, objectives, visibleIds, svgId, canvasId }) {
   const svg = document.getElementById(svgId || 'linksSvg');
   const canvas = document.getElementById(canvasId || 'canvas');
   if (!svg || !canvas) return;
@@ -175,6 +198,8 @@ export function drawLinks({ links, objectives, svgId, canvasId }) {
   const objMap = new Map(objectives.map(o => [o.id, o]));
 
   links.forEach((link, index) => {
+    if (visibleIds && (!visibleIds.has(link.from) || !visibleIds.has(link.to))) return;
+
     const fromEl = document.getElementById(link.from);
     const toEl = document.getElementById(link.to);
     if (!fromEl || !toEl) return;
@@ -237,6 +262,7 @@ export function drawLinks({ links, objectives, svgId, canvasId }) {
     path.setAttribute('class', `link-path ${link.type}`);
     path.setAttribute('data-from', link.from);
     path.setAttribute('data-to', link.to);
+    path.setAttribute('data-link-id', `${link.from}→${link.to}`);
     path.setAttribute('data-index', String(index));
     path.style.pointerEvents = 'auto';
     svg.appendChild(path);
@@ -244,7 +270,7 @@ export function drawLinks({ links, objectives, svgId, canvasId }) {
 }
 
 // ========== 详情面板内容 ==========
-export function renderDetailPanel(obj) {
+export function renderDetailPanel(obj, isEditMode = false) {
   const dimNames = {
     fin: '💰 财务维度',
     cus: '🤝 客户维度',
@@ -266,6 +292,9 @@ export function renderDetailPanel(obj) {
   }).join('');
 
   const kpiBadge = obj.kpiRef ? `<span class="detail-tag">📊 已关联 KPI</span>` : `<span class="detail-tag" title="暂支持与 KPI/重点任务系统打通">🔌 未接入</span>`;
+  const editButton = isEditMode
+    ? `<div style="margin-top:20px;"><button class="btn btn-primary" data-action="edit-obj" data-id="${obj.id}">✏️ 编辑目标</button></div>`
+    : '';
 
   return `
     <div class="detail-dim">${dimNames[obj.dim] || obj.dim}</div>
@@ -280,7 +309,7 @@ export function renderDetailPanel(obj) {
     </div>
     <div class="detail-section"><div class="detail-section-title">👤 负责人</div><span class="detail-tag">${escapeHtml(obj.owner) || '未指定'}</span></div>
     <div class="detail-section"><div class="detail-section-title">🔗 系统关联</div>${kpiBadge}</div>
-    <div style="margin-top:20px;"><button class="btn btn-primary" data-action="edit-obj" data-id="${obj.id}">✏️ 编辑目标</button></div>
+    ${editButton}
   `;
 }
 

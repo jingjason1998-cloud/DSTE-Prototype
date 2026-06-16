@@ -48,6 +48,8 @@ const KEYS = {
   milestones: 'dste_omp_milestones_v1',
   progressRecords: 'dste_omp_progress_v1',
   cycles: 'dste_cycles_v1',
+  // 版本审计
+  versionAudit: 'dste_version_audit_v1',
 };
 
 // CAS 配置
@@ -307,6 +309,33 @@ export default {
           return jsonResponse({ success: result.errcode === 0, errcode: result.errcode, errmsg: result.errmsg }, 200, request);
         } catch (err) {
           return errorResponse('Webhook request failed: ' + err.message, 502, request);
+        }
+      }
+
+      // --- 版本审计看板 ---
+      if (path === '/api/version-audit') {
+        if (method === 'GET') {
+          const auditJson = await env.DSTE_KV.get(KEYS.versionAudit);
+          const audit = auditJson ? JSON.parse(auditJson) : {
+            success: true,
+            environment: 'production',
+            hostname: 'unknown',
+            timestamp: new Date().toISOString(),
+            frontend: { version_tag: 'unknown' },
+            backend: {},
+            note: '尚未部署版本审计数据，请在发布时调用 POST /api/version-audit 更新',
+          };
+          return jsonResponse({ success: true, ...audit }, 200, request);
+        }
+        if (method === 'POST') {
+          const body = await request.json();
+          const audit = {
+            environment: 'production',
+            timestamp: new Date().toISOString(),
+            ...body,
+          };
+          await env.DSTE_KV.put(KEYS.versionAudit, JSON.stringify(audit));
+          return jsonResponse({ success: true, message: 'version audit updated', audit }, 200, request);
         }
       }
 

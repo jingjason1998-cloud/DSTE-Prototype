@@ -19,6 +19,7 @@ const state = {
   filterCycle: '',
   search: '',
   deletingId: null,
+  pendingPresentation: null,
 };
 
 // ========== DOM 引用 ==========
@@ -49,6 +50,11 @@ const els = {
     status: document.getElementById('mapModalStatus'),
     versionLabel: document.getElementById('mapModalVersionLabel'),
     description: document.getElementById('mapModalDesc'),
+    source: document.getElementById('mapModalSource'),
+    presentationUrl: document.getElementById('mapModalPresentationUrl'),
+    presentationFile: document.getElementById('mapModalPresentationFile'),
+    presentationBtn: document.getElementById('mapModalPresentationBtn'),
+    presentationName: document.getElementById('mapModalPresentationName'),
   },
   toast: document.getElementById('toast'),
 };
@@ -120,6 +126,10 @@ function renderMapCard(map) {
   const isDefault = map.id === DEFAULT_MAP_ID;
   const updatedAt = formatDate(map.updatedAt);
 
+  const hasSource = !!(map.source || '').trim();
+  const hasPresentationUrl = !!(map.presentation?.url || '').trim();
+  const hasPresentationFile = !!(map.presentation?.fileName && map.presentation?.fileData);
+
   return `
     <div class="sm-map-card ${map.status === 'archived' ? 'archived' : ''}" data-id="${map.id}" data-action="view-map">
       <div class="sm-map-card-header">
@@ -140,6 +150,11 @@ function renderMapCard(map) {
         <span>🔖 ${escapeHtml(map.versionLabel || `v${map.version || 1}`)}</span>
       </div>
       <div class="sm-map-card-desc">${escapeHtml(map.description || '暂无描述')}</div>
+      <div class="sm-map-card-links">
+        ${hasSource ? `<a class="sm-map-link" href="${escapeHtml(map.source)}" target="_blank" rel="noopener" data-action="link">🔗 KMS 链接</a>` : ''}
+        ${hasPresentationUrl ? `<a class="sm-map-link" href="${escapeHtml(map.presentation.url)}" target="_blank" rel="noopener" data-action="link">📎 宣贯 PPT</a>` : ''}
+        ${hasPresentationFile ? `<a class="sm-map-link" href="${escapeHtml(map.presentation.fileData)}" download="${escapeHtml(map.presentation.fileName)}" data-action="link">📎 ${escapeHtml(map.presentation.fileName)}</a>` : ''}
+      </div>
       <div class="sm-map-card-footer">
         <div class="sm-map-card-dims">
           <span>💰 财务(${dimCounts.fin})</span>
@@ -192,6 +207,11 @@ function bindEvents() {
       e.stopPropagation();
     }
 
+    // 链接直接跳转，不触发卡片查看
+    if (action === 'link') {
+      return;
+    }
+
     switch (action) {
       case 'new-map':
         openMapModal();
@@ -217,6 +237,11 @@ function bindEvents() {
       case 'confirm-delete':
         confirmDelete();
         break;
+      case 'remove-presentation-file':
+        e.preventDefault();
+        e.stopPropagation();
+        removePresentationFile();
+        break;
       case 'refresh':
         loadMaps();
         render();
@@ -232,6 +257,12 @@ function bindEvents() {
   els.deleteModal.addEventListener('click', (e) => {
     if (e.target === els.deleteModal) closeDeleteModal();
   });
+
+  // 宣贯 PPT 文件上传
+  els.form.presentationBtn.addEventListener('click', () => {
+    els.form.presentationFile.click();
+  });
+  els.form.presentationFile.addEventListener('change', handlePresentationFileChange);
 }
 
 // ========== 地图弹窗 ==========
@@ -249,12 +280,72 @@ function openMapModal(id = null) {
   els.form.status.value = map?.status || 'draft';
   els.form.versionLabel.value = map?.versionLabel || '';
   els.form.description.value = map?.description || '';
+  els.form.source.value = map?.source || '';
+  els.form.presentationUrl.value = map?.presentation?.url || '';
+  state.pendingPresentation = map?.presentation ? { ...map.presentation } : { url: '', fileName: '', fileData: '' };
+  renderPresentationUploadName();
 
   els.mapModal.classList.add('open');
 }
 
 function closeMapModal() {
   els.mapModal.classList.remove('open');
+  state.pendingPresentation = null;
+}
+
+function renderPresentationUploadName() {
+  const p = state.pendingPresentation;
+  if (!p) {
+    els.form.presentationName.textContent = '';
+    return;
+  }
+  if (p.fileName) {
+    els.form.presentationName.innerHTML = `已上传: <strong>${escapeHtml(p.fileName)}</strong> (${formatFileSize(p.fileData)}) <button type="button" class="btn-link" data-action="remove-presentation-file" style="margin-left:8px;color:var(--danger);">移除</button>`;
+  } else {
+    els.form.presentationName.textContent = '';
+  }
+}
+
+function formatFileSize(base64) {
+  if (!base64) return '0 B';
+  const bytes = Math.ceil(base64.length * 0.75);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function handlePresentationFileChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('PPT 文件过大，请上传 5MB 以内文件', 'error');
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.pendingPresentation = {
+      url: els.form.presentationUrl.value.trim(),
+      fileName: file.name,
+      fileData: reader.result
+    };
+    renderPresentationUploadName();
+    showToast('PPT 已读取', 'success');
+  };
+  reader.onerror = () => {
+    showToast('读取文件失败', 'error');
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function removePresentationFile() {
+  state.pendingPresentation = {
+    url: els.form.presentationUrl.value.trim(),
+    fileName: '',
+    fileData: ''
+  };
+  renderPresentationUploadName();
 }
 
 function saveMapModal() {
@@ -268,6 +359,9 @@ function saveMapModal() {
     const status = els.form.status.value;
     const versionLabel = els.form.versionLabel.value.trim();
     const description = els.form.description.value.trim();
+    const source = els.form.source.value.trim();
+    const presentationUrl = els.form.presentationUrl.value.trim();
+    const presentation = state.pendingPresentation || { url: '', fileName: '', fileData: '' };
 
     if (!name) {
       showToast('请输入地图名称', 'error');
@@ -277,6 +371,12 @@ function saveMapModal() {
       showToast('规划周期不合法', 'error');
       return;
     }
+
+    const payloadPresentation = {
+      url: presentationUrl || presentation.url || '',
+      fileName: presentation.fileName || '',
+      fileData: presentation.fileData || ''
+    };
 
     if (id) {
       const existing = MapConfigStore.get(id);
@@ -290,6 +390,8 @@ function saveMapModal() {
         status,
         versionLabel,
         description,
+        source,
+        presentation: payloadPresentation,
       });
       showToast('地图已更新', 'success');
     } else {
@@ -298,8 +400,11 @@ function saveMapModal() {
         dept,
         deptName,
         cycle: { startYear, endYear },
+        status,
         versionLabel,
         description,
+        source,
+        presentation: payloadPresentation,
       });
       showToast('地图已创建', 'success');
     }

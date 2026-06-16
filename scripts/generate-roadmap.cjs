@@ -63,9 +63,12 @@ function main() {
   
   const content = fs.readFileSync(CHANGELOG_PATH, 'utf-8');
   const { versions, upcoming } = parseChangelog(content);
-  
+
+  // 按日期降序排列，确保最新版本在前
+  versions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
   const data = {
-    versions: versions.reverse(), // 最新在前
+    versions: versions, // 已按日期降序排列，最新在前
     modules: [
       { name: '驾驶舱首页', progress: 60, status: 'doing', targetVersion: 'v0.5.0' },
       { name: '会议审核助手', progress: 95, status: 'done', targetVersion: 'v0.1.0' },

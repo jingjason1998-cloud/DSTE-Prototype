@@ -80,9 +80,40 @@
 - **`scripts/health-check.cjs` 误报**：ESLint 配置检查只识别 `.eslintrc.js`，已兼容 `eslint.config.js`
 - **E2E 测试稳定性**：`test-sp-nav-verify.spec.js` 期望更新；`strategy-map-list.spec.js` 增加测试隔离，避免状态串扰
 
+## [v0.5.0] - 2026-06-16
+
+### Added
+- **决议中心（Resolution Center）**：
+  - 会议决议全生命周期管理：状态流转、审批跟踪、执行进度、逾期提醒
+  - 三态模型（`pending` → `approved` → `closed`），自动迁移旧版 9 态数据
+  - 聚合视图抽屉（`#decisions-drawer`）支持跨会议筛选与统计
+  - 工具模块 `src/meetings/utils/resolution-helpers.js` + 31 个单元测试
+  - E2E 覆盖：`tests/e2e/resolution-center.spec.js`
+- **战略地图 Strategy Map 增强**：
+  - 战略目标父子下钻：主目标展开显示子目标，带动画过渡
+  - 因果链编辑：新增/编辑/删除目标间因果链接，含环路检测 `hasCycle()`
+  - 宣贯 PPT 附件：支持 URL 或 base64 文件上传
+  - 视图/编辑模式切换
+  - 列表页主题化：使用 CSS 变量统一主题
+  - E2E 与单元测试补充：`strategy-map.spec.js` / `strategy-map-list.spec.js` / `strategy-map-data.test.js`
+- **开发路线图 Roadmap 重构**：
+  - `renderDevTimeline()` 从 `roadmap-data.json` 动态加载数据，不再硬编码
+  - 新增执行摘要 KPI 卡片、版本对比、发布跟踪
+  - 支持横向/纵向时间轴布局
+- **经营分析会改进**：决策编辑、待闭环行动抽屉、会前准备度整合
+
+### Changed
+- `api-worker/worker.js` 新增决议中心、战略地图相关接口
+- `src/lib/config.js` 侧边栏与页面名称配置更新
+- `public/roadmap-data.json` / `src/data/roadmap-data.json` 更新至 v0.4.11 状态
+
+### Deferred to v0.5.1
+- **版本审计看板**：`dashboard/version-audit` 侧边栏入口已移除；前端页面尚未实现，相关测试与脚本（`tests/e2e/version-audit.spec.js`、`scripts/generate-version-audit.cjs`）本次不发布
+
 ## [Unreleased]
 
 ### 计划中
+- 版本审计看板前端页面实现
 - KPI 详情下钻
 - 用户权限系统（替换当前模拟登录）
 - ST/AT 议题 Excel 模板下载
