@@ -25,6 +25,13 @@ export default defineConfig({
       },
     },
   },
+  // esbuild >= 0.28.1 requires explicit support flag for destructuring
+  // in target environments that still list older browsers (chrome87/edge88/etc.)
+  esbuild: {
+    supported: {
+      destructuring: true,
+    },
+  },
   server: {
     port: 3456,
     open: '/src/cockpit.html',
