@@ -1,6 +1,33 @@
 {
   "versions": [
     {
+      "version": "v0.5.1",
+      "date": "2026-06-16",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**版本审计看板**：在驾驶舱系统管理中新增 `#dashboard/version-audit` 入口"
+        },
+        {
+          "type": "Added",
+          "desc": "**RoadMap 周视图看板**：按 ISO 自然周展示版本节点、开发计划与 upcoming 里程碑"
+        },
+        {
+          "type": "Changed",
+          "desc": "**决议中心架构收尾**：`src/meetings.html` 改为通过 `<script type=\"module\">` 引入 `src/meetings/utils/resolution-helpers.js`，删除内联副本，消除双源维护"
+        },
+        {
+          "type": "Changed",
+          "desc": "升级构建工具链：`vite` 5.4.21 → 6.4.3，`esbuild` 0.25.x → 0.28.1，`js-yaml` 4.1.1 → 4.2.0"
+        },
+        {
+          "type": "Security",
+          "desc": "修复 `npm audit` 报告的 2 high + 1 moderate 漏洞（Vite/esbuild/JS-YAML）"
+        }
+      ]
+    },
+    {
       "version": "v0.5.0",
       "date": "2026-06-16",
       "status": "released",
