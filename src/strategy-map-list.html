@@ -29,16 +29,6 @@
           }
         }
       }
-      document.addEventListener('DOMContentLoaded', function() {
-        const menuToggle = document.getElementById('mobile-menu-toggle');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        if (menuToggle && sidebar && overlay) {
-          menuToggle.addEventListener('click', () => { sidebar.classList.toggle('open'); overlay.classList.toggle('open'); });
-          overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
-          sidebar.addEventListener('click', (e) => { if (e.target.closest('.sidebar-item')) { sidebar.classList.remove('open'); overlay.classList.remove('open'); } });
-        }
-      });
     })();
   </script>
   <style>
@@ -216,6 +206,7 @@
     .confirm-body { font-size: 14px; line-height: 1.6; color: var(--sm-text); }
     .confirm-body .warn { color: var(--danger); font-weight: 500; }
   </style>
+  <script type="module" src="./lib/shell-injector.js"></script>
 </head>
 <body>
   <div class="app">
@@ -228,14 +219,7 @@
           <span class="top-nav-title">DSTE 战略管理平台</span>
         </div>
       </div>
-      <ul class="top-nav-links" id="top-nav-links">
-        <li><a href="cockpit.html#dashboard" data-phase="dashboard"><span>🎛️</span><span>驾驶舱</span><span class="nav-full-label">驾驶舱</span></a></li>
-        <li><a href="cockpit.html#sp/strategy-map" data-phase="sp" class="active"><span>🎯</span><span>SP</span><span class="nav-full-label">战略制定</span></a></li>
-        <li><a href="cockpit.html#bp/kpi" data-phase="bp"><span>🔧</span><span>BP</span><span class="nav-full-label">战略解码</span></a></li>
-        <li><a href="cockpit.html#exe/tasks" data-phase="exe"><span>🚀</span><span>执行</span><span class="nav-full-label">战略执行</span></a></li>
-        <li><a href="cockpit.html#rev/performance" data-phase="rev"><span>📊</span><span>评估</span><span class="nav-full-label">战略评估</span></a></li>
-        <li><a href="cockpit.html#ai" data-phase="ai"><span>🤖</span><span>AI</span><span class="nav-full-label">AI 助手</span></a></li>
-      </ul>
+      <ul class="top-nav-links" id="top-nav-links"></ul>
       <div class="top-nav-actions">
         <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
         <button class="icon-btn" title="通知">🔔</button>
@@ -248,15 +232,7 @@
       <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
       <!-- 左侧边栏 (SP 阶段) -->
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-group">
-          <div class="sidebar-group-title">战略制定 (SP)</div>
-          <a class="sidebar-item active" href="strategy-map-list.html"><span class="icon">🗺️</span><span>战略地图</span></a>
-          <a class="sidebar-item" href="cockpit.html#sp/insights-topics"><span class="icon">🔭</span><span>战略洞察与专题</span></a>
-        </div>
-        <div class="sidebar-quick">快捷工具</div>
-        <a class="sidebar-item" href="reviewer.html"><span class="icon">📋</span><span>会议材料审核</span></a>
-      </aside>
+      <aside class="sidebar" id="sidebar"></aside>
 
       <!-- 内容区 -->
       <main class="content-area">

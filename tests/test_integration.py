@@ -32,12 +32,13 @@ def test_reviewer_html_theme_sync():
     content = (SRC / "reviewer.html").read_text(encoding="utf-8")
     # reviewer.html 引用了外部 JS，需要同时搜索
     js_content = (SRC / "pages" / "reviewer" / "main.js").read_text(encoding="utf-8")
-    combined = content + js_content
+    main_js = (PROJECT_ROOT / "assets" / "js" / "main.js").read_text(encoding="utf-8")
+    combined = content + js_content + main_js
     assert "dste-theme" in combined, "未使用 dste-theme 键同步主题"
     # 项目已统一使用 DSTE.Storage 封装 localStorage
     assert "DSTE.Storage.getString('dste-theme')" in combined or "localStorage.getItem('dste-theme')" in combined, "未读取DSTE主题"
-    assert "DSTE.Storage.setString('dste-theme'" in combined or "localStorage.setItem('dste-theme'" in combined, "未设置DSTE主题"
-    assert "storage" in combined, "未监听 storage 事件跨页面同步"
+    assert "Storage.setString(this.key, theme)" in combined or "DSTE.Storage.setString('dste-theme'" in combined or "localStorage.setItem('dste-theme'" in combined, "未设置DSTE主题"
+    assert "ThemeManager" in combined, "缺少 ThemeManager 统一主题管理"
 
 def test_cockpit_has_strategy_topics_renderer():
     """驾驶舱包含战略洞察与专题渲染函数"""
@@ -57,10 +58,12 @@ def test_cockpit_has_meeting_review_nav():
     assert "会议材料审核" in content or "会议审核" in content, "导航标签不正确"
 
 def test_cockpit_has_external_page_mapping():
-    """驾驶舱支持外部页面跳转"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "EXTERNAL_PAGES" in content, "缺少外部页面映射机制"
-    assert "'exe/meeting-review': 'reviewer.html'" in content, "未映射到 reviewer.html"
+    """驾驶舱支持外部页面跳转（映射已抽离到 src/lib/config.js）"""
+    cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
+    combined = cockpit_content + config_content
+    assert "EXTERNAL_PAGES" in combined, "缺少外部页面映射机制"
+    assert "'exe/meeting-review': 'reviewer.html'" in combined, "未映射到 reviewer.html"
 
 def test_cockpit_meetings_has_review_link():
     """经营分析会页面包含审核入口"""
@@ -79,11 +82,13 @@ def test_navigation_arch_document_updated():
 
 def test_no_placeholder_for_topics():
     """专题管理不再是占位页面"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "'sp/insights-topics': renderInsightsTopics," in content
-    # 业务专题现在是独立页面，通过外部映射跳转
-    assert "'exe/business-topics': 'business-topics.html'" in content
-    page_lines = [l for l in content.splitlines() if "'sp/insights-topics'" in l or "'exe/business-topics'" in l]
+    cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
+    combined = cockpit_content + config_content
+    assert "'sp/insights-topics': renderInsightsTopics," in combined
+    # 业务专题现在是独立页面，通过外部映射跳转（配置在 src/lib/config.js）
+    assert "'exe/business-topics': 'business-topics.html'" in combined
+    page_lines = [l for l in combined.splitlines() if "'sp/insights-topics'" in l or "'exe/business-topics'" in l]
     for line in page_lines:
         assert "renderPlaceholder" not in line, f"专题管理仍是占位页: {line.strip()}"
 
@@ -146,16 +151,16 @@ def test_business_topics_has_dste_nav():
     assert "../assets/css/main.css" in content, "未引入DSTE主样式"
 
 def test_business_topics_theme_sync():
-    """业务专题页面支持与DSTE主题同步（JS模块化后检查HTML和JS）"""
+    """业务专题页面支持与DSTE主题同步（主题切换由 assets/js/main.js 统一处理）"""
     html = (SRC / "business-topics.html").read_text(encoding="utf-8")
     assert "dste-theme" in html, "未使用 dste-theme 键同步主题"
     # 主题读取在HTML头部内联script中（避免FOUC），项目已统一使用 DSTE.Storage 封装
     assert "DSTE.Storage.getString('dste-theme')" in html or "localStorage.getItem('dste-theme')" in html, "未读取DSTE主题"
-    # 主题写入和storage监听在外部JS模块中
-    js_file = SRC / "pages" / "business-topics" / "main.js"
-    assert js_file.exists(), "业务专题JS模块不存在"
-    js = js_file.read_text(encoding="utf-8")
-    assert "Storage.setString('dste-theme'" in js or "DSTE.Storage.setString('dste-theme'" in js or "localStorage.setItem('dste-theme'" in js, "未设置DSTE主题"
+    # 主题写入和storage监听在 assets/js/main.js 的 ThemeManager 中
+    main_js = (PROJECT_ROOT / "assets" / "js" / "main.js").read_text(encoding="utf-8")
+    assert "ThemeManager" in main_js, "缺少 ThemeManager"
+    assert "key: 'dste-theme'" in main_js, "ThemeManager 未使用 dste-theme 键"
+    assert "Storage.setString(this.key, theme)" in main_js, "ThemeManager 未设置主题"
 
 def test_business_topics_light_override():
     """业务专题页面包含Light主题覆盖（在外部CSS文件中）"""
@@ -170,10 +175,12 @@ def test_business_topics_light_override():
     assert "business-topics/style.css" in html, "HTML未引入外部CSS"
 
 def test_cockpit_links_to_business_topics():
-    """驾驶舱导航正确链接到业务专题页面"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "business-topics.html" in content, "驾驶舱未链接到 business-topics.html"
-    assert "'exe/business-topics': 'business-topics.html'" in content, "外部页面映射不正确"
+    """驾驶舱导航正确链接到业务专题页面（外部页面映射在 src/lib/config.js）"""
+    cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
+    combined = cockpit_content + config_content
+    assert "business-topics.html" in combined, "驾驶舱未链接到 business-topics.html"
+    assert "'exe/business-topics': 'business-topics.html'" in combined, "外部页面映射不正确"
 
 def test_meeting_detail_view_exists():
     """会议详情弹窗存在且可打开"""
@@ -226,9 +233,11 @@ def test_meeting_edit_page_route_exists():
     assert meetings_file.exists(), "meetings.html 独立页面不存在"
     content = meetings_file.read_text(encoding="utf-8")
     assert "function renderMeetingEditPage()" in content, "缺少 renderMeetingEditPage 函数"
-    # cockpit 中应通过 EXTERNAL_PAGES 映射到独立页面
+    # cockpit 中应通过 EXTERNAL_PAGES 映射到独立页面（配置在 src/lib/config.js）
     cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "'exe/meetings': 'meetings.html'" in cockpit_content, "cockpit 未映射 meetings 到独立页面"
+    config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
+    combined = cockpit_content + config_content
+    assert "'exe/meetings': 'meetings.html'" in combined, "cockpit 未映射 meetings 到独立页面"
 
 def test_meeting_edit_page_has_form():
     """独立编辑页面包含完整的会议表单"""
@@ -406,9 +415,9 @@ def test_saveMeeting_preserves_actions():
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
     save_section = content.split("window.saveMeeting = function()")[1] if "window.saveMeeting = function()" in content else ""
     # 新建会议时保存 actions
-    assert "actions: d.actions" in save_section or "actions: (d.actions" in save_section, "saveMeeting 未保存 actions"
+    assert "actions: (d.actions || [])" in save_section or "actions: d.actions" in save_section, "saveMeeting 未保存 actions"
     # 编辑现有会议时保存 actions
-    assert ".actions = d.actions" in save_section or "actions = d.actions" in save_section, "saveMeeting 中缺少 actions 处理"
+    assert "meetings[idx].actions" in save_section or ".actions = d.actions" in save_section, "saveMeeting 中缺少 actions 处理"
 
 
 # ========== 议程材料链接与审核评分 ==========

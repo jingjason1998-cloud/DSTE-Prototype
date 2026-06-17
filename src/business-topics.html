@@ -15,7 +15,7 @@
             const theme = DSTE.Storage.getString('dste-theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
 
-            // 嵌入模式：在 iframe 中使用时隐藏导航外壳
+            // 主题与嵌入模式已由内联脚本与 shell-injector 统一处理
             if (new URLSearchParams(location.search).get('embed') === '1') {
                 document.documentElement.setAttribute('data-embed', 'true');
 
@@ -38,29 +38,6 @@
                     }
                 }
             }
-
-            // 移动端汉堡菜单切换
-            document.addEventListener('DOMContentLoaded', function() {
-                const menuToggle = document.getElementById('mobile-menu-toggle');
-                const sidebar = document.getElementById('sidebar');
-                const overlay = document.getElementById('sidebar-overlay');
-                if (menuToggle && sidebar && overlay) {
-                    menuToggle.addEventListener('click', function() {
-                        sidebar.classList.toggle('open');
-                        overlay.classList.toggle('open');
-                    });
-                    overlay.addEventListener('click', function() {
-                        sidebar.classList.remove('open');
-                        overlay.classList.remove('open');
-                    });
-                    sidebar.addEventListener('click', function(e) {
-                        if (e.target.closest('.sidebar-item')) {
-                            sidebar.classList.remove('open');
-                            overlay.classList.remove('open');
-                        }
-                    });
-                }
-            });
         })();
     </script>
     <script>
@@ -222,6 +199,7 @@
     })();
     </script>
     <link rel="stylesheet" href="./pages/business-topics/style.css">
+    <script type="module" src="./lib/shell-injector.js"></script>
 </head>
 <body>
     <div class="app">
@@ -234,14 +212,7 @@
                     <span class="top-nav-title">DSTE 战略管理平台</span>
                 </div>
             </div>
-            <ul class="top-nav-links" id="top-nav-links">
-                <li><a href="cockpit.html#dashboard" data-phase="dashboard"><span>🎛️</span><span>驾驶舱</span><span class="nav-full-label">驾驶舱</span></a></li>
-                <li><a href="cockpit.html#sp/strategy-map" data-phase="sp"><span>🎯</span><span>SP</span><span class="nav-full-label">战略制定</span></a></li>
-                <li><a href="cockpit.html#bp/kpi" data-phase="bp"><span>🔧</span><span>BP</span><span class="nav-full-label">战略解码</span></a></li>
-                <li><a href="cockpit.html#exe/tasks" data-phase="exe" class="active"><span>🚀</span><span>执行</span><span class="nav-full-label">战略执行</span></a></li>
-                <li><a href="cockpit.html#rev/performance" data-phase="rev"><span>📊</span><span>评估</span><span class="nav-full-label">战略评估</span></a></li>
-                <li><a href="cockpit.html#ai" data-phase="ai"><span>🤖</span><span>AI</span><span class="nav-full-label">AI 助手</span></a></li>
-            </ul>
+            <ul class="top-nav-links" id="top-nav-links"></ul>
             <div class="top-nav-actions">
                 <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
                 <button class="icon-btn" title="通知">🔔</button>
@@ -259,16 +230,7 @@
             <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
             <!-- 左侧边栏 (执行阶段) -->
-            <aside class="sidebar" id="sidebar">
-                <div class="sidebar-group">
-                    <div class="sidebar-group-title">战略执行</div>
-                    <a class="sidebar-item" href="cockpit.html#exe/tasks"><span class="icon">✅</span><span>重点工作管理</span></a>
-                    <a class="sidebar-item active" href="business-topics.html"><span class="icon">📂</span><span>业务专题管理</span></a>
-                    <a class="sidebar-item" href="cockpit.html#exe/meetings"><span class="icon">🎯</span><span>经营分析会 ⭐</span></a>
-                </div>
-                <div class="sidebar-quick">快捷工具</div>
-                <a class="sidebar-item" href="reviewer.html"><span class="icon">📋</span><span>会议材料审核</span></a>
-            </aside>
+            <aside class="sidebar" id="sidebar"></aside>
 
             <!-- 内容区 -->
             <main class="content-area">

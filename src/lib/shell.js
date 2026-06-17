@@ -1,16 +1,45 @@
 /**
  * DSTE Shell 核心逻辑
  * 渲染导航栏、侧边栏等共享 DOM 操作
+ * 支持两种模式：
+ * - SPA 模式（cockpit）：hash 链接 + onNavigate 回调
+ * - 独立页面模式（external）：真实 HTML 文件链接，浏览器直接跳转
  */
 
-import { TOP_NAV, SIDEBAR_CONFIG, PAGE_NAMES } from './config.js';
+import { TOP_NAV, SIDEBAR_CONFIG, PAGE_NAMES, EXTERNAL_PAGES } from './config.js';
+
+/**
+ * 获取顶部导航链接地址
+ * @param {Object} item - TOP_NAV 项
+ * @param {boolean} external - 是否为独立页面模式
+ * @returns {string}
+ */
+function getTopNavHref(item, external) {
+  if (!external) return '#' + item.defaultPage;
+  return EXTERNAL_PAGES[item.defaultPage] || `cockpit.html#${item.defaultPage}`;
+}
+
+/**
+ * 获取侧边栏链接地址
+ * @param {string} pageId - 页面 ID
+ * @param {boolean} external - 是否为独立页面模式
+ * @returns {string}
+ */
+function getSidebarHref(pageId, external) {
+  if (!external) return '#' + pageId;
+  // eslint-disable-next-line security/detect-object-injection
+  return EXTERNAL_PAGES[pageId] || `cockpit.html#${pageId}`;
+}
 
 /**
  * 渲染顶部导航栏
  * @param {string} activePhase - 当前激活的 phase
- * @param {Function} onNavigate - 导航回调函数
+ * @param {Function} onNavigate - 导航回调函数（SPA 模式下生效）
+ * @param {Object} options - 渲染选项
+ * @param {boolean} options.external - 是否为独立页面模式（生成真实文件链接）
  */
-export function renderTopNav(activePhase, onNavigate) {
+export function renderTopNav(activePhase, onNavigate, options = {}) {
+  const { external = false } = options;
   const container = document.getElementById('top-nav-links');
   if (!container) return;
 
@@ -18,7 +47,7 @@ export function renderTopNav(activePhase, onNavigate) {
   TOP_NAV.forEach(item => {
     const li = document.createElement('li');
     const a = document.createElement('a');
-    a.href = `#${item.defaultPage}`;
+    a.href = getTopNavHref(item, external);
     a.dataset.phase = item.id;
     a.className = 'top-nav-item';
 
@@ -37,16 +66,19 @@ export function renderTopNav(activePhase, onNavigate) {
     container.appendChild(li);
   });
 
-  container.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const phase = link.dataset.phase;
-      const defaultPage = TOP_NAV.find(n => n.id === phase)?.defaultPage;
-      if (onNavigate && defaultPage) {
-        onNavigate(defaultPage);
-      }
+  // SPA 模式下绑定点击事件，阻止默认跳转并回调 navigate
+  if (!external && typeof onNavigate === 'function') {
+    container.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const phase = link.dataset.phase;
+        const defaultPage = TOP_NAV.find(n => n.id === phase)?.defaultPage;
+        if (defaultPage) {
+          onNavigate(defaultPage);
+        }
+      });
     });
-  });
+  }
 
   updateTopNavActive(activePhase);
 }
@@ -65,9 +97,12 @@ export function updateTopNavActive(phase) {
  * 渲染侧边栏
  * @param {string} phase - 当前 phase
  * @param {string} activePage - 当前页面 ID
- * @param {Function} onNavigate - 导航回调函数
+ * @param {Function} onNavigate - 导航回调函数（SPA 模式下生效）
+ * @param {Object} options - 渲染选项
+ * @param {boolean} options.external - 是否为独立页面模式（生成真实文件链接）
  */
-export function renderSidebar(phase, activePage, onNavigate) {
+export function renderSidebar(phase, activePage, onNavigate, options = {}) {
+  const { external = false } = options;
   const container = document.getElementById('sidebar');
   if (!container) return;
 
@@ -86,7 +121,11 @@ export function renderSidebar(phase, activePage, onNavigate) {
       const a = document.createElement('a');
       a.className = 'sidebar-item';
       a.dataset.page = item.id;
-      a.href = `#${item.id}`;
+      a.href = getSidebarHref(item.id, external);
+      // eslint-disable-next-line security/detect-object-injection
+      if (external && EXTERNAL_PAGES[item.id]) {
+        a.dataset.external = 'true';
+      }
       const iconSpan = document.createElement('span');
       iconSpan.className = 'icon';
       iconSpan.textContent = item.icon;
@@ -111,7 +150,11 @@ export function renderSidebar(phase, activePage, onNavigate) {
         const a = document.createElement('a');
         a.className = 'sidebar-item';
         a.dataset.page = sub.id;
-        a.href = `#${sub.id}`;
+        a.href = getSidebarHref(sub.id, external);
+        // eslint-disable-next-line security/detect-object-injection
+        if (external && EXTERNAL_PAGES[sub.id]) {
+          a.dataset.external = 'true';
+        }
         const iconSpan = document.createElement('span');
         iconSpan.className = 'icon';
         iconSpan.textContent = sub.icon;
@@ -125,15 +168,15 @@ export function renderSidebar(phase, activePage, onNavigate) {
     }
   });
 
-  // 绑定点击
-  container.querySelectorAll('.sidebar-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (onNavigate) {
+  // SPA 模式下绑定点击事件
+  if (!external && typeof onNavigate === 'function') {
+    container.querySelectorAll('.sidebar-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
         onNavigate(item.dataset.page);
-      }
+      });
     });
-  });
+  }
 
   updateSidebarActive(activePage);
 }

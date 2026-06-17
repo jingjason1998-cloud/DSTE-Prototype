@@ -53,7 +53,14 @@ def test_cockpit_has_status_animations():
     assert ".status-achieved" in content, "缺少达成状态样式"
     assert ".status-warning" in content, "缺少预警状态样式"
     assert ".status-lagging" in content, "缺少落后状态样式"
-    assert "@keyframes" in content, "缺少 CSS 动画定义"
+    # 动画定义可能在 cockpit.html 内联样式中，也可能在引入的外部 CSS（如 shell.css）中
+    has_inline_keyframes = "@keyframes" in content
+    linked_css_have_keyframes = any(
+        "@keyframes" in (PROJECT_ROOT / path).read_text(encoding="utf-8")
+        for path in ["src/styles/shell.css", "assets/css/main.css"]
+        if (PROJECT_ROOT / path).exists()
+    )
+    assert has_inline_keyframes or linked_css_have_keyframes, "缺少 CSS 动画定义"
 
 
 def test_cockpit_has_kpi_tree_helper_functions():

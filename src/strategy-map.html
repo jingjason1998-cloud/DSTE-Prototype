@@ -29,16 +29,6 @@
           }
         }
       }
-      document.addEventListener('DOMContentLoaded', function() {
-        const menuToggle = document.getElementById('mobile-menu-toggle');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        if (menuToggle && sidebar && overlay) {
-          menuToggle.addEventListener('click', () => { sidebar.classList.toggle('open'); overlay.classList.toggle('open'); });
-          overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
-          sidebar.addEventListener('click', (e) => { if (e.target.closest('.sidebar-item')) { sidebar.classList.remove('open'); overlay.classList.remove('open'); } });
-        }
-      });
     })();
   </script>
   <style>
@@ -537,6 +527,7 @@
       .annual-toggle { flex-wrap: wrap; }
     }
   </style>
+  <script type="module" src="./lib/shell-injector.js"></script>
 </head>
 <body>
 
@@ -548,14 +539,7 @@
       <div class="top-nav-logo">D</div>
       <span class="top-nav-title">DSTE 战略管理平台</span>
     </div>
-    <ul class="top-nav-links">
-      <li><a href="cockpit.html#dashboard" title="驾驶舱">🎛️ <span class="nav-full-label">驾驶舱</span></a></li>
-      <li><a href="cockpit.html#sp/strategy-map" class="active" title="战略制定">🎯 <span class="nav-full-label">SP</span></a></li>
-      <li><a href="cockpit.html#bp/kpi" title="战略解码">🔧 <span class="nav-full-label">BP</span></a></li>
-      <li><a href="cockpit.html#exe/tasks" title="战略执行">🚀 <span class="nav-full-label">执行</span></a></li>
-      <li><a href="cockpit.html#rev/performance" title="战略评估">📊 <span class="nav-full-label">评估</span></a></li>
-      <li><a href="cockpit.html#ai" title="AI 助手">🤖 <span class="nav-full-label">AI</span></a></li>
-    </ul>
+    <ul class="top-nav-links" id="top-nav-links"></ul>
     <div class="top-nav-actions">
       <span id="current-user" style="font-size:13px;color:var(--text-secondary);">👤 用户</span>
     </div>
@@ -564,17 +548,7 @@
   <!-- 主体 -->
   <div class="app-body">
     <!-- 左侧边栏 -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-group">
-        <div class="sidebar-group-title">战略制定 (SP)</div>
-        <a href="strategy-map-list.html" class="sidebar-item active"><span class="icon">🗺️</span>战略地图</a>
-        <a href="cockpit.html#sp/insights-topics" class="sidebar-item"><span class="icon">🔭</span>战略洞察与专题</a>
-      </div>
-      <div class="sidebar-quick">快捷工具</div>
-      <div class="sidebar-group">
-        <a href="reviewer.html" class="sidebar-item"><span class="icon">📋</span>会议材料审核</a>
-      </div>
-    </aside>
+    <aside class="sidebar" id="sidebar"></aside>
 
     <!-- 内容区 -->
     <main class="content-area" id="mainArea">

@@ -22,7 +22,11 @@ export const SIDEBAR_CONFIG = {
     { type: 'item', id: 'exe/meetings', icon: '🎯', label: '经营分析会' },
     { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议审核' },
     { type: 'group', title: '系统管理', items: [
-      { id: 'dashboard/roadmap', icon: '📊', label: '开发路线图 Road Map' }
+      { id: 'dashboard/roadmap', icon: '📊', label: '开发路线图 Road Map' },
+      { id: 'dashboard/version-audit', icon: '🔍', label: '版本审计' },
+      { id: 'admin/rule-engine', icon: '⚙️', label: '规则引擎中心' },
+      { id: 'admin/alert-hub', icon: '🔔', label: '预警中心' },
+      { id: 'admin/requirement-pool', icon: '📋', label: '需求管理中心' }
     ]}
   ],
   sp: [
@@ -47,7 +51,7 @@ export const SIDEBAR_CONFIG = {
       { id: 'exe/tasks', icon: '✅', label: '重点工作管理' },
       { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
       { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' },
-      { id: 'exe/finereport', icon: '📊', label: 'FineReport 报表' }
+      { id: 'exe/report-center', icon: '📊', label: '报表中心' }
     ]},
     { type: 'quick', label: '快捷工具' },
     { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
@@ -85,11 +89,16 @@ export const PAGE_NAMES = {
   'exe/business-topics': '业务专题管理',
   'exe/meetings': '经营分析会',
   'exe/meeting-review': '会议材料审核',
+  'exe/report-center': '报表中心',
   'rev/performance': '绩效与激励',
   'rev/cadre': '干部管理',
   'rev/review': '战略复盘',
   'rev/gap-analysis': '差距分析',
   'ai': 'AI 战略助手',
   'dashboard/roadmap': '开发路线图 Road Map',
-  'exe/finereport': 'FineReport 报表'
+  'dashboard/version-audit': '版本审计',
+  'exe/finereport': 'FineReport 报表',
+  'admin/rule-engine': '规则引擎中心',
+  'admin/alert-hub': '预警中心',
+  'admin/requirement-pool': '需求管理中心'
 };

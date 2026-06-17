@@ -53,6 +53,27 @@ test.describe('Page Content', () => {
     await expect(page.locator('.page-content')).toContainText('开发路线图');
     await expect(page.locator('.page-content')).toContainText('Road Map');
   });
+
+  test('rule engine placeholder accessible from sidebar', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.sidebar-item[data-page="admin/rule-engine"]').click();
+    await expect(page.locator('.page-content')).toContainText('规则引擎中心');
+    await expect(page.locator('.page-content')).toContainText('预算、基线、核算、薪酬激励与预警规则');
+  });
+
+  test('alert hub placeholder accessible from sidebar', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.sidebar-item[data-page="admin/alert-hub"]').click();
+    await expect(page.locator('.page-content')).toContainText('预警中心');
+    await expect(page.locator('.page-content')).toContainText('预警事件');
+  });
+
+  test('requirement pool placeholder accessible from sidebar', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.sidebar-item[data-page="admin/requirement-pool"]').click();
+    await expect(page.locator('.page-content')).toContainText('需求管理中心');
+    await expect(page.locator('.page-content')).toContainText('统一收集、评审、跟踪');
+  });
 });
 
 test.describe('External Pages', () => {
