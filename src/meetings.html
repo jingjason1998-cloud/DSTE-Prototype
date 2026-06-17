@@ -163,16 +163,13 @@
   </div>
 
   <script src="../assets/js/main.js"></script>
-  <script defer>
+  <script type="module">
+    import { calculateAutoScore, getScoreColor, getScoreLabel } from './meetings/utils/scoring.js';
+    import { renderTopNav, renderSidebar } from './lib/shell.js';
+    import { EXTERNAL_PAGES } from './lib/config.js';
+    window.__dsteShell = { renderTopNav, renderSidebar, EXTERNAL_PAGES };
     (async function() {
       'use strict';
-        // 统一动态导入共享模块，确保时序可控
-        const [{ calculateAutoScore, getScoreColor, getScoreLabel }, { renderTopNav, renderSidebar }, { EXTERNAL_PAGES }] = await Promise.all([
-          import('./meetings/utils/scoring.js'),
-          import('./lib/shell.js'),
-          import('./lib/config.js')
-        ]);
-        window.__dsteShell = { renderTopNav, renderSidebar, EXTERNAL_PAGES };
         function getReviewScores() {
           try { return DSTE.Storage.get('dste_review_scores', {}); }
           catch (e) { return {}; }
