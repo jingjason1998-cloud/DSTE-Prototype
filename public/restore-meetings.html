@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>恢复会议数据</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 720px; margin: 0 auto; line-height: 1.6; }
+    h1 { font-size: 20px; }
+    .btn { padding: 10px 18px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .primary { background: #1677ff; color: #fff; }
+    .secondary { background: #f2f2f2; color: #333; border: 1px solid #d9d9d9; }
+    .warn { color: #ff4d4f; }
+    pre { background: #f6f6f6; padding: 12px; border-radius: 6px; overflow: auto; max-height: 200px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>恢复经营分析会会议数据</h1>
+  <p>本页面用于将 <code>scripts/kv-backup-2026-06-16T08-09-38-079Z/dste_meetings_v1.json</code> 中的备份数据写回到浏览器 <code>localStorage.dste_meetings</code>。</p>
+  <p class="warn">注意：此操作会覆盖当前浏览器中的会议本地数据。如果 2026-06-16 16:09 之后你又新增了会议，这些数据会丢失。</p>
+  <p>
+    <button id="restoreBtn" class="btn primary">立即恢复备份</button>
+    <button id="checkBtn" class="btn secondary">查看当前本地数据</button>
+  </p>
+  <div id="status"></div>
+  <pre id="preview"></pre>
+
+  <script>
+    const BACKUP_URL = '../scripts/kv-backup-2026-06-16T08-09-38-079Z/dste_meetings_v1.json';
+
+    function setStatus(msg, isError) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.style.color = isError ? '#ff4d4f' : '#1677ff';
+    }
+
+    document.getElementById('checkBtn').addEventListener('click', () => {
+      try {
+        const raw = localStorage.getItem('dste_meetings');
+        if (!raw) {
+          setStatus('当前 localStorage 中没有 dste_meetings 数据', true);
+          document.getElementById('preview').textContent = '';
+          return;
+        }
+        const data = JSON.parse(raw);
+        setStatus(`当前本地共有 ${data.length} 条会议记录`);
+        document.getElementById('preview').textContent = JSON.stringify(data.slice(0, 3), null, 2) + (data.length > 3 ? '\n...' : '');
+      } catch (e) {
+        setStatus('读取当前数据失败：' + e.message, true);
+      }
+    });
+
+    document.getElementById('restoreBtn').addEventListener('click', async () => {
+      try {
+        const resp = await fetch(BACKUP_URL);
+        if (!resp.ok) throw new Error('备份文件读取失败：' + resp.status);
+        const backup = await resp.json();
+        if (!Array.isArray(backup) || backup.length === 0) throw new Error('备份文件为空或格式错误');
+        if (!confirm(`确定要恢复 ${backup.length} 条会议记录并覆盖当前本地数据吗？`)) return;
+        localStorage.setItem('dste_meetings', JSON.stringify(backup));
+        setStatus(`已恢复 ${backup.length} 条会议记录，请刷新经营分析会页面查看。`);
+        document.getElementById('preview').textContent = JSON.stringify(backup.slice(0, 3), null, 2) + (backup.length > 3 ? '\n...' : '');
+      } catch (e) {
+        setStatus('恢复失败：' + e.message, true);
+      }
+    });
+  </script>
+</body>
+</html>

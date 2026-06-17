@@ -57,3 +57,24 @@ def test_add_kpi_action_exists():
     content = _read_cockpit()
     assert "ap-add-kpi" in content, \
         "未找到添加 KPI 的事件 action"
+
+
+def test_add_kpi_form_has_owner_field():
+    """添加 KPI 表单包含负责人字段"""
+    content = _read_cockpit()
+    add_section = content.split("window.ap_addKpi = function()")[1] if "window.ap_addKpi = function()" in content else ""
+    assert "ap-add-owner" in add_section, "未找到负责人输入框"
+
+
+def test_add_kpi_form_has_dept_field():
+    """添加 KPI 表单包含责任部门字段"""
+    content = _read_cockpit()
+    add_section = content.split("window.ap_addKpi = function()")[1] if "window.ap_addKpi = function()" in content else ""
+    assert "ap-add-dept" in add_section, "未找到责任部门输入框"
+
+
+def test_add_kpi_form_has_unit_field():
+    """添加 KPI 表单包含计量单位字段"""
+    content = _read_cockpit()
+    add_section = content.split("window.ap_addKpi = function()")[1] if "window.ap_addKpi = function()" in content else ""
+    assert "ap-add-unit" in add_section, "未找到计量单位输入框"
