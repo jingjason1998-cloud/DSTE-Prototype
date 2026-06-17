@@ -3,6 +3,8 @@
  * 从 cockpit.html 抽离，降低单文件复杂度
  */
 
+/* global escapeHtml */
+
 window.renderDevTimeline = function() {
         const fallbackData = {
           versions: [

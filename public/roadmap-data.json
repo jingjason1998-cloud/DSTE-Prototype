@@ -1,6 +1,53 @@
 {
   "versions": [
     {
+      "version": "v0.5.2",
+      "date": "2026-06-17",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**决议中心（Resolution Center）**："
+        },
+        {
+          "type": "Added",
+          "desc": "**督办中心 Phase 1**："
+        },
+        {
+          "type": "Added",
+          "desc": "**统一子页面切换效果与导航一致性 Phase 1+2**："
+        },
+        {
+          "type": "Added",
+          "desc": "**会议议程顺延 + \"事不过三\" 警示**"
+        },
+        {
+          "type": "Added",
+          "desc": "**会议评分算法 v2.0**：会前 / 会中 / 会后三阶段模型"
+        },
+        {
+          "type": "Added",
+          "desc": "**DSTE 完整功能框架搭建**：功能全景图与规则引擎 / 预警中心 / 需求管理中心占位导航"
+        },
+        {
+          "type": "Changed",
+          "desc": "`src/meetings.html` 通过动态 `import()` 引入 `resolution-helpers.js` 与 `scoring.js`"
+        },
+        {
+          "type": "Changed",
+          "desc": "多处独立页面顶部导航 / 侧边栏由 `shell-injector.js` 统一渲染"
+        },
+        {
+          "type": "Fixed",
+          "desc": "空占位行动项污染：保存时过滤无内容 / 无负责人行动项，启动迁移时自动清理"
+        },
+        {
+          "type": "Fixed",
+          "desc": "会议卡片摘要与详情页行动项字段增加 `escapeHtml` XSS 加固"
+        }
+      ]
+    },
+    {
       "version": "v0.5.1",
       "date": "2026-06-16",
       "status": "released",

@@ -132,6 +132,35 @@
 ### Deferred to v0.5.1
 - **版本审计看板**：`dashboard/version-audit` 侧边栏入口已移除；前端页面尚未实现，相关测试与脚本（`tests/e2e/version-audit.spec.js`、`scripts/generate-version-audit.cjs`）本次不发布
 
+## [v0.5.2] - 2026-06-17
+
+### Added
+- **决议中心（Resolution Center）**：
+  - 会议决议三态状态机（pending / approved / closed）
+  - 旧版状态自动迁移
+  - 聚合抽屉 UI、筛选、统计、审批日志、KMS 链接
+  - 31 个单元测试与 E2E 测试
+- **督办中心 Phase 1**：
+  - 行动项 pending / in_progress / completed 状态切换
+  - progressNote 行内编辑与会议详情页只读展示
+  - E2E 测试
+- **统一子页面切换效果与导航一致性 Phase 1+2**：
+  - 共享 `shell.js` / `config.js` 架构
+  - `shell-injector.js` 零依赖注入器
+  - `cockpit.html` 改为 ES Module 引入共享 shell
+  - 独立页面统一使用注入器，消除硬编码导航
+- **会议议程顺延 + "事不过三" 警示**
+- **会议评分算法 v2.0**：会前 / 会中 / 会后三阶段模型
+- **DSTE 完整功能框架搭建**：功能全景图与规则引擎 / 预警中心 / 需求管理中心占位导航
+
+### Changed
+- `src/meetings.html` 通过动态 `import()` 引入 `resolution-helpers.js` 与 `scoring.js`
+- 多处独立页面顶部导航 / 侧边栏由 `shell-injector.js` 统一渲染
+
+### Fixed
+- 空占位行动项污染：保存时过滤无内容 / 无负责人行动项，启动迁移时自动清理
+- 会议卡片摘要与详情页行动项字段增加 `escapeHtml` XSS 加固
+
 ## [Unreleased]
 
 ### 计划中

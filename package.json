@@ -1,7 +1,7 @@
 {
   "name": "dste-platform",
   "private": true,
-  "version": "0.5.1",
+  "version": "0.5.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,8 +13,7 @@
     "lint:security": "eslint . --format json --output-file eslint-report.json",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "deploy": "node scripts/deploy.js"
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
