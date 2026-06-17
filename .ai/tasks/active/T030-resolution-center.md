@@ -15,7 +15,8 @@
 - [x] 决议编辑表单升级到 9 状态体系，新增来源议题 ID / 审批人字段
 - [x] 新增决议后自动迁移 + 同步到 `dste_resolutions_v2`
 - [x] 右侧决议中心抽屉 HTML 结构（`#decisions-drawer`），顶部 KPI「决议总数」可打开抽屉
-- [x] 抽屉内联渲染逻辑：9 状态筛选 pills、统计摘要、决议卡片列表、执行进度条、KMS 链接、跳转源会议
+- [x] 抽屉内联渲染逻辑：3 状态筛选 pills、统计摘要、决议卡片列表、执行进度条、状态 badge 切换、KMS 链接、跳转源会议
+- [x] 删除会议详情页原「✅ 决议跟踪」全量表格，避免与决议中心抽屉功能重复
 - [x] 状态推进功能：点击状态 badge 出现下拉选择，选中即调用 `advanceResolutionStatus` 自动保存并同步（只保留一个状态变更入口）
 - [x] 审批日志展示：可折叠查看每条决议的审批历史
 - [x] 废弃旧组件 `public/meetings-components/DecisionsDrawer.js` 引用
