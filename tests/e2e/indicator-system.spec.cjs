@@ -62,10 +62,10 @@ test('New indicator modal opens', async ({ page }) => {
 test('Search filter works', async ({ page }) => {
   await page.goto('/src/cockpit.html#bp/kpi');
   await page.waitForTimeout(2000);
-  
+
   await page.locator('#ind-search').fill('销售额');
   await page.waitForTimeout(500);
-  
+
   const body = await page.locator('body').innerHTML();
-  expect(body).toContain('合同额');
+  expect(body).toContain('销售额-D');
 });
