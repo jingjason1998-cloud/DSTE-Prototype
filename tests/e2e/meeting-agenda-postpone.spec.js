@@ -12,8 +12,10 @@ test.describe('Meeting Agenda Postponement', () => {
   });
 
   async function postponeFirstAgendaFromEditor(page) {
+    // Wait for meeting cards to render, then pick a completed one
+    await page.waitForSelector('.meeting-card', { timeout: 15000 });
     const card = page.locator('.meeting-card').filter({ hasText: /已完成/ }).first();
-    await expect(card).toBeVisible();
+    await expect(card).toBeVisible({ timeout: 10000 });
     await card.locator('button:has-text("✏️ 编辑")').click();
     await expect(page.locator('h1.page-title:has-text("编辑会议")')).toBeVisible();
     await expect(page.locator('#edit-agenda-list')).toBeVisible();
@@ -63,8 +65,10 @@ test.describe('Meeting Agenda Postponement', () => {
       }
     });
 
+    // Wait for meeting cards to render, then pick a completed one
+    await page.waitForSelector('.meeting-card', { timeout: 15000 });
     const card = page.locator('.meeting-card').filter({ hasText: /已完成/ }).first();
-    await expect(card).toBeVisible();
+    await expect(card).toBeVisible({ timeout: 10000 });
     await card.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
 

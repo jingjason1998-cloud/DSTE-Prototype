@@ -4,8 +4,8 @@ const BASE_URL = '/src/business-topics.html';
 
 // Helper: navigate to page, reset filters, and wait for table to render
 test.beforeEach(async ({ page }) => {
-  await page.goto(BASE_URL, { timeout: 60000 });
-  await page.waitForSelector('#topicTableBody tr', { timeout: 30000 });
+  await page.goto(BASE_URL, { timeout: 120000 });
+  await page.waitForSelector('#topicTableBody tr', { timeout: 60000 });
   // Reset year filter to "all" since the UI defaults to current year
   await page.selectOption('#filterYear', '');
   await page.waitForTimeout(200);

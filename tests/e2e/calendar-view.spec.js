@@ -4,8 +4,9 @@ test('calendar view replaces only meeting list panel', async ({ page }) => {
   await page.goto('/src/meetings.html');
   await page.waitForLoadState('networkidle');
 
-  // Click calendar view toggle
+  // Wait for the toggle button to be rendered and visible
   const btn = page.locator('#btn-toggle-view');
+  await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(100);
 
@@ -41,6 +42,7 @@ test('toggle back to list view restores meeting list', async ({ page }) => {
 
   // Switch to calendar
   const btn = page.locator('#btn-toggle-view');
+  await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(100);
 
@@ -62,6 +64,7 @@ test('calendar panel has card styling', async ({ page }) => {
   await page.waitForLoadState('networkidle');
 
   const btn = page.locator('#btn-toggle-view');
+  await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(100);
 
@@ -75,6 +78,7 @@ test('calendar meeting items show status dot and location', async ({ page }) => 
   await page.waitForLoadState('networkidle');
 
   const btn = page.locator('#btn-toggle-view');
+  await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(200);
 
@@ -98,6 +102,7 @@ test('calendar footer list shows host and location', async ({ page }) => {
   await page.waitForLoadState('networkidle');
 
   const btn = page.locator('#btn-toggle-view');
+  await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(200);
 
@@ -115,6 +120,7 @@ test('hovering meeting item shows tooltip with details', async ({ page }) => {
   await page.waitForLoadState('networkidle');
 
   const btn = page.locator('#btn-toggle-view');
+  await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(200);
 
@@ -141,6 +147,7 @@ test('year view shows month meeting counts', async ({ page }) => {
 
   // Switch to calendar
   const btn = page.locator('#btn-toggle-view');
+  await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(200);
 
