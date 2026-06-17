@@ -31,8 +31,8 @@ test('calendar view replaces only meeting list panel', async ({ page }) => {
   // Minutes section should still be visible
   await expect(page.locator('text=📄 会议纪要').first()).toBeVisible();
 
-  // Decision tracking section should still be visible
-  await expect(page.locator('text=✅ 决议跟踪').first()).toBeVisible();
+  // Resolution center KPI card should still be visible
+  await expect(page.locator('text=决议总数').first()).toBeVisible();
 });
 
 test('toggle back to list view restores meeting list', async ({ page }) => {

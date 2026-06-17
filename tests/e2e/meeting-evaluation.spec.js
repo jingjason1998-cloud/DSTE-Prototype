@@ -41,9 +41,9 @@ test.describe('Meeting Evaluation', () => {
     // Should show overall score
     const scoreDisplay = page.locator('#eval-overall-display');
     await expect(scoreDisplay).toContainText(/[0-9]+/);
-    // Should show dimension sliders
+    // Should show dimension sliders (3 stages: before / during / after)
     const sliders = page.locator('#eval-dimensions input[type="range"]');
-    await expect(sliders).toHaveCount(4);
+    await expect(sliders).toHaveCount(3);
     // Should show tags
     const tagCount = await page.locator('#eval-tags button').count();
     expect(tagCount).toBeGreaterThan(0);
@@ -56,9 +56,9 @@ test.describe('Meeting Evaluation', () => {
     await page.locator('#meeting-detail-overlay button:has-text("⭐ 评估会议"), #meeting-detail-overlay button:has-text("⭐ 重新评估")').first().click();
     await page.locator('#meeting-eval-overlay').waitFor({ state: 'visible' });
 
-    // Adjust a slider
+    // Adjust the first slider (会前, max 35)
     const slider = page.locator('#eval-dimensions input[type="range"]').first();
-    await slider.fill('85');
+    await slider.fill('30');
     await page.waitForTimeout(200);
 
     // Set up dialog listener before clicking save
@@ -83,8 +83,8 @@ test.describe('Meeting Evaluation', () => {
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
     // Eval section should be visible directly (no tab needed in detail view)
     await expect(page.locator('#meeting-detail-content')).toContainText(/综合评分/);
-    // Should show progress bars (4 dimension bars inside eval section)
+    // Should show progress bars (3 stage bars inside eval section)
     const bars = page.locator('#detail-eval [style*="height: 4px"]').filter({ has: page.locator('[style*="transition"]') });
-    await expect(bars).toHaveCount(4);
+    await expect(bars).toHaveCount(3);
   });
 });

@@ -1,166 +1,261 @@
 import { describe, it, expect } from 'vitest';
 import { calculateAutoScore, getScoreColor, getScoreLabel } from '../../src/meetings/utils/scoring.js';
 
-describe('calculateAutoScore', () => {
-  it('returns perfect score for fully completed meeting', () => {
-    const meeting = {
-      pipeline: {
-        reportGenerated: true,
-        preReviewDone: true,
-        meetingHeld: true,
-        minutesDrafted: true,
-        minutesApproved: true,
-        actionsTracked: true,
-      },
-      metrics: {
-        materialTimeliness: 100,
-        resolutionTimeliness: 100,
-        actionClosure: 100,
-      },
-      agenda_items: [{}, {}],
-      decisions: [
-        { status: 'approved', kmsUrl: 'https://kms.example.com/doc/1' },
-        { status: 'implemented', kmsUrl: 'https://kms.example.com/doc/2' },
+describe('calculateAutoScore (v2.0 three-stage model)', () => {
+  const meetingDate = '2026-06-15';
+  const sameDayEval = '2026-06-15T20:00:00Z';
+  const nextDayEval = '2026-06-16T10:00:00Z';
+
+  function makeMeeting(overrides = {}) {
+    return {
+      date: meetingDate,
+      pipeline: {},
+      agenda_items: [],
+      decisions: [],
+      actions: [],
+      hasMinutes: false,
+      minutesStatus: null,
+      ...overrides,
+    };
+  }
+
+  it('returns perfect score for fully prepared and completed meeting', () => {
+    const meeting = makeMeeting({
+      pipeline: { meetingHeld: true },
+      host: '主持人',
+      recorder: '记录人',
+      agenda_items: [
+        { type: 'goal_management', title: '目标回顾', duration: 30, owner: 'A', material_link: 'https://kms/1' },
+        { type: 'budget_finance', title: '财务复盘', duration: 30, owner: 'B', material_link: 'https://kms/2' },
+        { type: 'key_task_management', title: '重点工作', duration: 30, owner: 'C', material_link: 'https://kms/3' },
+        { type: 'business_special', title: '业务专项', duration: 30, owner: 'D', material_link: 'https://kms/4' },
       ],
       hasMinutes: true,
       minutesStatus: 'final',
+      decisions: [{}, {}, {}],
+      actions: [{}, {}, {}],
+    });
+
+    const reviewScores = {
+      'https://kms/1': { maxScore: 100 },
+      'https://kms/2': { maxScore: 100 },
+      'https://kms/3': { maxScore: 100 },
+      'https://kms/4': { maxScore: 100 },
     };
 
-    const result = calculateAutoScore(meeting);
+    const result = calculateAutoScore(meeting, sameDayEval, reviewScores);
 
     expect(result.overallScore).toBe(100);
-    expect(result.dimensions.preparation).toBe(100);
-    expect(result.dimensions.discussion).toBe(100);
-    expect(result.dimensions.decision).toBe(100);
-    expect(result.dimensions.execution).toBe(100);
+    expect(result.dimensions.before).toBeCloseTo(35, 1);
+    expect(result.dimensions.during).toBeCloseTo(30, 1);
+    expect(result.dimensions.after).toBeCloseTo(35, 1);
+    expect(result.subScores.materialCompleteness).toBeCloseTo(7, 1);
+    expect(result.subScores.agendaCoverage).toBeCloseTo(10.5, 1);
+    expect(result.subScores.materialReviewScore).toBeCloseTo(17.5, 1);
+    expect(result.subScores.effectiveDiscussion).toBeCloseTo(12, 1);
+    expect(result.subScores.participation).toBeCloseTo(12, 1);
+    expect(result.subScores.timeControl).toBeCloseTo(6, 1);
+    expect(result.subScores.resolutionAndAction).toBe(30);
+    expect(result.subScores.timeliness).toBe(5);
+    expect(result.subScores.postponementDeduction).toBe(0);
     expect(result.feedback).toContain('材料充分');
-    expect(result.feedback).toContain('议程合理');
-    expect(result.feedback).toContain('决议明确');
+    expect(result.feedback).toContain('讨论有效');
     expect(result.feedback).toContain('闭环到位');
     expect(result.auto).toBe(true);
   });
 
-  it('flags issues for incomplete meeting with no data', () => {
-    const meeting = {
-      pipeline: {},
-      metrics: {},
-      agenda_items: [],
-      decisions: [],
-      hasMinutes: false,
-      minutesStatus: null,
-    };
+  it('returns zero and negative feedback for empty meeting', () => {
+    const meeting = makeMeeting();
+    const result = calculateAutoScore(meeting, nextDayEval);
 
-    const result = calculateAutoScore(meeting);
-
-    expect(result.dimensions.preparation).toBeLessThan(60);
-    expect(result.dimensions.discussion).toBe(60);
-    expect(result.dimensions.decision).toBe(0);
-    expect(result.dimensions.execution).toBeLessThan(60);
+    expect(result.overallScore).toBe(0);
+    expect(result.dimensions.before).toBe(0);
+    expect(result.dimensions.during).toBe(0);
+    expect(result.dimensions.after).toBe(0);
     expect(result.feedback).toContain('数据不足');
-    expect(result.feedback).toContain('决议模糊');
+    expect(result.feedback).toContain('时间失控');
     expect(result.feedback).toContain('缺乏跟进');
     expect(result.auto).toBe(true);
   });
 
-  it('calculates preparation correctly based on material timeliness', () => {
-    const meeting = {
-      pipeline: { preReviewDone: false },
-      metrics: { materialTimeliness: 80 },
-      agenda_items: [],
-      decisions: [],
-      hasMinutes: false,
+  it('calculates before-stage sub-scores correctly', () => {
+    const meeting = makeMeeting({
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 20, owner: 'A', material_link: 'https://kms/1' },
+        { type: 'budget_finance', title: 'T2', duration: 20, owner: 'B', material_link: '' },
+      ],
+    });
+    const reviewScores = {
+      'https://kms/1': { maxScore: 80 },
     };
 
-    const result = calculateAutoScore(meeting);
-    // 80 * 0.8 + 0 = 64
-    expect(result.dimensions.preparation).toBe(64);
+    const result = calculateAutoScore(meeting, nextDayEval, reviewScores);
+
+    // materialCompleteness: 1 of 2 agendas has material_link => 0.5 * 7 = 3.5
+    expect(result.subScores.materialCompleteness).toBeCloseTo(3.5, 1);
+    // agendaCoverage: 2 of 4 required types => 0.5 * 10.5 ≈ 5.3
+    expect(result.subScores.agendaCoverage).toBeCloseTo(5.3, 1);
+    // materialReviewScore: avg 80 => 0.8 * 17.5 = 14
+    expect(result.subScores.materialReviewScore).toBeCloseTo(14, 1);
+    expect(result.dimensions.before).toBeCloseTo(22.8, 1);
   });
 
-  it('caps preparation at 100 even with high metrics', () => {
-    const meeting = {
-      pipeline: { preReviewDone: true },
-      metrics: { materialTimeliness: 100 },
-      agenda_items: [],
-      decisions: [],
-      hasMinutes: false,
+  it('uses average review score when scores exist', () => {
+    const meeting = makeMeeting({
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 20, owner: 'A', material_link: 'https://kms/1' },
+        { type: 'budget_finance', title: 'T2', duration: 20, owner: 'B', material_link: 'https://kms/2' },
+      ],
+    });
+    const reviewScores = {
+      'https://kms/1': { maxScore: 80 },
+      'https://kms/2': { maxScore: 50 },
     };
 
-    const result = calculateAutoScore(meeting);
-    // 100 * 0.8 + 20 = 100, capped at 100
-    expect(result.dimensions.preparation).toBe(100);
+    const result = calculateAutoScore(meeting, nextDayEval, reviewScores);
+
+    // avg = (80 + 50) / 2 = 65 => 0.65 * 17.5 = 11.375 ≈ 11.4
+    expect(result.subScores.materialReviewScore).toBeCloseTo(11.4, 1);
   });
 
-  it('calculates discussion with partial completion', () => {
-    const meeting = {
+  it('falls back to diagnostic pass rate when no material review scores exist', () => {
+    const meeting = makeMeeting({
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 20, owner: 'A', material_link: 'https://kms/1' },
+        { type: 'budget_finance', title: 'T2', duration: 20, owner: 'B', material_link: 'https://kms/2' },
+      ],
+    });
+
+    const result = calculateAutoScore(meeting, nextDayEval, {});
+
+    // no scores => pass rate 0 => 0
+    expect(result.subScores.materialReviewScore).toBe(0);
+  });
+
+  it('calculates during-stage with partial completion', () => {
+    const meeting = makeMeeting({
       pipeline: { meetingHeld: true },
-      metrics: {},
-      agenda_items: [{}],
-      decisions: [],
-      hasMinutes: false,
-    };
-
-    const result = calculateAutoScore(meeting);
-    // 60 + 10 (meetingHeld) + 10 (agenda) = 80
-    expect(result.dimensions.discussion).toBe(80);
-  });
-
-  it('calculates decision quality with KMS and approval rates', () => {
-    const meeting = {
-      pipeline: {},
-      metrics: { resolutionTimeliness: 80 },
-      agenda_items: [],
-      decisions: [
-        { status: 'approved', kmsUrl: 'https://kms.example.com/doc/1' },
-        { status: 'pending', kmsUrl: null },
+      host: '主持人',
+      recorder: '记录人',
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 120, owner: 'A', material_link: '' },
       ],
       hasMinutes: false,
-    };
+    });
 
-    const result = calculateAutoScore(meeting);
-    // KMS rate = 1/2 = 0.5, approved rate = 1/2 = 0.5
-    // 80 * 0.6 + 0.5 * 20 + 0.5 * 20 = 48 + 10 + 10 = 68
-    expect(result.dimensions.decision).toBe(68);
+    const result = calculateAutoScore(meeting, nextDayEval);
+
+    // effectiveDiscussion: held 6 + no minutes 0 + owner present 3 = 9
+    expect(result.subScores.effectiveDiscussion).toBeCloseTo(9, 1);
+    // participation: held 6 + unique participants 3 (host, recorder, owner) => 6 + 3*1.5 = 10.5
+    expect(result.subScores.participation).toBeCloseTo(10.5, 1);
+    // timeControl: held but duration 120 > 180? no, <=180 => 6
+    expect(result.subScores.timeControl).toBeCloseTo(6, 1);
+    expect(result.dimensions.during).toBeCloseTo(25.5, 1);
   });
 
-  it('returns 0 for decision when no decisions exist', () => {
-    const meeting = {
-      pipeline: {},
-      metrics: {},
-      agenda_items: [],
-      decisions: [],
-      hasMinutes: false,
-    };
+  it('penalizes long meetings on time control', () => {
+    const meeting = makeMeeting({
+      pipeline: { meetingHeld: true },
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 200, owner: 'A', material_link: '' },
+      ],
+    });
 
-    const result = calculateAutoScore(meeting);
-    expect(result.dimensions.decision).toBe(0);
+    const result = calculateAutoScore(meeting, nextDayEval);
+
+    expect(result.subScores.timeControl).toBeCloseTo(3, 1);
   });
 
-  it('calculates execution with action closure rate', () => {
-    const meeting = {
-      pipeline: { actionsTracked: false },
-      metrics: { actionClosure: 75 },
-      agenda_items: [],
-      decisions: [],
-      hasMinutes: false,
-    };
+  it('caps resolution and action score at 30', () => {
+    const meeting = makeMeeting({
+      decisions: [{}, {}, {}, {}, {}],
+      actions: [{}, {}, {}, {}, {}],
+    });
 
-    const result = calculateAutoScore(meeting);
-    // 75 * 0.8 + 0 = 60
-    expect(result.dimensions.execution).toBe(60);
+    const result = calculateAutoScore(meeting, sameDayEval);
+
+    expect(result.subScores.resolutionAndAction).toBe(30);
+    expect(result.subScores.timeliness).toBe(5);
+    expect(result.dimensions.after).toBe(35);
   });
 
-  it('caps execution at 100', () => {
-    const meeting = {
-      pipeline: { actionsTracked: true },
-      metrics: { actionClosure: 100 },
-      agenda_items: [],
-      decisions: [],
-      hasMinutes: false,
-    };
+  it('gives zero timeliness bonus when evaluated on a different day', () => {
+    const meeting = makeMeeting({
+      decisions: [{}],
+      actions: [{}],
+    });
 
-    const result = calculateAutoScore(meeting);
-    // 100 * 0.8 + 20 = 100, capped at 100
-    expect(result.dimensions.execution).toBe(100);
+    const result = calculateAutoScore(meeting, nextDayEval);
+
+    expect(result.subScores.resolutionAndAction).toBe(10);
+    expect(result.subScores.timeliness).toBe(0);
+    expect(result.dimensions.after).toBe(10);
+  });
+
+  it('applies postponement deduction to overall score', () => {
+    const meeting = makeMeeting({
+      pipeline: { meetingHeld: true },
+      host: '主持人',
+      recorder: '记录人',
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 30, owner: 'A', material_link: '' },
+      ],
+      hasMinutes: true,
+      hasPostponedAgenda: true,
+    });
+
+    const result = calculateAutoScore(meeting, sameDayEval);
+
+    expect(result.subScores.postponementDeduction).toBe(-5);
+    // before ≈ 2.6, during = 28.5, after = 5, deduction -5 => overall ≈ 31
+    expect(result.overallScore).toBeCloseTo(31, 0);
+  });
+
+  it('does not allow overall score below 0', () => {
+    const meeting = makeMeeting({ hasPostponedAgenda: true });
+    const result = calculateAutoScore(meeting, nextDayEval);
+    expect(result.overallScore).toBe(0);
+    expect(result.subScores.postponementDeduction).toBe(-5);
+  });
+
+  it('applies postponement deduction when an agenda status is postponed', () => {
+    const meeting = makeMeeting({
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 30, owner: 'A', status: 'postponed' },
+      ],
+    });
+
+    const result = calculateAutoScore(meeting, nextDayEval);
+
+    expect(result.subScores.postponementDeduction).toBe(-5);
+    expect(result.overallScore).toBe(0);
+  });
+
+  it('applies postponement deduction only once for multiple postponed agendas', () => {
+    const meeting = makeMeeting({
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 30, status: 'postponed' },
+        { type: 'budget_finance', title: 'T2', duration: 30, status: 'postponed' },
+      ],
+    });
+
+    const result = calculateAutoScore(meeting, nextDayEval);
+
+    expect(result.subScores.postponementDeduction).toBe(-5);
+  });
+
+  it('does not apply postponement deduction when no agenda is postponed', () => {
+    const meeting = makeMeeting({
+      agenda_items: [
+        { type: 'goal_management', title: 'T1', duration: 30, status: 'planned' },
+        { type: 'budget_finance', title: 'T2', duration: 30, status: 'completed' },
+      ],
+    });
+
+    const result = calculateAutoScore(meeting, nextDayEval);
+
+    expect(result.subScores.postponementDeduction).toBe(0);
   });
 });
 
@@ -172,12 +267,12 @@ describe('getScoreColor', () => {
 
   it('returns primary color for scores 75-89', () => {
     expect(getScoreColor(75)).toBe('var(--primary)');
-    expect(getScoreColor(80)).toBe('var(--primary)');
+    expect(getScoreColor(89)).toBe('var(--primary)');
   });
 
   it('returns warning color for scores 60-74', () => {
     expect(getScoreColor(60)).toBe('var(--warning)');
-    expect(getScoreColor(70)).toBe('var(--warning)');
+    expect(getScoreColor(74)).toBe('var(--warning)');
   });
 
   it('returns danger color for scores < 60', () => {
