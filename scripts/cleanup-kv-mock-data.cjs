@@ -25,11 +25,6 @@ const OPTIONAL_KV_KEYS = {
   issues: 'dste_issues_v1',
 };
 
-const MOCK_MEETING_IDS = [
-  '20260415', '20260315', '20260520', '20260525',
-  '20260601', '20260615', '20260701',
-];
-
 const TEST_PATTERNS = ['测试保存', '测试行动项内容', '决议中心测试_'];
 const TEST_PATTERNS_CI = ['测试', 'test', 'Test'];
 
@@ -82,8 +77,8 @@ function cleanMeetings(meetings) {
   const cleaned = [];
 
   for (const m of meetings) {
-    if (MOCK_MEETING_IDS.includes(m.id)) {
-      removed.push({ key: 'dste_meetings_v1', id: m.id, title: m.title, reason: 'mock meeting ID' });
+    if (m.isMock === true) {
+      removed.push({ key: 'dste_meetings_v1', id: m.id, title: m.title, reason: 'mock meeting (isMock: true)' });
       continue;
     }
 
@@ -213,7 +208,7 @@ function main() {
     }
 
     if (result.removed.length > 0) {
-      toWrite.push({ key, data: result.cleaned });
+      toWrite.push({ key, data: result.cleaned, originalData: data });
     }
   }
 
@@ -233,10 +228,12 @@ function main() {
   // Backup all current KV data before mutating
   const backupDir = path.join(__dirname, `kv-backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
   fs.mkdirSync(backupDir, { recursive: true });
-  for (const { key, data } of toWrite) {
-    fs.writeFileSync(path.join(backupDir, `${key}.json`), JSON.stringify(data, null, 2));
+  for (const { key, originalData } of toWrite) {
+    fs.writeFileSync(path.join(backupDir, `${key}.json`), JSON.stringify(originalData, null, 2));
   }
+  fs.writeFileSync(path.join(backupDir, 'removed.json'), JSON.stringify(allRemoved, null, 2));
   log(`\nBackup written to: ${backupDir}`);
+  log(`Removal log written to: ${path.join(backupDir, 'removed.json')}`);
 
   for (const { key, data } of toWrite) {
     saveKvData(key, data);
