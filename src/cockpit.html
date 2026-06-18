@@ -739,7 +739,7 @@
       async function apiLoadOmp(entity) {
         if (!API_BASE) return null;
         try {
-          const token = DSTE.Storage.getString('dste_token');
+          const token = DSTE.Storage.getString('dste-token');
           const resp = await fetch(API_BASE + '/api/omp/' + entity, {
             headers: token ? { 'Authorization': 'Bearer ' + token } : {},
           });
@@ -756,7 +756,7 @@
       async function apiSaveOmp(entity, data) {
         if (!API_BASE) return false;
         try {
-          const token = DSTE.Storage.getString('dste_token');
+          const token = DSTE.Storage.getString('dste-token');
           const resp = await fetch(API_BASE + '/api/omp/' + entity, {
             method: 'POST',
             headers: {
@@ -765,7 +765,17 @@
             },
             body: JSON.stringify(data),
           });
-          return resp.ok;
+          if (!resp.ok) {
+            if (resp.status === 401) {
+              console.warn('[OMP] Save rejected: token expired or unauthorized');
+              showToast('登录已过期，请刷新页面重新登录后再保存', 'error');
+            } else {
+              console.warn('[OMP] Save failed:', resp.status, await resp.text().catch(() => ''));
+              showToast('数据同步到服务端失败，请检查网络后重试', 'warning');
+            }
+            return false;
+          }
+          return true;
         } catch (err) { console.warn('[OMP] API save failed:', err); }
         return false;
       }
