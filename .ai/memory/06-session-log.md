@@ -2,6 +2,22 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-18
+- **主题**：完善「经分会事不过三机制」宣讲 PPT
+- **操作**：
+  - 找回并预览已生成的 `经分会事不过三机制.pptx`
+  - 使用 Keynote 将 PPT 导出为 PDF 到桌面
+  - 修改 `generate_ppt.py`，新增第二页：场景示例、数据看板、产品功能给企业带来的价值
+  - 重新生成 PPT 并再次导出 PDF 到桌面（2 页，107 KB）
+  - 将 `.pptx-venv/` 加入 `.gitignore`，避免虚拟环境文件污染 Git
+  - 更新 `.ai/memory/01-current-focus.md` 时间戳
+- **修改文件**：`generate_ppt.py`、`.gitignore`、`.ai/memory/01-current-focus.md`、`.ai/memory/06-session-log.md`
+- **决策**：
+  - `.pptx-venv/` 作为临时 Python 虚拟环境，不纳入版本控制
+  - `generate_ppt.py` 与 `经分会事不过三机制.pptx` 保留在工作区，本次不自动提交
+- **下一步**：无（用户表示暂时不需要调整）
+- **状态**：complete
+
 ## 2026-06-17
 - **主题**：重构会议效果评分模型（四维度 → 三段式）
 - **操作**：

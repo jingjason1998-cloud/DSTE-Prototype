@@ -13,6 +13,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+.pptx-venv/
 
 # 测试缓存
 .baseline_test_results.txt
