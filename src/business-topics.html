@@ -54,7 +54,7 @@
         })();
 
         const isEmbed = new URLSearchParams(location.search).get('embed') === '1';
-        const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
 
         // CAS 登录跳转
         function redirectToCasLogin() {

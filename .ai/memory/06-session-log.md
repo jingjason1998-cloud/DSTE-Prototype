@@ -3,6 +3,21 @@
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
 ## 2026-06-18
+- **主题**：本地 DSTE 通过 Cloudflare Tunnel 暴露到公网域名，支持异地访问
+- **操作**：
+  - 安装 `cloudflared` 客户端（macOS，直接下载二进制）
+  - 在 Cloudflare Zero Trust 创建 Tunnel `dste-local` 并安装为系统服务
+  - 绑定公网域名：`dste.jasonxspace.cc` → 本地 `localhost:3456`
+  - 修改 `vite.config.js`，将 `dste.jasonxspace.cc` 加入 `preview.allowedHosts`
+  - 修改 `src/cockpit.html`，将 `dste.jasonxspace.cc` 加入本地开发白名单，跳过 CAS 登录校验
+  - 重新执行 `npm run build` 并重启 `npm run preview`（端口 3456）
+- **修改文件**：`vite.config.js`、`src/cockpit.html`
+- **验证**：
+  - `https://dste.jasonxspace.cc/src/cockpit.html` 可正常加载，无 CAS 跳转循环
+  - 页面内容正常显示
+- **状态**：complete
+
+## 2026-06-18
 - **主题**：完善「经分会事不过三机制」宣讲 PPT
 - **操作**：
   - 找回并预览已生成的 `经分会事不过三机制.pptx`

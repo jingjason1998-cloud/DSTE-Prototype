@@ -146,6 +146,10 @@
     .ap-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .ap-table th, .ap-table td { padding: 10px; border-bottom: 1px solid var(--border-light); }
     .ap-dim-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+    .ap-level-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+    .ap-level-marketing-line { background: color-mix(in srgb, var(--kpi-level-0) 15%, transparent); color: var(--kpi-level-0); }
+    .ap-level-department { background: color-mix(in srgb, var(--kpi-level-1) 15%, transparent); color: var(--kpi-level-1); }
+    .ap-level-team { background: color-mix(in srgb, var(--kpi-level-2) 15%, transparent); color: var(--kpi-level-2); }
     .ap-status-pill { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 4px; }
     .ap-edit-panel { position: fixed; top: 0; right: 0; width: 360px; height: 100vh; background: var(--bg-card); border-left: 1px solid var(--border-color); z-index: 100; padding: 20px; overflow-y: auto; box-shadow: -4px 0 20px rgba(0,0,0,0.1); }
     .ap-section-title { font-size: 14px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-top: 24px; margin-bottom: 8px; }
@@ -417,7 +421,7 @@
       // ===== 配置 =====
       const API_BASE = (() => {
         const host = window.location.hostname;
-        if (host === 'localhost' || host === '127.0.0.1') {
+        if (host === 'localhost' || host === '127.0.0.1' || host === 'dste.jasonxspace.cc') {
           return DSTE.Storage.getString('dste_api_base') || '';
         }
         return 'https://dste-api.jasonxspace.workers.dev';
@@ -583,9 +587,9 @@
 
       window._ompState = {
         activeTab: 'dashboard',
-        kpiFilter: { dept: 'all', status: 'all', category: 'all' },
+        kpiFilter: { dept: 'all', status: 'all', category: 'all', assessmentLevel: 'all' },
         taskFilter: { status: 'all', priority: 'all', dept: 'all', type: 'all' },
-        selectedPeriod: '2026-Q2',
+        selectedPeriod: `${new Date().getFullYear()}-Q1`,
         editingKpiId: null,
         editingTaskId: null,
         kpiViewMode: 'tree',
@@ -608,17 +612,181 @@
         dept: { label: '部门', items: ['销售部', '市场部', '产品部', '技术部', '客户成功部', '运营部', 'HR部', '财务部'] },
       };
 
+      // ===== 考核层级配置 =====
+      const ASSESSMENT_LEVELS = {
+        'marketing-line': { label: '营销线级', short: '营销线', color: 'var(--kpi-level-0)' },
+        'department':     { label: '部门级',   short: '部门',   color: 'var(--kpi-level-1)' },
+        'team':           { label: '小组级',   short: '小组',   color: 'var(--kpi-level-2)' },
+      };
+
       // ===== 年度经营计划页面状态 =====
       window._annualPlanState = {
         activeTab: 'overview',
         selectedKpiId: null,
         expandedGroupIds: new Set(),
         decomposeDimension: 'warzone',
+        assessmentLevelFilter: 'all',
       };
+
+      // ===== 按年度生成种子数据工厂 =====
+      function omp_buildYearSeed(year) {
+        const isLegacy2026 = year === 2026;
+        const cycleId = `cycle_${year}_marketing`;
+        const idPrefix = isLegacy2026 ? '' : `${year}_`;
+        const phase = year < 2026 ? 'archived' : 'planning';
+        const scale = year === 2026 ? 1.0 : (year < 2026 ? 0.9 : 1.1);
+        const fmt = (n) => Math.round(n * scale);
+
+        const cycle = { id: cycleId, year, name: `${year}年度 — 营销线`, phase, organization: '营销线', parentCycleId: null };
+
+        // L0 root KPIs
+        const kpiSalesD = { id: `${idPrefix}kpi_sales_d`, cycleId, indicatorId: 'ind_sales_d', period: String(year), targetValue: fmt(178623), challengeValue: fmt(214348), actualValue: fmt(171478), achievementRate: 96, weight: 10, owner: '陈总监', dept: '营销线', status: 'achieved', parentId: null, level: 0, assessmentLevel: 'marketing-line', bscDimension: 'financial', history: [92, 88, 94, 96], x: null, y: null, width: 170, height: 100 };
+        const kpiCollectionK = { id: `${idPrefix}kpi_collection_k`, cycleId, indicatorId: 'ind_collection_k', period: String(year), targetValue: fmt(130097), challengeValue: fmt(156116), actualValue: fmt(113835), achievementRate: 87.5, weight: 25, owner: '陈总监', dept: '营销线', status: 'warning', parentId: null, level: 0, assessmentLevel: 'marketing-line', bscDimension: 'financial', history: [95, 90, 85, 87.5], x: null, y: null, width: 170, height: 100 };
+        const kpiProfitMargin = { id: `${idPrefix}kpi_profit_margin`, cycleId, indicatorId: 'ind_profit_margin', period: String(year), targetValue: 33.72, challengeValue: 35.72, actualValue: 35.0, achievementRate: 85.7, weight: 5, owner: '张总监', dept: '营销线', status: 'warning', parentId: null, level: 0, assessmentLevel: 'marketing-line', bscDimension: 'financial', history: [90, 88, 87, 85.7], x: null, y: null, width: 170, height: 100 };
+        const kpiNewProduct = { id: `${idPrefix}kpi_new_product`, cycleId, indicatorId: 'ind_new_product', period: String(year), targetValue: fmt(27842), challengeValue: fmt(33410), actualValue: fmt(20882), achievementRate: 75, weight: 10, owner: '李经理', dept: '产品部', status: 'warning', parentId: null, level: 0, assessmentLevel: 'marketing-line', bscDimension: 'financial', history: [78, 75, 72, 75], x: null, y: null, width: 170, height: 100 };
+        const kpiBenchmark = { id: `${idPrefix}kpi_benchmark`, cycleId, indicatorId: 'ind_benchmark', period: String(year), targetValue: fmt(182), challengeValue: fmt(218), actualValue: fmt(175), achievementRate: 96, weight: 10, owner: '王总监', dept: '市场部', status: 'achieved', parentId: null, level: 0, assessmentLevel: 'marketing-line', bscDimension: 'customer', history: [98, 96, 95, 96], x: null, y: null, width: 170, height: 100 };
+        const kpiArr = { id: `${idPrefix}kpi_arr`, cycleId, indicatorId: 'ind_arr', period: String(year), targetValue: fmt(43009), challengeValue: fmt(51611), actualValue: fmt(38708), achievementRate: 90, weight: 10, owner: '赵经理', dept: '客户成功部', status: 'achieved', parentId: null, level: 0, assessmentLevel: 'marketing-line', bscDimension: 'customer', history: [88, 86, 89, 90], x: null, y: null, width: 170, height: 100 };
+
+        // L1 decomposition
+        const kpiSalesDBj = { id: `${idPrefix}kpi_sales_d_bj`, cycleId, indicatorId: 'ind_sales_d', period: String(year), targetValue: fmt(33520), challengeValue: fmt(40224), actualValue: fmt(32179), achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: kpiSalesD.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [95, 93, 96, 96], x: null, y: null, width: 170, height: 100 };
+        const kpiSalesDSh = { id: `${idPrefix}kpi_sales_d_sh`, cycleId, indicatorId: 'ind_sales_d', period: String(year), targetValue: fmt(30268), challengeValue: fmt(36322), actualValue: fmt(29057), achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: kpiSalesD.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [96, 94, 95, 96], x: null, y: null, width: 170, height: 100 };
+        const kpiSalesDHd = { id: `${idPrefix}kpi_sales_d_hd`, cycleId, indicatorId: 'ind_sales_d', period: String(year), targetValue: fmt(22284), challengeValue: fmt(26741), actualValue: fmt(21393), achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: kpiSalesD.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [94, 92, 95, 96], x: null, y: null, width: 170, height: 100 };
+        const kpiSalesDZm = { id: `${idPrefix}kpi_sales_d_zm`, cycleId, indicatorId: 'ind_sales_d', period: String(year), targetValue: fmt(21250), challengeValue: fmt(25500), actualValue: fmt(20400), achievementRate: 96, weight: 10, owner: '刘经理', dept: '浙闽大区', status: 'achieved', parentId: kpiSalesD.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [93, 95, 94, 96], x: null, y: null, width: 170, height: 100 };
+
+        const kpiCollectionKBj = { id: `${idPrefix}kpi_collection_k_bj`, cycleId, indicatorId: 'ind_collection_k', period: String(year), targetValue: fmt(23132), challengeValue: fmt(27758), actualValue: fmt(20241), achievementRate: 87.5, weight: 25, owner: '李经理', dept: '北京大区', status: 'warning', parentId: kpiCollectionK.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [90, 88, 85, 87.5], x: null, y: null, width: 170, height: 100 };
+        const kpiCollectionKSh = { id: `${idPrefix}kpi_collection_k_sh`, cycleId, indicatorId: 'ind_collection_k', period: String(year), targetValue: fmt(21676), challengeValue: fmt(26011), actualValue: fmt(18967), achievementRate: 87.5, weight: 25, owner: '王经理', dept: '上海大区', status: 'warning', parentId: kpiCollectionK.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [92, 90, 88, 87.5], x: null, y: null, width: 170, height: 100 };
+        const kpiCollectionKHd = { id: `${idPrefix}kpi_collection_k_hd`, cycleId, indicatorId: 'ind_collection_k', period: String(year), targetValue: fmt(16326), challengeValue: fmt(19591), actualValue: fmt(14285), achievementRate: 87.5, weight: 25, owner: '张经理', dept: '华南大区', status: 'warning', parentId: kpiCollectionK.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [89, 87, 86, 87.5], x: null, y: null, width: 170, height: 100 };
+
+        const kpiNewProductJdy = { id: `${idPrefix}kpi_new_product_jdy`, cycleId, indicatorId: 'ind_jdy', period: String(year), targetValue: fmt(16142), challengeValue: fmt(19370), actualValue: fmt(12107), achievementRate: 75, weight: 10, owner: '李经理', dept: 'JDY产品线', status: 'warning', parentId: kpiNewProduct.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [76, 74, 73, 75], x: null, y: null, width: 170, height: 100 };
+        const kpiNewProductFdl = { id: `${idPrefix}kpi_new_product_fdl`, cycleId, indicatorId: 'ind_fdl', period: String(year), targetValue: fmt(11700), challengeValue: fmt(14040), actualValue: fmt(8775), achievementRate: 75, weight: 10, owner: '李经理', dept: 'FDL产品线', status: 'warning', parentId: kpiNewProduct.id, level: 1, assessmentLevel: 'department', bscDimension: 'financial', history: [78, 76, 74, 75], x: null, y: null, width: 170, height: 100 };
+
+        const kpiBenchmarkBj = { id: `${idPrefix}kpi_benchmark_bj`, cycleId, indicatorId: 'ind_benchmark', period: String(year), targetValue: fmt(28), challengeValue: fmt(34), actualValue: fmt(27), achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: kpiBenchmark.id, level: 1, assessmentLevel: 'department', bscDimension: 'customer', history: [97, 96, 95, 96], x: null, y: null, width: 170, height: 100 };
+        const kpiBenchmarkSh = { id: `${idPrefix}kpi_benchmark_sh`, cycleId, indicatorId: 'ind_benchmark', period: String(year), targetValue: fmt(20), challengeValue: fmt(24), actualValue: fmt(19), achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: kpiBenchmark.id, level: 1, assessmentLevel: 'department', bscDimension: 'customer', history: [98, 97, 96, 96], x: null, y: null, width: 170, height: 100 };
+        const kpiBenchmarkHd = { id: `${idPrefix}kpi_benchmark_hd`, cycleId, indicatorId: 'ind_benchmark', period: String(year), targetValue: fmt(25), challengeValue: fmt(30), actualValue: fmt(24), achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: kpiBenchmark.id, level: 1, assessmentLevel: 'department', bscDimension: 'customer', history: [96, 95, 97, 96], x: null, y: null, width: 170, height: 100 };
+
+        const kpiArrBj = { id: `${idPrefix}kpi_arr_bj`, cycleId, indicatorId: 'ind_arr', period: String(year), targetValue: fmt(7018), challengeValue: fmt(8422), actualValue: fmt(6316), achievementRate: 90, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: kpiArr.id, level: 1, assessmentLevel: 'department', bscDimension: 'customer', history: [88, 87, 89, 90], x: null, y: null, width: 170, height: 100 };
+        const kpiArrSh = { id: `${idPrefix}kpi_arr_sh`, cycleId, indicatorId: 'ind_arr', period: String(year), targetValue: fmt(9035), challengeValue: fmt(10842), actualValue: fmt(8132), achievementRate: 90, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: kpiArr.id, level: 1, assessmentLevel: 'department', bscDimension: 'customer', history: [89, 88, 90, 90], x: null, y: null, width: 170, height: 100 };
+        const kpiArrHd = { id: `${idPrefix}kpi_arr_hd`, cycleId, indicatorId: 'ind_arr', period: String(year), targetValue: fmt(6671), challengeValue: fmt(8005), actualValue: fmt(6004), achievementRate: 90, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: kpiArr.id, level: 1, assessmentLevel: 'department', bscDimension: 'customer', history: [90, 89, 88, 90], x: null, y: null, width: 170, height: 100 };
+
+        // L2 decomposition
+        const kpiJdyBj = { id: `${idPrefix}kpi_jdy_bj`, cycleId, indicatorId: 'ind_jdy', period: String(year), targetValue: fmt(2100), challengeValue: fmt(2520), actualValue: fmt(1575), achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: kpiNewProductJdy.id, level: 2, assessmentLevel: 'team', bscDimension: 'financial', history: [74, 76, 75, 75], x: null, y: null, width: 170, height: 100 };
+        const kpiJdySh = { id: `${idPrefix}kpi_jdy_sh`, cycleId, indicatorId: 'ind_jdy', period: String(year), targetValue: fmt(1650), challengeValue: fmt(1980), actualValue: fmt(1238), achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: kpiNewProductJdy.id, level: 2, assessmentLevel: 'team', bscDimension: 'financial', history: [76, 74, 75, 75], x: null, y: null, width: 170, height: 100 };
+        const kpiFdlBj = { id: `${idPrefix}kpi_fdl_bj`, cycleId, indicatorId: 'ind_fdl', period: String(year), targetValue: fmt(1600), challengeValue: fmt(1920), actualValue: fmt(1200), achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: kpiNewProductFdl.id, level: 2, assessmentLevel: 'team', bscDimension: 'financial', history: [75, 76, 74, 75], x: null, y: null, width: 170, height: 100 };
+        const kpiFdlSh = { id: `${idPrefix}kpi_fdl_sh`, cycleId, indicatorId: 'ind_fdl', period: String(year), targetValue: fmt(1700), challengeValue: fmt(2040), actualValue: fmt(1275), achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: kpiNewProductFdl.id, level: 2, assessmentLevel: 'team', bscDimension: 'financial', history: [74, 75, 76, 75], x: null, y: null, width: 170, height: 100 };
+
+        const kpis = [
+          kpiSalesD, kpiCollectionK, kpiProfitMargin, kpiNewProduct, kpiBenchmark, kpiArr,
+          kpiSalesDBj, kpiSalesDSh, kpiSalesDHd, kpiSalesDZm,
+          kpiCollectionKBj, kpiCollectionKSh, kpiCollectionKHd,
+          kpiNewProductJdy, kpiNewProductFdl,
+          kpiBenchmarkBj, kpiBenchmarkSh, kpiBenchmarkHd,
+          kpiArrBj, kpiArrSh, kpiArrHd,
+          kpiJdyBj, kpiJdySh, kpiFdlBj, kpiFdlSh
+        ];
+
+        const tasks = [
+          { id: `${idPrefix}task_1`, cycleId, source: 'annual_plan', seq: 1, name: '大客户经营能力提升', bscDimension: 'customer', kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1376824175', owner: '陈总监', status: 'active', description: '提升大客户经营能力，建立深度合作关系', type: 'strategic', priority: 'P0', progress: 65, dept: '销售部', startDate: `${year}-01-01`, endDate: `${year}-12-31`, relatedKpiIds: [], budget: 500, actualCost: 200 },
+          { id: `${idPrefix}task_2`, cycleId, source: 'annual_plan', seq: 2, name: '垂直细分客户运营', bscDimension: 'customer', kmsUrl: '#', owner: '王总监', status: 'active', description: '按行业/区域细分客户群体，差异化运营', type: 'strategic', priority: 'P0', progress: 45, dept: '市场部', startDate: `${year}-02-01`, endDate: `${year}-10-31`, relatedKpiIds: [], budget: 300, actualCost: 120 },
+          { id: `${idPrefix}task_3`, cycleId, source: 'annual_plan', seq: 3, name: '新产品推广（简道云&FDL）项目', bscDimension: 'customer', kmsUrl: '#', owner: '李经理', status: 'planning', description: '新产品线市场推广和销售赋能', type: 'strategic', priority: 'P0', progress: 20, dept: '产品部', startDate: `${year}-03-01`, endDate: `${year}-09-30`, relatedKpiIds: [], budget: 400, actualCost: 50 },
+          { id: `${idPrefix}task_4`, cycleId, source: 'annual_plan', seq: 4, name: '业务破圈（财务&供应链&一号位）项目', bscDimension: 'customer', kmsUrl: '#', owner: '张总监', status: 'planning', description: '打破业务壁垒，实现跨部门协同', type: 'improvement', priority: 'P1', progress: 15, dept: '运营部', startDate: `${year}-04-01`, endDate: `${year}-12-31`, relatedKpiIds: [], budget: 250, actualCost: 30 },
+          { id: `${idPrefix}task_5`, cycleId, source: 'annual_plan', seq: 5, name: '数据治理：（优先业务破圈数据治理）', bscDimension: 'customer', kmsUrl: '#', owner: '赵经理', status: 'planning', description: '建立数据标准，提升数据质量', type: 'capability', priority: 'P1', progress: 10, dept: '数据部', startDate: `${year}-05-01`, endDate: `${year}-11-30`, relatedKpiIds: [], budget: 180, actualCost: 20 },
+          { id: `${idPrefix}task_6`, cycleId, source: 'annual_plan', seq: 6, name: 'MTL流程项目', bscDimension: 'process', kmsUrl: '#', owner: '刘经理', status: 'active', description: '市场到线索流程优化，提升获客效率', type: 'improvement', priority: 'P0', progress: 55, dept: '流程部', startDate: `${year}-01-01`, endDate: `${year}-08-31`, relatedKpiIds: [], budget: 200, actualCost: 100 },
+        ];
+
+        const milestones = [
+          { id: `${idPrefix}ms_1`, taskId: `${idPrefix}task_1`, name: '渠道调研完成', planDate: `${year}-04-15`, actualDate: `${year}-04-10`, status: 'completed' },
+          { id: `${idPrefix}ms_2`, taskId: `${idPrefix}task_1`, name: '合作伙伴签约', planDate: `${year}-05-30`, actualDate: `${year}-05-28`, status: 'completed' },
+          { id: `${idPrefix}ms_3`, taskId: `${idPrefix}task_1`, name: '首批渠道培训', planDate: `${year}-06-30`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_4`, taskId: `${idPrefix}task_1`, name: '渠道业绩达标', planDate: `${year}-08-31`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_5`, taskId: `${idPrefix}task_2`, name: '需求评审', planDate: `${year}-03-15`, actualDate: `${year}-03-15`, status: 'completed' },
+          { id: `${idPrefix}ms_6`, taskId: `${idPrefix}task_2`, name: '系统开发', planDate: `${year}-06-30`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_7`, taskId: `${idPrefix}task_2`, name: '上线验收', planDate: `${year}-09-15`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_8`, taskId: `${idPrefix}task_3`, name: '现状诊断', planDate: `${year}-02-28`, actualDate: `${year}-02-28`, status: 'completed' },
+          { id: `${idPrefix}ms_9`, taskId: `${idPrefix}task_3`, name: '方案设计', planDate: `${year}-04-15`, actualDate: null, status: 'delayed' },
+          { id: `${idPrefix}ms_10`, taskId: `${idPrefix}task_3`, name: '实施切换', planDate: `${year}-06-15`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_11`, taskId: `${idPrefix}task_4`, name: '体系设计', planDate: `${year}-05-31`, actualDate: `${year}-05-30`, status: 'completed' },
+          { id: `${idPrefix}ms_12`, taskId: `${idPrefix}task_4`, name: '工具选型', planDate: `${year}-07-31`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_13`, taskId: `${idPrefix}task_5`, name: '客户清单确认', planDate: `${year}-04-10`, actualDate: `${year}-04-08`, status: 'completed' },
+          { id: `${idPrefix}ms_14`, taskId: `${idPrefix}task_5`, name: '攻坚方案制定', planDate: `${year}-04-30`, actualDate: `${year}-04-28`, status: 'completed' },
+          { id: `${idPrefix}ms_15`, taskId: `${idPrefix}task_5`, name: '中期复盘', planDate: `${year}-06-15`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_16`, taskId: `${idPrefix}task_6`, name: '培训需求调研', planDate: `${year}-03-15`, actualDate: `${year}-03-14`, status: 'completed' },
+          { id: `${idPrefix}ms_17`, taskId: `${idPrefix}task_6`, name: '课程开发', planDate: `${year}-05-31`, actualDate: null, status: 'pending' },
+          { id: `${idPrefix}ms_18`, taskId: `${idPrefix}task_6`, name: '全员培训', planDate: `${year}-07-31`, actualDate: null, status: 'pending' },
+        ];
+
+        const progressRecords = [
+          { id: `${idPrefix}rec_1`, taskId: `${idPrefix}task_1`, date: `${year}-04-30`, progress: 40, content: '完成渠道调研，签约5家合作伙伴', problems: '部分地区准入门槛较高', reporter: '李经理' },
+          { id: `${idPrefix}rec_2`, taskId: `${idPrefix}task_1`, date: `${year}-05-31`, progress: 70, content: '合作伙伴培训完成，开始产生首单', problems: '', reporter: '李经理' },
+          { id: `${idPrefix}rec_3`, taskId: `${idPrefix}task_2`, date: `${year}-04-30`, progress: 35, content: '完成UI设计和核心模块开发', problems: '第三方接口对接延迟', reporter: '王总监' },
+          { id: `${idPrefix}rec_4`, taskId: `${idPrefix}task_3`, date: `${year}-03-31`, progress: 30, content: '完成现状诊断和问题清单', problems: '部分供应商配合度不高', reporter: '张总监' },
+        ];
+
+        return { cycle, kpis, tasks, milestones, progressRecords };
+      }
+
+      // ---- 年度计划重点工作 → OMP 执行任务派生工具函数 ----
+
+      /**
+       * 根据年度计划重点工作 ID 生成对应的 OMP 执行任务 ID。
+       * 规则：'omp_' + annualPlanTaskId；若本身已是 omp_ 前缀则直接返回。
+       */
+      function omp_deriveTaskIdFromAnnualPlan(annualPlanTaskId) {
+        if (!annualPlanTaskId) return null;
+        if (String(annualPlanTaskId).startsWith('omp_')) return annualPlanTaskId;
+        return 'omp_' + annualPlanTaskId;
+      }
+
+      /**
+       * 将当前周期的年度计划重点工作同步为 OMP 执行任务（幂等）。
+       * 只处理没有 annualPlanTaskId 的源头任务（即年度计划侧任务）。
+       */
+      function omp_syncAnnualPlanTasksToExecution(cycleId) {
+        const tasks = omp_load('tasks');
+        const annualTasks = tasks.filter(t => t.cycleId === cycleId && t.source !== 'omp' && !t.annualPlanTaskId);
+        let changed = false;
+        const currentCycle = getCurrentCycle();
+        const defaultYear = currentCycle ? currentCycle.year : new Date().getFullYear();
+
+        annualTasks.forEach(at => {
+          if (at.status === 'closed') return;
+          const ompId = omp_deriveTaskIdFromAnnualPlan(at.id);
+          const existing = tasks.find(t => t.id === ompId || t.annualPlanTaskId === at.id);
+          if (!existing) {
+            tasks.push({
+              id: ompId,
+              cycleId: at.cycleId,
+              source: 'omp',
+              annualPlanTaskId: at.id,
+              seq: typeof at.seq === 'number' ? at.seq : 0,
+              name: at.name || '',
+              bscDimension: at.bscDimension || 'customer',
+              kmsUrl: at.kmsUrl || '#',
+              owner: at.owner || '',
+              status: 'planning',
+              description: at.description || '',
+              type: at.type || 'strategic',
+              priority: at.priority || 'P0',
+              progress: 0,
+              dept: at.dept || '',
+              startDate: at.startDate || `${defaultYear}-01-01`,
+              endDate: at.endDate || `${defaultYear}-12-31`,
+              relatedKpiIds: Array.isArray(at.relatedKpiIds) ? at.relatedKpiIds : [],
+              budget: typeof at.budget === 'number' ? at.budget : 0,
+              actualCost: 0,
+            });
+            changed = true;
+          }
+        });
+
+        if (changed) {
+          omp_save('tasks', tasks);
+        }
+        return changed;
+      }
 
       function omp_initData() {
         // 版本号检测：代码更新时自动清理旧数据
-        const DATA_VERSION = 'canvas-v10';
+        const DATA_VERSION = 'canvas-v11'; // multi-year support: 2025/2026/2027
         const storedVersion = DSTE.Storage.getString('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
           // 清除所有 DSTE 相关 本地存储
@@ -632,105 +800,63 @@
         if (!DSTE.Storage.getString(OMP_STORAGE.indicators)) {
           const indicators = [
             // === 结果指标 (result) ===
-            { id: 'ind_sales_d', code: 'IND_001', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_collection_k', code: 'IND_002', name: '回款额-K', description: '当期实际回款金额（营销线）', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_profit_margin', code: 'IND_003', name: '营销线贡献利润率', description: '营销线利润贡献比例（减去人力成本及结算分摊）', formula: '(营收-成本-人力-分摊)/营收*100', unit: '%', frequency: 'quarterly', category: '财务', subCategory: '利润类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'percentage' },
-            { id: 'ind_new_product', code: 'IND_004', name: '新产品销售额-D', description: '新产品线销售收入（JDY&FDL）', formula: 'SUM(新产品合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '创新收入', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_benchmark', code: 'IND_005', name: '市场标杆得分', description: '市场认知与品牌影响力综合评分', formula: 'AVG(各维度评分)', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '市场认知', dataSource: '帆软数仓', responsibleDept: '市场部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'score' },
-            { id: 'ind_arr', code: 'IND_006', name: '年度经常性收入（ARR）', description: 'SaaS订阅收入年化金额', formula: 'SUM(MRR)*12', unit: '万元', frequency: 'quarterly', category: '客户', subCategory: '订阅收入', dataSource: '帆软数仓', responsibleDept: '客户成功部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_jdy', code: 'IND_007', name: 'JDY销售额', description: '简道云产品线销售收入', formula: 'SUM(JDY合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
-            { id: 'ind_fdl', code: 'IND_008', name: 'FDL销售额', description: 'FDL产品线销售收入', formula: 'SUM(FDL合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_sales_d', code: 'IND_001', name: '销售额-D', description: '当期签订合同总金额（营销线）', formula: 'SUM(合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_collection_k', code: 'IND_002', name: '回款额-K', description: '当期实际回款金额（营销线）', formula: 'SUM(回款金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '收入类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_profit_margin', code: 'IND_003', name: '营销线贡献利润率', description: '营销线利润贡献比例（减去人力成本及结算分摊）', formula: '(营收-成本-人力-分摊)/营收*100', unit: '%', frequency: 'quarterly', category: '财务', subCategory: '利润类', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'percentage' },
+            { id: 'ind_new_product', code: 'IND_004', name: '新产品销售额-D', description: '新产品线销售收入（JDY&FDL）', formula: 'SUM(新产品合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '创新收入', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_benchmark', code: 'IND_005', name: '市场标杆得分', description: '市场认知与品牌影响力综合评分', formula: 'AVG(各维度评分)', unit: '分', frequency: 'quarterly', category: '客户', subCategory: '市场认知', dataSource: '帆软数仓', responsibleDept: '市场部', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'score' },
+            { id: 'ind_arr', code: 'IND_006', name: '年度经常性收入（ARR）', description: 'SaaS订阅收入年化金额', formula: 'SUM(MRR)*12', unit: '万元', frequency: 'quarterly', category: '客户', subCategory: '订阅收入', dataSource: '帆软数仓', responsibleDept: '客户成功部', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_jdy', code: 'IND_007', name: 'JDY销售额', description: '简道云产品线销售收入', formula: 'SUM(JDY合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'currency' },
+            { id: 'ind_fdl', code: 'IND_008', name: 'FDL销售额', description: 'FDL产品线销售收入', formula: 'SUM(FDL合同金额)', unit: '万元', frequency: 'quarterly', category: '财务', subCategory: '新产品', dataSource: '帆软数仓', responsibleDept: '产品部', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'result', dataType: 'currency' },
             // === 过程指标 (process) ===
-            { id: 'ind_opportunity', code: 'IND_009', name: '有效商机数', description: '当期有效商机数量（已确认需求且预算到位）', formula: 'COUNT(有效商机)', unit: '个', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
-            { id: 'ind_visit', code: 'IND_010', name: '客户拜访次数', description: '当期实际拜访客户次数', formula: 'COUNT(拜访记录)', unit: '次', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'count' },
-            { id: 'ind_conversion', code: 'IND_011', name: '合同转化率', description: '商机转化为合同的比例', formula: '成交合同数/商机总数*100', unit: '%', frequency: 'quarterly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2026-01-15', indicatorType: 'process', dataType: 'percentage' },
+            { id: 'ind_opportunity', code: 'IND_009', name: '有效商机数', description: '当期有效商机数量（已确认需求且预算到位）', formula: 'COUNT(有效商机)', unit: '个', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'process', dataType: 'count' },
+            { id: 'ind_visit', code: 'IND_010', name: '客户拜访次数', description: '当期实际拜访客户次数', formula: 'COUNT(拜访记录)', unit: '次', frequency: 'monthly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'process', dataType: 'count' },
+            { id: 'ind_conversion', code: 'IND_011', name: '合同转化率', description: '商机转化为合同的比例', formula: '成交合同数/商机总数*100', unit: '%', frequency: 'quarterly', category: '流程', subCategory: '运营效率', dataSource: '帆软数仓', responsibleDept: '营销线', isPositive: true, status: 'active', createdAt: '2025-01-15', indicatorType: 'process', dataType: 'percentage' },
           ];
           DSTE.Storage.set(OMP_STORAGE.indicators, indicators);
         }
         if (!DSTE.Storage.getString('dste_cycles_v1')) {
-          DSTE.Storage.set('dste_cycles_v1', [
-            { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null },
-            { id: 'cycle_2025_marketing', year: 2025, name: '2025年度 — 营销线', phase: 'archived', organization: '营销线', parentCycleId: null },
-          ]);
+          DSTE.Storage.set('dste_cycles_v1', [2025, 2026, 2027].map(year => omp_buildYearSeed(year).cycle));
         }
         if (!DSTE.Storage.getString(OMP_STORAGE.kpiInstances)) {
-          DSTE.Storage.set(OMP_STORAGE.kpiInstances, [
-            // === L0: 财务维度 ===
-            { id: 'kpi_sales_d', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 178623, challengeValue: 214348, actualValue: 171478, achievementRate: 96, weight: 10, owner: '陈总监', dept: '营销线', status: 'achieved', parentId: null, level: 0, bscDimension: 'financial', history: [92, 88, 94, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_collection_k', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 130097, challengeValue: 156116, actualValue: 113835, achievementRate: 87.5, weight: 25, owner: '陈总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [95, 90, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_profit_margin', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_profit_margin', period: '2026', targetValue: 33.72, challengeValue: 35.72, actualValue: 35.0, achievementRate: 85.7, weight: 5, owner: '张总监', dept: '营销线', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [90, 88, 87, 85.7] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_new_product', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_new_product', period: '2026', targetValue: 27842, challengeValue: 33410, actualValue: 20882, achievementRate: 75, weight: 10, owner: '李经理', dept: '产品部', status: 'warning', parentId: null, level: 0, bscDimension: 'financial', history: [78, 75, 72, 75] , x: null, y: null, width: 170, height: 100 },
-            // === L0: 客户维度 ===
-            { id: 'kpi_benchmark', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 182, challengeValue: 218, actualValue: 175, achievementRate: 96, weight: 10, owner: '王总监', dept: '市场部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [98, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_arr', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 43009, challengeValue: 51611, actualValue: 38708, achievementRate: 90, weight: 10, owner: '赵经理', dept: '客户成功部', status: 'achieved', parentId: null, level: 0, bscDimension: 'customer', history: [88, 86, 89, 90] , x: null, y: null, width: 170, height: 100 },
-            // === L1: 销售额-D 战区分解 ===
-            { id: 'kpi_sales_d_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 33520, challengeValue: 40224, actualValue: 32179, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [95, 93, 96, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_sales_d_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 30268, challengeValue: 36322, actualValue: 29057, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [96, 94, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_sales_d_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 22284, challengeValue: 26741, actualValue: 21393, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [94, 92, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_sales_d_zm', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_sales_d', period: '2026', targetValue: 21250, challengeValue: 25500, actualValue: 20400, achievementRate: 96, weight: 10, owner: '刘经理', dept: '浙闽大区', status: 'achieved', parentId: 'kpi_sales_d', level: 1, bscDimension: 'financial', history: [93, 95, 94, 96] , x: null, y: null, width: 170, height: 100 },
-            // === L1: 回款额-K 战区分解 ===
-            { id: 'kpi_collection_k_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 23132, challengeValue: 27758, actualValue: 20241, achievementRate: 87.5, weight: 25, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [90, 88, 85, 87.5] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_collection_k_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 21676, challengeValue: 26011, actualValue: 18967, achievementRate: 87.5, weight: 25, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [92, 90, 88, 87.5] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_collection_k_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_collection_k', period: '2026', targetValue: 16326, challengeValue: 19591, actualValue: 14285, achievementRate: 87.5, weight: 25, owner: '张经理', dept: '华南大区', status: 'warning', parentId: 'kpi_collection_k', level: 1, bscDimension: 'financial', history: [89, 87, 86, 87.5] , x: null, y: null, width: 170, height: 100 },
-            // === L1: 新产品销售额 产品线分解 ===
-            { id: 'kpi_new_product_jdy', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_jdy', period: '2026', targetValue: 16142, challengeValue: 19370, actualValue: 12107, achievementRate: 75, weight: 10, owner: '李经理', dept: 'JDY产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [76, 74, 73, 75] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_new_product_fdl', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 11700, challengeValue: 14040, actualValue: 8775, achievementRate: 75, weight: 10, owner: '李经理', dept: 'FDL产品线', status: 'warning', parentId: 'kpi_new_product', level: 1, bscDimension: 'financial', history: [78, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
-            // === L1: 市场标杆得分 战区分解 ===
-            { id: 'kpi_benchmark_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 28, challengeValue: 34, actualValue: 27, achievementRate: 96, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [97, 96, 95, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_benchmark_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 20, challengeValue: 24, actualValue: 19, achievementRate: 96, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [98, 97, 96, 96] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_benchmark_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_benchmark', period: '2026', targetValue: 25, challengeValue: 30, actualValue: 24, achievementRate: 96, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_benchmark', level: 1, bscDimension: 'customer', history: [96, 95, 97, 96] , x: null, y: null, width: 170, height: 100 },
-            // === L1: ARR 战区分解 ===
-            { id: 'kpi_arr_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 7018, challengeValue: 8422, actualValue: 6316, achievementRate: 90, weight: 10, owner: '李经理', dept: '北京大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [88, 87, 89, 90] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_arr_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 9035, challengeValue: 10842, actualValue: 8132, achievementRate: 90, weight: 10, owner: '王经理', dept: '上海大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [89, 88, 90, 90] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_arr_hd', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_arr', period: '2026', targetValue: 6671, challengeValue: 8005, actualValue: 6004, achievementRate: 90, weight: 10, owner: '张经理', dept: '华南大区', status: 'achieved', parentId: 'kpi_arr', level: 1, bscDimension: 'customer', history: [90, 89, 88, 90] , x: null, y: null, width: 170, height: 100 },
-            // === L2: JDY 战区分解 ===
-            { id: 'kpi_jdy_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_jdy', period: '2026', targetValue: 2100, challengeValue: 2520, actualValue: 1575, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [74, 76, 75, 75] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_jdy_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_jdy', period: '2026', targetValue: 1650, challengeValue: 1980, actualValue: 1238, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_jdy', level: 2, bscDimension: 'financial', history: [76, 74, 75, 75] , x: null, y: null, width: 170, height: 100 },
-            // === L2: FDL 战区分解 ===
-            { id: 'kpi_fdl_bj', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 1600, challengeValue: 1920, actualValue: 1200, achievementRate: 75, weight: 10, owner: '李经理', dept: '北京大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [75, 76, 74, 75] , x: null, y: null, width: 170, height: 100 },
-            { id: 'kpi_fdl_sh', cycleId: 'cycle_2026_marketing', indicatorId: 'ind_fdl', period: '2026', targetValue: 1700, challengeValue: 2040, actualValue: 1275, achievementRate: 75, weight: 10, owner: '王经理', dept: '上海大区', status: 'warning', parentId: 'kpi_new_product_fdl', level: 2, bscDimension: 'financial', history: [74, 75, 76, 75] , x: null, y: null, width: 170, height: 100 },
-          ]);
+          const allKpis = [];
+          [2025, 2026, 2027].forEach(year => {
+            allKpis.push(...omp_buildYearSeed(year).kpis);
+          });
+          DSTE.Storage.set(OMP_STORAGE.kpiInstances, allKpis);
         }
         if (!DSTE.Storage.getString(OMP_STORAGE.tasks)) {
-          DSTE.Storage.set(OMP_STORAGE.tasks, [
-            { id: 'task_1', cycleId: 'cycle_2026_marketing', seq: 1, name: '大客户经营能力提升', bscDimension: 'customer', kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1376824175', owner: '陈总监', status: 'active', description: '提升大客户经营能力，建立深度合作关系', type: 'strategic', priority: 'P0', progress: 65, dept: '销售部', startDate: '2026-01-01', endDate: '2026-12-31', relatedKpiIds: [], budget: 500, actualCost: 200 },
-            { id: 'task_2', cycleId: 'cycle_2026_marketing', seq: 2, name: '垂直细分客户运营', bscDimension: 'customer', kmsUrl: '#', owner: '王总监', status: 'active', description: '按行业/区域细分客户群体，差异化运营', type: 'strategic', priority: 'P0', progress: 45, dept: '市场部', startDate: '2026-02-01', endDate: '2026-10-31', relatedKpiIds: [], budget: 300, actualCost: 120 },
-            { id: 'task_3', cycleId: 'cycle_2026_marketing', seq: 3, name: '新产品推广（简道云&FDL）项目', bscDimension: 'customer', kmsUrl: '#', owner: '李经理', status: 'planning', description: '新产品线市场推广和销售赋能', type: 'strategic', priority: 'P0', progress: 20, dept: '产品部', startDate: '2026-03-01', endDate: '2026-09-30', relatedKpiIds: [], budget: 400, actualCost: 50 },
-            { id: 'task_4', cycleId: 'cycle_2026_marketing', seq: 4, name: '业务破圈（财务&供应链&一号位）项目', bscDimension: 'customer', kmsUrl: '#', owner: '张总监', status: 'planning', description: '打破业务壁垒，实现跨部门协同', type: 'improvement', priority: 'P1', progress: 15, dept: '运营部', startDate: '2026-04-01', endDate: '2026-12-31', relatedKpiIds: [], budget: 250, actualCost: 30 },
-            { id: 'task_5', cycleId: 'cycle_2026_marketing', seq: 5, name: '数据治理：（优先业务破圈数据治理）', bscDimension: 'customer', kmsUrl: '#', owner: '赵经理', status: 'planning', description: '建立数据标准，提升数据质量', type: 'capability', priority: 'P1', progress: 10, dept: '数据部', startDate: '2026-05-01', endDate: '2026-11-30', relatedKpiIds: [], budget: 180, actualCost: 20 },
-            { id: 'task_6', cycleId: 'cycle_2026_marketing', seq: 6, name: 'MTL流程项目', bscDimension: 'process', kmsUrl: '#', owner: '刘经理', status: 'active', description: '市场到线索流程优化，提升获客效率', type: 'improvement', priority: 'P0', progress: 55, dept: '流程部', startDate: '2026-01-01', endDate: '2026-08-31', relatedKpiIds: [], budget: 200, actualCost: 100 },
-          ]);
+          const allTasks = [];
+          [2025, 2026, 2027].forEach(year => {
+            allTasks.push(...omp_buildYearSeed(year).tasks);
+          });
+          DSTE.Storage.set(OMP_STORAGE.tasks, allTasks);
         }
         if (!DSTE.Storage.getString(OMP_STORAGE.milestones)) {
-          DSTE.Storage.set(OMP_STORAGE.milestones, [
-            { id: 'ms_1', taskId: 'task_1', name: '渠道调研完成', planDate: '2026-04-15', actualDate: '2026-04-10', status: 'completed' },
-            { id: 'ms_2', taskId: 'task_1', name: '合作伙伴签约', planDate: '2026-05-30', actualDate: '2026-05-28', status: 'completed' },
-            { id: 'ms_3', taskId: 'task_1', name: '首批渠道培训', planDate: '2026-06-30', actualDate: null, status: 'pending' },
-            { id: 'ms_4', taskId: 'task_1', name: '渠道业绩达标', planDate: '2026-08-31', actualDate: null, status: 'pending' },
-            { id: 'ms_5', taskId: 'task_2', name: '需求评审', planDate: '2026-03-15', actualDate: '2026-03-15', status: 'completed' },
-            { id: 'ms_6', taskId: 'task_2', name: '系统开发', planDate: '2026-06-30', actualDate: null, status: 'pending' },
-            { id: 'ms_7', taskId: 'task_2', name: '上线验收', planDate: '2026-09-15', actualDate: null, status: 'pending' },
-            { id: 'ms_8', taskId: 'task_3', name: '现状诊断', planDate: '2026-02-28', actualDate: '2026-02-28', status: 'completed' },
-            { id: 'ms_9', taskId: 'task_3', name: '方案设计', planDate: '2026-04-15', actualDate: null, status: 'delayed' },
-            { id: 'ms_10', taskId: 'task_3', name: '实施切换', planDate: '2026-06-15', actualDate: null, status: 'pending' },
-            { id: 'ms_11', taskId: 'task_4', name: '体系设计', planDate: '2026-05-31', actualDate: '2026-05-30', status: 'completed' },
-            { id: 'ms_12', taskId: 'task_4', name: '工具选型', planDate: '2026-07-31', actualDate: null, status: 'pending' },
-            { id: 'ms_13', taskId: 'task_5', name: '客户清单确认', planDate: '2026-04-10', actualDate: '2026-04-08', status: 'completed' },
-            { id: 'ms_14', taskId: 'task_5', name: '攻坚方案制定', planDate: '2026-04-30', actualDate: '2026-04-28', status: 'completed' },
-            { id: 'ms_15', taskId: 'task_5', name: '中期复盘', planDate: '2026-06-15', actualDate: null, status: 'pending' },
-            { id: 'ms_16', taskId: 'task_6', name: '培训需求调研', planDate: '2026-03-15', actualDate: '2026-03-14', status: 'completed' },
-            { id: 'ms_17', taskId: 'task_6', name: '课程开发', planDate: '2026-05-31', actualDate: null, status: 'pending' },
-            { id: 'ms_18', taskId: 'task_6', name: '全员培训', planDate: '2026-07-31', actualDate: null, status: 'pending' },
-          ]);
+          const allMilestones = [];
+          [2025, 2026, 2027].forEach(year => {
+            allMilestones.push(...omp_buildYearSeed(year).milestones);
+          });
+          DSTE.Storage.set(OMP_STORAGE.milestones, allMilestones);
         }
         if (!DSTE.Storage.getString(OMP_STORAGE.progressRecords)) {
-          DSTE.Storage.set(OMP_STORAGE.progressRecords, [
-            { id: 'rec_1', taskId: 'task_1', date: '2026-04-30', progress: 40, content: '完成渠道调研，签约5家合作伙伴', problems: '部分地区准入门槛较高', reporter: '李经理' },
-            { id: 'rec_2', taskId: 'task_1', date: '2026-05-31', progress: 70, content: '合作伙伴培训完成，开始产生首单', problems: '', reporter: '李经理' },
-            { id: 'rec_3', taskId: 'task_2', date: '2026-04-30', progress: 35, content: '完成UI设计和核心模块开发', problems: '第三方接口对接延迟', reporter: '王总监' },
-            { id: 'rec_4', taskId: 'task_3', date: '2026-03-31', progress: 30, content: '完成现状诊断和问题清单', problems: '部分供应商配合度不高', reporter: '张总监' },
-          ]);
+          const allRecords = [];
+          [2025, 2026, 2027].forEach(year => {
+            allRecords.push(...omp_buildYearSeed(year).progressRecords);
+          });
+          DSTE.Storage.set(OMP_STORAGE.progressRecords, allRecords);
         }
+        // 一次性迁移：为没有 assessmentLevel 的旧 KPI 补全考核层级
+        const existingKpis = omp_load('kpiInstances');
+        let migratedAny = false;
+        const migratedKpis = existingKpis.map(k => {
+          if (k.assessmentLevel) return k;
+          migratedAny = true;
+          if (k.level === 0) return { ...k, assessmentLevel: 'marketing-line' };
+          if (k.level === 1) return { ...k, assessmentLevel: 'department' };
+          return { ...k, assessmentLevel: 'team' };
+        });
+        if (migratedAny) omp_save('kpiInstances', migratedKpis);
       }
 
       // ===== OMP 数据层：本地存储 + 后端 API 双写 =====
@@ -841,7 +967,7 @@
 
         // 计算每个指标被引用的次数（KPI 实例 + 任务关联）
         const kpis = omp_load('kpiInstances');
-        const tasks = omp_load('tasks');
+        const tasks = omp_load('tasks').filter(t => t.source !== 'annual_plan');
         const refCounts = {};
         indicators.forEach(ind => { refCounts[ind.id] = 0; });
         kpis.forEach(k => { if (refCounts[k.indicatorId] !== undefined) refCounts[k.indicatorId]++; });
@@ -1141,7 +1267,7 @@
         if (!casHandled) {
           const isLoggedIn = await checkLoginStatus();
           // 本地开发环境可免登录
-          const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+          const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
           if (!isLoggedIn && !isLocalDev) {
             redirectToCasLogin();
             return;
@@ -1229,18 +1355,29 @@
       }
 
       // ===== 年度经营计划 — 总览 Tab =====
-      function ap_renderOverviewTab(kpis, indicators, tasks, state) {
+      function ap_renderOverviewTab(kpis, indicators, allTasks, state) {
         const dimColors = { financial: 'var(--dim-financial)', customer: 'var(--dim-customer)', process: 'var(--dim-process)', learning: 'var(--dim-learning)' };
         const dimLabels = { financial: '财务', customer: '客户', process: '流程', learning: '学习成长' };
         const statusLabelsKt = { planning: '规划中', active: '进行中', done: '已完成', closed: '已关闭' };
         const statusColorsKt = { planning: 'var(--text-tertiary)', active: 'var(--primary)', done: 'var(--success)', closed: 'var(--text-tertiary)' };
+        const levelFilter = state.assessmentLevelFilter || 'all';
+        const tasks = allTasks.filter(t => t.source !== 'omp');
 
         return `
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;">
+            <select onchange="window._annualPlanState.assessmentLevelFilter = this.value; navigate('bp/annual-plan');" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+              <option value="all" ${levelFilter === 'all' ? 'selected' : ''}>全部层级</option>
+              <option value="marketing-line" ${levelFilter === 'marketing-line' ? 'selected' : ''}>营销线级</option>
+              <option value="department" ${levelFilter === 'department' ? 'selected' : ''}>部门级</option>
+              <option value="team" ${levelFilter === 'team' ? 'selected' : ''}>小组级</option>
+            </select>
+          </div>
           <div class="ap-card" style="margin-bottom:20px;">
             <table class="ap-table">
               <thead>
                 <tr style="background:var(--bg-page);">
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:80px;">牵引点</th>
+                  <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:70px;">考核层级</th>
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;">KPI指标</th>
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:100px;">全年目标</th>
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:80px;">H1占比</th>
@@ -1249,7 +1386,7 @@
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:left;">备注</th>
                 </tr>
                 <tr style="background:var(--bg-page);">
-                  <th colspan="5"></th>
+                  <th colspan="6"></th>
                   <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;font-size:12px;">底线</th>
                   <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;font-size:12px;">达标</th>
                   <th style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;font-size:12px;">挑战</th>
@@ -1264,10 +1401,16 @@
                   const baseline = kpi.baselineValue || Math.round(kpi.targetValue * (kpi.baselinePct || 0.7));
                   const challenge = kpi.challengeValue || Math.round(kpi.targetValue * (kpi.challengePct || 1.2));
                   const h1Ratio = kpi.h1Ratio !== undefined ? kpi.h1Ratio : 0.45;
+                  const levelCfg = ASSESSMENT_LEVELS[kpi.assessmentLevel || 'marketing-line'];
+                  const levelClass = 'ap-level-' + (kpi.assessmentLevel || 'marketing-line');
+                  const canDecompose = kpi.assessmentLevel === 'marketing-line';
                   return `
                     <tr style="border-bottom:1px solid var(--border-light);cursor:pointer;${state.selectedKpiId === kpi.id ? 'background:var(--bg-active);' : ''}" data-action="ap-select-kpi" data-id="${kpi.id}">
                       <td style="padding:10px;text-align:center;">
                         <span class="ap-dim-badge" style="background:${dimColor}15;color:${dimColor};">${dimLabels[dim] || dim}</span>
+                      </td>
+                      <td style="padding:10px;text-align:center;">
+                        <span class="ap-level-badge ${levelClass}" style="background:color-mix(in srgb, ${levelCfg.color} 15%, transparent);color:${levelCfg.color};">${levelCfg.short}</span>
                       </td>
                       <td style="padding:10px;text-align:center;font-weight:600;">${ind ? escapeHtml(ind.name) : kpi.indicatorId}</td>
                       <td style="padding:10px;text-align:center;color:var(--primary);font-weight:600;">${kpi.targetValue.toLocaleString()} ${escapeHtml(kpi.unit || '')}</td>
@@ -1279,7 +1422,7 @@
                       <td style="padding:10px;text-align:left;font-size:12px;color:var(--text-secondary);">
                         <div style="display:flex;gap:4px;justify-content:flex-end;">
                           <button type="button" class="btn btn-sm btn-secondary" data-action="ap-edit-kpi" data-id="${kpi.id}" style="font-size:11px;padding:2px 8px;">编辑</button>
-                          <button type="button" class="btn btn-sm btn-primary" data-action="ap-decompose" data-id="${kpi.id}" style="font-size:11px;padding:2px 8px;">分解</button>
+                          ${canDecompose ? `<button type="button" class="btn btn-sm btn-primary" data-action="ap-decompose" data-id="${kpi.id}" style="font-size:11px;padding:2px 8px;">分解</button>` : ''}
                         </div>
                       </td>
                     </tr>
@@ -1302,6 +1445,7 @@
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:left;">KMS链接</th>
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:100px;">负责人</th>
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:80px;">状态</th>
+                  <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:80px;">执行状态</th>
                   <th style="padding:12px;border-bottom:2px solid var(--border-color);text-align:center;width:60px;">操作</th>
                 </tr>
               </thead>
@@ -1310,6 +1454,10 @@
                   const dim = kt.bscDimension || 'customer';
                   const dimColor = dimColors[dim] || 'var(--text-tertiary)';
                   const dimLabel = { customer: '客户', process: '流程', financial: '财务', learning: '学习成长' }[dim] || dim;
+                  const ompTask = allTasks.find(t => t.annualPlanTaskId === kt.id);
+                  const execStatus = ompTask
+                    ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--success-bg);color:var(--success);">已发布</span>`
+                    : `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--text-tertiary-bg);color:var(--text-tertiary);">未发布</span>`;
                   return `
                     <tr style="border-bottom:1px solid var(--border-light);">
                       <td style="padding:10px;text-align:center;">
@@ -1324,6 +1472,7 @@
                       <td style="padding:10px;text-align:center;">
                         <span class="ap-status-pill" style="background:color-mix(in srgb, ${statusColorsKt[kt.status]} 10%, transparent);color:${statusColorsKt[kt.status]};">${statusLabelsKt[kt.status] || kt.status}</span>
                       </td>
+                      <td style="padding:10px;text-align:center;">${execStatus}</td>
                       <td style="padding:10px;text-align:center;">
                         <button class="btn btn-sm btn-secondary" data-action="ap-edit-keytask" data-id="${kt.id}" style="font-size:11px;padding:2px 8px;">编辑</button>
                       </td>
@@ -1388,9 +1537,13 @@
         omp_initData();
         const state = window._annualPlanState;
         const cycleId = window._dsteState.currentCycleId;
-        const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId && k.parentId === null);
+        let kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId && k.parentId === null);
+        if (state.assessmentLevelFilter !== 'all') {
+          kpis = kpis.filter(k => k.assessmentLevel === state.assessmentLevelFilter);
+        }
         const indicators = omp_load('indicators');
-        const tasks = omp_load('tasks').filter(t => t.cycleId === cycleId);
+        const allTasks = omp_load('tasks').filter(t => t.cycleId === cycleId);
+        const tasks = allTasks.filter(t => t.source !== 'omp');
         const tabs = [
           { id: 'overview', label: '📊 总览' },
           { id: 'decomposition', label: '🔀 分解视图' },
@@ -1401,7 +1554,7 @@
 
         let tabContent = '';
         if (activeTab === 'overview') {
-          tabContent = ap_renderOverviewTab(kpis, indicators, tasks, state);
+          tabContent = ap_renderOverviewTab(kpis, indicators, allTasks, state);
         } else if (activeTab === 'decomposition') {
           const childKpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId && k.parentId !== null);
           tabContent = ap_renderDecompositionTab(kpis, indicators, childKpis, state);
@@ -1445,6 +1598,8 @@
         const ind = indicators.find(i => i.id === kpi.indicatorId);
         const baseline = kpi.baselineValue || Math.round(kpi.targetValue * (kpi.baselinePct || 0.7));
         const challenge = kpi.challengeValue || Math.round(kpi.targetValue * (kpi.challengePct || 1.2));
+        const assessmentLevel = kpi.assessmentLevel || 'marketing-line';
+        const isMarketingLine = assessmentLevel === 'marketing-line';
         return `
           <div class="ap-edit-panel">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -1453,6 +1608,21 @@
             </div>
             <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:16px;">${ind ? escapeHtml(ind.name) : kpi.indicatorId}</div>
             <div style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">考核层级</label>
+                <select id="ap-edit-assessment-level" onchange="window.ap_onAssessmentLevelChange('ap-edit', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  <option value="marketing-line" ${assessmentLevel === 'marketing-line' ? 'selected' : ''}>营销线级</option>
+                  <option value="department" ${assessmentLevel === 'department' ? 'selected' : ''}>部门级</option>
+                  <option value="team" ${assessmentLevel === 'team' ? 'selected' : ''}>小组级</option>
+                </select>
+              </div>
+              <div id="ap-edit-dept-wrap" style="${isMarketingLine ? 'display:none;' : ''}">
+                <label id="ap-edit-dept-label" style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">归属</label>
+                <select id="ap-edit-dept" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  ${window.ap_buildAffiliationOptions(kpi.dept || '')}
+                </select>
+              </div>
+              <input type="hidden" id="ap-edit-dept-hidden" value="${escapeHtml(kpi.dept || '营销线')}">
               <div>
                 <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">达标目标 *</label>
                 <input type="number" id="ap-edit-target" value="${kpi.targetValue}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
@@ -1502,13 +1672,24 @@
         const baselinePct = parseFloat(document.getElementById('ap-edit-baseline-pct')?.value) / 100;
         const challengePct = parseFloat(document.getElementById('ap-edit-challenge-pct')?.value) / 100;
         const scoringRule = document.getElementById('ap-edit-scoring')?.value?.trim();
+        const assessmentLevel = document.getElementById('ap-edit-assessment-level')?.value || 'marketing-line';
+        let dept = kpis[idx].dept || '营销线';
+        if (assessmentLevel === 'marketing-line') {
+          dept = document.getElementById('ap-edit-dept-hidden')?.value?.trim() || '营销线';
+        } else {
+          dept = document.getElementById('ap-edit-dept')?.value?.trim() || dept;
+        }
         if (!targetValue || isNaN(targetValue)) {
           showToast('请输入有效的目标值', 'warning');
           return;
         }
+        if (assessmentLevel !== 'marketing-line' && !dept) {
+          showToast('请选择部门/战区归属', 'warning');
+          return;
+        }
         const baselineValue = Math.round(targetValue * baselinePct);
         const challengeValue = Math.round(targetValue * challengePct);
-        kpis[idx] = { ...kpis[idx], targetValue, weight, h1Ratio, baselinePct, challengePct, baselineValue, challengeValue, scoringRule };
+        kpis[idx] = { ...kpis[idx], targetValue, weight, h1Ratio, baselinePct, challengePct, baselineValue, challengeValue, scoringRule, assessmentLevel, dept };
         omp_save('kpiInstances', kpis);
         window._annualPlanState.selectedKpiId = null;
         navigate('bp/annual-plan');
@@ -1526,6 +1707,22 @@
                 <option value="">请选择指标</option>
                 ${indOptions}
               </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">考核层级 *</label>
+                <select id="ap-add-assessment-level" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  <option value="marketing-line" selected>营销线级</option>
+                  <option value="department">部门级</option>
+                  <option value="team">小组级</option>
+                </select>
+              </div>
+              <div id="ap-add-dept-wrap" style="display:none;">
+                <label id="ap-add-dept-label" style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">归属</label>
+                <select id="ap-add-dept" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                  ${window.ap_buildAffiliationOptions('')}
+                </select>
+              </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div>
@@ -1557,9 +1754,8 @@
                 <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人</label>
                 <input type="text" id="ap-add-owner" placeholder="如：陈总监" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
               </div>
-              <div>
-                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任部门</label>
-                <input type="text" id="ap-add-dept" placeholder="如：营销线" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              <div style="display:none;">
+                <input type="text" id="ap-add-dept-hidden" value="营销线">
               </div>
             </div>
           </div>
@@ -1570,6 +1766,11 @@
         `, true);
         const addIndSelect = document.getElementById('ap-add-indicator');
         if (addIndSelect) addIndSelect.addEventListener('change', (e) => window.ap_onIndicatorChange(e.target.value));
+        const levelSelect = document.getElementById('ap-add-assessment-level');
+        if (levelSelect) {
+          levelSelect.addEventListener('change', (e) => window.ap_onAssessmentLevelChange('ap-add', e.target.value));
+          window.ap_onAssessmentLevelChange('ap-add', levelSelect.value);
+        }
       };
 
       window.ap_onIndicatorChange = function(indicatorId) {
@@ -1579,21 +1780,60 @@
         if (unitInput && ind) unitInput.value = ind.unit || '';
       };
 
+      window.ap_buildAffiliationOptions = function(selected) {
+        const warzones = DECOMPOSE_DIMENSIONS.warzone.items;
+        const depts = DECOMPOSE_DIMENSIONS.dept.items;
+        let html = '<option value="">请选择归属</option>';
+        html += '<optgroup label="战区">' + warzones.map(d => `<option value="${d}" ${selected === d ? 'selected' : ''}>${d}</option>`).join('') + '</optgroup>';
+        html += '<optgroup label="职能部门">' + depts.map(d => `<option value="${d}" ${selected === d ? 'selected' : ''}>${d}</option>`).join('') + '</optgroup>';
+        return html;
+      };
+
+      window.ap_onAssessmentLevelChange = function(context, level) {
+        const deptWrap = document.getElementById(`${context}-dept-wrap`);
+        const deptInput = document.getElementById(`${context}-dept`);
+        const deptLabel = document.getElementById(`${context}-dept-label`);
+        if (!deptWrap || !deptInput) return;
+        if (level === 'marketing-line') {
+          deptWrap.style.display = 'none';
+          deptInput.value = '营销线';
+        } else {
+          deptWrap.style.display = 'block';
+          deptLabel.textContent = level === 'team' ? '所属部门/小组' : '归属';
+          if (deptInput.tagName === 'SELECT') {
+            deptInput.innerHTML = window.ap_buildAffiliationOptions(deptInput.value || '');
+          }
+          if (!deptInput.value || deptInput.value === '营销线') {
+            deptInput.value = '';
+          }
+        }
+      };
+
       window.ap_confirmAddKpi = function() {
         const indicatorId = document.getElementById('ap-add-indicator')?.value;
+        const assessmentLevel = document.getElementById('ap-add-assessment-level')?.value || 'marketing-line';
+        let dept = '营销线';
+        if (assessmentLevel === 'marketing-line') {
+          dept = document.getElementById('ap-add-dept-hidden')?.value?.trim() || '营销线';
+        } else {
+          dept = document.getElementById('ap-add-dept')?.value?.trim() || '';
+        }
         const targetValue = parseFloat(document.getElementById('ap-add-target')?.value);
         const weight = parseFloat(document.getElementById('ap-add-weight')?.value) || 10;
         const bscDimension = document.getElementById('ap-add-dim')?.value || 'financial';
         const owner = document.getElementById('ap-add-owner')?.value?.trim() || '';
-        const dept = document.getElementById('ap-add-dept')?.value?.trim() || '营销线';
         if (!indicatorId || !targetValue || isNaN(targetValue)) {
           showToast('请选择指标并输入有效的目标值', 'warning');
+          return;
+        }
+        if (assessmentLevel !== 'marketing-line' && !dept) {
+          showToast('请选择部门/战区归属', 'warning');
           return;
         }
         const indicators = omp_load('indicators');
         const ind = indicators.find(i => i.id === indicatorId);
         const kpis = omp_load('kpiInstances');
-        const period = String(getCurrentCycle().year || 2026);
+        const period = String(getCurrentCycle().year);
         const unit = ind?.unit || '';
         kpis.push({
           id: 'kpi_' + Date.now(),
@@ -1611,6 +1851,7 @@
           status: 'active',
           parentId: null,
           level: 0,
+          assessmentLevel,
           bscDimension,
           unit,
           history: [],
@@ -1622,13 +1863,17 @@
       };
 
       window.ap_publishToExecution = function() {
-        if (!confirm('确定要发布到执行阶段吗？发布后KPI树结构将冻结。')) return;
+        if (!confirm('确定要发布到执行阶段吗？发布后KPI树结构将冻结，并将年度计划中的重点工作同步到OMP执行工作台。')) return;
         const cycles = JSON.parse(DSTE.Storage.getString('dste_cycles_v1') || '[]');
         const idx = cycles.findIndex(c => c.id === window._dsteState.currentCycleId);
         if (idx === -1) { showToast('周期数据异常', 'error'); return; }
         cycles[idx] = { ...cycles[idx], phase: 'execution' };
         DSTE.Storage.set('dste_cycles_v1', cycles);
-        showToast('已发布到执行阶段', 'success');
+
+        // 同步年度计划重点工作到 OMP 执行任务
+        omp_syncAnnualPlanTasksToExecution(window._dsteState.currentCycleId);
+
+        showToast('已发布到执行阶段，重点工作已同步', 'success');
         navigate('bp/annual-plan');
       };
 
@@ -1749,7 +1994,29 @@
         const kts = omp_load('tasks');
         const editId = window._apEditingKeyTaskId;
         if (editId === 'new') {
-          kts.push({ id: 'kt_' + Date.now(), cycleId: window._dsteState.currentCycleId, seq, name, bscDimension, kmsUrl, owner, status });
+          const cycle = getCurrentCycle();
+          const defaultYear = cycle ? cycle.year : new Date().getFullYear();
+          kts.push({
+            id: 'kt_' + Date.now(),
+            cycleId: window._dsteState.currentCycleId,
+            source: 'annual_plan',
+            seq,
+            name,
+            bscDimension,
+            kmsUrl,
+            owner,
+            status,
+            description: '',
+            type: 'strategic',
+            priority: 'P0',
+            progress: 0,
+            dept: '',
+            startDate: `${defaultYear}-01-01`,
+            endDate: `${defaultYear}-12-31`,
+            relatedKpiIds: [],
+            budget: 0,
+            actualCost: 0,
+          });
         } else {
           const idx = kts.findIndex(k => k.id === editId);
           if (idx > -1) {
@@ -1780,6 +2047,10 @@
           const kpis = omp_load('kpiInstances');
           const parent = kpis.find(k => k.id === kpiId);
           if (!parent) { console.warn('[AP] parent not found'); return; }
+          if (parent.assessmentLevel !== 'marketing-line') {
+            showToast('只有营销线级指标可以分解', 'warning');
+            return;
+          }
           const indicators = omp_load('indicators');
           const ind = indicators.find(i => i.id === parent.indicatorId);
           const dimOptions = Object.entries(DECOMPOSE_DIMENSIONS).map(([key, cfg]) =>
@@ -1885,19 +2156,24 @@
           totalWeight += parseFloat(document.getElementById(`ap-decomp-weight-${i}`)?.value) || 0;
         }
         const targetOk = Math.abs(totalTarget - parent.targetValue) < 0.01;
-        const weightOk = Math.abs(totalWeight - 100) < 0.01;
+        // 战区维度：权重指各战区组织绩效中该 KPI 的占比，不做求和校验
+        const isWarzone = dimKey === 'warzone';
         const targetColor = targetOk ? 'var(--success)' : 'var(--warning)';
-        const weightColor = weightOk ? 'var(--success)' : 'var(--danger)';
         const targetIcon = targetOk ? '✅' : '⚠️';
-        const weightIcon = weightOk ? '✅' : '❌';
         const targetTip = targetOk ? '(等于父级)' : '(与父级不一致，允许保存)';
-        const weightTip = weightOk ? '(= 100%)' : '(需 = 100%)';
         const el = document.getElementById('ap-decomp-summary');
         if (el) {
-          el.innerHTML = '<div style="display:flex;gap:16px;">' +
-            '<span style="color:' + targetColor + '">' + targetIcon + ' 目标合计: ' + totalTarget.toLocaleString() + ' / ' + parent.targetValue.toLocaleString() + ' ' + targetTip + '</span>' +
-            '<span style="color:' + weightColor + '">' + weightIcon + ' 权重合计: ' + totalWeight + '% ' + weightTip + '</span>' +
-            '</div>';
+          let html = '<div style="display:flex;gap:16px;">' +
+            '<span style="color:' + targetColor + '">' + targetIcon + ' 目标合计: ' + totalTarget.toLocaleString() + ' / ' + parent.targetValue.toLocaleString() + ' ' + targetTip + '</span>';
+          if (!isWarzone) {
+            const weightOk = Math.abs(totalWeight - 100) < 0.01;
+            const weightColor = weightOk ? 'var(--success)' : 'var(--danger)';
+            const weightIcon = weightOk ? '✅' : '❌';
+            const weightTip = weightOk ? '(= 100%)' : '(需 = 100%)';
+            html += '<span style="color:' + weightColor + '">' + weightIcon + ' 权重合计: ' + totalWeight + '% ' + weightTip + '</span>';
+          }
+          html += '</div>';
+          el.innerHTML = html;
         }
       };
 
@@ -1906,6 +2182,7 @@
         const parent = kpis.find(k => k.id === parentId);
         if (!parent) return;
         const dimKey = window._apDecomposeDim || 'warzone';
+        const isWarzone = dimKey === 'warzone';
         const dimCfg = DECOMPOSE_DIMENSIONS[dimKey];
         if (!dimCfg) { showToast('分解维度配置错误', 'error'); return; }
         const items = dimCfg.items;
@@ -1934,6 +2211,7 @@
               status: 'active',
               parentId: parentId,
               level: parent.level + 1,
+              assessmentLevel: dimKey === 'team' ? 'team' : 'department',
               bscDimension: parent.bscDimension,
               decomposeBy: dimKey,
               history: [],
@@ -1945,7 +2223,8 @@
           showToast(`子目标合计 (${totalTarget}) 与父目标 (${parent.targetValue}) 不一致，已保存但建议检查`, 'warning');
         }
         // 自动归一化权重：允许用户只改一个值，保存时按比例调整为合计 100%
-        if (children.length > 0) {
+        // 战区维度除外：权重为各战区组织绩效中该 KPI 的占比，不做求和校验与归一化
+        if (!isWarzone && children.length > 0) {
           if (totalWeight === 0) {
             const equal = Math.floor(100 / children.length);
             let remainder = 100 - equal * children.length;
@@ -1962,11 +2241,11 @@
               newTotal += child.weight;
             });
           }
-        }
-        const normalizedTotal = children.reduce((sum, c) => sum + c.weight, 0);
-        if (Math.abs(normalizedTotal - 100) > 1) {
-          showToast(`权重合计为 ${normalizedTotal}%，必须等于 100%`, 'warning');
-          return;
+          const normalizedTotal = children.reduce((sum, c) => sum + c.weight, 0);
+          if (Math.abs(normalizedTotal - 100) > 1) {
+            showToast(`权重合计为 ${normalizedTotal}%，必须等于 100%`, 'warning');
+            return;
+          }
         }
         // 移除同一父级、同一维度下的旧分解子节点，避免重复
         const filteredKpis = kpis.filter(k => !(k.parentId === parentId && (k.decomposeBy || 'warzone') === dimKey));
@@ -1987,10 +2266,14 @@
           let cycles = JSON.parse(DSTE.Storage.getString('dste_cycles_v1') || '[]');
           // fallback: 如果周期数据不存在，自动创建默认值
           if (!cycles || cycles.length === 0) {
-            cycles = [
-              { id: 'cycle_2026_marketing', year: 2026, name: '2026年度 — 营销线', phase: 'planning', organization: '营销线', parentCycleId: null },
-              { id: 'cycle_2025_marketing', year: 2025, name: '2025年度 — 营销线', phase: 'archived', organization: '营销线', parentCycleId: null },
-            ];
+            cycles = [2025, 2026, 2027].map(year => ({
+              id: `cycle_${year}_marketing`,
+              year,
+              name: `${year}年度 — 营销线`,
+              phase: year < 2026 ? 'archived' : 'planning',
+              organization: '营销线',
+              parentCycleId: null
+            }));
             DSTE.Storage.set('dste_cycles_v1', cycles);
           }
           const currentId = window._dsteState.currentCycleId;
@@ -2008,8 +2291,16 @@
       function getCurrentCycle() {
         try {
           const cycles = JSON.parse(DSTE.Storage.getString('dste_cycles_v1') || '[]');
-          return cycles.find(c => c.id === window._dsteState.currentCycleId) || { year: 2026, name: '2026年度 — 营销线', phase: 'planning' };
-        } catch(e) { return { year: 2026, name: '2026年度 — 营销线', phase: 'planning' }; }
+          const found = cycles.find(c => c.id === window._dsteState.currentCycleId);
+          if (found) return found;
+          // Safe fallback: derive year from currentCycleId or use current calendar year
+          const match = String(window._dsteState.currentCycleId || '').match(/cycle_(\d{4})_/);
+          const year = match ? parseInt(match[1], 10) : new Date().getFullYear();
+          return { id: window._dsteState.currentCycleId, year, name: `${year}年度 — 营销线`, phase: 'planning', organization: '营销线', parentCycleId: null };
+        } catch(e) {
+          const year = new Date().getFullYear();
+          return { id: window._dsteState.currentCycleId, year, name: `${year}年度 — 营销线`, phase: 'planning', organization: '营销线', parentCycleId: null };
+        }
       }
 
       // ===== 导航 =====
@@ -2655,7 +2946,7 @@
       function omp_renderDashboard() {
         const cycleId = window._dsteState.currentCycleId;
         const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
-        const tasks = omp_load('tasks');
+        const tasks = omp_load('tasks').filter(t => t.cycleId === cycleId && t.source !== 'annual_plan');
         const indicators = omp_load('indicators');
         const milestones = omp_load('milestones');
 
@@ -2775,6 +3066,9 @@
             return ind && ind.category === filter.category;
           });
         }
+        if (filter.assessmentLevel !== 'all') {
+          filtered = filtered.filter(k => k.assessmentLevel === filter.assessmentLevel);
+        }
         const depts = ['all', ...new Set(kpis.map(k => k.dept))];
         const statuses = [
           { value: 'all', label: '全部状态' },
@@ -2788,6 +3082,12 @@
           { value: '客户', label: '👤 客户' },
           { value: '流程', label: '⚙️ 流程' },
           { value: '学习成长', label: '📚 学习成长' },
+        ];
+        const assessmentLevels = [
+          { value: 'all', label: '全部层级' },
+          { value: 'marketing-line', label: '营销线级' },
+          { value: 'department', label: '部门级' },
+          { value: 'team', label: '小组级' },
         ];
         const statusBadge = {
           achieved: { cls: 'status-success', text: '达成' },
@@ -2830,6 +3130,9 @@
               <select data-action="omp-filter-kpi" data-filter="category" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
                 ${categories.map(c => `<option value="${c.value}" ${filter.category === c.value ? 'selected' : ''}>${c.label}</option>`).join('')}
               </select>
+              <select data-action="omp-filter-kpi" data-filter="assessmentLevel" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+                ${assessmentLevels.map(l => `<option value="${l.value}" ${filter.assessmentLevel === l.value ? 'selected' : ''}>${l.label}</option>`).join('')}
+              </select>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
               <div style="display:flex;border:1px solid var(--border-color);border-radius:6px;overflow:hidden;">
@@ -2844,15 +3147,18 @@
             <div style="overflow-x:auto;">
               <table class="data-table">
                 <thead>
-                  <tr><th>指标名称</th><th>部门</th><th style="text-align:right;">目标值</th><th style="text-align:right;">实际值</th><th style="text-align:center;">达成率</th><th style="text-align:center;">状态</th><th style="text-align:center;">趋势</th><th style="text-align:center;">操作</th></tr>
+                  <tr><th>指标名称</th><th>考核层级</th><th>部门</th><th style="text-align:right;">目标值</th><th style="text-align:right;">实际值</th><th style="text-align:center;">达成率</th><th style="text-align:center;">状态</th><th style="text-align:center;">趋势</th><th style="text-align:center;">操作</th></tr>
                 </thead>
                 <tbody>
                   ${filtered.map(k => {
                     const ind = indicators.find(i => i.id === k.indicatorId);
                     const sb = statusBadge[k.status] || statusBadge.warning;
+                    const levelCfg = ASSESSMENT_LEVELS[k.assessmentLevel || 'marketing-line'];
+                    const levelClass = 'ap-level-' + (k.assessmentLevel || 'marketing-line');
                     return `
                       <tr>
                         <td><strong>${ind ? ind.name : '未知'}</strong><br><span style="font-size:11px;color:var(--text-tertiary);">${ind ? ind.category + ' · ' + ind.subCategory : ''}</span></td>
+                        <td><span class="ap-level-badge ${levelClass}" style="background:color-mix(in srgb, ${levelCfg.color} 15%, transparent);color:${levelCfg.color};">${levelCfg.label}</span></td>
                         <td>${k.dept}</td>
                         <td style="text-align:right;font-weight:500;">${k.targetValue}${ind ? ind.unit : ''}</td>
                         <td style="text-align:right;font-weight:500;">${k.actualValue}${ind ? ind.unit : ''}</td>
@@ -2873,12 +3179,12 @@
                         </td>
                       </tr>`;
                   }).join('')}
-                  ${filtered.length === 0 ? '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无匹配数据</td></tr>' : ''}
+                  ${filtered.length === 0 ? '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无匹配数据</td></tr>' : ''}
                 </tbody>
               </table>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-tertiary);">
-              <span>共 ${filtered.length} 条 KPI</span><span>数据周期: 2026-Q2</span>
+              <span>共 ${filtered.length} 条 KPI</span><span>数据周期: ${getCurrentCycle().year}-Q2</span>
             </div>
           </div>`}`;
       }
@@ -3023,6 +3329,10 @@
             <div class="omp-dim-badge ${dimKey}"></div>
             <div class="canvas-node-name">${displayName}</div>
             ${kpi.dept && kpi.level > 0 ? `<div class="canvas-node-dept">${kpi.dept}</div>` : ''}
+            ${(() => {
+              const lvlCfg = ASSESSMENT_LEVELS[kpi.assessmentLevel || 'marketing-line'];
+              return `<div class="canvas-node-level" style="font-size:10px;color:${lvlCfg.color};margin-top:2px;">${lvlCfg.label}</div>`;
+            })()}
             <div class="canvas-node-metric">目标 <strong>${kpi.targetValue}</strong>${unit} / 实际 <strong>${kpi.actualValue}</strong>${unit}</div>
             <div class="canvas-node-progress">
               <div class="canvas-node-progress-bar"><div class="${statusClass}" style="width:${progressWidth}%"></div></div>
@@ -3086,7 +3396,7 @@
         const tasks = omp_load('tasks');
         const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
         const filter = window._ompState.taskFilter;
-        let filtered = tasks;
+        let filtered = tasks.filter(t => t.cycleId === cycleId && t.source !== 'annual_plan');
         if (filter.status !== 'all') filtered = filtered.filter(t => t.status === filter.status);
         if (filter.priority !== 'all') filtered = filtered.filter(t => t.priority === filter.priority);
         if (filter.dept !== 'all') filtered = filtered.filter(t => t.dept === filter.dept);
@@ -3135,9 +3445,12 @@
                 <tbody>
                   ${filtered.map(t => {
                     const relatedKpiNames = t.relatedKpiIds.map(id => omp_getIndicatorName(id)).filter(Boolean).join(', ');
+                    const sourceTag = t.annualPlanTaskId
+                      ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--primary-bg);color:var(--primary);margin-left:6px;">📋 年度计划</span>`
+                      : '';
                     return `
                       <tr>
-                        <td><strong>${t.name}</strong>${relatedKpiNames ? `<br><span style="font-size:11px;color:var(--text-tertiary);">关联: ${relatedKpiNames}</span>` : ''}</td>
+                        <td><strong>${t.name}</strong>${sourceTag}${relatedKpiNames ? `<br><span style="font-size:11px;color:var(--text-tertiary);">关联: ${relatedKpiNames}</span>` : ''}</td>
                         <td><span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--bg-page);">${typeLabels[t.type] || t.type}</span></td>
                         <td><span style="font-weight:600;color:${priorityColors[t.priority]};font-size:12px;">${t.priority}</span></td>
                         <td>${t.owner}</td>
@@ -3169,7 +3482,8 @@
 
       // ===== Tab 4: 甘特图 =====
       function omp_renderGanttTab() {
-        const tasks = omp_load('tasks');
+        const cycleId = window._dsteState.currentCycleId;
+        const tasks = omp_load('tasks').filter(t => t.cycleId === cycleId && t.source !== 'annual_plan');
         const months = ['4月', '5月', '6月', '7月', '8月', '9月'];
         const statusColors = { planning: 'var(--text-tertiary)', active: 'var(--primary)', at_risk: 'var(--warning)', delayed: 'var(--danger)', done: 'var(--success)', closed: 'var(--text-tertiary)' };
         const ganttRows = tasks.map(t => {
@@ -4161,6 +4475,7 @@
         omp_openModal('KPI 详情', `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
             <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标名称</div><div style="font-size:16px;font-weight:600;">${ind ? ind.name : '未知'}</div></div>
+            <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">考核层级</div><div style="font-size:16px;font-weight:600;">${ASSESSMENT_LEVELS[kpi.assessmentLevel || 'marketing-line']?.label || '营销线级'}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门</div><div style="font-size:16px;font-weight:600;">${kpi.dept}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任人</div><div>${kpi.owner}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">周期</div><div>${kpi.period}</div></div>
@@ -4188,9 +4503,11 @@
         const indicators = omp_load('indicators');
         const ind = indicators.find(i => i.id === kpi.indicatorId);
         window._ompState.editingKpiId = kpiId;
+        const assessmentLevel = kpi.assessmentLevel || 'marketing-line';
         omp_openModal('编辑 KPI', `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">指标名称</label><input type="text" id="omp-kpi-name" value="${ind ? ind.name : ''}" disabled style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-page);color:var(--text-tertiary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">考核层级</label><select id="omp-kpi-assessment-level" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="marketing-line" ${assessmentLevel === 'marketing-line' ? 'selected' : ''}>营销线级</option><option value="department" ${assessmentLevel === 'department' ? 'selected' : ''}>部门级</option><option value="team" ${assessmentLevel === 'team' ? 'selected' : ''}>小组级</option></select></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门</label><input type="text" id="omp-kpi-dept" value="${kpi.dept}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任人</label><input type="text" id="omp-kpi-owner" value="${kpi.owner}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">周期</label><input type="text" id="omp-kpi-period" value="${kpi.period}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
@@ -4212,13 +4529,14 @@
         omp_openModal('新建 KPI', `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
             <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">选择指标 *</label><select id="omp-kpi-indicator" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="">请选择指标...</option>${indOptions}</select></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">考核层级</label><select id="omp-kpi-assessment-level" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="marketing-line">营销线级</option><option value="department">部门级</option><option value="team">小组级</option></select></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门 *</label><input type="text" id="omp-kpi-dept" placeholder="如: 销售部" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任人 *</label><input type="text" id="omp-kpi-owner" placeholder="如: 张经理" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">目标值 *</label><input type="number" id="omp-kpi-target" placeholder="如: 5000" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">挑战值</label><input type="number" id="omp-kpi-challenge" placeholder="如: 5500" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">实际值</label><input type="number" id="omp-kpi-actual" placeholder="如: 4800" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">权重 (%)</label><input type="number" id="omp-kpi-weight" value="20" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
-            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">周期</label><input type="text" id="omp-kpi-period" value="2026-Q2" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">周期</label><input type="text" id="omp-kpi-period" value="${getCurrentCycle().year}-Q1" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
             <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal').remove(); window._ompState.editingKpiId = null;">取消</button>
@@ -4251,6 +4569,7 @@
         omp_openModal('工作详情', `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
             <div style="grid-column:1 / -1;"><div style="font-size:20px;font-weight:700;">${task.name}</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${task.description}</div></div>
+            ${task.annualPlanTaskId ? `<div style="grid-column:1 / -1;"><div style="font-size:12px;color:var(--text-tertiary);">来源</div><div>📋 年度经营计划 <span style="font-size:12px;color:var(--text-tertiary);">(${escapeHtml(task.annualPlanTaskId)})</span> — <a href="#bp/annual-plan" data-navigate="bp/annual-plan" style="color:var(--primary);">查看源头</a></div></div>` : ''}
             <div><div style="font-size:12px;color:var(--text-tertiary);">类型</div><div style="font-weight:500;">${typeLabels[task.type]}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">优先级</div><div style="font-weight:500;color:${task.priority === 'P0' ? 'var(--danger)' : task.priority === 'P1' ? 'var(--warning)' : 'var(--success)'}">${task.priority}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">负责人</div><div>${task.owner}</div></div>
@@ -4357,7 +4676,8 @@
         const dept = document.getElementById('omp-kpi-dept')?.value?.trim();
         const owner = document.getElementById('omp-kpi-owner')?.value?.trim();
         const actual = parseFloat(document.getElementById('omp-kpi-actual')?.value) || 0;
-        const period = document.getElementById('omp-kpi-period')?.value?.trim() || '2026-Q2';
+        const period = document.getElementById('omp-kpi-period')?.value?.trim() || `${getCurrentCycle().year}-Q1`;
+        const assessmentLevel = document.getElementById('omp-kpi-assessment-level')?.value || 'marketing-line';
         if (!dept || !owner) { showToast('请填写必填项（部门、责任人）', 'warning'); return; }
         const kpis = omp_load('kpiInstances');
         const editId = window._ompState.editingKpiId;
@@ -4370,7 +4690,7 @@
           if (!indicatorId) { showToast('请选择指标', 'warning'); return; }
           if (isNaN(target)) { showToast('请输入目标值', 'warning'); return; }
           const achievementRate = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
-          kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate), parentId: null, level: 0 });
+          kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate), parentId: null, level: 0, assessmentLevel });
         } else {
           const idx = kpis.findIndex(k => k.id === editId);
           if (idx > -1) {
@@ -4386,7 +4706,7 @@
               history = [...history, oldKpi.achievementRate];
               if (history.length > 6) history = history.slice(-6);
             }
-            kpis[idx] = { ...oldKpi, dept, owner, period, actualValue: actual, achievementRate, status: omp_getKpiStatus(achievementRate), history };
+            kpis[idx] = { ...oldKpi, dept, owner, period, actualValue: actual, achievementRate, status: omp_getKpiStatus(achievementRate), history, assessmentLevel };
           }
         }
         omp_save('kpiInstances', kpis);
@@ -4412,7 +4732,7 @@
         const tasks = omp_load('tasks');
         const editId = window._ompState.editingTaskId;
         if (editId === 'new') {
-          tasks.push({ id: 'task_' + Date.now(), name, description, type, priority, status: 'planning', progress: 0, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost });
+          tasks.push({ id: 'task_' + Date.now(), cycleId: window._dsteState.currentCycleId, source: 'omp', name, description, type, priority, status: 'planning', progress: 0, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost });
         } else {
           const idx = tasks.findIndex(t => t.id === editId);
           if (idx > -1) tasks[idx] = { ...tasks[idx], name, description, type, priority, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost };

@@ -1397,7 +1397,7 @@ async function init() {
     }
 
     let topics = loadTopics();
-    const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
     if (topics.length === 0) {
         topics = isLocalDev ? initDefaultData() : [];
     } else if (isLocalDev) {

@@ -81,6 +81,61 @@ export function saveReportAssets(assets, storage = globalThis.localStorage) {
  * @param {Object.<string, Object>} [reviewScores={}] - 材料审核评分映射（url -> { maxScore }）
  * @returns {Object} 准备度结果
  */
+/** 议程状态配置 */
+export const AGENDA_STATUS_CONFIG = {
+  planned: { label: '未开始', color: 'var(--text-tertiary)' },
+  completed: { label: '已完成', color: 'var(--success)' },
+  postponed: { label: '已顺延', color: 'var(--warning)' }
+};
+
+/**
+ * 获取议程状态徽章 HTML
+ * @param {string} status
+ * @returns {string}
+ */
+export function getAgendaStatusBadge(status) {
+  const cfg = AGENDA_STATUS_CONFIG[status] || AGENDA_STATUS_CONFIG.planned;
+  return `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: ${cfg.color}18; color: ${cfg.color}; border: 1px solid ${cfg.color}33;">${cfg.label}</span>`;
+}
+
+/**
+ * 计算议程完成情况
+ * @param {Object} m
+ * @returns {{total: number, completed: number, postponed: number}}
+ */
+export function computeAgendaCompletion(m) {
+  const items = m.agenda_items || [];
+  const total = items.length;
+  const completed = items.filter(a => a && a.status === 'completed').length;
+  const postponed = items.filter(a => a && a.status === 'postponed').length;
+  return { total, completed, postponed };
+}
+
+/**
+ * 格式化议程来源提示
+ * @param {Object} agenda
+ * @param {Object[]} meetings
+ * @returns {string}
+ */
+export function formatAgendaSourceHint(agenda, meetings) {
+  if (!agenda || !agenda.carriedFromMeetingId) return '';
+  const source = (meetings || []).find(x => x.id === agenda.carriedFromMeetingId);
+  const title = source ? (source.title || '上游会议') : '上游会议';
+  return `⬆️ 来自 ${title}，已顺延 ${agenda.postponedCount || 0} 次`;
+}
+
+/**
+ * 获取议程顺延警告文本
+ * @param {Object} agenda
+ * @returns {string|null}
+ */
+export function getAgendaPostponeWarning(agenda) {
+  if (!agenda || typeof agenda.postponedCount !== 'number') return null;
+  if (agenda.postponedCount >= 3) return '⚠️ 已顺延 3 次';
+  if (agenda.postponedCount >= 2) return '已顺延 2 次';
+  return null;
+}
+
 export function computeMeetingReadiness(meeting, reportAssets = {}, reviewScores = {}) {
   const checks = [];
 

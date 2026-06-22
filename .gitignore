@@ -22,6 +22,10 @@ venv/
 scripts/kv-backup-*/
 scripts/.tmp-kv-*.json
 
+# 临时生成物
+*.pptx
+generate_ppt.py
+
 # 部署包
 *.tar.gz
 

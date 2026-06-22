@@ -123,3 +123,31 @@ def test_annual_plan_decomposition_is_dynamic():
     assert "kpis.map(parentKpi" in decomp_section, "分解视图未遍历父级 KPI"
     assert "销售额-D" not in decomp_section, "分解视图仍硬编码销售额-D"
     assert "parentId === parentKpi.id" in decomp_section, "子节点未按 parentId 匹配"
+
+
+def test_annual_plan_has_task_source_field():
+    """年度计划新增重点工作应标记 source 字段为 annual_plan"""
+    content = _read_cockpit()
+    save_section = content.split("window.ap_saveKeyTask = function()")[1] if "window.ap_saveKeyTask = function()" in content else ""
+    assert "source: 'annual_plan'" in save_section, "ap_saveKeyTask 未设置 source: 'annual_plan'"
+
+
+def test_annual_plan_publishes_tasks_to_omp():
+    """发布到执行时应调用同步函数生成 OMP 任务"""
+    content = _read_cockpit()
+    publish_section = content.split("window.ap_publishToExecution = function()")[1] if "window.ap_publishToExecution = function()" in content else ""
+    assert "omp_syncAnnualPlanTasksToExecution" in publish_section, "ap_publishToExecution 未调用 omp_syncAnnualPlanTasksToExecution"
+
+
+def test_annual_plan_overview_filters_out_omp_tasks():
+    """年度经营计划总览只显示 source !== 'omp' 的任务"""
+    content = _read_cockpit()
+    plan_section = content.split("function renderAnnualPlan()")[1] if "function renderAnnualPlan()" in content else ""
+    assert "t.source !== 'omp'" in plan_section, "renderAnnualPlan 未过滤 OMP 执行任务"
+
+
+def test_omp_sync_helper_exists():
+    """年度计划到 OMP 的同步工具函数存在"""
+    content = _read_cockpit()
+    assert "function omp_syncAnnualPlanTasksToExecution(" in content, "未找到 omp_syncAnnualPlanTasksToExecution 函数"
+    assert "function omp_deriveTaskIdFromAnnualPlan(" in content, "未找到 omp_deriveTaskIdFromAnnualPlan 函数"

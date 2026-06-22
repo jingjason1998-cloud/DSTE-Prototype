@@ -165,6 +165,26 @@
   <script src="../assets/js/main.js"></script>
   <script type="module">
     import { calculateAutoScore, getScoreColor, getScoreLabel } from './meetings/utils/scoring.js';
+    import {
+      formatAgendaSourceHint,
+      getAgendaStatusBadge as _getAgendaStatusBadge,
+      computeAgendaCompletion as _computeAgendaCompletion,
+    } from './meetings/utils/helpers.js';
+    import {
+      initDataStore, getMeetings, findMeetingById, setMeetings,
+      addMeeting, updateMeeting, deleteMeetingByIndex, persistMeetings,
+      migrateMeetingsData, loadRemoteMeetings, getMockMeetings
+    } from './meetings/data-store.js';
+    import {
+      openPostponeTargetSelector, closePostponeTargetSelector,
+      selectPostponeTarget, confirmPostponeAgenda
+    } from './meetings/agenda-postpone.js';
+    import './meetings/components/DecisionsDrawer.js';
+    import './meetings/renderers/meeting-prep.js';
+    import './meetings/renderers/eval-form.js';
+    import './meetings/renderers/report-asset-manager.js';
+    import './meetings/renderers/pending-actions.js';
+    import './meetings/renderers/meeting-detail.js';
     import { renderTopNav, renderSidebar } from './lib/shell.js';
     import { EXTERNAL_PAGES } from './lib/config.js';
     window.__dsteShell = { renderTopNav, renderSidebar, EXTERNAL_PAGES };
@@ -176,150 +196,18 @@
         }
 
         // ---- 议程顺延辅助函数 ----
-        const AGENDA_STATUS_CONFIG = {
-          planned: { label: '未开始', color: 'var(--text-tertiary)' },
-          completed: { label: '已完成', color: 'var(--success)' },
-          postponed: { label: '已顺延', color: 'var(--warning)' }
-        };
-        function getAgendaStatusBadge(status) {
-          const cfg = AGENDA_STATUS_CONFIG[status] || AGENDA_STATUS_CONFIG.planned;
-          return `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: ${cfg.color}18; color: ${cfg.color}; border: 1px solid ${cfg.color}33;">${cfg.label}</span>`;
-        }
+        window.getAgendaStatusBadge = _getAgendaStatusBadge;
+        window.computeAgendaCompletion = _computeAgendaCompletion;
+
         function getAgendaPostponeWarning(agenda) {
           if (!agenda || typeof agenda.postponedCount !== 'number') return null;
           if (agenda.postponedCount >= 3) return '⚠️ 已顺延 3 次';
           if (agenda.postponedCount >= 2) return '已顺延 2 次';
           return null;
         }
-        function computeAgendaCompletion(m) {
-          const items = m.agenda_items || [];
-          const total = items.length;
-          const completed = items.filter(a => a && a.status === 'completed').length;
-          const postponed = items.filter(a => a && a.status === 'postponed').length;
-          return { total, completed, postponed };
-        }
-        function formatAgendaSourceHint(agenda, meetings) {
-          if (!agenda || !agenda.carriedFromMeetingId) return '';
-          const source = (meetings || []).find(x => x.id === agenda.carriedFromMeetingId);
-          const title = source ? (source.title || '上游会议') : '上游会议';
-          return `⬆️ 来自 ${title}，已顺延 ${agenda.postponedCount || 0} 次`;
-        }
 
         // ---- 议程顺延操作 ----
-        window._postponeState = { meetingId: null, agendaIndex: null, selectedTargetId: null };
-
-        window.openPostponeTargetSelector = function(meetingId, agendaIndex) {
-          const m = (window._meetingsData || meetings || []).find(x => x.id === meetingId);
-          if (!m) return;
-          const agenda = m.agenda_items?.[agendaIndex];
-          if (!agenda) return;
-          window._postponeState = { meetingId, agendaIndex, selectedTargetId: null };
-          renderPostponeTargetList();
-          const ov = document.getElementById('postpone-target-overlay');
-          if (ov) ov.style.display = 'flex';
-        };
-
-        window.closePostponeTargetSelector = function() {
-          const ov = document.getElementById('postpone-target-overlay');
-          if (ov) ov.style.display = 'none';
-          window._postponeState = { meetingId: null, agendaIndex: null, selectedTargetId: null };
-        };
-
-        window.selectPostponeTarget = function(targetId) {
-          window._postponeState.selectedTargetId = targetId;
-          renderPostponeTargetList();
-          const btn = document.getElementById('postpone-target-confirm-btn');
-          if (btn) btn.disabled = !targetId;
-        };
-
-        function renderPostponeTargetList() {
-          const container = document.getElementById('postpone-target-list');
-          if (!container) return;
-          const { meetingId } = window._postponeState;
-          const list = (window._meetingsData || meetings || []).filter(x => x.id !== meetingId).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-          if (list.length === 0) {
-            container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px; font-size: 13px;">系统中没有其他会议可顺延</div>';
-            return;
-          }
-          const selectedId = window._postponeState.selectedTargetId;
-          container.innerHTML = list.map(t => {
-            const isSelected = t.id === selectedId;
-            return `
-              <div onclick="selectPostponeTarget('${t.id}')" style="padding: 10px 12px; border-radius: 8px; border: 1px solid ${isSelected ? 'var(--warning)' : 'var(--border-light)'}; background: ${isSelected ? 'rgba(245,158,11,0.08)' : 'var(--bg-page)'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.15s;">
-                <div>
-                  <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${t.title || '未命名会议'}</div>
-                  <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">${t.date || '日期待定'} · ${SCENARIO_CONFIG[t.scenario]?.label || t.scenario || '未分类'}</div>
-                </div>
-                ${isSelected ? '<span style="font-size: 12px; color: var(--warning); font-weight: 600;">✓</span>' : ''}
-              </div>
-            `;
-          }).join('');
-        }
-
-        window.confirmPostponeAgenda = function() {
-          const { meetingId, agendaIndex, selectedTargetId } = window._postponeState;
-          if (!meetingId || selectedTargetId == null) return;
-          postponeAgendaToMeeting(meetingId, agendaIndex, selectedTargetId);
-          closePostponeTargetSelector();
-        };
-
-        function postponeAgendaToMeeting(currentMeetingId, agendaIndex, targetMeetingId) {
-          const allMeetings = window._meetingsData || meetings || [];
-          const current = allMeetings.find(x => x.id === currentMeetingId);
-          const target = allMeetings.find(x => x.id === targetMeetingId);
-          if (!current || !target) { showToast('会议不存在', 'error'); return; }
-          const agenda = current.agenda_items?.[agendaIndex];
-          if (!agenda) { showToast('议程不存在', 'error'); return; }
-          if (agenda.status === 'postponed') { showToast('该议程已顺延', 'warning'); return; }
-
-          const now = new Date().toISOString();
-          const originalAgendaId = agenda.originalAgendaId || agenda.id;
-          const postponedCount = (agenda.postponedCount || 0) + 1;
-
-          // 复制到目标会议
-          const newAgendaId = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-          const carriedAgenda = {
-            ...JSON.parse(JSON.stringify(agenda)),
-            id: newAgendaId,
-            status: 'planned',
-            originalAgendaId,
-            postponedCount,
-            carriedFromAgendaId: agenda.id,
-            carriedFromMeetingId: currentMeetingId,
-            postponedHistory: [...(agenda.postponedHistory || []), { meetingId: currentMeetingId, agendaId: agenda.id, date: now }]
-          };
-          if (!Array.isArray(target.agenda_items)) target.agenda_items = [];
-          target.agenda_items.push(carriedAgenda);
-
-          // 标记当前议程为已顺延
-          agenda.status = 'postponed';
-          if (!Array.isArray(agenda.postponedHistory)) agenda.postponedHistory = [];
-          agenda.postponedHistory.push({ meetingId: targetMeetingId, agendaId: newAgendaId, date: now });
-
-          // 持久化
-          DSTE.Storage.set('dste_meetings', window._meetingsData);
-          apiSave('/api/meetings', window._meetingsData);
-
-          showToast('议程已顺延到 ' + (target.title || '目标会议'), 'success');
-
-          // 刷新相关视图
-          if (window._currentDetailMeetingId === currentMeetingId) {
-            openMeetingDetail(currentMeetingId);
-          }
-          if (window._currentDetailMeetingId === targetMeetingId) {
-            openMeetingDetail(targetMeetingId);
-          }
-          if (window._meetingEditData?.id === targetMeetingId) {
-            openMeetingEditor(targetMeetingId);
-          }
-          if (window._meetingEditData?.id === currentMeetingId) {
-            const refreshed = window._meetingsData?.find(x => x.id === currentMeetingId);
-            if (refreshed) {
-              window._meetingEditData = JSON.parse(JSON.stringify(refreshed));
-              window.renderEditorForm();
-            }
-          }
-        }
+        // 已迁移到 src/meetings/agenda-postpone.js
 
         // ---- 决议中心辅助函数（精简为 3 状态） ----
         const RESOLUTION_STATUS_CONFIG = {
@@ -504,172 +392,7 @@
         }
 
         // ---- 决议中心抽屉 ----
-        window._decisionsFilter = 'all';
-        window._decisionsSearch = '';
-
-        window.openDecisionsDrawer = function() {
-          const overlay = document.getElementById('decisions-overlay');
-          const drawer = document.getElementById('decisions-drawer');
-          if (overlay) overlay.style.display = 'block';
-          if (drawer) drawer.style.display = 'flex';
-          window._decisionsFilter = 'all';
-          window._decisionsSearch = '';
-          const input = document.getElementById('decisions-search-input');
-          if (input) input.value = '';
-          renderDecisionsList();
-        };
-        window.closeDecisionsDrawer = function() {
-          const overlay = document.getElementById('decisions-overlay');
-          const drawer = document.getElementById('decisions-drawer');
-          if (overlay) overlay.style.display = 'none';
-          if (drawer) drawer.style.display = 'none';
-        };
-        window.filterDecisions = function(status) {
-          window._decisionsFilter = status;
-          renderDecisionsList();
-        };
-        window.searchDecisions = function(keyword) {
-          window._decisionsSearch = (keyword || '').trim().toLowerCase();
-          renderDecisionsList();
-        };
-        function renderDecisionsList() {
-          const container = document.getElementById('decisions-list');
-          if (!container) return;
-          const meetings = window._meetingsData || [];
-          const actionsMap = {};
-          meetings.forEach(m => {
-            (m.actions || []).forEach(a => { if (a && a.id) actionsMap[a.id] = a; });
-          });
-          const allItems = [];
-          meetings.forEach(m => {
-            (m.decisions || []).forEach(d => {
-              const normalized = normalizeResolution(d, m);
-              normalized.progress = computeResolutionProgress(normalized, actionsMap);
-              allItems.push(normalized);
-            });
-          });
-
-          let filtered = allItems;
-          if (window._decisionsFilter !== 'all') {
-            filtered = filtered.filter(d => d.status === window._decisionsFilter);
-          }
-          if (window._decisionsSearch) {
-            const kw = window._decisionsSearch;
-            filtered = filtered.filter(d =>
-              (d.content || '').toLowerCase().includes(kw) ||
-              (d.owner || '').toLowerCase().includes(kw) ||
-              (d.sourceMeetingTitle || '').toLowerCase().includes(kw)
-            );
-          }
-
-          const stats = computeResolutionStats(allItems);
-          const filterButtons = [
-            { key: 'all', label: '全部' },
-            ...RESOLUTION_STATUSES.map(s => ({ key: s, label: getResolutionStatusConfig(s).label }))
-          ];
-          const filterPills = filterButtons.map(f => {
-            const active = window._decisionsFilter === f.key;
-            return `<button type="button" onclick="filterDecisions('${f.key}')" style="padding: 4px 10px; font-size: 12px; border: 1px solid ${active ? 'var(--primary)' : 'var(--border-color)'}; border-radius: 4px; background: ${active ? 'var(--primary-light)' : 'var(--bg-page)'}; color: ${active ? 'var(--primary)' : 'var(--text-secondary)'}; cursor: pointer; white-space: nowrap;">${f.label}</button>`;
-          }).join('');
-
-          const cards = filtered.map(d => {
-            const cfg = getResolutionStatusConfig(d.status);
-            const transitions = RESOLUTION_TRANSITIONS[d.status] || [];
-            const statusOptions = [d.status, ...transitions].map(s => `<option value="${s}">${getResolutionStatusConfig(s).label}</option>`).join('');
-            const statusSelector = transitions.length > 0
-              ? `<select id="res-status-${d.id}" onchange="advanceResolution('${d.id}')" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; border: 1px solid ${cfg.color}; background: ${cfg.color}15; color: ${cfg.color}; cursor: pointer; white-space: nowrap; appearance: none; -webkit-appearance: none; padding-right: 18px; background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22${encodeURIComponent(cfg.color)}%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpolyline points=%226 9 12 15 18 9%22%3E%3C/polyline%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 4px center;">${statusOptions}</select>`
-              : `<span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${cfg.color}15; color: ${cfg.color}; white-space: nowrap;">${cfg.label}</span>`;
-            const hasLogs = Array.isArray(d.approvalLogs) && d.approvalLogs.length > 0;
-            const logsHtml = hasLogs ? `
-              <details style="margin-top: 10px;">
-                <summary style="font-size: 12px; color: var(--text-secondary); cursor: pointer;">审批日志 (${d.approvalLogs.length})</summary>
-                <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
-                  ${d.approvalLogs.map(log => `
-                    <div style="font-size: 11px; color: var(--text-tertiary); padding: 8px; background: var(--bg-page); border-radius: 4px; border-left: 2px solid var(--border-color);">
-                      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <span style="color: var(--text-secondary); font-weight: 500;">${log.action}</span>
-                        <span>${formatResolutionTime(log.time)}</span>
-                      </div>
-                      <div>${escapeHtml(log.user || '当前用户')}${log.comment ? '：' + escapeHtml(log.comment) : ''}</div>
-                    </div>
-                  `).join('')}
-                </div>
-              </details>
-            ` : '';
-            return `
-            <div style="padding: 14px; background: var(--bg-page); border-radius: 8px; margin-bottom: 12px; border-left: 3px solid ${cfg.color};">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px;">
-                <span style="font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1;">${escapeHtml(d.content || '')}</span>
-                ${statusSelector}
-              </div>
-              <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; margin-bottom: 8px;">
-                <span>📅 ${d.deadline || '未设置'}</span>
-                <span>👤 ${escapeHtml(d.owner || '待定')}</span>
-                ${d.sourceMeetingId ? `<span style="cursor: pointer; color: var(--primary);" onclick="gotoSourceMeeting('${d.sourceMeetingId}')">📋 ${escapeHtml(d.sourceMeetingTitle || '')}</span>` : ''}
-                ${d.kmsUrl ? `<a href="${escapeHtml(d.kmsUrl)}" target="_blank" style="color: var(--primary); text-decoration: none;">🔗 KMS</a>` : ''}
-              </div>
-              ${d.status === 'approved' && typeof d.progress === 'number' ? `
-                <div style="margin-bottom: 8px;">
-                  <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">
-                    <span>执行进度</span><span>${d.progress}%</span>
-                  </div>
-                  <div style="height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden;">
-                    <div style="height: 100%; width: ${d.progress}%; background: var(--primary); border-radius: 3px;"></div>
-                  </div>
-                </div>
-              ` : ''}
-              ${logsHtml}
-            </div>
-            `;
-          }).join('');
-
-          container.innerHTML = `
-            <div style="margin-bottom: 12px;">
-              <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
-                ${filterPills}
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-secondary); padding: 8px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light);">
-                <span>共 ${stats.total} 项</span>
-                <span>已闭环 ${stats.closedCount} 项 (${stats.closureRate}%)</span>
-                <span style="color: ${stats.overdueCount > 0 ? 'var(--danger)' : 'var(--text-secondary)'}">逾期 ${stats.overdueCount} 项</span>
-              </div>
-            </div>
-            ${filtered.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🔍 未找到匹配决议</div>' : cards}
-          `;
-        }
-        function formatResolutionTime(iso) {
-          if (!iso) return '';
-          try {
-            const d = new Date(iso);
-            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-          } catch (e) { return iso; }
-        }
-        window.advanceResolution = function(id) {
-          const select = document.getElementById('res-status-' + id);
-          if (!select) return;
-          const newStatus = select.value;
-          const meetings = window._meetingsData || [];
-          let target = null;
-          let meeting = null;
-          for (const m of meetings) {
-            const d = (m.decisions || []).find(x => x.id === id);
-            if (d) { target = d; meeting = m; break; }
-          }
-          if (!target) { showToast('决议不存在', 'error'); return; }
-          const result = advanceResolutionStatus(target, newStatus);
-          if (!result.success) { showToast(result.error || '流转失败', 'error'); return; }
-          if (meeting) {
-            apiSave('/api/meetings', meetings);
-            syncResolutionsToStore(meetings);
-          }
-          showToast('状态已更新', 'success');
-          renderDecisionsList();
-        };
-        window.gotoSourceMeeting = function(id) {
-          if (!id) return;
-          closeDecisionsDrawer();
-          openMeetingDetail(id);
-        };
+        // 已迁移到 src/meetings/components/DecisionsDrawer.js
 
 
       // ===== 配置 =====
@@ -681,33 +404,6 @@
         return 'https://dste-api.jasonxspace.workers.dev';
       })();
 
-      async function apiSave(endpoint, data) {
-        // 无论 API 是否可用，都先保存到 本地存储 作为兜底，防止数据丢失
-        if (endpoint === '/api/meetings') {
-          try {
-            DSTE.Storage.set('dste_meetings', data);
-          } catch (e) {
-            console.warn('本地存储 save failed:', e.message);
-          }
-        }
-        if (!API_BASE) return;
-        try {
-          const token = DSTE.Storage.getString('dste-token');
-          const headers = { 'Content-Type': 'application/json' };
-          if (token) headers['Authorization'] = `Bearer ${token}`;
-          const resp = await fetch(API_BASE + endpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(data),
-          });
-          if (resp.status === 401) {
-            redirectToCasLogin();
-            return;
-          }
-        } catch (e) {
-          console.warn('API save failed:', e.message);
-        }
-      }
 
       // CAS 登录跳转
       function redirectToCasLogin() {
@@ -797,38 +493,6 @@
         window.location.reload();
       }
 
-      async function apiLoad(endpoint) {
-        let apiData = null;
-        if (API_BASE) {
-          try {
-            const token = DSTE.Storage.getString('dste-token');
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-            const resp = await fetch(API_BASE + endpoint, { headers });
-            if (resp.status === 401) {
-              redirectToCasLogin();
-              return null;
-            }
-            const json = await resp.json();
-            if (json.success && json.data) apiData = json.data;
-          } catch (e) {
-            console.warn('API load failed:', e.message);
-          }
-        }
-        if (apiData && apiData.length > 0) return apiData;
-        // API 无数据或失败时 fallback 到 本地存储
-        if (endpoint === '/api/meetings') {
-          const local = DSTE.Storage.getString('dste_meetings');
-          if (local) {
-            try {
-              const parsed = JSON.parse(local);
-              if (parsed && parsed.length > 0) return parsed;
-            } catch (e) {
-              console.warn('本地存储 parse failed:', e);
-            }
-          }
-        }
-        return null;
-      }
 
       // ===== 面包屑 =====
       function renderBreadcrumb(pageName) {
@@ -873,7 +537,7 @@
             e.preventDefault();
             e.stopPropagation();
             window._editMeetingId = editBtn.dataset.editId;
-            const m = window._meetingsData?.find(x => x.id === window._editMeetingId);
+            const m = findMeetingById(window._editMeetingId);
             if (!m) {
               document.getElementById('page-content').innerHTML = renderMeetings();
               bindPageEvents(document.getElementById('page-content'));
@@ -902,7 +566,7 @@
           content.innerHTML = renderMeetings();
           bindPageEvents(content);
         } else if (pageId === 'exe/meetings/edit') {
-          const m = window._meetingsData?.find(x => x.id === window._editMeetingId);
+          const m = findMeetingById(window._editMeetingId);
           if (!m) {
             navigate('exe/meetings');
             return;
@@ -975,148 +639,6 @@
       window.AGENDA_TYPE_COLORS = AGENDA_TYPE_COLORS;
       window.PIPELINE_STEPS = PIPELINE_STEPS;
 
-      function getMockMeetings() {
-        return [
-          {
-            isMock: true, id: '20260415', title: '片联一季度经营分析会', date: '2026-04-15', month: '2026-04',
-          level: 'L1', scope: 'union', scenario: 'union_quarterly',
-          status: 'completed', location: '总部大会议室', host: '陈总裁', recorder: 'Jason.Jing',
-          pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: true },
-          meeting_link: 'https://kms.example.com/docs/Q1-review-2026',
-          upstreamMeeting: null, downstreamMeeting: '20260515',
-          agenda_items: [
-            { type: 'budget_finance', title: 'Q1 财务整体复盘', duration: 45, owner: 'CFO' },
-            { type: 'goal_management', title: 'KPI 达成追踪', duration: 30, owner: '运营部' },
-            { type: 'business_special', title: '市场洞察与竞争分析', duration: 30, owner: '市场部' },
-            { type: 'business_special', title: '风险预警与应对', duration: 20, owner: '风控部' }
-          ],
-          actions: [
-            { id: 'A001', content: 'Q2 营收目标上调至 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'in_progress' },
-            { id: 'A002', content: '海外渠道新增 2 个代理商', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
-          ],
-          decisions: [
-            { id: 'D001', content: 'Q2 营收目标 3.2 亿', owner: '李经理', deadline: '2026-04-30', status: 'approved', kmsUrl: 'https://kms.fineres.com/doc/d001' },
-            { id: 'D002', content: '海外渠道扩张计划', owner: '陈总监', deadline: '2026-05-15', status: 'pending' }
-          ],
-          hasMinutes: true, minutesStatus: 'final',
-          minutes_content: '1. Q1 营收达成 3.1 亿，同比增长 15%。\\n2. 海外市场拓展顺利，新增 3 个区域代理。\\n3. 产品 V2.5 版本按期上线，用户满意度提升至 4.5 分。\\n4. 下季度重点：渠道下沉 + 产品线扩展。',
-          metrics: { materialTimeliness: 98, resolutionTimeliness: 92, actionClosure: 85, satisfaction: 4.5 },
-          effectiveness: { overallScore: 92, dimensions: { before: 32, during: 28, after: 32 }, subScores: { materialCompleteness: 6.5, agendaCoverage: 9.5, materialReviewScore: 16, effectiveDiscussion: 11, participation: 10, timeControl: 6, resolutionAndAction: 27, timeliness: 5, postponementDeduction: 0 }, feedback: ['材料充分', '讨论有效', '闭环到位'] }
-        },
-        {
-          isMock: true, id: '20260315', title: '4月营销本部经营分析会', date: '2026-03-15', month: '2026-03',
-          level: 'L2', scope: 'hq', scenario: 'hq_routine',
-          status: 'completed', location: '会议室 A', host: '张总', recorder: 'Jason.Jing',
-          pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: true, minutesApproved: true, actionsTracked: false },
-          meeting_link: 'https://kms.example.com/docs/apr-hq-meeting',
-          upstreamMeeting: '20260215', downstreamMeeting: '20260415',
-          agenda_items: [
-            { type: 'budget_finance', title: '3月财务复盘', duration: 30, owner: '财务部' },
-            { type: 'goal_management', title: 'KPI 达成分析', duration: 25, owner: '运营部' },
-            { type: 'key_task_management', title: '上月行动项复盘', duration: 20, owner: '各负责人' }
-          ],
-          actions: [
-            { id: 'A003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'in_progress' }
-          ],
-          decisions: [
-            { id: 'D003', content: '产品 V3.0 版本 5 月底上线', owner: '王总监', deadline: '2026-05-31', status: 'approved', kmsUrl: 'https://kms.fineres.com/doc/d003' }
-          ],
-          hasMinutes: true, minutesStatus: 'final',
-          minutes_content: '1. 3月营收 1.2 亿，环比提升 8%。\\n2. 产品 V3.0 开发进度 80%，预计 5 月底上线。\\n3. 华东区签约目标上调至 8000 万。\\n4. 客户满意度调研结果：4.2 分，需重点关注售后响应速度。',
-          metrics: { materialTimeliness: 95, resolutionTimeliness: 88, actionClosure: 72, satisfaction: 4.2 },
-          effectiveness: { overallScore: 88, dimensions: { before: 31, during: 27, after: 30 }, subScores: { materialCompleteness: 6, agendaCoverage: 9, materialReviewScore: 16, effectiveDiscussion: 10, participation: 10, timeControl: 6, resolutionAndAction: 25, timeliness: 5, postponementDeduction: 0 }, feedback: ['材料充分', '讨论有效', '闭环到位'] }
-        },
-        {
-          isMock: true, id: '20260520', title: '华东战区 5 月经营分析会', date: '2026-05-20', month: '2026-05',
-          level: 'L2', scope: 'region_east', scenario: 'region_routine',
-          status: 'in_progress', location: '上海办公室', host: '刘战区总', recorder: '王小明',
-          pipeline: { reportGenerated: true, preReviewDone: true, meetingHeld: true, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-          meeting_link: 'https://kms.example.com/docs/may-region-east',
-          upstreamMeeting: '20260415', downstreamMeeting: null,
-          agenda_items: [
-            { type: 'budget_finance', title: '5月财务复盘', duration: 30, owner: '财务组' },
-            { type: 'business_special', title: '客户满意度分析', duration: 25, owner: '客户成功组' },
-            { type: 'key_task_management', title: '行动项跟踪', duration: 20, owner: '运营组' }
-          ],
-          actions: [
-            { id: 'A004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'in_progress' }
-          ],
-          decisions: [
-            { id: 'D004', content: '华东区 Q2 签约目标 8000万', owner: '刘战区总', deadline: '2026-06-30', status: 'approved', kmsUrl: 'https://kms.fineres.com/doc/d004' }
-          ],
-          hasMinutes: false, minutesStatus: null,
-          metrics: { materialTimeliness: 90, resolutionTimeliness: 0, actionClosure: 60, satisfaction: 0 },
-          effectiveness: null
-        },
-        {
-          isMock: true, id: '20260525', title: '华南战区业绩承诺会暨经分会', date: '2026-05-25', month: '2026-05',
-          level: 'L3', scope: 'region_south', scenario: 'lagging_region',
-          status: 'planned', location: '深圳办公室', host: '赵战区总', recorder: '李小红',
-          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-          meeting_link: 'https://kms.example.com/docs/Q2-union-review',
-          upstreamMeeting: null, downstreamMeeting: null,
-          agenda_items: [
-            { type: 'budget_finance', title: '业绩差距根因分析', duration: 40, owner: '财务组' },
-            { type: 'business_special', title: '风险预警与整改', duration: 30, owner: '风控组' },
-            { type: 'key_task_management', title: '整改承诺与跟踪', duration: 30, owner: '各负责人' }
-          ],
-          actions: [],
-          decisions: [],
-          hasMinutes: false, minutesStatus: null,
-          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-          effectiveness: null
-        },
-        {
-          isMock: true, id: '20260601', title: '金融行业客群经分会', date: '2026-06-01', month: '2026-06',
-          level: 'L3', scope: 'vertical_finance', scenario: 'lagging_vertical',
-          status: 'planned', location: '北京办公室', host: '孙行业总', recorder: '周小华',
-          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-          upstreamMeeting: null, downstreamMeeting: null,
-          agenda_items: [
-            { type: 'budget_finance', title: '客群财务分析', duration: 35, owner: '财务组' },
-            { type: 'business_special', title: '客户流失分析', duration: 25, owner: '客户组' },
-            { type: 'business_special', title: '产品路线调整', duration: 20, owner: '产品组' }
-          ],
-          actions: [],
-          decisions: [],
-          hasMinutes: false, minutesStatus: null,
-          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-          effectiveness: null
-        },
-        {
-          isMock: true, id: '20260615', title: '片联二季度经营分析会', date: '2026-06-15', month: '2026-06',
-          level: 'L1', scope: 'union', scenario: 'union_quarterly',
-          status: 'planned', location: '总部大会议室', host: '陈总裁', recorder: '待定',
-          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-          upstreamMeeting: null, downstreamMeeting: null,
-          agenda_items: [
-            { type: 'budget_finance', title: 'Q2 财务复盘', duration: 45, owner: 'CFO' },
-            { type: 'goal_management', title: '半年 KPI 追踪', duration: 30, owner: '运营部' }
-          ],
-          actions: [],
-          decisions: [],
-          hasMinutes: false, minutesStatus: null,
-          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-          effectiveness: null
-        },
-        {
-          isMock: true, id: '20260701', title: '7月营销本部经营分析会', date: '2026-07-01', month: '2026-07',
-          level: 'L2', scope: 'hq', scenario: 'hq_routine',
-          status: 'planned', location: '会议室 B', host: '张总', recorder: '待定',
-          pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
-          upstreamMeeting: '20260615', downstreamMeeting: null,
-          agenda_items: [
-            { type: 'budget_finance', title: '6月财务复盘', duration: 30, owner: '财务部' },
-            { type: 'goal_management', title: 'KPI 达成分析', duration: 25, owner: '运营部' }
-          ],
-          actions: [],
-          decisions: [],
-          hasMinutes: false, minutesStatus: null,
-          metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
-          effectiveness: null
-        }
-      ];
-      }
 
       /**
        * 渲染经营分析会主页面（列表视图）
@@ -1126,25 +648,13 @@
         // ---- 场景配置 ----
 
         // ---- 数据模型 ----
-        if (!window._meetingsData) {
-          const localMeetings = DSTE.Storage.getString('dste_meetings');
-          if (localMeetings) {
-            try {
-              window._meetingsData = JSON.parse(localMeetings);
-            } catch (e) {
-              console.warn('本地存储 parse failed:', e);
-            }
-          }
-        }
-        if (!window._meetingsData) {
-          const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-          window._meetingsData = isLocalDev ? getMockMeetings() : [];
-          if (!isLocalDev) {
-            console.log('[meetings] Production mode: no mock data loaded');
-          }
+        const rawMeetings = getMeetings();
+        if (!Array.isArray(rawMeetings) || rawMeetings.length === 0) {
+          console.warn('[renderMeetings] 会议数据尚未初始化');
+          return '<div style="padding: 40px; text-align: center; color: var(--text-tertiary);">加载中...</div>';
         }
         window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
-        const meetings = window._meetingsData.slice(); // 复制数组避免修改原始数据
+        const meetings = rawMeetings.slice(); // 复制数组避免修改原始数据
 
         // 按状态优先级 + 时间倒序排序：准备中 → 规划中 → 已完成 → 已取消
         const STATUS_ORDER = { in_progress: 0, planned: 1, completed: 2, cancelled: 3 };
@@ -1598,21 +1108,14 @@
          * @param {string} id - 会议 ID
          */
         window.openMeetingDetail = function(id) {
-          const m = window._meetingsData.find(x => x.id === id);
+          const m = findMeetingById(id);
           if (!m) return;
           window._currentDetailMeetingId = id;
-          renderMeetingDetail(m);
+          window.renderMeetingDetail(m);
           const ov = document.getElementById('meeting-detail-overlay');
           if (ov) ov.style.display = 'flex';
         };
 
-        function getMaterialScore(url) {
-          if (!url) return null;
-          try {
-            const map = DSTE.Storage.get('dste_review_scores', {});
-            return map[url]?.maxScore || null;
-          } catch (e) { return null; }
-        }
         // ---- 会前准备度计算 ----
         function getReportAssets() {
           try { return DSTE.Storage.get('dste_report_assets', {}); }
@@ -1719,6 +1222,8 @@
           { key: 'after', label: '会后', desc: '决议&待办、评分及时性', max: 35 }
         ];
         const EVAL_TAGS = ['材料充分','讨论有效','闭环到位','数据不足','时间失控','缺乏跟进'];
+        window.EVAL_DIMENSIONS = EVAL_DIMENSIONS;
+        window.EVAL_TAGS = EVAL_TAGS;
         /**
          * 打开会议效果评估浮层
          * @param {string} meetingId - 会议 ID
@@ -1753,531 +1258,17 @@
           window._evalMeetingId = null;
           window._evalFormData = null;
         };
-        function renderEvalForm() {
-          const data = window._evalFormData;
-          if (!data) return;
-          const score = typeof data.overallScore === 'number' ? data.overallScore : 0;
-          const overallColor = getScoreColor(score);
-          const overallLabel = getScoreLabel(score);
-          const autoBadge = data.auto ? '<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: var(--primary-light); color: var(--primary); margin-left: 6px;">AI 推荐</span>' : '';
-          document.getElementById('eval-overall-display').innerHTML = `<span style="font-size: 32px; font-weight: 700; color: ${overallColor};">${score}</span><span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">${overallLabel}</span>${autoBadge}`;
-          const dimsHtml = EVAL_DIMENSIONS.map(dim => {
-            const val = data.dimensions[dim.key] || 0;
-            const pct = Math.round((val / dim.max) * 100);
-            const color = getScoreColor(pct);
-            return `
-              <div style="margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <div>
-                    <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${dim.label}</span>
-                    <span style="font-size: 11px; color: var(--text-tertiary); margin-left: 6px;">${dim.desc}</span>
-                  </div>
-                  <span style="font-size: 14px; font-weight: 700; color: ${color}; min-width: 40px; text-align: right;">${val} / ${dim.max}</span>
-                </div>
-                <input type="range" min="0" max="${dim.max}" value="${val}" oninput="updateEvalSlider('${dim.key}', this.value)"
-                  style="width: 100%; accent-color: ${color}; cursor: pointer;" />
-                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); margin-top: 2px;">
-                  <span>0</span><span>${dim.max}</span>
-                </div>
-              </div>`;
-          }).join('');
-          const sub = data.subScores || {};
-          const hasSubScores = Object.keys(sub).length > 0;
-          const subScoresHtml = hasSubScores ? `
-            <div style="margin-top: 4px; padding: 10px 12px; background: var(--bg-page); border-radius: 6px; margin-bottom: 14px;">
-              <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 8px;">子项得分（自动计算，仅供参考）</div>
-              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 11px; color: var(--text-secondary);">
-                <div>材料完整：<span style="color: var(--text-primary); font-weight: 500;">${sub.materialCompleteness ?? 0}</span>/7</div>
-                <div>议程覆盖：<span style="color: var(--text-primary); font-weight: 500;">${sub.agendaCoverage ?? 0}</span>/10.5</div>
-                <div>材料评分：<span style="color: var(--text-primary); font-weight: 500;">${sub.materialReviewScore ?? 0}</span>/17.5</div>
-                <div>有效讨论：<span style="color: var(--text-primary); font-weight: 500;">${sub.effectiveDiscussion ?? 0}</span>/12</div>
-                <div>参与度：<span style="color: var(--text-primary); font-weight: 500;">${sub.participation ?? 0}</span>/12</div>
-                <div>时间控制：<span style="color: var(--text-primary); font-weight: 500;">${sub.timeControl ?? 0}</span>/6</div>
-                <div>决议&待办：<span style="color: var(--text-primary); font-weight: 500;">${sub.resolutionAndAction ?? 0}</span>/30</div>
-                <div>评分及时性：<span style="color: var(--text-primary); font-weight: 500;">${sub.timeliness ?? 0}</span>/5</div>
-              </div>
-              ${(data.postponementDeduction || 0) < 0 ? `<div style="margin-top: 6px; color: var(--danger); font-size: 11px;">议程顺延扣分：${data.postponementDeduction} 分</div>` : ''}
-            </div>
-          ` : '';
-          document.getElementById('eval-dimensions').innerHTML = dimsHtml + subScoresHtml;
-          const tagsHtml = EVAL_TAGS.map(tag => {
-            const active = data.feedback.includes(tag);
-            return `<button type="button" onclick="toggleEvalTag('${tag}')"
-              style="padding: 4px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; border: 1px solid ${active ? 'var(--primary)' : 'var(--border-light)'}; background: ${active ? 'var(--primary-light)' : 'var(--bg-page)'}; color: ${active ? 'var(--primary)' : 'var(--text-secondary)'}; transition: all 0.15s;">${tag}</button>`;
-          }).join('');
-          document.getElementById('eval-tags').innerHTML = tagsHtml;
-          document.getElementById('eval-comment').value = data.comment || '';
-        }
-        window.updateEvalSlider = function(dim, val) {
-          if (!window._evalFormData) return;
-          window._evalFormData.dimensions[dim] = parseInt(val);
-          const dims = window._evalFormData.dimensions;
-          const deduction = window._evalFormData.postponementDeduction || 0;
-          window._evalFormData.overallScore = Math.max(0, Math.min(100, Math.round((dims.before || 0) + (dims.during || 0) + (dims.after || 0) + deduction)));
-          window._evalFormData.auto = false;
-          renderEvalForm();
-        };
-        window.toggleEvalTag = function(tag) {
-          if (!window._evalFormData) return;
-          const fb = window._evalFormData.feedback;
-          const idx = fb.indexOf(tag);
-          if (idx > -1) fb.splice(idx, 1); else fb.push(tag);
-          window._evalFormData.auto = false;
-          renderEvalForm();
-        };
-        window.saveMeetingEvaluation = function() {
-          if (!window._evalMeetingId || !window._evalFormData) return;
-          const m = meetings.find(x => x.id === window._evalMeetingId);
-          if (!m) return;
-          const data = window._evalFormData;
-          const autoNow = calculateAutoScore(m, new Date().toISOString(), getReviewScores());
-          m.effectiveness = {
-            overallScore: data.overallScore,
-            dimensions: { ...data.dimensions },
-            subScores: { ...autoNow.subScores },
-            feedback: data.feedback.slice(),
-            comment: (document.getElementById('eval-comment')?.value || '').trim(),
-            auto: false,
-            evaluatedAt: new Date().toISOString()
-          };
-          const orig = window._meetingsData.find(x => x.id === window._evalMeetingId);
-          if (orig) orig.effectiveness = JSON.parse(JSON.stringify(m.effectiveness));
-          DSTE.Storage.set('dste_meetings', window._meetingsData);
-          apiSave('/api/meetings', window._meetingsData);
-          closeMeetingEvalModal();
-          if (window._currentDetailMeetingId === window._evalMeetingId) {
-            renderMeetingDetail(m);
-          }
-          showToast('评估已保存', 'success');
-        };
+        // ---- 会议评估弹窗 ----
+        // 已迁移到 src/meetings/renderers/eval-form.js
 
         // ---- 会前准备浮层 ----
-        window.openMeetingPreparation = function(meetingId) {
-          const m = meetings.find(x => x.id === meetingId);
-          if (!m) return;
-          window._prepMeetingId = meetingId;
-          renderMeetingPreparation(m);
-          const ov = document.getElementById('meeting-preparation-overlay');
-          if (ov) ov.style.display = 'flex';
-        };
-        window.closeMeetingPreparation = function() {
-          const ov = document.getElementById('meeting-preparation-overlay');
-          if (ov) ov.style.display = 'none';
-          window._prepMeetingId = null;
-        };
-        function renderMeetingPreparation(m) {
-          const content = document.getElementById('meeting-preparation-content');
-          const header = document.getElementById('meeting-preparation-header-title');
-          const markBtn = document.getElementById('preparation-mark-done-btn');
-          if (!content) return;
-          if (header) header.textContent = `📋 会前准备 · ${m.title || '未命名会议'}`;
-
-          const readiness = computeMeetingReadiness(m);
-          const statusColor = readiness.status === 'ready' ? 'var(--success)' : readiness.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)';
-          const statusLabel = readiness.status === 'ready' ? '已就绪' : readiness.status === 'in_progress' ? '准备中' : '未开始';
-
-          const checkRows = readiness.checks.map(c => {
-            const icon = c.passed ? '✅' : c.optional ? '⏸️' : '❌';
-            const color = c.passed ? 'var(--success)' : c.optional ? 'var(--text-tertiary)' : 'var(--danger)';
-            const badge = c.passed
-              ? '<span class="status-badge status-success">已通过</span>'
-              : c.optional
-                ? '<span class="status-badge status-default">待实现</span>'
-                : '<span class="status-badge status-danger">待完成</span>';
-            return `
-              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
-                <span style="font-size: 16px; width: 24px; text-align: center;">${icon}</span>
-                <div style="flex: 1; min-width: 0;">
-                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${c.label}</span>
-                    ${badge}
-                  </div>
-                  <div style="font-size: 11px; color: ${color}; margin-top: 2px;">${c.detail}</div>
-                </div>
-                ${!c.passed && !c.optional ? `<button type="button" onclick="openEditMeeting('${m.id}')" style="padding: 3px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">去编辑</button>` : ''}
-              </div>
-            `;
-          }).join('');
-
-          content.innerHTML = `
-            <div style="margin-bottom: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;">
-                <div>
-                  <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">准备度</div>
-                  <div style="display: flex; align-items: baseline; gap: 8px;">
-                    <span style="font-size: 36px; font-weight: 700; color: ${statusColor};">${readiness.percentage}%</span>
-                    <span style="font-size: 13px; font-weight: 500; color: ${statusColor};">${statusLabel}</span>
-                  </div>
-                </div>
-                <div style="font-size: 12px; color: var(--text-secondary);">${readiness.passedCount}/${readiness.totalCount} 项已完成</div>
-              </div>
-              <div style="width: 100%; height: 6px; background: var(--bg-page); border-radius: 3px; overflow: hidden;">
-                <div style="width: ${readiness.percentage}%; height: 100%; background: ${statusColor}; border-radius: 3px; transition: width 0.3s ease;"></div>
-              </div>
-            </div>
-            <div style="background: var(--bg-page); border-radius: 8px; padding: 0 12px; margin-bottom: 16px;">
-              ${checkRows || '<div style="padding: 16px; text-align: center; color: var(--text-secondary); font-size: 13px;">暂无检查项</div>'}
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px; padding: 12px; background: var(--primary-light); border-radius: 8px; font-size: 12px; color: var(--primary);">
-              <span>💡</span>
-              <span>所有检查项通过后，可一键标记「会前评审完成」。未达到 100% 时标记将弹出确认提示。</span>
-            </div>
-          `;
-
-          if (markBtn) {
-            markBtn.textContent = m.pipeline?.preReviewDone ? '取消会前评审完成' : '标记会前评审完成';
-            markBtn.style.borderColor = readiness.allPassed ? 'var(--success)' : 'var(--warning)';
-            markBtn.style.background = readiness.allPassed ? 'rgba(34,197,94,0.08)' : 'rgba(250,173,20,0.08)';
-            markBtn.style.color = readiness.allPassed ? 'var(--success)' : 'var(--warning)';
-          }
-        }
-        window.togglePipelineStepFromPreparation = function() {
-          const meetingId = window._prepMeetingId;
-          if (!meetingId) return;
-          const m = meetings.find(x => x.id === meetingId);
-          if (!m) return;
-          const readiness = computeMeetingReadiness(m);
-          if (!m.pipeline) m.pipeline = {};
-          const currentDone = !!m.pipeline.preReviewDone;
-          if (!currentDone && !readiness.allPassed) {
-            const unpassed = readiness.checks.filter(c => !c.optional && !c.passed).map(c => `· ${c.label}: ${c.detail}`).join('\n');
-            if (!confirm(`准备度尚未达到 100%，以下检查项未完成：\n${unpassed}\n\n仍要标记会前评审完成吗？`)) return;
-          }
-          m.pipeline.preReviewDone = !currentDone;
-          const orig = window._meetingsData.find(x => x.id === meetingId);
-          if (orig && orig.pipeline) orig.pipeline.preReviewDone = m.pipeline.preReviewDone;
-          DSTE.Storage.set('dste_meetings', window._meetingsData);
-          apiSave('/api/meetings', window._meetingsData);
-          renderMeetingPreparation(m);
-          document.getElementById('page-content').innerHTML = renderMeetings();
-          bindPageEvents(document.getElementById('page-content'));
-          if (window._currentDetailMeetingId === meetingId) {
-            renderMeetingDetail(m);
-          }
-          showToast(m.pipeline.preReviewDone ? '已标记会前评审完成' : '已取消会前评审完成', 'success');
-        };
+        // 已迁移到 src/meetings/renderers/meeting-prep.js
 
         /**
+        /**
          * 渲染会议详情浮层（主视图）
-         * @param {Object} m - 会议对象
+         * 已迁移到 src/meetings/renderers/meeting-detail.js
          */
-        function renderMeetingDetail(m) {
-          const sc = SCENARIO_CONFIG[m.scenario] || {};
-          const st = STATUS_CONFIG[m.status] || {};
-          const content = document.getElementById('meeting-detail-content');
-          const headerLeft = document.getElementById('meeting-detail-header-left');
-          if (!content || !headerLeft) return;
-
-          // 顶部标题栏
-          headerLeft.innerHTML = `
-            <span style="font-size: 18px; font-weight: 700; color: var(--text-primary);">${m.title}</span>
-            <span style="padding: 1px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: ${sc.color || 'var(--text-tertiary)'}18; color: ${sc.color || 'var(--text-tertiary)'};">${sc.icon || '📋'} ${sc.label || m.scenario}</span>
-            <span class="status-badge ${st.badgeClass}">${st.label}</span>
-          `;
-
-          // 左侧信息面板（紧凑化）
-          const pipelineSummary = m.pipeline ? (() => {
-            const done = PIPELINE_STEPS.filter(s => m.pipeline[s.key]).length;
-            return `<div style="display: flex; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px dashed var(--border-light);">
-              <span style="font-size: 12px; color: var(--text-secondary); min-width: 48px; flex-shrink: 0;">📊 流程</span>
-              <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                <div style="flex: 1; height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden;">
-                  <div style="width: ${Math.round(done/PIPELINE_STEPS.length*100)}%; height: 100%; background: ${done === PIPELINE_STEPS.length ? 'var(--success)' : 'var(--primary)'}; border-radius: 2px;"></div>
-                </div>
-                <span style="font-size: 11px; color: var(--text-secondary);">${done}/${PIPELINE_STEPS.length}</span>
-              </div>
-            </div>`;
-          })() : '';
-          const infoPanel = `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 12px; height: fit-content;">
-              ${[
-                ['📅', '日期', m.date],
-                ['📍', '地点', m.location || '待确认'],
-                ['👤', '主持人', m.host || '待定'],
-                ['📝', '记录人', m.recorder || '待定'],
-                ['🏢', '层级', m.level],
-                ['📊', '状态', `<span class="status-badge ${st.badgeClass}">${st.label}</span>`],
-                ['🔗', 'KMS', m.meeting_link ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 140px;">${m.meeting_link.replace(/^https?:\/\//, '')}</a>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未设置</span>'],
-                ['📋', '会前准备', (() => {
-                  const readiness = computeMeetingReadiness(m);
-                  const color = readiness.status === 'ready' ? 'var(--success)' : readiness.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)';
-                  const label = readiness.status === 'ready' ? '已就绪' : readiness.status === 'in_progress' ? '准备中' : '未开始';
-                  return `<span style="font-size: 12px; font-weight: 600; color: ${color};">${readiness.percentage}% · ${label}</span>`;
-                })()],
-                ['⭐', '评估', m.effectiveness ? `<span style="font-size: 12px; font-weight: 600; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore} · ${getScoreLabel(m.effectiveness.overallScore)}${m.effectiveness.auto ? '（系统）' : ''}</span>` : '<span style="font-size: 12px; color: var(--text-tertiary);">未评估</span>']
-              ].map(([icon, label, value]) => `
-                <div style="display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--border-light);">
-                  <span style="font-size: 11px; color: var(--text-secondary); min-width: 40px; flex-shrink: 0;">${icon} ${label}</span>
-                  <span style="font-size: 12px; color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${value}</span>
-                </div>
-              `).join('')}
-              ${pipelineSummary}
-              ${m.status === 'completed' ? `<div style="padding: 10px 0 4px; text-align: center;">
-                <button type="button" onclick="openMeetingEvalModal('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--warning); border-radius: 6px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; font-weight: 500; width: 100%;">${m.effectiveness ? '⭐ 重新评估' : '⭐ 评估会议'}</button>
-              </div>` : `<div style="padding: 10px 0 4px; text-align: center;">
-                <button type="button" onclick="openMeetingPreparation('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500; width: 100%;">📋 会前准备</button>
-              </div>`}
-            </div>
-          `;
-
-          // 一报一会流程（紧凑横向步骤条）
-          const pipelineHtml = m.pipeline && (m.scenario === 'region_routine' || m.scenario === 'lagging_region' || m.scenario === 'lagging_vertical') ? (() => {
-            const total = PIPELINE_STEPS.length;
-            const doneCount = PIPELINE_STEPS.filter(s => m.pipeline[s.key]).length;
-            const currentIdx = PIPELINE_STEPS.findIndex(s => !m.pipeline[s.key]);
-            return `
-              <div style="padding: 12px 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                  <span style="font-size: 13px; font-weight: 600;">📊 一报一会流程</span>
-                  <span style="font-size: 11px; color: ${doneCount === total ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total}</span>
-                </div>
-                <div style="display: flex; align-items: center; justify-content: space-between; position: relative; padding: 0 2px;">
-                  <div style="position: absolute; top: 8px; left: 16px; right: 16px; height: 2px; background: var(--border-light); border-radius: 1px; z-index: 0;"></div>
-                  ${PIPELINE_STEPS.map((step, i) => {
-                    const isDone = m.pipeline[step.key];
-                    const isCurrent = i === currentIdx;
-                    return `
-                      <div onclick="togglePipelineStep('${m.id}', '${step.key}')" title="点击切换状态"
-                        style="display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; position: relative; z-index: 1; flex: 1; max-width: 60px;">
-                        <span style="width: 16px; height: 16px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : '#fff'}; color: ${isDone ? '#fff' : isCurrent ? '#fff' : 'var(--text-tertiary)'}; display: flex; align-items: center; justify-content: center; font-size: 9px; border: 2px solid ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border-light)'};">${isDone ? '✓' : step.icon}</span>
-                        <span style="font-size: 10px; color: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight: ${isCurrent ? '600' : '400'}; text-align: center; line-height: 1.2;">${step.label}</span>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              </div>
-            `;
-          })() : '';
-
-          // 议程（紧凑列表，始终展开）
-          const agendaTotalMinutes = (m.agenda_items || []).reduce((s, a) => s + (a.duration || 0), 0);
-          const agendaCompletion = computeAgendaCompletion(m);
-          const agendaSection = `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div>
-                  <span style="font-size: 15px; font-weight: 700;">📋 会议议程</span>
-                  <span style="font-size: 12px; color: var(--text-secondary); margin-left: 8px;">共 ${agendaCompletion.total} 项 · ${agendaTotalMinutes} 分钟</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <button type="button" onclick="event.stopPropagation(); pushAgendaMeeting('${m.id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📢 推送议程</button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">已完成 ${agendaCompletion.completed} / ${agendaCompletion.total}${agendaCompletion.postponed > 0 ? `（顺延 ${agendaCompletion.postponed}）` : ''}</span>
-                  <svg width="28" height="28" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--border-light)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" stroke-width="3" stroke-dasharray="0 94"/></svg>
-                </div>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                ${(m.agenda_items || []).length === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 16px; font-size: 13px;">暂无议程</div>' : (m.agenda_items || []).map((a, i) => {
-                  const warning = getAgendaPostponeWarning(a);
-                  const sourceHint = formatAgendaSourceHint(a, meetings);
-                  return `
-                  <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${AGENDA_TYPE_COLORS[a.type] || 'var(--text-secondary)'};">
-                    <div style="display: flex; flex-direction: column; align-items: center; min-width: 52px;">
-                      <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${a.start_time || '09:00'}</span>
-                      <span style="font-size: 10px; color: var(--text-secondary);">~</span>
-                      <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${a.end_time || '09:30'}</span>
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
-                        <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${a.title}</span>
-                        <span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: var(--bg-page); border: 1px solid var(--border-light); color: var(--text-secondary);">${AGENDA_TYPE_LABELS[a.type] || '其他'}</span>
-                        ${getAgendaStatusBadge(a.status)}
-                        ${warning ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: rgba(245,34,45,0.08); color: var(--danger); border: 1px solid rgba(245,34,45,0.2); font-weight: 600;">${warning}</span>` : ''}
-                        ${(() => { const s = getMaterialScore(a.material_link); return s === null ? '' : `<span style="font-size: 10px; font-weight: 600; color: ${getScoreColor(s)};">⭐ ${s}分</span>`; })()}
-                      </div>
-                      <div style="display: flex; gap: 12px; font-size: 11px; color: var(--text-secondary); flex-wrap: wrap;">
-                        ${a.speaker ? `<span>👤 ${a.speaker}</span>` : ''}
-                        ${a.material_link ? `<span>📎 <a href="${a.material_link}" target="_blank" style="color: var(--primary);">材料</a></span>` : ''}
-                        ${a.purpose ? `<span>🎯 ${a.purpose}</span>` : ''}
-                        <span style="color: var(--primary);">${a.duration}分钟</span>
-                        ${sourceHint ? `<span style="color: var(--warning);">${sourceHint}</span>` : ''}
-                      </div>
-                    </div>
-                    <button type="button" onclick="event.stopPropagation(); pushAgenda('${m.id}', ${i})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0; white-space: nowrap;">📢 推送</button>
-                  </div>
-                `}).join('')}
-              </div>
-            </div>
-          `;
-
-          // 纪要（可折叠，默认展开，有内容时显示）
-          const minutesSection = `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
-              <div onclick="toggleDetailSection('detail-minutes')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 14px; font-weight: 600;">📄 纪要</span>
-                  ${m.minutesStatus ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: ${m.minutesStatus === 'final' ? 'var(--success-light)' : 'var(--warning-light)'}; color: ${m.minutesStatus === 'final' ? 'var(--success)' : 'var(--warning)'};">${m.minutesStatus === 'final' ? '已定稿' : '起草中'}</span>` : ''}
-                </div>
-                <span id="detail-minutes-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
-              </div>
-              <div id="detail-minutes" style="padding: 0 16px 12px;">
-                ${m.minutes_content ? `<div style="font-size: 13px; color: var(--text-primary); line-height: 1.7; white-space: pre-wrap; background: var(--bg-page); border-radius: 6px; padding: 12px;">${m.minutes_content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : '<div style="text-align: center; color: var(--text-secondary); padding: 12px; font-size: 13px;">暂无纪要</div>'}
-              </div>
-            </div>
-          `;
-
-          // 行动项（可折叠，默认展开）
-          const actionCount = (m.actions || []).length;
-          const actionsSection = `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
-              <div onclick="toggleDetailSection('detail-actions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-                <span style="font-size: 14px; font-weight: 600;">✅ 行动项${actionCount > 0 ? '（' + actionCount + '项）' : ''}</span>
-                <span id="detail-actions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
-              </div>
-              <div id="detail-actions" style="padding: 0 16px 12px;">
-                ${actionCount === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 12px; font-size: 13px;">暂无行动项</div>' : `
-                  <div style="display: flex; flex-direction: column;">
-                    ${(m.actions || []).map((a, idx, arr) => {
-                      const sourceAgenda = (m.agenda_items || []).find(x => x.id && x.id === a.sourceAgendaId);
-                      const sourceDecision = (m.decisions || []).find(x => x.id && x.id === a.sourceDecisionId);
-                      const sourceTags = [];
-                      if (sourceAgenda) sourceTags.push(`📋 ${escapeHtml((sourceAgenda.title || '议题').slice(0, 16))}`);
-                      if (sourceDecision) sourceTags.push(`📋 ${escapeHtml((sourceDecision.content || '决议').slice(0, 16))}`);
-                      return `
-                      <div style="padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                          <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
-                          <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
-                          <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.content || '')}</span>
-                          <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${escapeHtml(a.owner || '待定')} · ${escapeHtml(a.deadline || '未定')}</span>
-                          <button type="button" onclick="event.stopPropagation(); pushTodoReminder('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0;">⏰ 提醒</button>
-                        </div>
-                        ${a.progressNote || sourceTags.length ? `<div style="margin-top: 4px; font-size: 11px; color: var(--text-tertiary); padding-left: 24px; display: flex; gap: 10px; flex-wrap: wrap;">
-                          ${a.progressNote ? `<span>📝 ${escapeHtml(a.progressNote)}</span>` : ''}
-                          ${sourceTags.map(t => `<span>${t}</span>`).join('')}
-                        </div>` : ''}
-                      </div>
-                    `}).join('')}
-                  </div>
-                `}
-              </div>
-            </div>
-          `;
-
-          // 决议（可折叠，默认展开）
-          const decisionCount = (m.decisions || []).length;
-          const decisionsSection = `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
-              <div onclick="toggleDetailSection('detail-decisions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-                <span style="font-size: 14px; font-weight: 600;">📋 决议${decisionCount > 0 ? '（' + decisionCount + '项）' : ''}</span>
-                <span id="detail-decisions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
-              </div>
-              <div id="detail-decisions" style="padding: 0 16px 12px;">
-                ${decisionCount === 0 ? '<div style="text-align: center; color: var(--text-secondary); padding: 12px; font-size: 13px;">暂无决议</div>' : `
-                  <div style="display: flex; flex-direction: column;">
-                    ${(m.decisions || []).map((d, idx, arr) => `
-                      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
-                        <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
-                        <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
-                        <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.content}</span>
-                        ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" onclick="event.stopPropagation()" title="打开 KMS 文档" style="font-size: 12px; color: var(--primary); text-decoration: none; flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--primary-light); border-radius: 4px; background: var(--primary-light);">🔗 KMS</a>` : ''}
-                        <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${d.owner || d.decider || '待定'} · ${d.deadline || d.decision_date || '未定'}</span>
-                        <button type="button" onclick="event.stopPropagation(); pushResolution('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; flex-shrink: 0;">📢 推送</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
-            </div>
-          `;
-
-          // 评估（可折叠，默认展开）
-          const evalSection = m.effectiveness ? `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
-              <div onclick="toggleDetailSection('detail-eval')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 14px; font-weight: 600;">⭐ 评估</span>
-                  <span style="font-size: 12px; font-weight: 600; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore} · ${getScoreLabel(m.effectiveness.overallScore)}</span>
-                </div>
-                <span id="detail-eval-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
-              </div>
-              <div id="detail-eval" style="padding: 0 16px 12px;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                  <span style="font-size: 28px; font-weight: 700; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore}</span>
-                  <div>
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${getScoreLabel(m.effectiveness.overallScore)}</div>
-                    <div style="font-size: 11px; color: var(--text-tertiary);">综合评分</div>
-                  </div>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
-                  ${[
-                    { key: 'before', label: '会前', max: 35 },
-                    { key: 'during', label: '会中', max: 30 },
-                    { key: 'after', label: '会后', max: 35 }
-                  ].map(d => {
-                    const v = m.effectiveness.dimensions[d.key] || 0;
-                    const pct = Math.round((v / d.max) * 100);
-                    const c = getScoreColor(pct);
-                    return `<div>
-                      <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-                        <span style="font-size: 11px; color: var(--text-secondary);">${d.label}</span>
-                        <span style="font-size: 11px; font-weight: 600; color: ${c};">${v}</span>
-                      </div>
-                      <div style="width: 100%; height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden;">
-                        <div style="width: ${pct}%; height: 100%; background: ${c}; border-radius: 2px; transition: width 0.3s;"></div>
-                      </div>
-                    </div>`;
-                  }).join('')}
-                </div>
-                ${m.effectiveness.feedback?.length ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">${m.effectiveness.feedback.map(f => `<span style="padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-light);">${f}</span>`).join('')}</div>` : ''}
-                ${m.effectiveness.comment ? `<div style="padding: 8px 10px; background: var(--bg-page); border-radius: 6px; border-left: 3px solid var(--primary-light); font-size: 12px; color: var(--text-primary); line-height: 1.5;">${m.effectiveness.comment.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''}
-              </div>
-            </div>
-          ` : '';
-
-          // 会议链（可折叠，横向迷你卡片）
-          const chainSection = `
-            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
-              <div onclick="toggleDetailSection('detail-chain')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-                <span style="font-size: 14px; font-weight: 600;">🔗 会议链</span>
-                <span id="detail-chain-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
-              </div>
-              <div id="detail-chain" style="padding: 0 16px 12px;">
-                <div style="display: flex; align-items: stretch; gap: 8px;">
-                  ${m.upstreamMeeting ? (() => {
-                    const um = meetings.find(x => x.id === m.upstreamMeeting);
-                    if (!um) return '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-secondary);">⬆️ 上游未找到</div>';
-                    return `<div onclick="openMeetingDetail('${um.id}')" style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light); text-align: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-light)'">
-                      <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">⬆️ 上游</div>
-                      <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${um.title}</div>
-                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${um.date}</div>
-                    </div>`;
-                  })() : '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-tertiary);">⬆️ 无上游</div>'}
-                  <div style="flex: 1; padding: 10px; background: var(--primary-light); border-radius: 8px; border: 1.5px solid var(--primary); text-align: center;">
-                    <div style="font-size: 10px; color: var(--primary); margin-bottom: 4px;">📍 当前</div>
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.title}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${m.date}</div>
-                  </div>
-                  ${m.downstreamMeeting ? (() => {
-                    const dm = meetings.find(x => x.id === m.downstreamMeeting);
-                    if (!dm) return '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-secondary);">⬇️ 下游未找到</div>';
-                    return `<div onclick="openMeetingDetail('${dm.id}')" style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light); text-align: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-light)'">
-                      <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">⬇️ 下游</div>
-                      <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${dm.title}</div>
-                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${dm.date}</div>
-                    </div>`;
-                  })() : '<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-tertiary);">⬇️ 无下游</div>'}
-                </div>
-              </div>
-            </div>
-          `;
-
-          content.innerHTML = `
-            <div style="display: grid; grid-template-columns: 260px 1fr; gap: 20px;">
-              ${infoPanel}
-              <div style="min-width: 0; display: flex; flex-direction: column; gap: 12px;">
-                ${pipelineHtml}
-                ${agendaSection}
-                ${minutesSection}
-                ${decisionsSection}
-                ${actionsSection}
-                ${evalSection}
-                ${chainSection}
-              </div>
-            </div>
-          `;
-        }
-
-        // ---- 一报一会流程交互 ----
         window.togglePipelineStep = function(meetingId, stepKey) {
           if (typeof event !== 'undefined') event.stopPropagation();
           const meeting = meetings.find(m => m.id === meetingId);
@@ -2308,7 +1299,7 @@
                 for (let j = stepIdx; j < PIPELINE_STEPS.length; j++) {
                   meeting.pipeline[PIPELINE_STEPS[j].key] = false;
                 }
-                apiSave('/api/meetings', meetings);
+                persistMeetings();
                 document.getElementById('page-content').innerHTML = renderMeetings();
                 bindPageEvents(document.getElementById('page-content'));
                 openMeetingDetail(meetingId);
@@ -2317,7 +1308,7 @@
             }
           }
           meeting.pipeline[stepKey] = newValue;
-          apiSave('/api/meetings', meetings);
+          persistMeetings();
           document.getElementById('page-content').innerHTML = renderMeetings();
           bindPageEvents(document.getElementById('page-content'));
           openMeetingDetail(meetingId);
@@ -2614,11 +1605,12 @@
             .split(/[\s_\-\/]+/).filter(w => w.length >= 2);
         }
         function findBestMeetingMatch(inputTitle) {
-          if (!window._meetingsData || window._meetingsData.length === 0) return null;
+          const meetings = getMeetings();
+          if (!meetings || meetings.length === 0) return null;
           const inputWords = extractTitleKeywords(inputTitle);
           if (inputWords.length === 0) return null;
           let best = null, bestScore = 0;
-          for (const m of window._meetingsData) {
+          for (const m of meetings) {
             const histWords = extractTitleKeywords(m.title);
             const common = inputWords.filter(w => histWords.includes(w));
             const score = common.length / Math.max(inputWords.length, histWords.length, 1);
@@ -2864,7 +1856,7 @@
                   </div>
                   ${(() => {
                     const warning = getAgendaPostponeWarning(item);
-                    const hint = formatAgendaSourceHint(item, window._meetingsData || meetings || []);
+                    const hint = formatAgendaSourceHint(item, getMeetings());
                     return (warning || hint) ? `<div style="display: flex; align-items: center; gap: 8px; font-size: 11px; flex-wrap: wrap;">${warning ? `<span style="color: var(--danger); font-weight: 600;">${warning}</span>` : ''}${hint ? `<span style="color: var(--warning);">${hint}</span>` : ''}</div>` : '';
                   })()}
                 </div>
@@ -3351,7 +2343,7 @@
          * 数据持久化到 API 和 本地存储
          */
         window.saveMeeting = function() {
-          const meetings = window._meetingsData;
+          const meetings = getMeetings();
           try {
             const d = window._meetingEditData;
             if (!d) { console.warn('saveMeeting: _meetingEditData is null'); showToast('编辑数据丢失，请重新打开编辑窗口', 'error'); return; }
@@ -3397,10 +2389,9 @@
               const fallbackAgendaId = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
               newMeeting.agenda_items = [{ id: fallbackAgendaId, type: 'goal_management', title: '未设置议程', duration: 15, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: fallbackAgendaId, postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [] }];
             }
-              meetings.push(newMeeting);
+              addMeeting(newMeeting);
               const editorOverlay = document.getElementById('meeting-editor-overlay');
               if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
-              apiSave('/api/meetings', meetings);
               openMeetingDetail(newMeeting.id);
             } else {
               meetings[idx].title = titleVal;
@@ -3434,7 +2425,7 @@
               meetings[idx].effectiveness = d.effectiveness || null;
               const editorOverlay = document.getElementById('meeting-editor-overlay');
               if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
-              apiSave('/api/meetings', meetings);
+              persistMeetings();
               navigate('exe/meetings');
             }
           } catch (err) {
@@ -3443,13 +2434,12 @@
           }
         };
         window.deleteMeeting = function() {
-          const meetings = window._meetingsData;
+          const meetings = getMeetings();
           const d = window._meetingEditData;
           if (!d) return;
           if (!confirm('确定要删除该会议吗？此操作不可撤销。')) return;
           const idx = meetings.findIndex(m => m.id === d.id);
-          if (idx > -1) meetings.splice(idx, 1);
-          apiSave('/api/meetings', meetings);
+          if (idx > -1) deleteMeetingByIndex(idx);
           const editorOverlay = document.getElementById('meeting-editor-overlay');
           if (editorOverlay && editorOverlay.style.display === 'flex') closeMeetingEditor();
           navigate('exe/meetings');
@@ -3484,7 +2474,7 @@
           } else {
             a.completedAt = null;
           }
-          apiSave('/api/meetings', meetings);
+          persistMeetings();
           showToast('状态已更新', 'success');
           // 重新渲染抽屉列表：已完成的项会从待闭环列表中移除，标题计数同步更新
           window.refreshPendingActionsList();
@@ -3513,7 +2503,7 @@
           const a = m.actions[actionIdx];
           a.progressNote = note;
           a.updatedAt = new Date().toISOString();
-          apiSave('/api/meetings', meetings);
+          persistMeetings();
           // 最小化更新展示区域，避免整页刷新
           const display = document.getElementById('action-note-display-' + meetingId + '-' + actionIdx);
           if (display) {
@@ -3531,72 +2521,8 @@
           window.cancelActionNoteEdit(meetingId, actionIdx);
           showToast('已保存', 'success');
         };
-        function renderPendingActionsList(meetingsData) {
-          const items = meetingsData.flatMap(m =>
-            (m.actions || [])
-              .map((a, actionIdx) => ({ ...a, meetingTitle: m.title, meetingId: m.id, meetingDate: m.date, actionIdx }))
-              .filter(a => a.status === 'pending' || a.status === 'in_progress')
-          );
-          if (items.length === 0) {
-            return '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🎉 暂无待闭环行动</div>';
-          }
-          return items.map((a, i) => {
-            const _daysLeft = a.deadline ? Math.ceil((new Date(a.deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000) : null;
-            let _timeTag = '';
-            if (_daysLeft !== null) {
-              if (_daysLeft < 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">⚠️ 已逾期 ${Math.abs(_daysLeft)} 天</span>`;
-              else if (_daysLeft === 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">🔥 今天到期</span>`;
-              else if (_daysLeft <= 3) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,34,45,0.12); color: var(--danger); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
-              else if (_daysLeft <= 7) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,158,11,0.12); color: var(--warning); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
-              else _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(34,197,94,0.12); color: var(--success); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
-            }
-            const _statusCfg = getActionStatusConfig(a.status);
-            const _bgMix = `color-mix(in srgb, ${_statusCfg.color} 15%, transparent)`;
-            return `
-            <div data-pending-action="${i}" data-meeting-id="${a.meetingId}" data-action-idx="${a.actionIdx}" style="padding: 14px; background: var(--bg-page); border-radius: 8px; margin-bottom: 12px; border-left: 3px solid ${_statusCfg.color};">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${escapeHtml(a.meetingTitle)}</span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  ${_timeTag}
-                  <select data-action-status="${i}" onchange="updatePendingActionStatus('${escapeJsString(a.meetingId)}', ${a.actionIdx}, this.value)" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; border: 1px solid ${_statusCfg.color}; background: ${_bgMix}; color: ${_statusCfg.color}; cursor: pointer;">
-                    <option value="pending" ${a.status === 'pending' ? 'selected' : ''}>待办</option>
-                    <option value="in_progress" ${a.status === 'in_progress' ? 'selected' : ''}>进行中</option>
-                    <option value="completed" ${a.status === 'completed' ? 'selected' : ''}>已完成</option>
-                  </select>
-                </div>
-              </div>
-              <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">${escapeHtml(a.content)}</div>
-              <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
-                <span>👤 ${escapeHtml(a.owner || '待定')}</span>
-                <span>📅 ${a.deadline || '未设置'}</span>
-              </div>
-              <div id="action-note-display-${a.meetingId}-${a.actionIdx}" data-action-note="${i}" style="margin-top: 8px;">
-                <div style="padding: 8px 10px; background: var(--bg-card); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">${a.progressNote ? escapeHtml(a.progressNote) : '<span style="color: var(--text-tertiary);">暂无更新说明</span>'}</div>
-                <div style="text-align: right; margin-top: 4px;">
-                  <button type="button" data-action-edit="${i}" onclick="openActionNoteEditor('${escapeJsString(a.meetingId)}', ${a.actionIdx})" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">编辑</button>
-                </div>
-              </div>
-              <div id="action-note-editor-${a.meetingId}-${a.actionIdx}" data-action-note-editor="${i}" style="display: none; margin-top: 8px;">
-                <textarea id="action-note-input-${a.meetingId}-${a.actionIdx}" data-action-note-input="${i}" rows="2" placeholder="填写进度说明或闭环说明..." style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 12px; resize: vertical; box-sizing: border-box;">${escapeHtml(a.progressNote || '')}</textarea>
-                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
-                  <button type="button" onclick="cancelActionNoteEdit('${escapeJsString(a.meetingId)}', ${a.actionIdx})" style="font-size: 11px; padding: 3px 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">取消</button>
-                  <button type="button" data-action-save="${i}" onclick="saveActionProgressNote('${escapeJsString(a.meetingId)}', ${a.actionIdx})" style="font-size: 11px; padding: 3px 10px; border: none; border-radius: 4px; background: var(--primary); color: #fff; cursor: pointer;">保存</button>
-                </div>
-              </div>
-            </div>
-          `;}).join('');
-        }
-        window.refreshPendingActionsList = function() {
-          const list = document.getElementById('pending-actions-list');
-          const title = document.querySelector('#pending-actions-drawer h3');
-          if (!list) return;
-          const itemsHtml = renderPendingActionsList(window._meetingsData || []);
-          list.innerHTML = itemsHtml;
-          const freshItems = (window._meetingsData || []).flatMap(m =>
-            (m.actions || []).filter(a => a.status === 'pending' || a.status === 'in_progress')
-          );
-          if (title) title.textContent = '🔔 待闭环行动 (' + freshItems.length + ')';
-        };
+        // ---- 待闭环行动列表 ----
+        // 已迁移到 src/meetings/renderers/pending-actions.js
 
         // ---- 决议中心抽屉 ----
 
@@ -4133,7 +3059,7 @@
         const casHandled = await handleCasCallback();
         if (!casHandled) {
           const isLoggedIn = await checkLoginStatus();
-          const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+          const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
           if (!isLoggedIn && !isLocalDev) {
             redirectToCasLogin();
             return;
@@ -4143,73 +3069,12 @@
         window.__dsteShell.renderTopNav('exe', null, { external: true });
         window.__dsteShell.renderSidebar('exe', 'exe/meetings', meetingsNavigate, { external: false });
 
-        const remoteMeetings = await apiLoad('/api/meetings');
-        if (remoteMeetings && remoteMeetings.length > 0) {
-          window._meetingsData = remoteMeetings;
+        initDataStore();
+        const hadRemote = await loadRemoteMeetings();
+        const cleanedAny = migrateMeetingsData();
+        if (cleanedAny || hadRemote) {
+          persistMeetings();
         }
-        // 数据模型向后兼容：补齐新增字段
-        let cleanedAny = false;
-        (window._meetingsData || []).forEach(m => {
-          if (typeof m.pre_report_id !== 'string') m.pre_report_id = '';
-          if (typeof m.minutes_report_id !== 'string') m.minutes_report_id = '';
-          (m.agenda_items || []).forEach(a => {
-            if (!a.id) a.id = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-            if (!Array.isArray(a.data_views)) a.data_views = [];
-            if (typeof a.pre_report_section !== 'string') a.pre_report_section = '';
-            // 议程状态与顺延追溯字段
-            if (!a.status) a.status = 'planned';
-            if (!a.originalAgendaId) a.originalAgendaId = a.id;
-            if (typeof a.postponedCount !== 'number') a.postponedCount = 0;
-            if (!a.carriedFromAgendaId) a.carriedFromAgendaId = null;
-            if (!a.carriedFromMeetingId) a.carriedFromMeetingId = null;
-            if (!Array.isArray(a.postponedHistory)) a.postponedHistory = [];
-          });
-          // 迁移决议到新状态体系
-          if (Array.isArray(m.decisions)) {
-            m.decisions = m.decisions.map(d => normalizeResolution(d, m));
-          }
-          // 评分模型升级到 v2.0：旧四维数据清空，避免显示异常
-          if (m.effectiveness && (m.effectiveness.dimensions?.preparation !== undefined)) {
-            m.effectiveness = null;
-            cleanedAny = true;
-          }
-          // 补齐行动项新增字段
-          if (Array.isArray(m.actions)) {
-            const beforeCount = m.actions.length;
-            m.actions = m.actions
-              .filter(a => (a.content || '').trim() || (a.owner || '').trim())
-              .map(a => ({
-                id: a.id || ('A' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
-                content: a.content || '',
-                owner: a.owner || '',
-                deadline: a.deadline || '',
-                status: a.status || 'pending',
-                progress: typeof a.progress === 'number' ? a.progress : 0,
-                sourceAgendaId: a.sourceAgendaId || '',
-                sourceDecisionId: a.sourceDecisionId || '',
-                sourceMeetingId: a.sourceMeetingId || m.id || '',
-                sourceMeetingTitle: a.sourceMeetingTitle || m.title || '',
-                assistants: Array.isArray(a.assistants) ? a.assistants : [],
-                acceptanceCriteria: a.acceptanceCriteria || '',
-                verificationView: a.verificationView || '',
-                progressLogs: Array.isArray(a.progressLogs) ? a.progressLogs : [],
-                riskLevel: a.riskLevel || 'normal',
-                reminderCount: a.reminderCount || 0,
-                lastRemindedAt: a.lastRemindedAt || null,
-                createdAt: a.createdAt || new Date().toISOString(),
-                updatedAt: a.updatedAt || new Date().toISOString(),
-                completedAt: a.completedAt || null,
-              }));
-            if (m.actions.length !== beforeCount) cleanedAny = true;
-          }
-        });
-        // 如果清理了空占位行动项，持久化一次
-        if (cleanedAny) {
-          try { DSTE.Storage.set('dste_meetings', window._meetingsData); }
-          catch (e) { console.warn('本地存储 save failed:', e.message); }
-        }
-        // 同步决议中心聚合存储
-        syncResolutionsToStore(window._meetingsData);
 
         const content = document.getElementById('page-content');
         if (content) {
@@ -4253,83 +3118,7 @@
       }
 
         // ---- 报表资产注册表 ----
-        window.openReportAssetManager = function(agendaIdx) {
-          window._reportAssetAgendaIdx = typeof agendaIdx === 'number' ? agendaIdx : null;
-          renderReportAssetManager();
-          const ov = document.getElementById('report-asset-manager-overlay');
-          if (ov) ov.style.display = 'flex';
-        };
-        window.closeReportAssetManager = function() {
-          const ov = document.getElementById('report-asset-manager-overlay');
-          if (ov) ov.style.display = 'none';
-          window._reportAssetAgendaIdx = null;
-        };
-        function renderReportAssetManager() {
-          const container = document.getElementById('report-asset-manager-list');
-          if (!container) return;
-          const assets = getReportAssets();
-          const ids = Object.keys(assets);
-          const agendaIdx = window._reportAssetAgendaIdx;
-          const selectedIds = new Set();
-          if (agendaIdx !== null && window._meetingEditData?.agenda_items?.[agendaIdx]) {
-            (window._meetingEditData.agenda_items[agendaIdx].data_views || []).forEach(id => selectedIds.add(id));
-          }
-          container.innerHTML = ids.length === 0
-            ? '<div style="padding: 16px; text-align: center; color: var(--text-secondary); font-size: 13px;">暂无注册报表，请添加第一条报表资产</div>'
-            : ids.map(id => {
-                const a = assets[id];
-                const isSelected = selectedIds.has(id);
-                return `
-                  <div style="padding: 12px; background: var(--bg-page); border-radius: 8px; margin-bottom: 8px; border: 1px solid ${isSelected ? 'var(--primary)' : 'var(--border-light)'};">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                      <input type="text" value="${a.name || ''}" onchange="updateReportAsset('${id}', 'name', this.value)" placeholder="报表名称" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-                      <select onchange="updateReportAsset('${id}', 'type', this.value)" style="width: 90px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
-                        <option value="fr" ${a.type === 'fr' ? 'selected' : ''}>FR</option>
-                        <option value="bi" ${a.type === 'bi' ? 'selected' : ''}>BI</option>
-                        <option value="external" ${a.type === 'external' ? 'selected' : ''}>外部</option>
-                      </select>
-                      ${agendaIdx !== null ? `<button type="button" onclick="toggleReportAssetSelection('${id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid ${isSelected ? 'var(--danger)' : 'var(--primary)'}; border-radius: 4px; background: ${isSelected ? 'rgba(245,34,45,0.08)' : 'var(--primary-light)'}; color: ${isSelected ? 'var(--danger)' : 'var(--primary)'}; cursor: pointer;">${isSelected ? '移除' : '关联'}</button>` : ''}
-                      <button type="button" onclick="deleteReportAsset('${id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); color: var(--danger); cursor: pointer;">删除</button>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                      <input type="text" value="${a.url || ''}" onchange="updateReportAsset('${id}', 'url', this.value)" placeholder="报表 URL" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-                      <input type="text" value="${a.owner || ''}" onchange="updateReportAsset('${id}', 'owner', this.value)" placeholder="责任人" style="width: 100px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-                    </div>
-                  </div>
-                `;
-              }).join('');
-        }
-        window.addReportAsset = function() {
-          const assets = getReportAssets();
-          const id = 'ra_' + Date.now();
-          assets[id] = { id, name: '', type: 'fr', url: '', owner: '', business_domain: '', meeting_scenarios: [], update_frequency: 'daily', created_at: new Date().toISOString() };
-          saveReportAssets(assets);
-          renderReportAssetManager();
-        };
-        window.updateReportAsset = function(id, field, value) {
-          const assets = getReportAssets();
-          if (!assets[id]) return;
-          assets[id][field] = value;
-          saveReportAssets(assets);
-        };
-        window.deleteReportAsset = function(id) {
-          if (!confirm('确定删除该报表资产吗？')) return;
-          const assets = getReportAssets();
-          delete assets[id];
-          saveReportAssets(assets);
-          renderReportAssetManager();
-        };
-        window.toggleReportAssetSelection = function(id) {
-          const agendaIdx = window._reportAssetAgendaIdx;
-          if (agendaIdx === null || !window._meetingEditData?.agenda_items?.[agendaIdx]) return;
-          const item = window._meetingEditData.agenda_items[agendaIdx];
-          if (!Array.isArray(item.data_views)) item.data_views = [];
-          const idx = item.data_views.indexOf(id);
-          if (idx > -1) item.data_views.splice(idx, 1);
-          else item.data_views.push(id);
-          renderReportAssetManager();
-          renderAgendaList();
-        };
+        // 已迁移到 src/meetings/renderers/report-asset-manager.js
 
       init();
       console.log('DSTE Meetings v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'));

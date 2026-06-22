@@ -78,3 +78,20 @@ def test_add_kpi_form_has_unit_field():
     content = _read_cockpit()
     add_section = content.split("window.ap_addKpi = function()")[1] if "window.ap_addKpi = function()" in content else ""
     assert "ap-add-unit" in add_section, "未找到计量单位输入框"
+
+
+def test_keytask_edit_preserves_omp_fields():
+    """年度计划编辑重点工作时不应覆盖 OMP 补全的执行字段"""
+    content = _read_cockpit()
+    save_section = content.split("window.ap_saveKeyTask = function()")[1] if "window.ap_saveKeyTask = function()" in content else ""
+    assert "...kts[idx], seq, name, bscDimension, kmsUrl, owner, status" in save_section, \
+        "ap_saveKeyTask 编辑逻辑未使用 spread 保留 OMP 字段"
+
+
+def test_keytask_overview_has_exec_status_column():
+    """年度经营计划重点工作表格包含执行状态列"""
+    content = _read_cockpit()
+    overview_section = content.split("function ap_renderOverviewTab(")[1] if "function ap_renderOverviewTab(" in content else ""
+    assert "执行状态" in overview_section, "未找到执行状态列"
+    assert "已发布" in overview_section, "未找到已发布状态标签"
+    assert "未发布" in overview_section, "未找到未发布状态标签"

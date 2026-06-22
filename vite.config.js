@@ -39,6 +39,7 @@ export default defineConfig({
   },
   preview: {
     port: 3456,
+    allowedHosts: ['dste.jasonxspace.cc'],
   },
   // Static assets that should NOT be processed as modules (images, fonts, etc.)
   // CSS/JS files in assets/ should still be processed by Vite
