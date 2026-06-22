@@ -376,9 +376,14 @@ def test_renderMeetings_uses_localStorage_fallback():
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
     meetings_section = content.split("function renderMeetings()")[1] if "function renderMeetings()" in content else ""
     # 在 if (!window._meetingsData) 分支中应有 localStorage 读取逻辑（通过 DSTE.Storage 封装）
+    # 或调用 data-store.js 的 getMeetings() 间接获取已初始化的 localStorage 数据
     data_model_section = meetings_section.split("// ---- 数据模型 ----")[1] if "// ---- 数据模型 ----" in meetings_section else meetings_section
-    assert "DSTE.Storage.getString('dste_meetings')" in data_model_section or "localStorage.getItem('dste_meetings')" in data_model_section, "renderMeetings 未从 localStorage fallback"
-    assert "JSON.parse" in data_model_section, "renderMeetings 未解析 localStorage 数据"
+    assert (
+        "DSTE.Storage.getString('dste_meetings')" in data_model_section
+        or "localStorage.getItem('dste_meetings')" in data_model_section
+        or "getMeetings()" in data_model_section
+    ), "renderMeetings 未从 localStorage fallback"
+    assert "JSON.parse" in data_model_section or "getMeetings()" in data_model_section, "renderMeetings 未解析 localStorage 数据"
 
 def test_renderEditorForm_auto_save_draft():
     """renderEditorForm 应绑定 input 事件，实时同步表单值到 _meetingEditData（草稿自动保存）"""
