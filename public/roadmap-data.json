@@ -2,6 +2,45 @@
   "versions": [
     {
       "version": "v0.5.2",
+      "date": "2026-06-22",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**年度经营计划**：多周期支持、考核层级筛选、种子数据工厂与 E2E/单元测试覆盖"
+        },
+        {
+          "type": "Added",
+          "desc": "**组织绩效管理 (OMP)**：重点工作管理、OMP 任务 E2E"
+        },
+        {
+          "type": "Added",
+          "desc": "**经营分析会组件化拆分**："
+        },
+        {
+          "type": "Added",
+          "desc": "**决议中心增强**：`DecisionsDrawer` 组件升级、`helpers.js` / `resolution-helpers.js` 扩展"
+        },
+        {
+          "type": "Added",
+          "desc": "**测试覆盖增强**："
+        },
+        {
+          "type": "Changed",
+          "desc": "`vite.config.js` 增加 `allowedHosts: ['dste.jasonxspace.cc']` 以支持 Cloudflare Tunnel 本地开发"
+        },
+        {
+          "type": "Changed",
+          "desc": "`src/business-topics.html`、`src/meetings.html`、`src/meetings/data-store.js`、`src/pages/business-topics/main.js` 将 `dste.jasonxspace.cc` 加入 `isLocalDev` 白名单，避免通过隧道访问时触发 CAS 登录循环"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**OMP API token key 统一**：`src/cockpit.html` 中所有 OMP API 调用统一使用 `dste-token` 作为 Authorization header，修复生产环境重点工作保存失败"
+        }
+      ]
+    },
+    {
+      "version": "v0.5.2",
       "date": "2026-06-17",
       "status": "released",
       "changes": [
