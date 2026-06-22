@@ -785,16 +785,26 @@
       }
 
       function omp_initData() {
-        // 版本号检测：代码更新时自动清理旧数据
+        // 版本号检测：代码更新时自动清理旧 OMP 数据
         const DATA_VERSION = 'canvas-v11'; // multi-year support: 2025/2026/2027
         const storedVersion = DSTE.Storage.getString('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
-          // 清除所有 DSTE 相关 本地存储
-          DSTE.Storage.getKeys('dste_').forEach(key => {
+          // ⚠️ 只清理 OMP 相关本地存储，禁止清理 dste_meetings / dste_resolutions_v2
+          // 升级前先做一份备份，便于事故恢复
+          const keysToClear = DSTE.Storage.getKeys('dste_omp_');
+          const backup = {};
+          keysToClear.forEach(key => {
+            const val = DSTE.Storage.getString(key);
+            if (val) backup[key] = val;
+          });
+          if (Object.keys(backup).length > 0) {
+            DSTE.Storage.setString('dste_omp_backup_before_' + (storedVersion || 'unknown'), JSON.stringify(backup));
+          }
+          keysToClear.forEach(key => {
             DSTE.Storage.remove(key);
           });
           DSTE.Storage.setString('dste_omp_data_version', DATA_VERSION);
-          console.log('[OMP] Data cleared for version:', DATA_VERSION);
+          console.log('[OMP] OMP data cleared for version:', DATA_VERSION);
           // 不再强制刷新页面，避免 E2E 测试和首次用户体验不稳定；清除后继续初始化即可
         }
         if (!DSTE.Storage.getString(OMP_STORAGE.indicators)) {

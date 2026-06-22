@@ -2,6 +2,24 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-22
+- **主题**：DSTE v0.5.3 版本发布
+- **操作**：
+  - 提交当前工作区主要修改（年度经营计划、OMP、会议组件化、Tunnel 适配）
+  - 补充并合并 CHANGELOG v0.5.3 章节
+  - 重新生成 `public/roadmap-data.json`、`public/version-audit.json` 等产物
+  - 修复 `tests/test_integration.py` 因 meetings 组件化拆分导致的跨文件断言失败
+  - 运行 `npm run build`、pytest、E2E 验证
+  - 因远程已存在 `v0.5.2` tag，按用户决定升级到 `v0.5.3`
+  - 执行 `./scripts/release.sh v0.5.3`，创建并推送 tag 与 main 分支
+- **修改文件**：`package.json`、`CHANGELOG.md`、`tests/test_integration.py`、`tests/e2e/roadmap.spec.js`、`public/roadmap-data.json`、`src/data/roadmap-data.json`、`public/version-audit.json` 等
+- **验证**：
+  - `python3 -m pytest tests/` 172 passed
+  - `npx playwright test --workers=1` 251 passed（2 flaky 已通过 retry）
+  - `npm run build` 成功
+  - `git tag -l v0.5.3` 与远程 `refs/tags/v0.5.3` 已确认
+- **状态**：complete
+
 ## 2026-06-18
 - **主题**：本地 DSTE 通过 Cloudflare Tunnel 暴露到公网域名，支持异地访问
 - **操作**：
