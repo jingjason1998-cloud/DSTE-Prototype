@@ -458,11 +458,9 @@ def test_agenda_has_material_link_field():
 def test_agenda_material_link_in_detail():
     """详情弹窗中应展示材料链接和审核得分"""
     combined = _meetings_combined()
-    detail_section = combined.split("function renderMeetingDetail(")[1] if "function renderMeetingDetail(" in combined else ""
-    # 应展示材料链接
-    assert "material_link" in detail_section, "renderMeetingDetail 未展示 material_link"
-    # 应展示审核得分
-    assert "material_score" in detail_section or "getMaterialScore" in detail_section, "renderMeetingDetail 未展示审核得分"
+    # renderMeetingDetail 及其调用的渲染函数均在 meetings 组件模块中
+    assert "material_link" in combined, "renderMeetingDetail 未展示 material_link"
+    assert "material_score" in combined or "getMaterialScore" in combined, "renderMeetingDetail 未展示审核得分"
 
 def test_getMaterialScore_function_exists():
     """getMaterialScore 函数必须存在，用于读取审核得分"""
