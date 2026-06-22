@@ -7,6 +7,34 @@
 
 ---
 
+## [v0.5.2] - 2026-06-22
+
+### Added
+- **年度经营计划**：多周期支持、考核层级筛选、种子数据工厂与 E2E/单元测试覆盖
+- **组织绩效管理 (OMP)**：重点工作管理、OMP 任务 E2E
+- **经营分析会组件化拆分**：
+  - `src/meetings/agenda-postpone.js` 议程顺延与「事不过三」警示
+  - `src/meetings/data-store.js` 统一数据存储层
+  - `src/meetings/renderers/` 渲染器模块（eval-form / meeting-detail / meeting-prep / pending-actions / report-asset-manager）
+- **决议中心增强**：`DecisionsDrawer` 组件升级、`helpers.js` / `resolution-helpers.js` 扩展
+- **测试覆盖增强**：
+  - `tests/e2e/annual-plan-multi-year.spec.js`
+  - `tests/e2e/meetings-smoke.spec.js`
+  - `tests/e2e/omp-tasks.spec.js`
+  - `tests/unit/meetings-data-store.test.js`
+
+### Changed
+- `vite.config.js` 增加 `allowedHosts: ['dste.jasonxspace.cc']` 以支持 Cloudflare Tunnel 本地开发
+- `src/business-topics.html`、`src/meetings.html`、`src/meetings/data-store.js`、`src/pages/business-topics/main.js` 将 `dste.jasonxspace.cc` 加入 `isLocalDev` 白名单，避免通过隧道访问时触发 CAS 登录循环
+
+### Fixed
+- **OMP API token key 统一**：`src/cockpit.html` 中所有 OMP API 调用统一使用 `dste-token` 作为 Authorization header，修复生产环境重点工作保存失败
+
+### Removed
+- `.gitignore` 排除临时 PPT 生成物（`*.pptx`、`generate_ppt.py`）
+
+---
+
 ## [v0.5.1] - 2026-06-16
 
 ### Added
