@@ -16,7 +16,23 @@
   - `src/meetings/agenda-postpone.js` 议程顺延与「事不过三」警示
   - `src/meetings/data-store.js` 统一数据存储层
   - `src/meetings/renderers/` 渲染器模块（eval-form / meeting-detail / meeting-prep / pending-actions / report-asset-manager）
-- **决议中心增强**：`DecisionsDrawer` 组件升级、`helpers.js` / `resolution-helpers.js` 扩展
+- **决议中心（Resolution Center）**：
+  - 会议决议三态状态机（pending / approved / closed）
+  - 旧版状态自动迁移
+  - 聚合抽屉 UI、筛选、统计、审批日志、KMS 链接
+  - 31 个单元测试与 E2E 测试
+- **督办中心 Phase 1**：
+  - 行动项 pending / in_progress / completed 状态切换
+  - progressNote 行内编辑与会议详情页只读展示
+  - E2E 测试
+- **统一子页面切换效果与导航一致性 Phase 1+2**：
+  - 共享 `shell.js` / `config.js` 架构
+  - `shell-injector.js` 零依赖注入器
+  - `cockpit.html` 改为 ES Module 引入共享 shell
+  - 独立页面统一使用注入器，消除硬编码导航
+- **会议议程顺延 + "事不过三" 警示**
+- **会议评分算法 v2.0**：会前 / 会中 / 会后三阶段模型
+- **DSTE 完整功能框架搭建**：功能全景图与规则引擎 / 预警中心 / 需求管理中心占位导航
 - **测试覆盖增强**：
   - `tests/e2e/annual-plan-multi-year.spec.js`
   - `tests/e2e/meetings-smoke.spec.js`
@@ -26,9 +42,13 @@
 ### Changed
 - `vite.config.js` 增加 `allowedHosts: ['dste.jasonxspace.cc']` 以支持 Cloudflare Tunnel 本地开发
 - `src/business-topics.html`、`src/meetings.html`、`src/meetings/data-store.js`、`src/pages/business-topics/main.js` 将 `dste.jasonxspace.cc` 加入 `isLocalDev` 白名单，避免通过隧道访问时触发 CAS 登录循环
+- `src/meetings.html` 通过动态 `import()` 引入 `resolution-helpers.js` 与 `scoring.js`
+- 多处独立页面顶部导航 / 侧边栏由 `shell-injector.js` 统一渲染
 
 ### Fixed
 - **OMP API token key 统一**：`src/cockpit.html` 中所有 OMP API 调用统一使用 `dste-token` 作为 Authorization header，修复生产环境重点工作保存失败
+- 空占位行动项污染：保存时过滤无内容 / 无负责人行动项，启动迁移时自动清理
+- 会议卡片摘要与详情页行动项字段增加 `escapeHtml` XSS 加固
 
 ### Removed
 - `.gitignore` 排除临时 PPT 生成物（`*.pptx`、`generate_ppt.py`）
@@ -160,39 +180,9 @@
 ### Deferred to v0.5.1
 - **版本审计看板**：`dashboard/version-audit` 侧边栏入口已移除；前端页面尚未实现，相关测试与脚本（`tests/e2e/version-audit.spec.js`、`scripts/generate-version-audit.cjs`）本次不发布
 
-## [v0.5.2] - 2026-06-17
-
-### Added
-- **决议中心（Resolution Center）**：
-  - 会议决议三态状态机（pending / approved / closed）
-  - 旧版状态自动迁移
-  - 聚合抽屉 UI、筛选、统计、审批日志、KMS 链接
-  - 31 个单元测试与 E2E 测试
-- **督办中心 Phase 1**：
-  - 行动项 pending / in_progress / completed 状态切换
-  - progressNote 行内编辑与会议详情页只读展示
-  - E2E 测试
-- **统一子页面切换效果与导航一致性 Phase 1+2**：
-  - 共享 `shell.js` / `config.js` 架构
-  - `shell-injector.js` 零依赖注入器
-  - `cockpit.html` 改为 ES Module 引入共享 shell
-  - 独立页面统一使用注入器，消除硬编码导航
-- **会议议程顺延 + "事不过三" 警示**
-- **会议评分算法 v2.0**：会前 / 会中 / 会后三阶段模型
-- **DSTE 完整功能框架搭建**：功能全景图与规则引擎 / 预警中心 / 需求管理中心占位导航
-
-### Changed
-- `src/meetings.html` 通过动态 `import()` 引入 `resolution-helpers.js` 与 `scoring.js`
-- 多处独立页面顶部导航 / 侧边栏由 `shell-injector.js` 统一渲染
-
-### Fixed
-- 空占位行动项污染：保存时过滤无内容 / 无负责人行动项，启动迁移时自动清理
-- 会议卡片摘要与详情页行动项字段增加 `escapeHtml` XSS 加固
-
 ## [Unreleased]
 
 ### 计划中
-- 版本审计看板前端页面实现
 - KPI 详情下钻
 - 用户权限系统（替换当前模拟登录）
 - ST/AT 议题 Excel 模板下载
