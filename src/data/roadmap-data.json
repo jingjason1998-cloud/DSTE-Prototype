@@ -19,33 +19,6 @@
         },
         {
           "type": "Added",
-          "desc": "**决议中心增强**：`DecisionsDrawer` 组件升级、`helpers.js` / `resolution-helpers.js` 扩展"
-        },
-        {
-          "type": "Added",
-          "desc": "**测试覆盖增强**："
-        },
-        {
-          "type": "Changed",
-          "desc": "`vite.config.js` 增加 `allowedHosts: ['dste.jasonxspace.cc']` 以支持 Cloudflare Tunnel 本地开发"
-        },
-        {
-          "type": "Changed",
-          "desc": "`src/business-topics.html`、`src/meetings.html`、`src/meetings/data-store.js`、`src/pages/business-topics/main.js` 将 `dste.jasonxspace.cc` 加入 `isLocalDev` 白名单，避免通过隧道访问时触发 CAS 登录循环"
-        },
-        {
-          "type": "Fixed",
-          "desc": "**OMP API token key 统一**：`src/cockpit.html` 中所有 OMP API 调用统一使用 `dste-token` 作为 Authorization header，修复生产环境重点工作保存失败"
-        }
-      ]
-    },
-    {
-      "version": "v0.5.2",
-      "date": "2026-06-17",
-      "status": "released",
-      "changes": [
-        {
-          "type": "Added",
           "desc": "**决议中心（Resolution Center）**："
         },
         {
@@ -69,12 +42,28 @@
           "desc": "**DSTE 完整功能框架搭建**：功能全景图与规则引擎 / 预警中心 / 需求管理中心占位导航"
         },
         {
+          "type": "Added",
+          "desc": "**测试覆盖增强**："
+        },
+        {
+          "type": "Changed",
+          "desc": "`vite.config.js` 增加 `allowedHosts: ['dste.jasonxspace.cc']` 以支持 Cloudflare Tunnel 本地开发"
+        },
+        {
+          "type": "Changed",
+          "desc": "`src/business-topics.html`、`src/meetings.html`、`src/meetings/data-store.js`、`src/pages/business-topics/main.js` 将 `dste.jasonxspace.cc` 加入 `isLocalDev` 白名单，避免通过隧道访问时触发 CAS 登录循环"
+        },
+        {
           "type": "Changed",
           "desc": "`src/meetings.html` 通过动态 `import()` 引入 `resolution-helpers.js` 与 `scoring.js`"
         },
         {
           "type": "Changed",
           "desc": "多处独立页面顶部导航 / 侧边栏由 `shell-injector.js` 统一渲染"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**OMP API token key 统一**：`src/cockpit.html` 中所有 OMP API 调用统一使用 `dste-token` 作为 Authorization header，修复生产环境重点工作保存失败"
         },
         {
           "type": "Fixed",
@@ -723,11 +712,6 @@
     }
   ],
   "upcoming": [
-    {
-      "name": "版本审计看板前端页面实现",
-      "priority": "中",
-      "eta": "待定"
-    },
     {
       "name": "KPI 详情下钻",
       "priority": "中",
