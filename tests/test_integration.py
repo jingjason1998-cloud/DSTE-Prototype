@@ -10,6 +10,22 @@ PROJECT_ROOT = Path("/Users/jasonjing/DSTE-Prototype")
 SRC = PROJECT_ROOT / "src"
 
 
+def _meetings_combined():
+    """读取 meetings.html 及其拆分模块的合并内容，用于跨文件架构检查。"""
+    files = [
+        SRC / "meetings.html",
+        SRC / "meetings" / "data-store.js",
+        SRC / "meetings" / "utils" / "helpers.js",
+        SRC / "meetings" / "utils" / "resolution-helpers.js",
+        SRC / "meetings" / "renderers" / "meeting-detail.js",
+        SRC / "meetings" / "renderers" / "meeting-prep.js",
+        SRC / "meetings" / "renderers" / "eval-form.js",
+        SRC / "meetings" / "renderers" / "pending-actions.js",
+        SRC / "meetings" / "renderers" / "report-asset-manager.js",
+    ]
+    return "\n".join(f.read_text(encoding="utf-8") for f in files if f.exists())
+
+
 def test_reviewer_html_exists():
     """会议审核助手整合页面存在"""
     f = SRC / "reviewer.html"
@@ -210,7 +226,8 @@ def test_meeting_detail_has_edit_button():
 def test_meeting_host_save_persisted():
     """会议主持人修改通过 window._meetingsData 持久化"""
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    assert "window._meetingsData" in content, "缺少 meetings 数据持久化机制"
+    combined = _meetings_combined()
+    assert "window._meetingsData" in combined, "缺少 meetings 数据持久化机制"
     # saveMeeting 中应修改 meetings 数组（搜索整个文件，函数可能在 renderMeetings 外部）
     save_section = content.split("window.saveMeeting = function()")[1] if "window.saveMeeting = function()" in content else ""
     assert "edit-host" in save_section, "saveMeeting 未读取主持人输入"
@@ -254,9 +271,10 @@ def test_meeting_edit_page_has_form():
 def test_meeting_edit_page_uses_global_edit_id():
     """独立编辑页面通过 window._editMeetingId 加载会议数据"""
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
+    combined = _meetings_combined()
     # window._editMeetingId 的读取在 navigate 函数中的页面初始化逻辑里
     assert "window._editMeetingId" in content, "未使用 window._editMeetingId"
-    assert "window._meetingsData" in content, "未从 meetingsData 查找会议"
+    assert "window._meetingsData" in combined, "未从 meetingsData 查找会议"
     # 确认 navigate 函数中有对 exe/meetings/edit 的初始化处理
     nav_section = content.split("function navigate(")[1] if "function navigate(" in content else ""
     assert "exe/meetings/edit" in nav_section, "navigate 函数未处理编辑页面初始化"
@@ -364,10 +382,12 @@ def test_apiLoad_fallback_to_localStorage():
 def test_init_sets_window_meetingsData():
     """init() 应将加载的数据设置到 window._meetingsData，而非孤立的外层 meetings 变量"""
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
+    combined = _meetings_combined()
     init_section = content.split("async function init(")[1] if "async function init(" in content else ""
     init_body = init_section.split("function initFineReportSSO(")[0] if "function initFineReportSSO(" in init_section else init_section
-    # init 中应设置 window._meetingsData
-    assert "window._meetingsData" in init_body, "init() 未设置 window._meetingsData"
+    # init 中应设置 window._meetingsData（或通过 data-store.js 的 initDataStore 间接设置）
+    assert "window._meetingsData" in init_body or "initDataStore" in init_body, "init() 未设置 window._meetingsData"
+    assert "window._meetingsData" in combined, "整体架构中缺少 window._meetingsData 设置"
     # 不应再使用孤立的外层 meetings 变量
     assert "meetings = remoteMeetings" not in init_body, "init() 仍在使用孤立的外层 meetings 变量"
 
@@ -437,8 +457,8 @@ def test_agenda_has_material_link_field():
 
 def test_agenda_material_link_in_detail():
     """详情弹窗中应展示材料链接和审核得分"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    detail_section = content.split("function renderMeetingDetail(")[1] if "function renderMeetingDetail(" in content else ""
+    combined = _meetings_combined()
+    detail_section = combined.split("function renderMeetingDetail(")[1] if "function renderMeetingDetail(" in combined else ""
     # 应展示材料链接
     assert "material_link" in detail_section, "renderMeetingDetail 未展示 material_link"
     # 应展示审核得分
@@ -446,9 +466,9 @@ def test_agenda_material_link_in_detail():
 
 def test_getMaterialScore_function_exists():
     """getMaterialScore 函数必须存在，用于读取审核得分"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    assert "getMaterialScore" in content, "缺少 getMaterialScore 函数"
-    assert "dste_review_scores" in content, "未读取 dste_review_scores localStorage"
+    combined = _meetings_combined()
+    assert "getMaterialScore" in combined, "缺少 getMaterialScore 函数"
+    assert "dste_review_scores" in combined, "未读取 dste_review_scores localStorage"
 
 def test_score_color_rules():
     """得分颜色规则应符合设计：≥80绿色 / 60-79橙色 / <60红色 / 无灰色"""
