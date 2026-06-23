@@ -1,9 +1,9 @@
 # 当前开发焦点
 
-> 更新时间: 2026-06-23 19:23
+> 更新时间: 2026-06-23 19:55
 
 ## 状态
-**新增高优先级开发线：经分会-督办中心（阶段 1 已完成）**。在经营分析会「待闭环行动」抽屉中实现行动项状态切换（待办/进行中/已完成）与 `progressNote`（进度/闭环说明）行内编辑，并在会议详情页只读展示。
+**新增高优先级开发线：人员与组织目录（第一阶段已完成）**。已建立员工/组织架构数据层、Excel 导入能力、管理页入口，支持在系统内统一维护真实人员名单与组织架构。后续阶段将逐步把人员选择器接入会议、OMP、业务专题、战略地图等模块。
 现有并行开发线仍保留：
 - **经分会-决议中心**：核心状态机与单测已完成，UI 抽屉与旧组件状态体系已统一，剩余可选优化。
 - **DSTE 完整功能框架搭建**：方案已完成，待用户确认是否开始第一阶段实施。
@@ -19,6 +19,15 @@
 - 会议详情页行动项下方展示 `📝 progressNote`
 - E2E 测试：`tests/e2e/meeting-pending-actions.spec.js` 11 个用例全部通过
 - 任务配方见 `.ai/tasks/active/T050-supervision-center.md`
+
+### 人员与组织目录（新增 / 第一阶段完成）
+- 建立统一员工/组织架构数据层：`src/lib/employee-directory.js`（员工模型、ldap 组织树构建、搜索索引、PersonRef 兼容层）
+- 建立导入能力：`src/lib/employee-import.js`（Excel/CSV 解析、校验、预览、写入）
+- 新增管理页：`src/employee-directory.html` + `src/pages/admin/employee-directory.js`，提供导入入口、统计卡片、组织树浏览、员工搜索
+- 新增驾驶舱导航：「系统管理」→「人员与组织管理」
+- Excel 作为唯一来源，系统内目录只读，重新导入覆盖更新
+- 验证：`npm run test:unit` 227 passed，E2E 4 passed（含真实 Excel 上传导入），`npm run build` 与 `check:scope` 通过
+- commit：`2c5bdd9` feat(employee-directory): 第一阶段 — 人员与组织目录数据层及管理入口
 
 ## 进行中的开发线
 

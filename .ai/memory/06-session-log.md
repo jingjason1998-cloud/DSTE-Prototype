@@ -2,6 +2,33 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-23（下半场）
+- **主题**：启动人员与组织目录接入（第一阶段）
+- **操作**：
+  - 读取用户提供的 `/Users/jasonjing/Desktop/人员信息明细表-对外_20260623181105.xlsx`，分析字段结构（1031 人、ldap 组织链、经理覆盖率仅 13%）
+  - 进入 Plan Mode，设计分阶段方案，确认：分阶段实施、Excel 为唯一来源、不接入 CAS
+  - 第一阶段实现：
+    - `src/lib/employee-directory.js`：员工/组织模型、Repository、ldap 组织树构建、搜索索引、PersonRef 兼容层
+    - `src/lib/employee-import.js`：Excel/CSV 解析、校验、预览、导入写入
+    - `src/employee-directory.html` + `src/pages/admin/employee-directory.js`：管理页（导入、统计、组织树、搜索）
+    - `src/lib/config.js`：新增「人员与组织管理」导航
+    - `tests/unit/employee-directory.test.js`、`employee-import.test.js`：14 个单测
+    - `tests/e2e/employee-directory.spec.js`、`tests/fixtures/test-employees.xlsx`：4 个 E2E（含真实 Excel 上传）
+  - 保持模块职责单一，避免巨石文件；管理页逻辑拆分到独立模块
+  - commit `2c5bdd9` 并推送到 GitHub `main`
+  - 更新 `.ai/memory/01-current-focus.md`
+- **修改文件**：
+  - 新增：`src/lib/employee-directory.js`、`src/lib/employee-import.js`、`src/employee-directory.html`、`src/pages/admin/employee-directory.js`
+  - 新增测试：`tests/unit/employee-directory.test.js`、`tests/unit/employee-import.test.js`、`tests/e2e/employee-directory.spec.js`、`tests/fixtures/test-employees.xlsx`
+  - 修改：`src/lib/config.js`
+- **验证**：
+  - `npm run test:unit` → 227 passed
+  - `npx playwright test tests/e2e/employee-directory.spec.js tests/e2e/navigation.spec.js` → 17 passed
+  - `npm run build`、`npm run check:scope` → 通过
+  - `git push origin main` → 成功
+- **状态**：complete（第一阶段）
+- **下一步**：第二阶段，把人员选择器接入会议模块
+
 ## 2026-06-23
 - **主题**：继续并落地 DSTE 存储架构优化基础层，升级 v0.5.4
 - **操作**：
