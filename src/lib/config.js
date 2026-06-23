@@ -24,6 +24,7 @@ export const SIDEBAR_CONFIG = {
     { type: 'group', title: '系统管理', items: [
       { id: 'dashboard/roadmap', icon: '📊', label: '开发路线图 Road Map' },
       { id: 'dashboard/version-audit', icon: '🔍', label: '版本审计' },
+      { id: 'admin/employee-directory', icon: '👥', label: '人员与组织管理' },
       { id: 'admin/rule-engine', icon: '⚙️', label: '规则引擎中心' },
       { id: 'admin/alert-hub', icon: '🔔', label: '预警中心' },
       { id: 'admin/requirement-pool', icon: '📋', label: '需求管理中心' }
@@ -47,8 +48,11 @@ export const SIDEBAR_CONFIG = {
     { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
   ],
   exe: [
+    { type: 'group', title: '组织绩效管理', items: [
+      { id: 'exe/kpi', icon: '📈', label: 'KPI管理' },
+      { id: 'exe/tasks', icon: '✅', label: '重点工作管理' }
+    ]},
     { type: 'group', title: '战略执行', items: [
-      { id: 'exe/tasks', icon: '✅', label: '重点工作管理' },
       { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
       { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' },
       { id: 'exe/report-center', icon: '📊', label: '报表中心' }
@@ -70,6 +74,7 @@ export const SIDEBAR_CONFIG = {
 };
 
 export const EXTERNAL_PAGES = {
+  'admin/employee-directory': 'employee-directory.html',
   'exe/meeting-review': 'reviewer.html',
   'exe/business-topics': 'business-topics.html',
   'exe/meetings': 'meetings.html',
@@ -85,6 +90,7 @@ export const PAGE_NAMES = {
   'bp/kpi': 'KPI 指标体系',
   'bp/bem': 'BEM 战略解码',
   'bp/annual-plan': '年度经营计划',
+  'exe/kpi': 'KPI管理',
   'exe/tasks': '重点工作管理',
   'exe/business-topics': '业务专题管理',
   'exe/meetings': '经营分析会',
@@ -98,6 +104,7 @@ export const PAGE_NAMES = {
   'dashboard/roadmap': '开发路线图 Road Map',
   'dashboard/version-audit': '版本审计',
   'exe/finereport': 'FineReport 报表',
+  'admin/employee-directory': '人员与组织管理',
   'admin/rule-engine': '规则引擎中心',
   'admin/alert-hub': '预警中心',
   'admin/requirement-pool': '需求管理中心'
