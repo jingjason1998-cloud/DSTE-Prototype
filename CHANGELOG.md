@@ -7,6 +7,27 @@
 
 ---
 
+## [v0.5.4] - 2026-06-23
+
+### Added
+- **统一存储架构基础层**：
+  - `src/lib/repository.js` Repository 抽象层，支持版本化、schema 校验、迁移、备份、恢复、健康检查
+  - `src/lib/migration-utils.js` 统一备份键管理与版本链迁移
+  - `src/lib/backup-manager.js` 全量导出/导入、下载/上传、自动排除敏感键
+  - `src/lib/sync-queue.js` 离线同步队列，支持指数退避重试与网络恢复自动处理
+  - `src/lib/conflict-resolver.js` 基于 `lastModified` 的冲突检测与解决 UI
+- 会议数据 Store 接入 Repository：`src/meetings/data-store.js` 统一数据初始化、持久化、API 同步
+- OMP 数据接入 Repository：`src/cockpit.html` OMP 实体存储统一版本管理
+- `Storage` 工具增强：配额检测 `checkQuota()`、数据大小估算 `estimateSize()`、配额不足时用户提示
+- 存储韧性测试：
+  - 单元测试 52 个（repository / backup-manager / sync-queue / conflict-resolver / migration-utils / storage）
+  - E2E 测试 4 个（meetings-corruption / omp-migration-safety）
+
+### Changed
+- `.ai/tasks/active/T070-storage-optimization.md` 新增存储架构优化任务配方
+
+---
+
 ## [v0.5.3] - 2026-06-22
 
 ### Added

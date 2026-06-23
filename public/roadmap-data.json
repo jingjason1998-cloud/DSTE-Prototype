@@ -1,6 +1,37 @@
 {
   "versions": [
     {
+      "version": "v0.5.4",
+      "date": "2026-06-23",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**统一存储架构基础层**："
+        },
+        {
+          "type": "Added",
+          "desc": "会议数据 Store 接入 Repository：`src/meetings/data-store.js` 统一数据初始化、持久化、API 同步"
+        },
+        {
+          "type": "Added",
+          "desc": "OMP 数据接入 Repository：`src/cockpit.html` OMP 实体存储统一版本管理"
+        },
+        {
+          "type": "Added",
+          "desc": "`Storage` 工具增强：配额检测 `checkQuota()`、数据大小估算 `estimateSize()`、配额不足时用户提示"
+        },
+        {
+          "type": "Added",
+          "desc": "存储韧性测试："
+        },
+        {
+          "type": "Changed",
+          "desc": "`.ai/tasks/active/T070-storage-optimization.md` 新增存储架构优化任务配方"
+        }
+      ]
+    },
+    {
       "version": "v0.5.3",
       "date": "2026-06-22",
       "status": "released",
