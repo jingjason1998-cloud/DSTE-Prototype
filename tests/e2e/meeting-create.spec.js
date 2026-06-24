@@ -82,4 +82,25 @@ test.describe('Meeting Create', () => {
     });
     expect(hasMeeting).toBe(true);
   });
+
+  test('auto-fills date from title with Chinese month-day', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', err => errors.push(err.message));
+
+    await page.goto('/src/meetings.html');
+    await page.waitForTimeout(1000);
+
+    await page.getByRole('button', { name: /新建会议/ }).click();
+    await page.waitForSelector('#meeting-editor-overlay', { state: 'visible' });
+
+    // 输入带日期的会议名称，触发防抖自动填充
+    await page.fill('#meeting-editor-overlay #edit-title', '华东战区 5月11日经营分析会');
+    await page.waitForTimeout(700);
+
+    const expectedYear = new Date().getFullYear();
+    const expectedDate = `${expectedYear}-05-11`;
+    await expect(page.locator('#meeting-editor-overlay #edit-date')).toHaveValue(expectedDate);
+
+    expect(errors).toEqual([]);
+  });
 });

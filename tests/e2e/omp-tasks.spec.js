@@ -71,6 +71,32 @@ test.describe('OMP 重点工作管理', () => {
     expect(errors).toEqual([]);
   });
 
+  test('重点工作管理支持列表与甘特图视图切换', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', err => errors.push(err.message));
+
+    await page.goto(OMP_URL);
+    await page.waitForTimeout(1500);
+
+    // 默认列表视图
+    await expect(page.locator('.data-table tbody')).toBeVisible();
+
+    // 切换到甘特图
+    await page.locator('[data-action="omp-switch-task-view"][data-view="gantt"]').click();
+    await page.waitForTimeout(500);
+
+    // 甘特图视图应出现月份表头和任务条
+    await expect(page.locator('#omp-tab-content')).toContainText('工作名称');
+    await expect(page.locator('#omp-tab-content')).toContainText('4月');
+
+    // 切回列表
+    await page.locator('[data-action="omp-switch-task-view"][data-view="list"]').click();
+    await page.waitForTimeout(500);
+    await expect(page.locator('.data-table tbody')).toBeVisible();
+
+    expect(errors).toEqual([]);
+  });
+
   test('年度计划发布后，OMP 显示带来源标签的派生任务', async ({ page }) => {
     await acceptConfirms(page);
 
@@ -99,10 +125,6 @@ test.describe('OMP 重点工作管理', () => {
 
     // 回到 OMP 列表
     await page.goto('/src/cockpit.html');
-    await page.evaluate(() => {
-      window._ompState = window._ompState || {};
-      window._ompState.activeTab = 'tasks';
-    });
     await page.goto(OMP_URL);
     await page.waitForTimeout(1500);
 
@@ -152,5 +174,46 @@ test.describe('OMP 重点工作管理', () => {
 
     await expect(page.locator('.omp-modal')).toContainText('年度经营计划');
     await expect(page.locator('.omp-modal')).toContainText('查看源头');
+  });
+
+  test('年度计划发布同时生成派生任务和派生 KPI', async ({ page }) => {
+    await acceptConfirms(page);
+
+    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.waitForTimeout(1500);
+
+    await page.evaluate(() => {
+      localStorage.setItem('dste_cycles_v1', JSON.stringify([{
+        id: 'cycle_2026_marketing',
+        year: 2026,
+        name: '2026年度营销线组织绩效',
+        phase: 'planning',
+        organization: '营销线',
+        parentCycleId: null
+      }]));
+      const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+      const cleanedTasks = tasks.filter(t => !t.annualPlanTaskId);
+      localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(cleanedTasks));
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      const cleanedKpis = kpis.filter(k => !(k.cycleId === 'cycle_2026_marketing' && k.source === 'omp'));
+      localStorage.setItem('dste_omp_kpi_instances_v1', JSON.stringify(cleanedKpis));
+    });
+    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.waitForTimeout(1500);
+
+    await page.locator('[data-action="ap-publish"]').click();
+    await page.waitForTimeout(800);
+
+    const { derivedTaskCount, derivedKpiCount } = await page.evaluate(() => {
+      const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      return {
+        derivedTaskCount: tasks.filter(t => t.cycleId === 'cycle_2026_marketing' && t.source === 'omp' && t.annualPlanTaskId).length,
+        derivedKpiCount: kpis.filter(k => k.cycleId === 'cycle_2026_marketing' && k.source === 'omp' && k.annualPlanKpiId).length,
+      };
+    });
+
+    expect(derivedTaskCount).toBeGreaterThan(0);
+    expect(derivedKpiCount).toBeGreaterThan(0);
   });
 });

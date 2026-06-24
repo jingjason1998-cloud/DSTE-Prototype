@@ -144,12 +144,28 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
       group.className = 'sidebar-group';
       const title = document.createElement('div');
       title.className = 'sidebar-group-title';
-      title.textContent = item.title;
+      title.style.cursor = 'pointer';
+      title.style.display = 'flex';
+      title.style.alignItems = 'center';
+      title.style.justifyContent = 'space-between';
+      title.style.userSelect = 'none';
+      const groupKey = `sidebar_group_${phase}_${item.title}`;
+      const isCollapsed = localStorage.getItem(groupKey) === 'collapsed';
+      if (isCollapsed) group.classList.add('collapsed');
+      const groupIcon = item.icon ? `<span style="margin-right:6px;">${item.icon}</span>` : '';
+      title.innerHTML = `<span style="display:flex;align-items:center;">${groupIcon}<span>${item.title}</span></span><span class="sidebar-group-toggle">${isCollapsed ? '▶' : '▼'}</span>`;
+      title.addEventListener('click', () => {
+        group.classList.toggle('collapsed');
+        const collapsed = group.classList.contains('collapsed');
+        title.querySelector('.sidebar-group-toggle').textContent = collapsed ? '▶' : '▼';
+        localStorage.setItem(groupKey, collapsed ? 'collapsed' : 'expanded');
+      });
       group.appendChild(title);
       item.items.forEach(sub => {
         const a = document.createElement('a');
         a.className = 'sidebar-item';
         a.dataset.page = sub.id;
+        if (sub.reportId) a.dataset.reportId = sub.reportId;
         a.href = getSidebarHref(sub.id, external);
         // eslint-disable-next-line security/detect-object-injection
         if (external && EXTERNAL_PAGES[sub.id]) {
@@ -173,6 +189,8 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
     container.querySelectorAll('.sidebar-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
+        const reportId = item.dataset.reportId;
+        if (reportId) window._pendingReportId = reportId;
         onNavigate(item.dataset.page);
       });
     });

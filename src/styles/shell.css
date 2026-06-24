@@ -50,10 +50,13 @@
 }
 .sidebar.collapsed { width: 0; padding: 0; overflow: hidden; border: none; }
 .sidebar-group { margin-bottom: 4px; }
+.sidebar-group.collapsed .sidebar-item { display: none; }
 .sidebar-group-title {
   padding: 8px 16px; font-size: 11px; font-weight: 600;
   color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;
 }
+.sidebar-group-title:hover { color: var(--text-secondary); }
+.sidebar-group-toggle { font-size: 10px; transition: transform 0.2s; }
 .sidebar-item {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 16px; margin: 2px 8px; border-radius: 6px;

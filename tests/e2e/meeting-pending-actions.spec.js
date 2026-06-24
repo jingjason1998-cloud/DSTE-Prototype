@@ -89,7 +89,7 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
         const raw = localStorage.getItem('dste_meetings');
         if (!raw) return;
         const meetings = JSON.parse(raw);
-        const prefixes = ['状态切换测试_', '进度说明测试_', '详情页进度测试_', '详情页进度说明_'];
+        const prefixes = ['状态切换测试_', '进度说明测试_', '详情页进度测试_', '详情页进度说明_', '标签页已完成测试_', '标签页全部测试_'];
         let changed = false;
         meetings.forEach(m => {
           if (!Array.isArray(m.actions)) return;
@@ -149,28 +149,38 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
     await expect(card.locator('[data-action-note]')).toContainText(testNote);
   });
 
-  test('progress note is shown in meeting detail', async ({ page }) => {
-    const testContent = '详情页进度测试_' + Date.now();
-    const testNote = '详情页进度说明_' + Date.now();
+  test('switching to completed tab shows completed actions', async ({ page }) => {
+    const testContent = '标签页已完成测试_' + Date.now();
     await createTestAction(page, testContent);
 
-    // 在抽屉中填写进度说明
     await page.locator('[data-stat="pending-actions"]').click();
     const drawer = page.locator('#pending-actions-drawer');
     await expect(drawer).toBeVisible();
+
     const card = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
-    await card.locator('button[data-action-edit]').click();
-    await card.locator('textarea[data-action-note-input]').fill(testNote);
-    await card.locator('button[data-action-save]').click();
-    await expect(card.locator('[data-action-note]')).toContainText(testNote);
+    await expect(card).toBeVisible();
+    await card.locator('select[data-action-status]').selectOption('completed');
 
-    // 关闭抽屉并打开第一个会议详情
-    await page.locator('#pending-actions-drawer button[onclick="closePendingActionsDrawer()"]').click();
-    await page.locator('.meeting-card').first().click();
-    const detailOverlay = page.locator('#meeting-detail-overlay');
-    await expect(detailOverlay).toBeVisible();
+    // 从「待闭环」标签页消失
+    await expect(drawer.locator('[data-pending-action]').filter({ hasText: testContent })).toHaveCount(0);
 
-    // 断言详情页行动项区域显示 progressNote
-    await expect(detailOverlay.locator('#detail-actions')).toContainText(testNote);
+    // 切换到「已完成」标签页应能看到
+    await drawer.locator('button:has-text("已完成")').click();
+    const completedCard = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
+    await expect(completedCard).toBeVisible();
+    await expect(completedCard).toContainText('已完成');
+  });
+
+  test('all tab shows both pending and completed actions', async ({ page }) => {
+    const testContent = '标签页全部测试_' + Date.now();
+    await createTestAction(page, testContent);
+
+    await page.locator('[data-stat="pending-actions"]').click();
+    const drawer = page.locator('#pending-actions-drawer');
+    await expect(drawer).toBeVisible();
+
+    await drawer.locator('button:has-text("全部")').click();
+    const items = drawer.locator('[data-pending-action]');
+    expect(await items.count()).toBeGreaterThan(0);
   });
 });

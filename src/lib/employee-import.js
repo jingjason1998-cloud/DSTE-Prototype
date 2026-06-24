@@ -11,6 +11,7 @@ import {
   IMPORT_META_STORAGE_KEY,
 } from './employee-directory.js';
 import { Storage, showToast } from './utils.js';
+import * as XLSX from 'xlsx';
 
 const SUPPORTED_EXTS = ['xlsx', 'xls', 'csv'];
 const REQUIRED_FIELDS = ['工号', '姓名', '组织全称', 'ldap'];

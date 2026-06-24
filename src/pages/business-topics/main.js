@@ -1,4 +1,9 @@
 import { showToast, Storage } from '../../lib/utils.js';
+import { Repository } from '../../lib/repository.js';
+import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
+import { resolveArrayConflict, ensureLastModified } from '../../lib/conflict-resolver.js';
+import { enhancePersonInput, getPersonInputValue } from '../../components/person-input.js';
+import { renderPerson, normalizePerson, personMatches } from '../../lib/employee-directory.js';
 
 import {
     validateIssueRow, safeIssueId, hasCsvFormulaInjection, sanitizeCsvCell,
@@ -22,6 +27,32 @@ import {
     openLinkIssuesModal, renderLinkIssuesList, saveTopicLinks
 } from './topic-issues.js';
 
+// 暴露人员目录工具给内联事件与动态弹窗
+window.enhancePersonInput = enhancePersonInput;
+window.getPersonInputValue = getPersonInputValue;
+window.renderPerson = renderPerson;
+window.normalizePerson = normalizePerson;
+window.personMatches = personMatches;
+window._personInputApis = window._personInputApis || {};
+window.ensurePersonInput = function(inputId, value) {
+  if (!window.enhancePersonInput) return;
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (!window._personInputApis[inputId]) {
+    window._personInputApis[inputId] = window.enhancePersonInput(input, {
+      placeholder: input.getAttribute('placeholder') || '',
+      allowFreeText: true,
+    });
+  }
+  window._personInputApis[inputId].setValue(value);
+};
+window.getPersonValue = function(inputId) {
+  const api = window._personInputApis[inputId];
+  if (api) return api.getValue();
+  const input = document.getElementById(inputId);
+  return input ? (input.value.trim() || null) : null;
+};
+
 // ===================== Data Layer =====================
 const STORAGE_KEY = 'dste_business_topics_v2';
 const CURRENT_USER = '销售总监'; // 演示用：当前登录用户
@@ -29,6 +60,29 @@ let _cachedTopics = null;
 let _deleteTargetId = null;
 let _currentTab = 'all';
 const _sortConfig = { field: 'priority', direction: 'desc' };
+
+const topicsRepo = new Repository('businessTopics', {
+  storageKey: STORAGE_KEY,
+  schema: 'array',
+  version: 3,
+  migrators: {
+    2: (topics) => {
+      topics.forEach(t => {
+        if (!t.year && t.startDate) {
+          t.year = t.startDate.slice(0, 4);
+        }
+      });
+      return topics;
+    },
+    3: (topics) => {
+      topics.forEach(t => {
+        const normalized = normalizePerson(t.owner);
+        if (normalized && normalized !== t.owner) t.owner = normalized;
+      });
+      return topics;
+    },
+  },
+});
 
 // ===== API 同步配置 =====
 const API_BASE = (() => {
@@ -40,6 +94,33 @@ const API_BASE = (() => {
     return 'https://dste-api.jasonxspace.workers.dev';
 })();
 
+const syncQueue = getDefaultSyncQueue();
+
+function createApiExecutor(endpoint) {
+    return async (operation) => {
+        if (!API_BASE) return;
+        const token = Storage.getString('dste-token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch(API_BASE + endpoint, {
+            method: operation.method || 'POST',
+            headers,
+            body: JSON.stringify(operation.payload),
+        });
+        if (resp.status === 401) {
+            redirectToCasLogin();
+            return;
+        }
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+    };
+}
+
+if (typeof window !== 'undefined') {
+    syncQueue.bindAutoProcess(createApiExecutor('/api/topics'));
+}
+
 // CAS 登录跳转
 function redirectToCasLogin() {
     const service = encodeURIComponent(window.location.origin + window.location.pathname);
@@ -47,23 +128,12 @@ function redirectToCasLogin() {
 }
 
 async function apiSave(endpoint, data) {
-    if (!API_BASE) return;
-    try {
-        const token = Storage.getString('dste-token');
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        const resp = await fetch(API_BASE + endpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(data),
-        });
-        if (resp.status === 401) {
-            redirectToCasLogin();
-            return;
-        }
-    } catch (e) {
-        console.warn('API save failed (offline?), data kept in 本地存储:', e.message);
-    }
+    syncQueue.enqueue({
+        endpoint,
+        method: 'POST',
+        payload: data,
+        executor: createApiExecutor(endpoint),
+    });
 }
 
 async function apiLoad(endpoint) {
@@ -77,7 +147,18 @@ async function apiLoad(endpoint) {
             return null;
         }
         const json = await resp.json();
-        return json.success ? json.data : null;
+        if (!json.success) return null;
+        if (endpoint === '/api/topics' && json.data) {
+            const local = topicsRepo.getRaw();
+            if (local && local.length > 0) {
+                return resolveArrayConflict(
+                    ensureLastModified(local),
+                    ensureLastModified(json.data),
+                    'merge'
+                );
+            }
+        }
+        return json.data;
     } catch (e) {
         console.warn('API load failed (offline?):', e.message);
         return null;
@@ -86,31 +167,18 @@ async function apiLoad(endpoint) {
 
 function loadTopics() {
     if (_cachedTopics) return [..._cachedTopics];
-    const raw = Storage.getString(STORAGE_KEY);
-    if (!raw) return [];
-    try {
-        const topics = JSON.parse(raw);
-        // 数据迁移：为没有 year 字段的旧数据补 year
-        let migrated = false;
-        topics.forEach(t => {
-            if (!t.year && t.startDate) {
-                t.year = t.startDate.slice(0, 4);
-                migrated = true;
-            }
-        });
-        if (migrated) {
-            Storage.set(STORAGE_KEY, topics);
-        }
-        _cachedTopics = topics;
-        return [..._cachedTopics];
-    } catch {
-        return [];
-    }
+    const topics = topicsRepo.get();
+    _cachedTopics = topics;
+    return [..._cachedTopics];
 }
 
 function saveTopics(topics) {
+    ensureLastModified(topics);
     _cachedTopics = topics;
-    Storage.set(STORAGE_KEY, topics);
+    const ok = topicsRepo.set(topics);
+    if (!ok) {
+        showToast('专题数据保存失败，可能是存储空间不足', 'error');
+    }
     apiSave('/api/topics', topics); // 同步到云端
 }
 
@@ -397,35 +465,28 @@ function safeId(id) {
 // ===================== Phase 1: Issue Data Layer (v2.1) =====================
 
 function migrateV1ToV2() {
-    const raw = Storage.getString(STORAGE_KEY);
-    if (!raw) return false;
-    try {
-        const topics = JSON.parse(raw);
-        if (!Array.isArray(topics)) return false;
-        let migrated = false;
-        topics.forEach(topic => {
-            if (topic.dataVersion === undefined) {
-                topic.linkedIssues = topic.linkedIssues || [];
-                topic.linkedKpis = topic.linkedKpis || [];
-                topic.issueStats = {
-                    stCount: 0,
-                    atCount: 0,
-                    totalCount: 0,
-                    lastMeetingDate: null
-                };
-                topic.dataVersion = 2;
-                migrated = true;
-            }
-        });
-        if (migrated) {
-            Storage.set(STORAGE_KEY, topics);
-            _cachedTopics = topics;
+    const topics = topicsRepo.getRaw();
+    if (!Array.isArray(topics) || topics.length === 0) return false;
+    let migrated = false;
+    topics.forEach(topic => {
+        if (topic.dataVersion === undefined) {
+            topic.linkedIssues = topic.linkedIssues || [];
+            topic.linkedKpis = topic.linkedKpis || [];
+            topic.issueStats = {
+                stCount: 0,
+                atCount: 0,
+                totalCount: 0,
+                lastMeetingDate: null
+            };
+            topic.dataVersion = 2;
+            migrated = true;
         }
-        return migrated;
-    } catch (e) {
-        console.error('[Migrate] 数据迁移失败:', e);
-        return false;
+    });
+    if (migrated) {
+        topicsRepo.set(topics);
+        _cachedTopics = topics;
     }
+    return migrated;
 }
 
 function simpleHash(str) {
@@ -522,7 +583,7 @@ function getFilteredTopics() {
     if (_currentTab === 'in_progress') topics = topics.filter(t => t.status === 'in_progress');
     else if (_currentTab === 'done') topics = topics.filter(t => t.status === 'done');
     else if (_currentTab === 'archived') topics = topics.filter(t => t.status === 'archived');
-    else if (_currentTab === 'mine') topics = topics.filter(t => t.owner === CURRENT_USER);
+    else if (_currentTab === 'mine') topics = topics.filter(t => personMatches(t.owner, CURRENT_USER));
 
     // Dropdown filters
     if (dept) topics = topics.filter(t => t.department === dept);
@@ -534,7 +595,7 @@ function getFilteredTopics() {
     // Search
     if (search) {
         topics = topics.filter(t => {
-            const fields = [t.name, t.description, t.owner, t.department, t.kmsLink].filter(Boolean).join(' ').toLowerCase();
+            const fields = [t.name, t.description, renderPerson(t.owner), t.department, t.kmsLink].filter(Boolean).join(' ').toLowerCase();
             return fields.includes(search);
         });
     }
@@ -555,7 +616,7 @@ function getFilteredTopics() {
                 cmp = (pOrder[a.priority] || 0) - (pOrder[b.priority] || 0);
                 break;
             case 'owner':
-                cmp = (a.owner || '').localeCompare(b.owner || '');
+                cmp = (renderPerson(a.owner) || '').localeCompare(renderPerson(b.owner) || '');
                 break;
             case 'department':
                 cmp = (a.department || '').localeCompare(b.department || '');
@@ -644,7 +705,7 @@ function renderTable() {
 
         // 负责人
         const tdOwner = document.createElement('td');
-        tdOwner.textContent = t.owner || '-';
+        tdOwner.textContent = renderPerson(t.owner) || '-';
         tr.appendChild(tdOwner);
 
         // 部门
@@ -871,7 +932,7 @@ function openFormModal(id) {
         document.getElementById('fTarget').value = topic.target || '';
         document.getElementById('fPriority').value = topic.priority || 'P1';
         document.getElementById('fStatus').value = topic.status || 'preparing';
-        document.getElementById('fOwner').value = topic.owner || '';
+        document.getElementById('fOwner').value = typeof topic.owner === 'object' ? (topic.owner.displayName || topic.owner.name || '') : (topic.owner || '');
         document.getElementById('fDepartment').value = topic.department || '';
         document.getElementById('fStartDate').value = topic.startDate || '';
         document.getElementById('fEndDate').value = topic.endDate || '';
@@ -890,6 +951,7 @@ function openFormModal(id) {
     }
 
     openModal('formModal');
+    if (window.ensurePersonInput) window.ensurePersonInput('fOwner', isEdit ? (topic?.owner || '') : '');
 }
 
 // ===================== Year Management =====================
@@ -1071,7 +1133,7 @@ function collectFormMilestones() {
 function saveTopic() {
     const id = document.getElementById('formTopicId').value;
     const name = document.getElementById('fName').value.trim();
-    const owner = document.getElementById('fOwner').value.trim();
+    const owner = window.getPersonValue ? window.getPersonValue('fOwner') : (document.getElementById('fOwner').value.trim() || '');
     if (!name || !owner) {
         showToast('请填写必填字段：专题名称、负责人', 'warning');
         return;
@@ -1129,7 +1191,7 @@ function openDetailModal(id) {
     if (!topic) return;
 
     document.getElementById('detailTitle').textContent = '🎯 ' + topic.name;
-    const subtitleParts = [getStatusLabel(topic.status), topic.priority, topic.owner, topic.department].filter(Boolean);
+    const subtitleParts = [getStatusLabel(topic.status), topic.priority, renderPerson(topic.owner), topic.department].filter(Boolean);
     document.getElementById('detailSubtitle').textContent = subtitleParts.join(' · ');
 
     const progressColor = topic.progress >= 80 ? 'var(--success)' : topic.progress >= 50 ? 'var(--warning)' : 'var(--danger)';
@@ -1392,7 +1454,7 @@ async function init() {
     // 优先从云端加载数据
     const remoteTopics = await apiLoad('/api/topics');
     if (remoteTopics && remoteTopics.length > 0) {
-        Storage.set(STORAGE_KEY, remoteTopics);
+        topicsRepo.set(remoteTopics);
         _cachedTopics = remoteTopics;
     }
 

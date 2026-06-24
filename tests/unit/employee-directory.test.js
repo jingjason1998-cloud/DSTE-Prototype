@@ -31,6 +31,7 @@ const {
   searchEmployees,
   normalizePerson,
   renderPerson,
+  personMatches,
   saveEmployeeDirectory,
   getEmployees,
   getOrgUnits,
@@ -155,6 +156,24 @@ describe('employee-directory', () => {
       expect(renderPerson('李四')).toBe('李四');
       expect(renderPerson(null)).toBe('待定');
       expect(renderPerson({ _stale: true, name: '王五' })).toBe('王五 (已离职)');
+    });
+  });
+
+  describe('personMatches', () => {
+    it('matches string owner', () => {
+      expect(personMatches('张三', '张三')).toBe(true);
+      expect(personMatches('张三', '李四')).toBe(false);
+    });
+
+    it('matches PersonRef by id or name', () => {
+      expect(personMatches({ id: '1', name: '张三' }, '1')).toBe(true);
+      expect(personMatches({ id: '1', name: '张三' }, '张三')).toBe(true);
+      expect(personMatches({ id: '1', name: '张三' }, '李四')).toBe(false);
+    });
+
+    it('returns false for null or empty target', () => {
+      expect(personMatches('张三', '')).toBe(false);
+      expect(personMatches(null, '张三')).toBe(false);
     });
   });
 

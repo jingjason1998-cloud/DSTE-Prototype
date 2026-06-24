@@ -30,6 +30,48 @@ test.describe('Navigation', () => {
     await expect(page.locator('#sidebar')).toContainText('战略洞察与专题');
   });
 
+  test('EXE phase sidebar shows 组织绩效管理 group with sub pages', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="exe"]').click();
+    const sidebar = page.locator('#sidebar');
+    await expect(sidebar).toContainText('组织绩效管理');
+    await expect(sidebar).toContainText('KPI管理');
+    await expect(sidebar).toContainText('重点工作管理');
+    await expect(sidebar).toContainText('经营分析报表中心');
+  });
+
+  test('EXE phase sidebar group can be collapsed/expanded', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="exe"]').click();
+    const group = page.locator('.sidebar-group').filter({ hasText: '组织绩效管理' }).first();
+    const title = group.locator('.sidebar-group-title');
+    await expect(title).toBeVisible();
+
+    // 默认展开，子项可见
+    await expect(group.locator('.sidebar-item[data-page="exe/kpi"]')).toBeVisible();
+
+    // 点击标题折叠
+    await title.click();
+    await page.waitForTimeout(200);
+    await expect(group.locator('.sidebar-item[data-page="exe/kpi"]')).not.toBeVisible();
+    await expect(title).toContainText('▶');
+
+    // 再次点击展开
+    await title.click();
+    await page.waitForTimeout(200);
+    await expect(group.locator('.sidebar-item[data-page="exe/kpi"]')).toBeVisible();
+    await expect(title).toContainText('▼');
+  });
+
+  test('navigate to key task management from sidebar', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="exe"]').click();
+    await page.locator('.sidebar-item[data-page="exe/tasks"]').click();
+    await page.waitForTimeout(500);
+    await expect(page.locator('.page-title')).toContainText('重点工作管理');
+    await expect(page.locator('.breadcrumb')).toContainText('组织绩效管理');
+  });
+
   test('theme toggle works', async ({ page }) => {
     await page.goto('/src/cockpit.html');
     const html = page.locator('html');

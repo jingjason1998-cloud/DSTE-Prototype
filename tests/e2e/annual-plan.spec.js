@@ -229,7 +229,8 @@ test.describe('年度经营计划', () => {
       const cleaned = tasks.filter(t => !t.annualPlanTaskId);
       localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(cleaned));
     });
-    await page.goto(COCKPIT_URL);
+    // 使用 reload 确保页面重新读取清理后的 localStorage，避免软导航导致 DOM 还是旧状态
+    await page.reload();
     await page.waitForTimeout(1500);
 
     // 年度计划重点工作应显示「未发布」
@@ -299,5 +300,114 @@ test.describe('年度经营计划', () => {
     });
 
     expect(secondCount).toBe(firstCount);
+  });
+
+  test('发布到执行后为年度计划 KPI 生成 OMP 执行 KPI', async ({ page }) => {
+    await acceptConfirms(page);
+
+    // 重置为 planning 阶段并清理可能已存在的 omp 派生 KPI
+    await page.evaluate(() => {
+      localStorage.setItem('dste_cycles_v1', JSON.stringify([{
+        id: 'cycle_2026_marketing',
+        year: 2026,
+        name: '2026年度营销线组织绩效',
+        phase: 'planning',
+        organization: '营销线',
+        parentCycleId: null
+      }]));
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      const cleaned = kpis.filter(k => !(k.cycleId === 'cycle_2026_marketing' && k.source === 'omp'));
+      localStorage.setItem('dste_omp_kpi_instances_v1', JSON.stringify(cleaned));
+    });
+    await page.reload();
+    await page.waitForTimeout(1500);
+
+    // 年度计划 KPI 应显示「未发布」
+    const firstKpiRow = page.locator('#ap-tab-content table').first().locator('tbody tr').first();
+    await expect(firstKpiRow).toContainText('未发布');
+
+    // 发布到执行
+    await page.locator('[data-action="ap-publish"]').click();
+    await page.waitForTimeout(1500);
+
+    // 验证 localStorage 中生成了 omp 派生 KPI
+    const derivedCount = await page.evaluate(() => {
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      return kpis.filter(k => k.cycleId === 'cycle_2026_marketing' && k.source === 'omp' && k.annualPlanKpiId).length;
+    });
+    expect(derivedCount).toBeGreaterThan(0);
+
+    // 年度计划 KPI 应显示「已发布」
+    await expect(firstKpiRow).toContainText('已发布');
+  });
+
+  test('发布到执行幂等：重复发布不生成重复 OMP KPI', async ({ page }) => {
+    await acceptConfirms(page);
+
+    await page.evaluate(() => {
+      localStorage.setItem('dste_cycles_v1', JSON.stringify([{
+        id: 'cycle_2026_marketing',
+        year: 2026,
+        name: '2026年度营销线组织绩效',
+        phase: 'planning',
+        organization: '营销线',
+        parentCycleId: null
+      }]));
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      const cleaned = kpis.filter(k => !(k.cycleId === 'cycle_2026_marketing' && k.source === 'omp'));
+      localStorage.setItem('dste_omp_kpi_instances_v1', JSON.stringify(cleaned));
+    });
+    await page.goto(COCKPIT_URL);
+    await page.waitForTimeout(1500);
+
+    // 第一次发布
+    await page.locator('[data-action="ap-publish"]').click();
+    await page.waitForTimeout(800);
+
+    const firstCount = await page.evaluate(() => {
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      return kpis.filter(k => k.cycleId === 'cycle_2026_marketing' && k.source === 'omp' && k.annualPlanKpiId).length;
+    });
+
+    // 将周期改回 planning 再次发布
+    await page.evaluate(() => {
+      const cycles = JSON.parse(localStorage.getItem('dste_cycles_v1') || '[]');
+      const idx = cycles.findIndex(c => c.id === 'cycle_2026_marketing');
+      if (idx > -1) cycles[idx].phase = 'planning';
+      localStorage.setItem('dste_cycles_v1', JSON.stringify(cycles));
+    });
+    await page.goto(COCKPIT_URL);
+    await page.waitForTimeout(1500);
+
+    // 第二次发布
+    await page.locator('[data-action="ap-publish"]').click();
+    await page.waitForTimeout(800);
+
+    const secondCount = await page.evaluate(() => {
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      return kpis.filter(k => k.cycleId === 'cycle_2026_marketing' && k.source === 'omp' && k.annualPlanKpiId).length;
+    });
+
+    expect(secondCount).toBe(firstCount);
+  });
+
+  test('新增 KPI 携带 source: annual_plan', async ({ page }) => {
+    await page.locator('[data-action="ap-add-kpi"]').click();
+    await page.waitForTimeout(300);
+
+    await page.locator('#ap-add-indicator').selectOption('ind_opportunity');
+    await page.locator('#ap-add-target').fill('1000');
+    await page.locator('#ap-add-owner').fill('E2E测试');
+    await page.locator('[data-modal-action="modal-save-add-kpi"]').click();
+    await page.waitForTimeout(800);
+    await expect(page.locator('.omp-modal')).not.toBeVisible();
+
+    const newKpi = await page.evaluate(() => {
+      const kpis = JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]');
+      return kpis.find(k => k.indicatorId === 'ind_opportunity' && k.cycleId === 'cycle_2026_marketing' && k.parentId === null);
+    });
+    expect(newKpi).toBeTruthy();
+    expect(newKpi.source).toBe('annual_plan');
+    expect(newKpi.annualPlanKpiId).toBeNull();
   });
 });

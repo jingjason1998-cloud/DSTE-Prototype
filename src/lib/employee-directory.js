@@ -406,6 +406,23 @@ export function renderPersonWithOrg(personRef) {
   return base;
 }
 
+// ===================== 匹配辅助 =====================
+
+/**
+ * 判断人员引用是否匹配目标字符串（兼容字符串、PersonRef 对象、legacy/freeText）
+ * @param {*} personRef
+ * @param {string} target
+ * @returns {boolean}
+ */
+export function personMatches(personRef, target) {
+  if (!personRef || !target) return false;
+  const targetStr = String(target).trim();
+  if (typeof personRef === 'string') return personRef === targetStr;
+  if (personRef.id && String(personRef.id) === targetStr) return true;
+  if (personRef.name && String(personRef.name).trim() === targetStr) return true;
+  return false;
+}
+
 // ===================== 重新关联（后续阶段扩展）====================
 
 /**

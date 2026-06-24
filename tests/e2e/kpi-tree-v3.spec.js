@@ -4,9 +4,8 @@ test.describe.skip('KPI Tree v3 — 卡片式层级视图', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/src/cockpit.html');
     await page.waitForSelector('#sidebar', { timeout: 10000 });
-    await page.locator('.sidebar-item[data-page="exe/tasks"]').click();
+    await page.locator('.sidebar-item[data-page="exe/kpi"]').click();
     await page.waitForTimeout(2000);
-    await page.locator('.omp-tab-btn[data-tab="kpi"]').click();
     await page.waitForTimeout(1500);
   });
 

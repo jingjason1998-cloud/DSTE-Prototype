@@ -4,6 +4,7 @@
  */
 
 import { DIM_CONFIG, DIM_ORDER, statusText } from './strategy-map-data.js';
+import { renderPerson } from './employee-directory.js';
 
 // ========== 工具函数 ==========
 function escapeHtml(str) {
@@ -307,7 +308,7 @@ export function renderDetailPanel(obj, isEditMode = false) {
         ${rows}
       </table>
     </div>
-    <div class="detail-section"><div class="detail-section-title">👤 负责人</div><span class="detail-tag">${escapeHtml(obj.owner) || '未指定'}</span></div>
+    <div class="detail-section"><div class="detail-section-title">👤 负责人</div><span class="detail-tag">${escapeHtml(renderPerson(obj.owner)) || '未指定'}</span></div>
     <div class="detail-section"><div class="detail-section-title">🔗 系统关联</div>${kpiBadge}</div>
     ${editButton}
   `;

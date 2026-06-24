@@ -1,4 +1,6 @@
 import { Storage } from './utils.js';
+import { createStrategyMapRepository, Repository } from './repository.js';
+import { normalizePerson } from './employee-directory.js';
 
 /**
  * 战略地图数据层
@@ -6,7 +8,7 @@ import { Storage } from './utils.js';
  */
 
 // ========== 常量 ==========
-export const STORAGE_VERSION = '3';
+export const STORAGE_VERSION = '4';
 
 const STORAGE_KEYS = {
   version: 'dste_strategy_data_version',
@@ -20,6 +22,24 @@ const STORAGE_KEYS = {
   legacyLinks: 'dste_strategy_links_v1',
   legacyVersion: 'dste_strategy_data_version',
 };
+
+// ===== Repository 实例 =====
+const mapsRepo = createStrategyMapRepository('strategyMap/maps', STORAGE_KEYS.maps, 'array');
+const currentMapIdRepo = new Repository('strategyMap/currentMapId', {
+  storageKey: STORAGE_KEYS.currentMapId,
+  schema: 'object',
+  version: STORAGE_VERSION,
+  defaultValue: '',
+  backupNamespace: 'strategyMap',
+});
+
+function objectivesRepo(mapId) {
+  return createStrategyMapRepository('strategyMap/objectives', STORAGE_KEYS.objectives(mapId), 'array');
+}
+
+function linksRepo(mapId) {
+  return createStrategyMapRepository('strategyMap/links', STORAGE_KEYS.links(mapId), 'array');
+}
 
 export const DIM_CONFIG = {
   fin: { key: 'fin', name: '财务维度', icon: '💰', color: '#1677FF', desc: '股东价值最大化' },
@@ -182,10 +202,10 @@ function migrateFromLegacy() {
     const links = legacyLinks ? safeJsonParse(legacyLinks, []) : [];
 
     // 写入新存储
-    Storage.set(STORAGE_KEYS.maps, [{ ...mapConfig, id: mapId }]);
-    Storage.setString(STORAGE_KEYS.currentMapId, mapId);
-    Storage.set(STORAGE_KEYS.objectives(mapId), objectives);
-    Storage.set(STORAGE_KEYS.links(mapId), links);
+    mapsRepo.set([{ ...mapConfig, id: mapId }]);
+    currentMapIdRepo.set(mapId);
+    objectivesRepo(mapId).set(objectives);
+    linksRepo(mapId).set(links);
 
     // 清理旧存储
     Storage.remove(STORAGE_KEYS.legacyMaps);
@@ -202,29 +222,71 @@ function migrateFromLegacy() {
 
 function ensureVersion() {
   const storedVersion = Storage.getString(STORAGE_KEYS.version);
-  if (storedVersion !== STORAGE_VERSION) {
-    // 版本不一致时，先尝试迁移旧数据
-    const migrated = migrateFromLegacy();
-    if (!migrated) {
-      // 无旧数据可迁移，重置为默认
-      resetToDefaults();
+  if (storedVersion === STORAGE_VERSION) {
+    // 即使版本号一致，也要保证默认数据存在
+    seedDefaultsIfNeeded();
+    return;
+  }
+
+  // 备份当前数据
+  mapsRepo.backup(storedVersion || 'unknown');
+  const currentMapId = currentMapIdRepo.getRaw();
+  if (currentMapId && currentMapId !== DEFAULT_MAP_ID) {
+    objectivesRepo(currentMapId).backup(storedVersion || 'unknown');
+    linksRepo(currentMapId).backup(storedVersion || 'unknown');
+  }
+  mapsRepo.pruneBackups(5);
+
+  // 尝试迁移旧版本数据
+  const migrated = migrateFromLegacy();
+  if (!migrated) {
+    seedDefaultsIfNeeded();
+  }
+  Storage.setString(STORAGE_KEYS.version, STORAGE_VERSION);
+
+  // 将 owner 字段规范化为 PersonRef
+  normalizeObjectiveOwners();
+}
+
+function normalizeObjectiveOwners() {
+  const maps = mapsRepo.getRaw();
+  if (!Array.isArray(maps)) return;
+  maps.forEach(map => {
+    if (!map || !map.id) return;
+    const objectives = objectivesRepo(map.id).getRaw();
+    if (!Array.isArray(objectives)) return;
+    let changed = false;
+    objectives.forEach(o => {
+      const normalized = normalizePerson(o.owner);
+      if (normalized && normalized !== o.owner) {
+        o.owner = normalized;
+        changed = true;
+      }
+    });
+    if (changed) {
+      objectivesRepo(map.id).set(objectives);
     }
-    Storage.setString(STORAGE_KEYS.version, STORAGE_VERSION);
+  });
+}
+
+function seedDefaultsIfNeeded() {
+  if (!Storage.getString(STORAGE_KEYS.maps)) {
+    resetToDefaults();
   }
 }
 
 function resetToDefaults() {
-  Storage.set(STORAGE_KEYS.maps, DEFAULT_MAPS);
-  Storage.setString(STORAGE_KEYS.currentMapId, DEFAULT_MAP_ID);
-  Storage.set(STORAGE_KEYS.objectives(DEFAULT_MAP_ID), DEFAULT_OBJECTIVES);
-  Storage.set(STORAGE_KEYS.links(DEFAULT_MAP_ID), DEFAULT_LINKS);
+  mapsRepo.set(DEFAULT_MAPS);
+  currentMapIdRepo.set(DEFAULT_MAP_ID);
+  objectivesRepo(DEFAULT_MAP_ID).set(DEFAULT_OBJECTIVES);
+  linksRepo(DEFAULT_MAP_ID).set(DEFAULT_LINKS);
 }
 
 // ========== MapConfigStore ==========
 export const MapConfigStore = {
   getAll() {
     ensureVersion();
-    return safeJsonParse(Storage.getString(STORAGE_KEYS.maps), deepClone(DEFAULT_MAPS));
+    return mapsRepo.get();
   },
 
   get(id) {
@@ -269,10 +331,10 @@ export const MapConfigStore = {
     };
 
     maps.push(payload);
-    Storage.set(STORAGE_KEYS.maps, maps);
+    mapsRepo.set(maps);
     // 初始化空目标与链接
-    Storage.set(STORAGE_KEYS.objectives(id), []);
-    Storage.set(STORAGE_KEYS.links(id), []);
+    objectivesRepo(id).set([]);
+    linksRepo(id).set([]);
     return payload;
   },
 
@@ -317,7 +379,7 @@ export const MapConfigStore = {
       payload.createdBy = payload.createdBy || currentUser;
       maps.push(payload);
     }
-    Storage.set(STORAGE_KEYS.maps, maps);
+    mapsRepo.set(maps);
     return maps[idx >= 0 ? idx : maps.length - 1];
   },
 
@@ -326,7 +388,7 @@ export const MapConfigStore = {
     let maps = this.getAll().filter(m => m.id !== id);
     if (maps.length === this.getAll().length) return false; // 未找到
 
-    Storage.set(STORAGE_KEYS.maps, maps);
+    mapsRepo.set(maps);
     Storage.remove(STORAGE_KEYS.objectives(id));
     Storage.remove(STORAGE_KEYS.links(id));
 
@@ -341,11 +403,11 @@ export const MapConfigStore = {
 
   getCurrentId() {
     ensureVersion();
-    return Storage.getString(STORAGE_KEYS.currentMapId) || DEFAULT_MAP_ID;
+    return currentMapIdRepo.getRaw() || DEFAULT_MAP_ID;
   },
 
   setCurrentId(id) {
-    Storage.setString(STORAGE_KEYS.currentMapId, id);
+    currentMapIdRepo.set(id);
   },
 
   buildId(dept, startYear, endYear) {
@@ -361,13 +423,11 @@ export const MapConfigStore = {
 export const ObjectiveStore = {
   load(mapId) {
     ensureVersion();
-    const data = Storage.getString(STORAGE_KEYS.objectives(mapId));
-    // 无显式保存时返回空数组；默认地图的数据由 ensureVersion 显式初始化
-    return data ? safeJsonParse(data, []) : [];
+    return objectivesRepo(mapId).get();
   },
 
   save(mapId, objectives) {
-    Storage.set(STORAGE_KEYS.objectives(mapId), objectives);
+    objectivesRepo(mapId).set(objectives);
   },
 
   getDefaults() {
@@ -433,13 +493,11 @@ export function hasCycle(links, candidateLink = null) {
 export const LinkStore = {
   load(mapId) {
     ensureVersion();
-    const data = Storage.getString(STORAGE_KEYS.links(mapId));
-    // 无显式保存时返回空数组；默认地图的链接由 ensureVersion 显式初始化
-    return data ? safeJsonParse(data, []) : [];
+    return linksRepo(mapId).get();
   },
 
   save(mapId, links) {
-    Storage.set(STORAGE_KEYS.links(mapId), links);
+    linksRepo(mapId).set(links);
   },
 
   getDefaults() {

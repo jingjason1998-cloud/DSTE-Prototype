@@ -5,6 +5,8 @@
 
 import { LINK_TYPES } from './strategy-map-data.js';
 import { renderDetailPanel } from './strategy-map-render.js';
+import { enhancePersonInput, getPersonInputValue } from '../components/person-input.js';
+import { renderPerson, normalizePerson } from './employee-directory.js';
 
 // ========== Toast ==========
 export const ToastManager = {
@@ -35,7 +37,7 @@ export const ModalManager = {
       if (!obj) return;
       document.getElementById('modalObjName').value = obj.name || '';
       document.getElementById('modalObjDesc').value = obj.desc || '';
-      document.getElementById('modalObjOwner').value = obj.owner || '';
+      document.getElementById('modalObjOwner').value = typeof obj.owner === 'object' ? (obj.owner.displayName || obj.owner.name || '') : (obj.owner || '');
       document.querySelectorAll('input[name="modalDim"]').forEach(r => { r.checked = r.value === obj.dim; });
       document.getElementById('ms2025Target').value = obj.milestones?.[2025]?.target || '';
       document.getElementById('ms2025Focus').value = obj.milestones?.[2025]?.focusLevel || 'primary';
@@ -60,6 +62,14 @@ export const ModalManager = {
     this._onObjSave = onSave;
     this._onObjDelete = onDelete;
     modal.classList.add('open');
+
+    const ownerInput = document.getElementById('modalObjOwner');
+    if (ownerInput) {
+      const ownerValue = objId ? (objectives.find(o => o.id === objId)?.owner || '') : '';
+      enhancePersonInput(ownerInput, { placeholder: ownerInput.getAttribute('placeholder') || '', allowFreeText: true });
+      const api = ownerInput._personInputApi;
+      if (api) api.setValue(ownerValue);
+    }
   },
 
   closeObjModal() {
@@ -77,7 +87,8 @@ export const ModalManager = {
     }
 
     const desc = document.getElementById('modalObjDesc')?.value.trim() || '';
-    const owner = document.getElementById('modalObjOwner')?.value.trim() || '';
+    const ownerInput = document.getElementById('modalObjOwner');
+    const owner = ownerInput ? (getPersonInputValue(ownerInput) || ownerInput.value.trim() || '') : '';
     const milestones = {
       2025: { target: document.getElementById('ms2025Target')?.value.trim() || '0', actual: null, status: 'not_started', focusLevel: document.getElementById('ms2025Focus')?.value || 'primary' },
       2026: { target: document.getElementById('ms2026Target')?.value.trim() || '0', actual: null, status: 'not_started', focusLevel: document.getElementById('ms2026Focus')?.value || 'secondary' },

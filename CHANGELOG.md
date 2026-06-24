@@ -7,6 +7,21 @@
 
 ---
 
+## [v0.5.5] - 2026-06-24
+
+### Added
+- **人员与组织目录第二阶段**：
+  - 新增人员/组织选择器组件：`src/components/person-selector.js`、`src/components/org-selector.js`
+  - 新增人员输入增强组件：`src/components/person-input.js`，支持异步搜索、键盘导航、自由文本回退
+  - 会议编辑器全面接入人员目录：主持人、记录人、议程负责人、行动项负责人、决议责任人/审批人均支持从目录选择
+  - 新增 E2E 测试：`tests/e2e/meeting-person-selector.spec.js`
+
+### Changed
+- `src/lib/employee-import.js` 改为通过 npm 引入 `xlsx`，移除对 CDN 的依赖，提升构建与测试稳定性
+- `vite.config.js` 增加 `employee-directory` 构建入口，确保管理页在 preview 环境可访问
+
+---
+
 ## [v0.5.4] - 2026-06-23
 
 ### Added

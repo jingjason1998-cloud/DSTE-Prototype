@@ -155,6 +155,148 @@ const DEFAULTS = {
   cycles: '[]',
 };
 
+// --- AI 议程推荐 ---
+const AI_AGENDA_PROMPT = `You are an agenda advisor for a monthly business review meeting in a DSTE (Strategy Execution) system.
+Given the meeting context and related historical/action/resolution data, recommend candidate agenda items.
+
+Rules:
+- Each candidate must have a clear business topic title (<= 40 chars in Chinese).
+- Suggest duration between 10 and 45 minutes.
+- Pick owner from known participants/departments when possible.
+- Prioritize: overdue actions > postponed agendas > open resolutions > key work milestones > recurring monthly topics.
+- If the user provided a theme, bias recommendations toward that theme.
+- Do not include items already covered by the existing agenda titles.
+- Return ONLY valid JSON in this shape, no markdown, no explanation:
+{
+  "candidates": [
+    {
+      "title": "string",
+      "type": "goal_management|key_task_management|budget_finance|human_resources|business_special|other",
+      "duration": number,
+      "owner": "string|empty",
+      "reason": "string (1 sentence in Chinese)",
+      "sourceType": "postponed_agenda|open_action|open_resolution|key_work|historical|theme",
+      "sourceId": "string|empty",
+      "confidence": 0.0-1.0
+    }
+  ]
+}`;
+
+function safeExtractJson(text) {
+  text = (text || '').trim();
+  // If wrapped in markdown code block, extract inner JSON
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) text = codeBlockMatch[1].trim();
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    text = text.slice(firstBrace, lastBrace + 1);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function handleAiAgendaRecommend(request, env) {
+  if (request.method !== 'POST') {
+    return errorResponse('Method not allowed', 405, request);
+  }
+
+  const apiKey = env.CLAUDE_API_KEY;
+  if (!apiKey) {
+    return errorResponse('AI service not configured', 503, request);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return errorResponse('Invalid JSON body', 400, request);
+  }
+
+  const meeting = body.meeting;
+  if (!meeting || typeof meeting !== 'object' || !meeting.title) {
+    return errorResponse('Missing meeting.title', 400, request);
+  }
+
+  const userContent = JSON.stringify({
+    meeting: {
+      title: meeting.title,
+      scenario: meeting.scenario || '',
+      level: meeting.level || '',
+      date: meeting.date || '',
+      theme: body.theme || meeting.theme || '',
+    },
+    context: body.context || {},
+  }, null, 2);
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        system: AI_AGENDA_PROMPT,
+        messages: [
+          { role: 'user', content: userContent },
+        ],
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      console.error('Claude API error:', resp.status, errorText);
+      return errorResponse(`AI service error: ${resp.status}`, 502, request);
+    }
+
+    const aiData = await resp.json();
+    const rawContent = aiData.content && aiData.content[0] ? aiData.content[0].text : '';
+    const parsed = safeExtractJson(rawContent);
+
+    if (!parsed || !Array.isArray(parsed.candidates)) {
+      console.error('AI response parse failed:', rawContent);
+      return errorResponse('AI response format invalid', 502, request);
+    }
+
+    const candidates = parsed.candidates.map((c, idx) => {
+      const rawDuration = Number(c.duration);
+      const duration = Number.isFinite(rawDuration) ? rawDuration : 20;
+      return {
+        id: `ai_${Date.now()}_${idx}`,
+        title: String(c.title || '').slice(0, 60),
+        type: ['goal_management', 'key_task_management', 'budget_finance', 'human_resources', 'business_special'].includes(c.type) ? c.type : 'other',
+        duration: Math.min(120, Math.max(5, duration)),
+        owner: String(c.owner || '').slice(0, 30),
+        reason: String(c.reason || '').slice(0, 200),
+        sourceType: ['postponed_agenda', 'open_action', 'open_resolution', 'key_work', 'historical', 'theme'].includes(c.sourceType) ? c.sourceType : 'theme',
+        sourceId: String(c.sourceId || '').slice(0, 50),
+        confidence: Math.min(1, Math.max(0, Number(c.confidence) || 0.8)),
+      };
+    });
+
+    return jsonResponse({ success: true, candidates }, 200, request);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return errorResponse('AI request timeout', 504, request);
+    }
+    console.error('AI agenda recommend error:', err);
+    return errorResponse(err.message || 'AI request failed', 502, request);
+  }
+}
+
 export default {
   async fetch(request, env, _ctx) {
     const url = new URL(request.url);
@@ -374,6 +516,11 @@ export default {
           await env.DSTE_KV.put(KEYS.versionAudit, JSON.stringify(audit));
           return jsonResponse({ success: true, message: 'version audit updated', audit }, 200, request);
         }
+      }
+
+      // --- AI 议程推荐 ---
+      if (path === '/api/ai/agenda') {
+        return handleAiAgendaRecommend(request, env);
       }
 
       // --- 健康检查 ---

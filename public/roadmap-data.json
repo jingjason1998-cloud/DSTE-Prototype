@@ -1,6 +1,25 @@
 {
   "versions": [
     {
+      "version": "v0.5.5",
+      "date": "2026-06-24",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**人员与组织目录第二阶段**："
+        },
+        {
+          "type": "Changed",
+          "desc": "`src/lib/employee-import.js` 改为通过 npm 引入 `xlsx`，移除对 CDN 的依赖，提升构建与测试稳定性"
+        },
+        {
+          "type": "Changed",
+          "desc": "`vite.config.js` 增加 `employee-directory` 构建入口，确保管理页在 preview 环境可访问"
+        }
+      ]
+    },
+    {
       "version": "v0.5.4",
       "date": "2026-06-23",
       "status": "released",

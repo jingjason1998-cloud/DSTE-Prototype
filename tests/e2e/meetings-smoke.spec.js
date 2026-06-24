@@ -25,7 +25,7 @@ test.describe('Meetings Page Smoke Test', () => {
     page.on('pageerror', err => errors.push(err.message));
 
     await expect(page.locator('.meeting-card').first()).toBeVisible();
-    await expect(page.locator('text=本年会议').first()).toBeVisible();
+    await expect(page.locator('text=本月会议').first()).toBeVisible();
     await expect(page.locator('text=决议总数').first()).toBeVisible();
     await expect(page.locator('text=效果评分').first()).toBeVisible();
     await expect(page.locator('button:has-text("新建会议")')).toBeVisible();

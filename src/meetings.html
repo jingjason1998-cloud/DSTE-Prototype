@@ -180,6 +180,7 @@
       selectPostponeTarget, confirmPostponeAgenda
     } from './meetings/agenda-postpone.js';
     import './meetings/components/DecisionsDrawer.js';
+    import './meetings/components/AiAgendaDrawer.js';
     import './meetings/renderers/meeting-prep.js';
     import './meetings/renderers/eval-form.js';
     import './meetings/renderers/report-asset-manager.js';
@@ -656,14 +657,17 @@
         window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
         const meetings = rawMeetings.slice(); // 复制数组避免修改原始数据
 
-        // 按状态优先级 + 时间倒序排序：准备中 → 规划中 → 已完成 → 已取消
-        const STATUS_ORDER = { in_progress: 0, planned: 1, completed: 2, cancelled: 3 };
+        // 按状态优先级 + 时间倒序排序：准备中 → 已完成 → 规划中 → 已取消
+        const STATUS_ORDER = { in_progress: 0, completed: 1, planned: 2, cancelled: 3 };
         meetings.sort((a, b) => {
           const orderA = STATUS_ORDER[a.status] ?? 99;
           const orderB = STATUS_ORDER[b.status] ?? 99;
           if (orderA !== orderB) return orderA - orderB;
           return (b.date || '').localeCompare(a.date || '');
         });
+
+        // 数据迁移：补齐会议开始时间
+        meetings.forEach(m => { if (!m.startTime) m.startTime = '09:00'; });
 
         // ---- 计算汇总 --
         const totalMeetings = meetings.length;
@@ -739,7 +743,16 @@
             </div>`;
         }
         function renderTabs(m) {
-          const tabLabels = { minutes: '📄 纪要', decisions: '📋 决策', actions: '✅ 行动项', eval: '⭐ 评估', principles: '📐 原则', chain: '🔗 会议链' };
+          const actionDone = m.actions?.filter(a => a.status === 'completed' || a.status === 'implemented').length || 0;
+          const actionTotal = m.actions?.length || 0;
+          const tabLabels = {
+            minutes: '📄 纪要',
+            decisions: '📋 决策',
+            actions: `✅ 行动项 (${actionDone}/${actionTotal})`,
+            eval: '⭐ 评估',
+            principles: '📐 原则',
+            chain: '🔗 会议链'
+          };
           const tabContents = {
             minutes: m.hasMinutes
               ? `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
@@ -753,7 +766,7 @@
                     <span style="font-size: 11px; color: var(--text-tertiary); width: 16px; text-align: right;">${i + 1}.</span>
                     <span style="color: ${d.status === 'approved' || d.status === 'implemented' ? 'var(--success)' : 'var(--warning)'};">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
                     <span style="flex: 1; color: var(--text-secondary);">${d.content}</span>
-                    <span style="color: var(--text-tertiary); font-size: 11px;">${d.owner} · ${d.deadline}</span>
+                    <span style="color: var(--text-tertiary); font-size: 11px;">${escapeHtml(window.renderPerson ? window.renderPerson(d.owner) : (d.owner || '待定'))} · ${d.deadline}</span>
                   </div>`).join('')}</div>`
               : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无决议</div>`,
             actions: (m.actions && m.actions.length > 0)
@@ -769,7 +782,7 @@
                       <span style="font-size: 11px; color: var(--text-tertiary); width: 16px; text-align: right;">${i + 1}.</span>
                       <span style="color: ${a.status === 'completed' ? 'var(--success)' : a.status === 'in_progress' ? 'var(--primary)' : 'var(--warning)'};">${a.status === 'completed' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
                       <span style="flex: 1; color: var(--text-secondary);">${escapeHtml(a.content || '')}</span>
-                      <span style="color: var(--text-tertiary); font-size: 11px;">${escapeHtml(a.owner || '待定')} · ${escapeHtml(a.deadline || '未定')}</span>
+                      <span style="color: var(--text-tertiary); font-size: 11px;">${escapeHtml(window.renderPerson ? window.renderPerson(a.owner) : (a.owner || '待定'))} · ${escapeHtml(a.deadline || '未定')}</span>
                     </div>
                     ${tags.length ? `<div style="display: flex; gap: 8px; padding-left: 24px; font-size: 11px; color: var(--text-tertiary);">${tags.map(t => `<span>${t}</span>`).join('')}</div>` : ''}
                   </div>`;
@@ -854,9 +867,26 @@
           const btn = document.querySelector('.mtab-btn-' + meetingId + '.mtab-' + tabKey);
           if (btn) { btn.style.color = 'var(--primary)'; btn.style.borderBottomColor = 'var(--primary)'; }
         };
+        window.switchMeetingStatusTab = function(status) {
+          window._meetingsFilterStatus = status;
+          document.querySelectorAll('[data-status-tab]').forEach(btn => {
+            const isActive = btn.dataset.statusTab === status;
+            const color = btn.dataset.statusColor || 'var(--primary)';
+            btn.style.background = isActive ? `color-mix(in srgb, ${color} 14%, transparent)` : 'var(--bg-card)';
+            btn.style.color = isActive ? color : 'var(--text-secondary)';
+            btn.style.borderColor = isActive ? color : 'var(--border-color)';
+            btn.style.fontWeight = isActive ? '600' : '500';
+            const badge = btn.querySelector('span:last-child');
+            if (badge) {
+              badge.style.background = isActive ? `color-mix(in srgb, ${color} 22%, transparent)` : 'var(--bg-page)';
+              badge.style.color = isActive ? color : 'var(--text-tertiary)';
+            }
+          });
+          applyFilters();
+        };
         window.applyFilters = function() {
           const month = document.getElementById('filter-month')?.value || 'all';
-          const status = document.getElementById('filter-status')?.value || 'all';
+          const status = window._meetingsFilterStatus || 'all';
           const scenario = document.getElementById('filter-scenario')?.value || 'all';
           const pipeline = document.getElementById('filter-pipeline')?.value || 'all';
           // 同步场景指标卡状态到筛选栏
@@ -865,6 +895,20 @@
             if (fs) fs.value = window._meetingsFilterScene;
           }
           const effectiveScenario = window._meetingsFilterScene || scenario;
+
+          const STATUS_ORDER = { in_progress: 1, completed: 2, planned: 3, cancelled: 4 };
+          const container = document.getElementById('meeting-cards-container');
+          if (container) {
+            const cards = Array.from(container.children);
+            cards.sort((a, b) => {
+              const oa = STATUS_ORDER[a.dataset.status] || 99;
+              const ob = STATUS_ORDER[b.dataset.status] || 99;
+              if (oa !== ob) return oa - ob;
+              return (b.dataset.date || '').localeCompare(a.dataset.date || '');
+            });
+            cards.forEach(c => container.appendChild(c));
+          }
+
           document.querySelectorAll('.meeting-card').forEach(card => {
             let show = true;
             if (month !== 'all' && card.dataset.month !== month) show = false;
@@ -873,7 +917,7 @@
             if (pipeline !== 'all' && card.dataset.pipelineStep !== pipeline) show = false;
             card.style.display = show ? 'block' : 'none';
           });
-          // 更新统计数字（可选）
+          // 更新统计数字
           const visibleCards = Array.from(document.querySelectorAll('.meeting-card')).filter(c => c.style.display !== 'none');
           const countEl = document.querySelector('.meeting-list-count');
           if (countEl) countEl.textContent = `共 ${visibleCards.length} 场`;
@@ -935,7 +979,7 @@
           const moreAgenda = (m.agenda_items || []).length > 4 ? `<span style="font-size: 11px; color: var(--text-tertiary);">+${m.agenda_items.length - 4}</span>` : '';
           const pipelineStep = m.pipeline ? (Object.entries(m.pipeline).findLast(([k, v]) => v)?.[0] || 'none') : 'none';
           return `
-            <div class="meeting-card" data-month="${m.month}" data-status="${m.status}" data-scenario="${m.scenario}" data-pipeline-step="${pipelineStep}"
+            <div class="meeting-card" data-month="${m.month}" data-date="${m.date}" data-status="${m.status}" data-scenario="${m.scenario}" data-pipeline-step="${pipelineStep}"
               style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${sc.color}; transition: all 0.2s; cursor: pointer;"
               onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'" data-open-meeting-detail data-meeting-id="${m.id}">
               <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
@@ -951,12 +995,9 @@
                 </div>
               </div>
               <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
-                📅 ${m.date} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 ${m.host}
+                📅 ${m.date} &nbsp;|&nbsp; 📍 ${m.location} &nbsp;|&nbsp; 👤 ${typeof window !== 'undefined' && window.renderPerson ? window.renderPerson(m.host) : (m.host || '待定')}
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 8px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; align-items: center;">
-                  <span>✅ 行动 ${m.actions?.filter(a => a.status === 'completed' || a.status === 'implemented').length || 0}/${m.actions?.length || 0}</span>
-                </div>
+              <div style="display: flex; justify-content: flex-end; align-items: center;">
                 ${m.effectiveness ? `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 14px; font-weight: 700; color: ${getScoreColor(m.effectiveness.overallScore)};">⭐ ${m.effectiveness.overallScore}</span><span style="font-size: 10px; color: var(--text-tertiary);">${getScoreLabel(m.effectiveness.overallScore)}</span></div>` : (m.status === 'completed' ? `<div style="font-size: 11px; color: var(--text-tertiary); padding: 2px 6px; background: var(--bg-page); border-radius: 4px;">未评估</div>` : (() => { const r = computeMeetingReadiness(m); const color = r.status === 'ready' ? 'var(--success)' : r.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)'; const label = r.status === 'ready' ? '已就绪' : r.status === 'in_progress' ? '准备中' : '未开始'; return `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 12px; font-weight: 600; color: ${color};">📋 ${r.percentage}%</span><span style="font-size: 10px; color: ${color};">${label}</span></div>`; })())}
               </div>
               ${agendaTags ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">${agendaTags}${moreAgenda}</div>` : ''}
@@ -1041,6 +1082,7 @@
           const newMeeting = {
             id: 'new_' + Date.now(),
             title: '', date: new Date().toISOString().split('T')[0], month: new Date().toISOString().slice(0, 7),
+            startTime: '09:00',
             level: 'L1', scope: 'hq', scenario: 'union_quarterly',
             status: 'planned', location: '', host: '', recorder: '',
             pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
@@ -1052,12 +1094,12 @@
             effectiveness: null
           };
           window._meetingEditData = JSON.parse(JSON.stringify(newMeeting));
-          renderEditorForm();
           const ov = document.getElementById('meeting-editor-overlay');
           if (ov) {
             ov.style.display = 'flex';
             ov.dataset.isNew = 'true';
           }
+          renderEditorForm();
         };
 
         window.cloneMeeting = function(id) {
@@ -1067,6 +1109,7 @@
           cloned.id = 'new_' + Date.now();
           cloned.title = (cloned.title || '未命名会议') + '（复制）';
           cloned.date = new Date().toISOString().split('T')[0];
+          cloned.startTime = '09:00';
           cloned.month = cloned.date.slice(0, 7);
           cloned.status = 'planned';
           cloned.pipeline = { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false };
@@ -1094,12 +1137,12 @@
             a.originalAgendaId = a.id || ('ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000));
           });
           window._meetingEditData = cloned;
-          renderEditorForm();
           const ov = document.getElementById('meeting-editor-overlay');
           if (ov) {
             ov.style.display = 'flex';
             ov.dataset.isNew = 'true';
           }
+          renderEditorForm();
         };
 
         window._currentDetailMeetingId = null;
@@ -1117,6 +1160,21 @@
         };
 
         // ---- 会前准备度计算 ----
+        function computeAgendaTimeSlots(meeting) {
+          const items = meeting.agenda_items || [];
+          const start = meeting.startTime || '09:00';
+          const [baseH, baseM] = start.split(':').map(Number);
+          let cursor = (baseH || 0) * 60 + (baseM || 0);
+          const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+          return items.map((a) => {
+            const duration = parseInt(a.duration) || 0;
+            const s = cursor;
+            const e = cursor + duration;
+            cursor = e;
+            return { start: fmt(s), end: fmt(e) };
+          });
+        }
+
         function getReportAssets() {
           try { return DSTE.Storage.get('dste_report_assets', {}); }
           catch (e) { return {}; }
@@ -1339,26 +1397,26 @@
             case 'resolution': {
               const statusColor = data.status === 'approved' ? 'info' : data.status === 'implemented' ? 'info' : 'warning';
               const statusText = data.status === 'approved' ? '已批准' : data.status === 'implemented' ? '已执行' : '待审批';
-              return `## 📋 决议推送\n**会议：**${data.meetingTitle}\n**内容：**${data.content}\n**负责人：**${data.owner || '待定'}\n**截止日期：**${data.deadline || '未定'}\n**状态：**<font color="${statusColor}">${statusText}</font>${data.kmsUrl ? '\n**KMS：**[查看文档](' + data.kmsUrl + ')' : ''}`;
+              return `## 📋 决议推送\n**会议：**${data.meetingTitle}\n**内容：**${data.content}\n**负责人：**${window.renderPerson ? window.renderPerson(data.owner) : (data.owner || '待定')}\n**截止日期：**${data.deadline || '未定'}\n**状态：**<font color="${statusColor}">${statusText}</font>${data.kmsUrl ? '\n**KMS：**[查看文档](' + data.kmsUrl + ')' : ''}`;
             }
             case 'todo': {
               const daysColor = data.daysLeft === undefined ? 'comment' : data.daysLeft < 0 ? 'warning' : data.daysLeft <= 3 ? 'warning' : 'info';
               const daysText = data.daysLeft !== undefined ? (data.daysLeft < 0 ? `已逾期 ${Math.abs(data.daysLeft)} 天` : `距截止还有 ${data.daysLeft} 天`) : '若干天';
-              return `## ⏰ 待办提醒\n**会议：**${data.meetingTitle}\n**内容：**${data.content}\n**负责人：**${data.owner || '待定'}\n**截止日期：**${data.deadline || '未定'}\n<font color="${daysColor}">⏳ ${daysText}</font>`;
+              return `## ⏰ 待办提醒\n**会议：**${data.meetingTitle}\n**内容：**${data.content}\n**负责人：**${window.renderPerson ? window.renderPerson(data.owner) : (data.owner || '待定')}\n**截止日期：**${data.deadline || '未定'}\n<font color="${daysColor}">⏳ ${daysText}</font>`;
             }
             case 'alert-meeting':
               return `## ⚠️ 会议预警\n**会议：**${data.meetingTitle}\n**问题：**${data.stepLabel} 尚未完成\n**逾期：**<font color="warning">${data.daysOverdue} 天</font>\n**会议日期：**${data.meetingDate}\n> 💡 请尽快推进！`;
             case 'alert-action':
-              return `## ⚠️ 行动项预警\n**会议：**${data.meetingTitle}\n**行动项：**${data.content}\n**负责人：**${data.owner || '待定'}\n**截止日期：**${data.deadline}\n<font color="warning">距截止仅剩 ${data.daysLeft} 天，请尽快闭环！</font>`;
+              return `## ⚠️ 行动项预警\n**会议：**${data.meetingTitle}\n**行动项：**${data.content}\n**负责人：**${window.renderPerson ? window.renderPerson(data.owner) : (data.owner || '待定')}\n**截止日期：**${data.deadline}\n<font color="warning">距截止仅剩 ${data.daysLeft} 天，请尽快闭环！</font>`;
             case 'agenda': {
               const modeTip = data.mode === 'material' ? '请提前准备议程材料' : data.mode === 'change' ? '议程信息已更新，请留意' : '请准时参加议程讨论';
-              return `## 📋 议程通知\n**会议：**${data.meetingTitle}\n**议程：**${data.agendaTitle}\n**类型：**${data.agendaType || '其他'}\n**时长：**${data.duration || 0} 分钟\n**负责人：**${data.owner || '待定'}\n` +
+              return `## 📋 议程通知\n**会议：**${data.meetingTitle}\n**议程：**${data.agendaTitle}\n**类型：**${data.agendaType || '其他'}\n**时长：**${data.duration || 0} 分钟\n**负责人：**${window.renderPerson ? window.renderPerson(data.owner) : (data.owner || '待定')}\n` +
                 (data.speaker ? `**演讲人：**${data.speaker}\n` : '') +
                 (data.materialLink ? `**材料：**[查看材料](${data.materialLink})\n` : '') +
                 `> 💡 ${modeTip}`;
             }
             case 'agenda-meeting': {
-              const items = (data.agendaItems || []).map((a, i) => `${i + 1}. 【${a.type || '其他'}】${a.title}（${a.duration || 0}min）— 负责人：${a.owner || '待定'}`).join('\n');
+              const items = (data.agendaItems || []).map((a, i) => `${i + 1}. 【${a.type || '其他'}】${a.title}（${a.duration || 0}min）— 负责人：${window.renderPerson ? window.renderPerson(a.owner) : (a.owner || '待定')}`).join('\n');
               return `## 📋 会议议程总览\n**会议：**${data.meetingTitle}\n**日期：**${data.meetingDate || '待定'}\n` +
                 (data.location ? `**地点：**${data.location}\n` : '') +
                 `\n**议程列表：**\n${items || '> 暂无议程'}\n\n> 📌 合计 ${data.totalDuration || 0} 分钟，共 ${(data.agendaItems || []).length} 项议程`;
@@ -1585,9 +1643,9 @@
           const m = meetings.find(x => x.id === id);
           if (!m) return;
           window._meetingEditData = JSON.parse(JSON.stringify(m));
-          renderEditorForm();
           const ov = document.getElementById('meeting-editor-overlay');
           if (ov) ov.style.display = 'flex';
+          renderEditorForm();
         };
         window.closeMeetingEditor = function() {
           const ov = document.getElementById('meeting-editor-overlay');
@@ -1637,19 +1695,42 @@
           return null;
         }
         function inferDateFromTitle(title) {
+          if (!title) return null;
+          const now = new Date();
+          const year = now.getFullYear();
+
+          // 1. 完整中文日期：2026年5月11日 / 2026年05月11号
+          const fullZh = title.match(/(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})(?:日|号)/);
+          if (fullZh) {
+            return `${fullZh[1]}-${String(fullZh[2]).padStart(2, '0')}-${String(fullZh[3]).padStart(2, '0')}`;
+          }
+
+          // 2. 月日中文：5月11日 / 5月11号
+          const mdZh = title.match(/(\d{1,2})月\s*(\d{1,2})(?:日|号)/);
+          if (mdZh) {
+            return `${year}-${String(mdZh[1]).padStart(2, '0')}-${String(mdZh[2]).padStart(2, '0')}`;
+          }
+
+          // 3. 数字日期：2026-05-11 / 2026/05/11 / 05-11 / 5/11
+          const iso = title.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+          if (iso) {
+            return `${iso[1]}-${String(iso[2]).padStart(2, '0')}-${String(iso[3]).padStart(2, '0')}`;
+          }
+
+          // 4. 仅月份：5月 / 5月份
           const m = title.match(/(\d{1,2})月份?/);
           if (m) {
-            const month = parseInt(m[1]);
-            const year = new Date().getFullYear();
-            return `${year}-${String(month).padStart(2,'0')}-01`;
+            return `${year}-${String(m[1]).padStart(2, '0')}-01`;
           }
+
+          // 5. 季度：Q2
           const qm = title.match(/Q(\d)/i);
           if (qm) {
             const q = parseInt(qm[1]);
-            const year = new Date().getFullYear();
             const month = (q - 1) * 3 + 1;
-            return `${year}-${String(month).padStart(2,'0')}-01`;
+            return `${year}-${String(month).padStart(2, '0')}-01`;
           }
+
           return null;
         }
         /**
@@ -1693,14 +1774,26 @@
             if (!el) continue;
             const isDefaultOverride = isNew && (DEFAULT_OVERRIDES[id] || []).includes(el.value);
             const isUserEdited = window._userEditedFields?.has(key);
-            if (el.value && !isDefaultOverride && !isUserEdited) continue;
+            // 日期允许根据会议名称实时推断，除非用户手动修改过
+            if (key === 'date') {
+              if (!inferredDate || isUserEdited) continue;
+            } else if (el.value && !isDefaultOverride && !isUserEdited) {
+              continue;
+            }
             let val = null;
             if (key === 'date' && inferredDate) val = inferredDate;
             else if (source && source[key] !== undefined && source[key] !== '') val = source[key];
             if (!val && key === 'date' && inferredDate) val = inferredDate;
             if (val) {
-              el.value = val;
-              if (window._meetingEditData) window._meetingEditData[key] = val;
+              if (key === 'host' || key === 'recorder') {
+                ensurePersonInput(id, val);
+              } else {
+                el.value = val;
+              }
+              if (window._meetingEditData) {
+                window._meetingEditData[key] = val;
+                if (key === 'date') window._meetingEditData.month = val.slice(0, 7);
+              }
               filledIds.push(id);
             }
           }
@@ -1742,9 +1835,11 @@
           document.getElementById('edit-meeting-id').value = d.id;
           document.getElementById('edit-title').value = d.title || '';
           document.getElementById('edit-date').value = d.date || '';
+          const startTimeInput = document.getElementById('edit-start-time');
+          if (startTimeInput) startTimeInput.value = d.startTime || '09:00';
           document.getElementById('edit-location').value = d.location || '';
-          document.getElementById('edit-host').value = d.host || '';
-          document.getElementById('edit-recorder').value = d.recorder || '';
+          ensurePersonInput('edit-host', d.host || '');
+          ensurePersonInput('edit-recorder', d.recorder || '');
           document.getElementById('edit-scenario').value = d.scenario || 'hq_routine';
           document.getElementById('edit-level').value = d.level || 'L2';
           document.getElementById('edit-status').value = d.status || 'planned';
@@ -1757,6 +1852,11 @@
           renderAgendaList();
           renderActionList();
           renderDecisionList();
+
+          // 初始化 AI 议程推荐面板
+          if (typeof window.renderAiAgendaPanel === 'function') {
+            window.renderAiAgendaPanel();
+          }
 
           // 填充会议链上下游选项
           const upstreamSel = document.getElementById('edit-upstream');
@@ -1774,7 +1874,7 @@
 
           // 草稿自动保存：表单变化实时同步到 _meetingEditData
           const fieldMap = {
-            'edit-title': 'title', 'edit-date': 'date', 'edit-location': 'location',
+            'edit-title': 'title', 'edit-date': 'date', 'edit-start-time': 'startTime', 'edit-location': 'location',
             'edit-host': 'host', 'edit-recorder': 'recorder',
             'edit-scenario': 'scenario', 'edit-level': 'level', 'edit-status': 'status', 'edit-kms-link': 'meeting_link', 'edit-pre-report-id': 'pre_report_id', 'edit-minutes-content': 'minutes_content'
           };
@@ -1809,9 +1909,10 @@
         }
         function renderAgendaList() {
           const d = window._meetingEditData;
-          const container = document.getElementById('edit-agenda-list');
+          const container = getActiveEditorContainer()?.querySelector('#edit-agenda-list');
           if (!d || !container) return;
           const list = d.agenda_items || [];
+          const timeSlots = computeAgendaTimeSlots(d);
           const batchMode = window._agendaReviewMode;
           container.innerHTML = list.map((item, idx) => {
             const url = item.material_link?.trim() || '';
@@ -1836,6 +1937,7 @@
               <div style="display: flex; align-items: flex-start; gap: 8px;">
                 ${batchMode ? `<div style="width: 18px; display: flex; align-items: center; padding-top: 6px;">${checkbox}</div>` : `<div style="width: 22px; display: flex; align-items: center; justify-content: center; padding-top: 6px;"><span style="font-size: 12px; color: var(--text-tertiary);">${idx + 1}.</span></div>`}
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0;">
+                  <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">⏰ ${timeSlots[idx]?.start || '--:--'} ~ ${timeSlots[idx]?.end || '--:--'} · ${item.duration || 0} 分钟</div>
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <select onchange="updateAgendaType(${idx}, this.value)" style="padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); width: 110px; flex-shrink: 0;">
                       ${Object.entries(AGENDA_TYPE_LABELS).map(([k, v]) => `<option value="${k}" ${item.type === k ? 'selected' : ''}>${v}</option>`).join('')}
@@ -1862,7 +1964,7 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; padding-top: 1px; flex-shrink: 0;">
                   <div style="width: 72px; display: flex; align-items: center; justify-content: center;">${scoreHtml}</div>
-                  <input type="text" value="${item.owner}" onchange="updateAgendaOwner(${idx}, this.value)" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                  <input type="text" id="edit-agenda-owner-${idx}" value="${typeof item.owner === 'object' ? (item.owner.displayName || item.owner.name || '') : (item.owner || '')}" onchange="updateAgendaOwner(${idx})" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
                   ${item.status !== 'postponed' ? `<button type="button" onclick="event.stopPropagation(); openPostponeTargetSelector(window._meetingEditData.id, ${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--warning); border-radius: 4px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; white-space: nowrap; flex-shrink: 0;">顺延 →</button>` : ''}
                   <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↑</button>
                   <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↓</button>
@@ -1874,12 +1976,28 @@
           }).join('');
           const total = list.reduce((s, a) => s + (parseInt(a.duration) || 0), 0);
           document.getElementById('edit-agenda-total').textContent = '总时长：' + total + ' 分钟';
+          if (window.ensurePersonInput) {
+            list.forEach((item, idx) => {
+              ensurePersonInput('edit-agenda-owner-' + idx, item.owner || '', {
+                onChange: (val) => {
+                  if (window._meetingEditData?.agenda_items?.[idx]) {
+                    window._meetingEditData.agenda_items[idx].owner = val || '';
+                  }
+                },
+              });
+            });
+          }
         }
         window.updateAgendaType = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].type = val; };
         window.updateAgendaStatus = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) { window._meetingEditData.agenda_items[idx].status = val; renderAgendaList(); } };
         window.updateAgendaTitle = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].title = val; };
         window.updateAgendaDuration = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].duration = parseInt(val) || 0; renderAgendaList(); };
-        window.updateAgendaOwner = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].owner = val; };
+        window.updateAgendaOwner = function(idx, val) {
+          if (!window._meetingEditData?.agenda_items?.[idx]) return;
+          const inputId = 'edit-agenda-owner-' + idx;
+          const person = window.getPersonValue ? window.getPersonValue(inputId) : null;
+          window._meetingEditData.agenda_items[idx].owner = person || (typeof val === 'string' ? val : '');
+        };
         window.updateAgendaMaterialLink = function(idx, val) { if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].material_link = val; };
         window.updateAgendaDataViews = function(idx, val) {
           if (!window._meetingEditData?.agenda_items?.[idx]) return;
@@ -1928,6 +2046,7 @@
           [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
           renderAgendaList();
         };
+        window.renderAgendaList = renderAgendaList;
 
         // ---- 议程材料评审（ reviewer API ） ----
         window._agendaReviewMode = false;
@@ -2192,7 +2311,7 @@
         // ---- 行动项编辑 ----
         function renderActionList() {
           const d = window._meetingEditData;
-          const container = document.getElementById('edit-action-list');
+          const container = getActiveEditorContainer()?.querySelector('#edit-action-list');
           if (!d || !container) return;
           const list = d.actions || [];
           if (list.length === 0) {
@@ -2204,7 +2323,7 @@
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 12px; color: var(--text-tertiary); width: 18px; text-align: right;">${idx + 1}.</span>
                 <input type="text" value="${item.content}" onchange="updateActionContent(${idx}, this.value)" placeholder="行动内容" style="flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-                <input type="text" value="${item.owner}" onchange="updateActionOwner(${idx}, this.value)" placeholder="负责人" style="width: 80px; flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <input type="text" id="edit-action-owner-${idx}" value="${typeof item.owner === 'object' ? (item.owner.displayName || item.owner.name || '') : (item.owner || '')}" onchange="updateActionOwner(${idx})" placeholder="负责人" style="width: 80px; flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
                 <input type="date" value="${item.deadline}" onchange="updateActionDeadline(${idx}, this.value)" style="width: 120px; flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
                 <select onchange="updateActionStatus(${idx}, this.value)" style="width: 90px; flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
                   <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>待办</option>
@@ -2231,9 +2350,25 @@
               </div>
             </div>
           `).join('');
+          if (window.ensurePersonInput) {
+            list.forEach((item, idx) => {
+              ensurePersonInput('edit-action-owner-' + idx, item.owner || '', {
+                onChange: (val) => {
+                  if (window._meetingEditData?.actions?.[idx]) {
+                    window._meetingEditData.actions[idx].owner = val || '';
+                  }
+                },
+              });
+            });
+          }
         }
         window.updateActionContent = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].content = val; };
-        window.updateActionOwner = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].owner = val; };
+        window.updateActionOwner = function(idx, val) {
+          if (!window._meetingEditData?.actions?.[idx]) return;
+          const inputId = 'edit-action-owner-' + idx;
+          const person = window.getPersonValue ? window.getPersonValue(inputId) : null;
+          window._meetingEditData.actions[idx].owner = person || (typeof val === 'string' ? val : '');
+        };
         window.updateActionDeadline = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].deadline = val; };
         window.updateActionStatus = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].status = val; };
         window.updateActionSourceAgenda = function(idx, val) { if (window._meetingEditData?.actions?.[idx]) window._meetingEditData.actions[idx].sourceAgendaId = val; };
@@ -2254,7 +2389,7 @@
         // ---- 决策编辑 ----
         function renderDecisionList() {
           const d = window._meetingEditData;
-          const container = document.getElementById('edit-decision-list');
+          const container = getActiveEditorContainer()?.querySelector('#edit-decision-list');
           if (!d || !container) return;
           const list = d.decisions || [];
           if (list.length === 0) {
@@ -2273,7 +2408,7 @@
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 12px; color: var(--text-tertiary); width: 18px; text-align: right;">${idx + 1}.</span>
                 <input type="text" value="${item.content}" onchange="updateDecisionContent(${idx}, this.value)" placeholder="决议内容" style="flex: 1; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-                <input type="text" value="${item.owner}" onchange="updateDecisionOwner(${idx}, this.value)" placeholder="责任人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                <input type="text" id="edit-decision-owner-${idx}" value="${typeof item.owner === 'object' ? (item.owner.displayName || item.owner.name || '') : (item.owner || '')}" onchange="updateDecisionOwner(${idx})" placeholder="责任人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
                 <input type="date" value="${item.deadline}" onchange="updateDecisionDeadline(${idx}, this.value)" style="width: 120px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
                 <select onchange="updateDecisionStatus(${idx}, this.value)" style="width: 100px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
                   ${statusOptions.map(o => `<option value="${o.value}" ${item.status === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
@@ -2290,7 +2425,7 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">
                   <span style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap;">审批</span>
-                  <input type="text" value="${item.decider || ''}" onchange="updateDecisionDecider(${idx}, this.value)" placeholder="审批人" style="width: 90px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
+                  <input type="text" id="edit-decision-decider-${idx}" value="${typeof item.decider === 'object' ? (item.decider.displayName || item.decider.name || '') : (item.decider || '')}" onchange="updateDecisionDecider(${idx})" placeholder="审批人" style="width: 90px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">
                   <span style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap;">🔗 KMS</span>
@@ -2300,14 +2435,42 @@
             </div>
           `;
           }).join('');
+          if (window.ensurePersonInput) {
+            list.forEach((item, idx) => {
+              ensurePersonInput('edit-decision-owner-' + idx, item.owner || '', {
+                onChange: (val) => {
+                  if (window._meetingEditData?.decisions?.[idx]) {
+                    window._meetingEditData.decisions[idx].owner = val || '';
+                  }
+                },
+              });
+              ensurePersonInput('edit-decision-decider-' + idx, item.decider || '', {
+                onChange: (val) => {
+                  if (window._meetingEditData?.decisions?.[idx]) {
+                    window._meetingEditData.decisions[idx].decider = val || '';
+                  }
+                },
+              });
+            });
+          }
         }
         window.updateDecisionContent = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].content = val; };
-        window.updateDecisionOwner = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].owner = val; };
+        window.updateDecisionOwner = function(idx, val) {
+          if (!window._meetingEditData?.decisions?.[idx]) return;
+          const inputId = 'edit-decision-owner-' + idx;
+          const person = window.getPersonValue ? window.getPersonValue(inputId) : null;
+          window._meetingEditData.decisions[idx].owner = person || (typeof val === 'string' ? val : '');
+        };
         window.updateDecisionDeadline = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].deadline = val; };
         window.updateDecisionStatus = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].status = val; };
         window.updateDecisionKmsUrl = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].kmsUrl = val; };
         window.updateDecisionSourceTopic = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].sourceTopicId = val; };
-        window.updateDecisionDecider = function(idx, val) { if (window._meetingEditData?.decisions?.[idx]) window._meetingEditData.decisions[idx].decider = val; };
+        window.updateDecisionDecider = function(idx, val) {
+          if (!window._meetingEditData?.decisions?.[idx]) return;
+          const inputId = 'edit-decision-decider-' + idx;
+          const person = window.getPersonValue ? window.getPersonValue(inputId) : null;
+          window._meetingEditData.decisions[idx].decider = person || (typeof val === 'string' ? val : '');
+        };
         window.addDecisionItem = function() {
           if (!window._meetingEditData) return;
           if (!window._meetingEditData.decisions) window._meetingEditData.decisions = [];
@@ -2352,6 +2515,7 @@
             const idx = meetings.findIndex(m => m.id === id);
             const titleVal = document.getElementById('edit-title').value.trim();
             const dateVal = document.getElementById('edit-date').value.trim();
+            const startTimeVal = document.getElementById('edit-start-time')?.value.trim() || '09:00';
             if (!titleVal) { showToast('会议名称不能为空', 'warning'); return; }
             if (!dateVal) { showToast('会议日期不能为空', 'warning'); return; }
             const scenarioVal = document.getElementById('edit-scenario').value;
@@ -2361,10 +2525,11 @@
                 id: dateVal.replace(/-/g, '') + '_' + Math.floor(Math.random() * 1000),
                 title: titleVal,
                 date: dateVal,
+                startTime: startTimeVal,
                 month: dateVal.slice(0, 7),
                 location: document.getElementById('edit-location').value.trim() || '待确认',
-                host: document.getElementById('edit-host').value.trim() || '待定',
-                recorder: document.getElementById('edit-recorder').value.trim() || '待定',
+                host: getPersonValue('edit-host') || '待定',
+                recorder: getPersonValue('edit-recorder') || '待定',
                 meeting_link: document.getElementById('edit-kms-link')?.value.trim() || '',
                 pre_report_id: document.getElementById('edit-pre-report-id')?.value.trim() || '',
                 minutes_report_id: d.minutes_report_id || '',
@@ -2375,7 +2540,7 @@
                 level: document.getElementById('edit-level').value,
                 status: statusVal,
                 agenda_items: (d.agenda_items || []).filter(a => a.title.trim()),
-                actions: (d.actions || []).filter(a => a.content?.trim() || a.owner?.trim()),
+                actions: (d.actions || []).filter(a => a.content?.trim() || (typeof a.owner === 'string' ? a.owner.trim() : (a.owner?.name || a.owner?.id))),
                 decisions: d.decisions || [],
                 pipeline: d.pipeline || {},
                 upstreamMeeting: d.upstreamMeeting || null,
@@ -2396,10 +2561,11 @@
             } else {
               meetings[idx].title = titleVal;
               meetings[idx].date = dateVal;
+              meetings[idx].startTime = startTimeVal;
               meetings[idx].month = dateVal.slice(0, 7);
               meetings[idx].location = document.getElementById('edit-location').value.trim() || '待确认';
-              meetings[idx].host = document.getElementById('edit-host').value.trim() || '待定';
-              meetings[idx].recorder = document.getElementById('edit-recorder').value.trim() || '待定';
+              meetings[idx].host = getPersonValue('edit-host') || '待定';
+              meetings[idx].recorder = getPersonValue('edit-recorder') || '待定';
               meetings[idx].meeting_link = document.getElementById('edit-kms-link')?.value.trim() || '';
               meetings[idx].pre_report_id = document.getElementById('edit-pre-report-id')?.value.trim() || '';
               meetings[idx].minutes_report_id = d.minutes_report_id || '';
@@ -2414,7 +2580,7 @@
                 const fallbackAgendaId = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
                 meetings[idx].agenda_items = [{ id: fallbackAgendaId, type: 'goal_management', title: '未设置议程', duration: 15, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: fallbackAgendaId, postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [] }];
               }
-              meetings[idx].actions = (d.actions || []).filter(a => a.content?.trim() || a.owner?.trim());
+              meetings[idx].actions = (d.actions || []).filter(a => a.content?.trim() || (typeof a.owner === 'string' ? a.owner.trim() : (a.owner?.name || a.owner?.id)));
               meetings[idx].decisions = d.decisions || [];
               meetings[idx].pipeline = d.pipeline || {};
               meetings[idx].upstreamMeeting = d.upstreamMeeting || null;
@@ -2450,11 +2616,16 @@
             .map((a, actionIdx) => ({ ...a, meetingTitle: m.title, meetingId: m.id, meetingDate: m.date, actionIdx }))
             .filter(a => a.status === 'pending' || a.status === 'in_progress')
         );
+        // 抽屉标签页默认过滤状态
+        window._pendingActionsFilter = window._pendingActionsFilter || 'pending';
+
         window.openPendingActionsDrawer = function() {
           const overlay = document.getElementById('pending-actions-overlay');
           const drawer = document.getElementById('pending-actions-drawer');
           if (overlay) overlay.style.display = 'block';
           if (drawer) drawer.style.display = 'flex';
+          // 每次打开时按当前 filter 刷新列表与标题
+          window.refreshPendingActionsList();
         };
         window.closePendingActionsDrawer = function() {
           const overlay = document.getElementById('pending-actions-overlay');
@@ -2555,8 +2726,8 @@
           <!-- 顶部 KPI 栏（5 列） -->
           <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px;">
             <div style="padding: 14px 8px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light); text-align: center;">
-              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">本年会议</div>
-              <div style="font-size: 22px; font-weight: 700; color: var(--primary);">${totalMeetings}</div>
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">本月会议</div>
+              <div style="font-size: 22px; font-weight: 700; color: var(--primary);">${thisMonthMeetings}</div>
             </div>
             <div onclick="openDecisionsDrawer()" style="padding: 14px 8px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light); text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-card)'">
               <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">决议总数</div>
@@ -2566,11 +2737,18 @@
               <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">效果评分</div>
               <div style="font-size: 22px; font-weight: 700; color: ${avgEffectiveness >= 90 ? 'var(--success)' : avgEffectiveness >= 80 ? 'var(--primary)' : 'var(--warning)'}">${avgEffectiveness || '-'}</div>
             </div>
-            <div style="padding: 14px 8px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light); text-align: center;">
-              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">行动闭环率</div>
-              <div style="font-size: 22px; font-weight: 700; color: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}">${avgActionClosure}%</div>
-              <div style="margin-top: 4px; height: 3px; background: var(--bg-page); border-radius: 2px; overflow: hidden;">
-                <div style="width: ${avgActionClosure}%; height: 100%; background: ${avgActionClosure >= 90 ? 'var(--success)' : avgActionClosure >= 70 ? 'var(--primary)' : 'var(--warning)'}; border-radius: 2px;"></div>
+            <div data-stat="pending-actions" onclick="openPendingActionsDrawer()" style="padding: 14px 8px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light); text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-card)'">
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">行动项</div>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 14px;">
+                <div style="text-align: center;">
+                  <div style="font-size: 22px; font-weight: 700; color: var(--warning);">${allActions.filter(a => a.status !== 'completed').length}</div>
+                  <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">待办</div>
+                </div>
+                <div style="width: 1px; height: 28px; background: var(--border-light);"></div>
+                <div style="text-align: center;">
+                  <div style="font-size: 22px; font-weight: 700; color: var(--success);">${allActions.filter(a => a.status === 'completed').length}</div>
+                  <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">已完成</div>
+                </div>
               </div>
             </div>
             <div style="padding: 14px 8px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light); text-align: center;">
@@ -2591,13 +2769,6 @@
               <option value="2026-05">2026-05</option>
               <option value="2026-06">2026-06</option>
               <option value="2026-07">2026-07</option>
-            </select>
-            <select id="filter-status" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
-              <option value="all">📋 全部状态</option>
-              <option value="completed">已完成</option>
-              <option value="in_progress">准备中</option>
-              <option value="planned">规划中</option>
-              <option value="cancelled">已取消</option>
             </select>
             <select id="filter-scenario" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
               <option value="all">🏷️ 全部场景</option>
@@ -2634,7 +2805,25 @@
                     <div class="card-title">📋 会议列表</div>
                     <span class="meeting-list-count" style="font-size: 12px; color: var(--text-tertiary);">共 ${totalMeetings} 场</span>
                   </div>
-                  <div style="display: flex; flex-direction: column; gap: 12px;">
+                  <div style="padding: 0 16px 12px;">
+                    <div id="filter-status-tabs" style="display: flex; gap: 10px; flex-wrap: wrap; padding: 10px; background: var(--bg-page); border-radius: 10px; border: 1px solid var(--border-light);">
+                      ${[
+                        { key: 'all', label: '全部', color: 'var(--primary)' },
+                        { key: 'in_progress', label: STATUS_CONFIG.in_progress.label, color: STATUS_CONFIG.in_progress.color },
+                        { key: 'completed', label: STATUS_CONFIG.completed.label, color: STATUS_CONFIG.completed.color },
+                        { key: 'planned', label: STATUS_CONFIG.planned.label, color: STATUS_CONFIG.planned.color }
+                      ].map(s => {
+                        const count = s.key === 'all' ? meetings.length : meetings.filter(m => m.status === s.key).length;
+                        const isActive = s.key === 'all';
+                        return `<button type="button" data-status-tab="${s.key}" data-status-color="${s.color}" onclick="switchMeetingStatusTab('${s.key}'); event.stopPropagation();" style="padding: 5px 14px; border-radius: 18px; border: 1px solid ${isActive ? s.color : 'var(--border-color)'}; background: ${isActive ? `color-mix(in srgb, ${s.color} 14%, transparent)` : 'var(--bg-card)'}; color: ${isActive ? s.color : 'var(--text-secondary)'}; font-size: 13px; font-weight: ${isActive ? '600' : '500'}; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;"
+                          onmouseover="this.style.borderColor='${s.color}'" onmouseout="if(window._meetingsFilterStatus!=='${s.key}')this.style.borderColor='var(--border-color)'">
+                          <span>${s.label}</span>
+                          <span style="min-width: 20px; text-align: center; padding: 1px 5px; border-radius: 10px; background: ${isActive ? `color-mix(in srgb, ${s.color} 22%, transparent)` : 'var(--bg-page)'}; font-size: 11px; font-weight: 600; color: ${isActive ? s.color : 'var(--text-tertiary)'};">${count}</span>
+                        </button>`;
+                      }).join('')}
+                    </div>
+                  </div>
+                  <div id="meeting-cards-container" style="display: flex; flex-direction: column; gap: 12px;">
                     ${meetingCards}
                   </div>
                 </div>
@@ -2655,27 +2844,7 @@
                 </div>
               </div>
             <div style="display: flex; flex-direction: column; gap: 16px;">
-              <div class="card">
-                <div class="card-header"><div class="card-title">📊 执行概览</div></div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0;">
-                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--success);">${Math.round((doneDecisions / Math.max(1, allDecisions.length)) * 100)}%</div>
-                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">决议闭环率</div>
-                  </div>
-                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--primary);">${thisMonthMeetings}</div>
-                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">本月会议</div>
-                  </div>
-                  <div data-stat="pending-actions" onclick="openPendingActionsDrawer()" style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-page)'">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--warning);">${allActions.filter(a => a.status === 'pending' || a.status === 'in_progress').length}</div>
-                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待闭环行动</div>
-                  </div>
-                  <div style="text-align: center; padding: 12px; background: var(--bg-page); border-radius: 8px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--danger);">${meetings.filter(m => m.status === 'in_progress' && !m.pipeline.reportGenerated).length}</div>
-                    <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">待审核材料</div>
-                  </div>
-                </div>
-              </div>
+              <!-- 执行概览已合并到顶部 KPI 栏 -->
               <div class="card">
                 <div class="card-header"><div class="card-title">📈 决议执行趋势</div></div>
                 <div style="padding: 8px 0;">
@@ -2720,7 +2889,7 @@
           <div id="pending-actions-overlay" onclick="closePendingActionsDrawer()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 2999;"></div>
           <div id="pending-actions-drawer" style="display: none; position: fixed; top: 0; right: 0; width: 420px; height: 100vh; background: var(--bg-card); z-index: 3000; flex-direction: column; box-shadow: -4px 0 20px rgba(0,0,0,0.1);">
             <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
-              <h3 style="margin: 0; font-size: 16px;">🔔 待闭环行动 (${pendingItems.length})</h3>
+              <h3 style="margin: 0; font-size: 16px;">🔔 行动项</h3>
               <button onclick="closePendingActionsDrawer()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); line-height: 1;">×</button>
             </div>
             <div id="pending-actions-list" style="flex: 1; overflow-y: auto; padding: 16px 20px;">
@@ -2793,6 +2962,10 @@
                     <input type="date" id="edit-date" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
                   </div>
                   <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">开始时间</label>
+                    <input type="time" id="edit-start-time" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                  </div>
+                  <div>
                     <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">地点</label>
                     <input type="text" id="edit-location" placeholder="例如 会议室 A" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
                   </div>
@@ -2854,8 +3027,15 @@
                   </div>
                   <div id="edit-agenda-total" style="font-size: 12px; color: var(--text-tertiary);">总时长：0 分钟</div>
                 </div>
-                <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
-                <button type="button" onclick="addAgendaItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加议程项</button>
+                <div style="display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start;">
+                  <div>
+                    <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
+                    <button type="button" onclick="addAgendaItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加议程项</button>
+                  </div>
+                  <div class="ai-agenda-panel" style="position: fixed; top: 80px; right: max(20px, calc((100vw - 960px) / 2 - 380px)); width: 360px; height: calc(100vh - 180px); border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card); overflow: hidden; z-index: 2200; display: flex; flex-direction: column;">
+                    <!-- AI 议程推荐面板由 AiAgendaDrawer.js 渲染 -->
+                  </div>
+                </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px;">
                   <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">决议</div>
@@ -2923,6 +3103,10 @@
                   <input type="date" id="edit-date" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
                 </div>
                 <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">开始时间</label>
+                  <input type="time" id="edit-start-time" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
+                </div>
+                <div>
                   <label style="display: block; font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">地点</label>
                   <input type="text" id="edit-location" placeholder="例如 会议室 A" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-page); color: var(--text-primary); box-sizing: border-box;" />
                 </div>
@@ -2984,8 +3168,15 @@
                 </div>
                 <div id="edit-agenda-total" style="font-size: 12px; color: var(--text-tertiary);">总时长：0 分钟</div>
               </div>
-              <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
-              <button type="button" onclick="addAgendaItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加议程项</button>
+              <div style="display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start;">
+                <div>
+                  <div id="edit-agenda-list" style="margin-bottom: 10px;"></div>
+                  <button type="button" onclick="addAgendaItem()" style="padding: 6px 14px; font-size: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">+ 添加议程项</button>
+                </div>
+                <div class="ai-agenda-panel" style="position: fixed; top: 80px; right: max(20px, calc((100vw - 960px) / 2 - 380px)); width: 360px; height: calc(100vh - 180px); border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card); overflow: hidden; z-index: 2200; display: flex; flex-direction: column;">
+                  <!-- AI 议程推荐面板由 AiAgendaDrawer.js 渲染 -->
+                </div>
+              </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px;">
                 <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">决议</div>
@@ -3036,6 +3227,56 @@
       function escapeJsString(str) {
         return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
       }
+
+      // 人员输入增强：把普通 input 替换为可搜索员工目录的选择器
+      window._personInputApis = window._personInputApis || {};
+      function getActiveEditorContainer() {
+        const overlay = document.getElementById('meeting-editor-overlay');
+        if (overlay && overlay.style.display === 'flex') return overlay;
+        return document.getElementById('page-content');
+      }
+      function ensurePersonInput(inputId, value, options = {}) {
+        if (!window.enhancePersonInput) {
+          window._pendingPersonInputs = window._pendingPersonInputs || [];
+          window._pendingPersonInputs.push({ inputId, value, options });
+          return;
+        }
+        const container = getActiveEditorContainer();
+        const input = container ? container.querySelector('#' + inputId) : document.getElementById(inputId);
+        if (!input) return;
+        const key = (container?.id || 'root') + '/' + inputId;
+        const existing = window._personInputApis[key];
+        if (existing && existing._input && document.contains(existing._input) && existing._input === input) {
+          existing.setValue(value);
+          return;
+        }
+        if (existing && existing.destroy) existing.destroy();
+        const api = window.enhancePersonInput(input, {
+          placeholder: input.getAttribute('placeholder') || '',
+          allowFreeText: true,
+          ...options,
+        });
+        api._input = input;
+        window._personInputApis[key] = api;
+        api.setValue(value);
+      }
+      function flushPendingPersonInputs() {
+        const pending = window._pendingPersonInputs || [];
+        window._pendingPersonInputs = [];
+        pending.forEach(p => ensurePersonInput(p.inputId, p.value, p.options));
+      }
+
+      function getPersonValue(inputId) {
+        const container = getActiveEditorContainer();
+        const key = (container?.id || 'root') + '/' + inputId;
+        const api = window._personInputApis[key];
+        if (api) return api.getValue();
+        const input = container ? container.querySelector('#' + inputId) : document.getElementById(inputId);
+        return input ? (input.value.trim() || null) : null;
+      }
+
+      window.ensurePersonInput = ensurePersonInput;
+      window.getPersonValue = getPersonValue;
 
       // 开发路线图筛选
       window.filterRoadmap = function(filter) {
@@ -3126,6 +3367,14 @@
   </script>
   <script src="/meetings-components/CalendarView.js"></script>
   <div id="app-version" style="position:fixed;bottom:4px;right:8px;font-size:11px;color:var(--text-tertiary);opacity:0.6;z-index:9999;pointer-events:none;"></div>
+  <script type="module">
+    import { enhancePersonInput, getPersonInputValue } from './components/person-input.js';
+    import { renderPerson } from './lib/employee-directory.js';
+    window.enhancePersonInput = enhancePersonInput;
+    window.getPersonInputValue = getPersonInputValue;
+    window.renderPerson = renderPerson;
+    if (typeof flushPendingPersonInputs === 'function') flushPendingPersonInputs();
+  </script>
   <script type="module">
     (function() {
       const v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
@@ -3350,5 +3599,6 @@
       </div>
     </div>
   </div>
+
 </body>
 </html>

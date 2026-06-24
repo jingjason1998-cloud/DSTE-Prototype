@@ -2,16 +2,14 @@ import { test, expect } from '@playwright/test';
 
 test.describe.skip('KPI Tree View', () => {
   test.beforeEach(async ({ page }) => {
-    // 先访问驾驶舱首页，再通过侧边栏导航到重点工作管理
+    // 先访问驾驶舱首页，再通过侧边栏导航到 KPI 管理
     await page.goto('/src/cockpit.html');
     await page.waitForSelector('#sidebar', { timeout: 10000 });
-    // 点击侧边栏「重点工作管理」
-    await page.locator('.sidebar-item[data-page="exe/tasks"]').click();
+    // 点击侧边栏「KPI管理」
+    await page.locator('.sidebar-item[data-page="exe/kpi"]').click();
     // 等待 SPA 渲染完成
     await page.waitForTimeout(2000);
-    // 切换到 KPI 管理 Tab
-    await page.locator('.omp-tab-btn[data-tab="kpi"]').click();
-    // 等待 KPI Tab 内容渲染
+    // 已直接进入 KPI 管理页面，无需再切换 Tab
     await page.waitForTimeout(1500);
   });
 

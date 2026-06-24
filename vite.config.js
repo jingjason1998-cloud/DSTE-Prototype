@@ -22,6 +22,7 @@ export default defineConfig({
         meetings: resolve(__dirname, 'src/meetings.html'),
         'strategy-map': resolve(__dirname, 'src/strategy-map.html'),
         'strategy-map-list': resolve(__dirname, 'src/strategy-map-list.html'),
+        'employee-directory': resolve(__dirname, 'src/employee-directory.html'),
       },
     },
   },

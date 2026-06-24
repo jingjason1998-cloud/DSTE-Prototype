@@ -9,9 +9,35 @@
  */
 
 import { Storage } from '../lib/utils.js';
+import { createMeetingsRepository } from '../lib/repository.js';
+import { getDefaultSyncQueue } from '../lib/sync-queue.js';
+import { detectArrayConflicts, resolveArrayConflict, ensureLastModified } from '../lib/conflict-resolver.js';
+import { normalizePerson } from '../lib/employee-directory.js';
 import { normalizeResolution, syncResolutionsToStore } from './utils/resolution-helpers.js';
 
-const MEETINGS_STORAGE_KEY = 'dste_meetings';
+const meetingsRepo = createMeetingsRepository({
+  version: 4,
+  migrators: {
+    3: (data) => {
+      window._meetingsData = data;
+      migrateMeetingsData();
+      return window._meetingsData;
+    },
+    4: (data) => {
+      data.forEach(m => {
+        m.host = normalizePerson(m.host) || m.host;
+        m.recorder = normalizePerson(m.recorder) || m.recorder;
+        (m.actions || []).forEach(a => { a.owner = normalizePerson(a.owner) || a.owner; });
+        (m.decisions || []).forEach(d => {
+          d.owner = normalizePerson(d.owner || d.decider) || d.owner;
+          d.decider = normalizePerson(d.decider) || d.decider;
+        });
+        (m.agenda_items || []).forEach(item => { item.owner = normalizePerson(item.owner) || item.owner; });
+      });
+      return data;
+    },
+  },
+});
 
 function getApiBase() {
   const host = window.location.hostname;
@@ -19,6 +45,35 @@ function getApiBase() {
     return Storage.getString('dste_api_base') || '';
   }
   return 'https://dste-api.jasonxspace.workers.dev';
+}
+
+// ===================== Sync Queue =====================
+const syncQueue = getDefaultSyncQueue();
+
+function createExecutor(endpoint) {
+  return async (operation) => {
+    const apiBase = getApiBase();
+    if (!apiBase) return;
+    const token = Storage.getString('dste-token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const resp = await fetch(apiBase + endpoint, {
+      method: operation.method || 'POST',
+      headers,
+      body: JSON.stringify(operation.payload),
+    });
+    if (resp.status === 401) {
+      console.warn('API save returned 401');
+      return;
+    }
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  syncQueue.bindAutoProcess(createExecutor('/api/meetings'));
 }
 
 // ===================== Mock Data =====================
@@ -172,30 +227,13 @@ export function getMockMeetings() {
 // ===================== Internal API helpers =====================
 
 async function _apiSave(endpoint, data) {
-  if (endpoint === '/api/meetings') {
-    try {
-      Storage.set(MEETINGS_STORAGE_KEY, data);
-    } catch (e) {
-      console.warn('本地存储 save failed:', e.message);
-    }
-  }
-  const apiBase = getApiBase();
-  if (!apiBase) return;
-  try {
-    const token = Storage.getString('dste-token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch(apiBase + endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(data),
-    });
-    if (resp.status === 401) {
-      console.warn('API save returned 401');
-    }
-  } catch (e) {
-    console.warn('API save failed:', e.message);
-  }
+  if (endpoint !== '/api/meetings') return;
+  syncQueue.enqueue({
+    endpoint,
+    method: 'POST',
+    payload: data,
+    executor: createExecutor(endpoint),
+  });
 }
 
 async function _apiLoad(endpoint) {
@@ -216,17 +254,20 @@ async function _apiLoad(endpoint) {
       console.warn('API load failed:', e.message);
     }
   }
-  if (apiData && apiData.length > 0) return apiData;
+
   if (endpoint === '/api/meetings') {
-    const local = Storage.getString(MEETINGS_STORAGE_KEY);
-    if (local) {
-      try {
-        const parsed = JSON.parse(local);
-        if (parsed && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.warn('本地存储 parse failed:', e);
-      }
+    const local = meetingsRepo.getRaw();
+    if (apiData && apiData.length > 0) {
+      // 自动合并：远程较新项覆盖本地，其余保留本地
+      return resolveArrayConflict(
+        ensureLastModified(local),
+        ensureLastModified(apiData),
+        'merge'
+      );
     }
+    if (local && local.length > 0) return local;
+  } else if (apiData && apiData.length > 0) {
+    return apiData;
   }
   return null;
 }
@@ -238,23 +279,36 @@ async function _apiLoad(endpoint) {
  * 只在页面初始化时调用一次。
  */
 export function initDataStore() {
-  if (!window._meetingsData) {
-    const localMeetings = Storage.getString(MEETINGS_STORAGE_KEY);
-    if (localMeetings) {
-      try {
-        window._meetingsData = JSON.parse(localMeetings);
-      } catch (e) {
-        console.warn('本地存储 parse failed:', e);
-      }
+  if (window._meetingsData) return window._meetingsData;
+
+  let meetings = meetingsRepo.getRaw();
+  const storedVersion = Storage.get(meetingsRepo.versionKey, 0);
+
+  // 数据损坏或为空：尝试从备份恢复
+  if (!Array.isArray(meetings) || meetings.length === 0) {
+    const backup = meetingsRepo.restore();
+    if (backup.success) {
+      meetings = backup.data;
     }
   }
-  if (!window._meetingsData) {
-    const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
-    window._meetingsData = isLocalDev ? getMockMeetings() : [];
-    if (!isLocalDev) {
-      console.log('[meetings] Production mode: no mock data loaded');
-    }
+
+  // 版本迁移
+  if (Array.isArray(meetings) && storedVersion < meetingsRepo.options.version) {
+    meetings = meetingsRepo.migrate(meetings, storedVersion);
   }
+
+  if (Array.isArray(meetings) && meetings.length > 0) {
+    window._meetingsData = meetings;
+    return window._meetingsData;
+  }
+
+  // 首次使用或生产环境无数据
+  const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
+  window._meetingsData = isLocalDev ? getMockMeetings() : [];
+  if (!isLocalDev) {
+    console.log('[meetings] Production mode: no mock data loaded');
+  }
+  meetingsRepo.set(window._meetingsData);
   return window._meetingsData;
 }
 
@@ -320,11 +374,11 @@ export function deleteMeetingByIndex(index) {
  * 所有数据变更后都应调用此方法。
  */
 export function persistMeetings() {
-  const meetings = getMeetings();
-  try {
-    Storage.set(MEETINGS_STORAGE_KEY, meetings);
-  } catch (e) {
-    console.warn('本地存储 save failed:', e.message);
+  const meetings = ensureLastModified(getMeetings());
+  window._meetingsData = meetings; // 同步回运行时
+  const saveOk = meetingsRepo.set(meetings);
+  if (!saveOk) {
+    console.error('[meetings] Failed to persist meetings data');
   }
   _apiSave('/api/meetings', meetings);
   syncResolutionsToStore(meetings);

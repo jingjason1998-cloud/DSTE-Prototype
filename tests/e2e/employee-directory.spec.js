@@ -69,11 +69,11 @@ test.describe('Employee Directory Admin', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
+    // 通过 fileChooser 上传测试 Excel
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
       page.click('#import-drop-zone'),
     ]);
-
     await fileChooser.setFiles('tests/fixtures/test-employees.xlsx');
 
     // 等待导入完成并刷新统计

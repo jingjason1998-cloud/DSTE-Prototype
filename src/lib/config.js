@@ -54,8 +54,13 @@ export const SIDEBAR_CONFIG = {
     ]},
     { type: 'group', title: '战略执行', items: [
       { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
-      { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' },
-      { id: 'exe/report-center', icon: '📊', label: '报表中心' }
+      { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' }
+    ]},
+    { type: 'group', title: '经营分析报表中心', icon: '📊', items: [
+      { id: 'exe/report-center', icon: '📊', label: '报表首页' },
+      { id: 'exe/report-center', reportId: 'fr-001', icon: '📈', label: '国内营销线利润表' },
+      { id: 'exe/report-center', reportId: 'fr-002', icon: '📈', label: '国内营销线利润表（新）' },
+      { id: 'exe/report-center', reportId: 'fr-ioc-platform', icon: '📊', label: '营销线组织绩效IOC平台' }
     ]},
     { type: 'quick', label: '快捷工具' },
     { type: 'item', id: 'exe/meeting-review', icon: '📋', label: '会议材料审核' }
@@ -75,7 +80,6 @@ export const SIDEBAR_CONFIG = {
 
 export const EXTERNAL_PAGES = {
   'admin/employee-directory': 'employee-directory.html',
-  'exe/meeting-review': 'reviewer.html',
   'exe/business-topics': 'business-topics.html',
   'exe/meetings': 'meetings.html',
   'sp/strategy-map': 'strategy-map-list.html',
@@ -95,7 +99,7 @@ export const PAGE_NAMES = {
   'exe/business-topics': '业务专题管理',
   'exe/meetings': '经营分析会',
   'exe/meeting-review': '会议材料审核',
-  'exe/report-center': '报表中心',
+  'exe/report-center': '经营分析报表中心',
   'rev/performance': '绩效与激励',
   'rev/cadre': '干部管理',
   'rev/review': '战略复盘',

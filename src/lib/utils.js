@@ -44,6 +44,18 @@ export function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function isQuotaError(e) {
+    return e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+}
+
+function reportStorageError(op, key, e) {
+    const message = `Storage.${op}(${key}) failed: ${e.message || e}`;
+    console.warn(message);
+    if (isQuotaError(e)) {
+        showToast('存储空间不足，部分数据可能未保存。建议导出备份后清理数据。', 'error', 5000);
+    }
+}
+
 export const Storage = {
     get(key, defaultValue = null) {
         try {
@@ -61,7 +73,7 @@ export const Storage = {
             localStorage.setItem(key, JSON.stringify(value));
             return true;
         } catch (e) {
-            console.warn(`Storage.set(${key}) failed:`, e.message);
+            reportStorageError('set', key, e);
             return false;
         }
     },
@@ -90,7 +102,7 @@ export const Storage = {
             localStorage.setItem(key, value);
             return true;
         } catch (e) {
-            console.warn(`Storage.setString(${key}) failed:`, e.message);
+            reportStorageError('setString', key, e);
             return false;
         }
     },
@@ -106,6 +118,59 @@ export const Storage = {
         } catch (e) {
             console.warn('Storage.getKeys failed:', e.message);
             return [];
+        }
+    },
+
+    /**
+     * 检测 localStorage 是否接近配额上限
+     * @returns {{ok:boolean, usedBytes?:number, totalBytes?:number, message?:string}}
+     */
+    checkQuota() {
+        try {
+            // 先估算当前已用空间
+            let usedBytes = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!key) continue;
+                const value = localStorage.getItem(key) || '';
+                usedBytes += (key.length + value.length) * 2; // UTF-16
+            }
+
+            // 尝试写入 1MB 测试数据
+            const testKey = '_dste_quota_test';
+            const testChunk = 'x'.repeat(1024 * 1024);
+            try {
+                localStorage.setItem(testKey, testChunk);
+                localStorage.removeItem(testKey);
+                return {
+                    ok: true,
+                    usedBytes,
+                    message: 'Quota check passed',
+                };
+            } catch (e) {
+                localStorage.removeItem(testKey);
+                return {
+                    ok: false,
+                    usedBytes,
+                    message: isQuotaError(e) ? 'Storage quota exceeded' : e.message,
+                };
+            }
+        } catch (e) {
+            return { ok: false, message: e.message };
+        }
+    },
+
+    /**
+     * 估算指定数据写入后所需的字节数
+     * @param {*} data
+     * @returns {number}
+     */
+    estimateSize(data) {
+        try {
+            const str = JSON.stringify(data);
+            return str.length * 2; // UTF-16
+        } catch (e) {
+            return 0;
         }
     }
 };

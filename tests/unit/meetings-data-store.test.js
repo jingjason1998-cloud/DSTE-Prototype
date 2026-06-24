@@ -2,14 +2,29 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // ---- shared mocks ----
 const storageMap = new Map();
+const stored = (key) => {
+  const raw = storageMap.get(key);
+  if (raw === undefined || raw === '') return undefined;
+  try { return JSON.parse(raw); }
+  catch (e) { return raw; }
+};
 const mockStorage = {
   getString: (key) => storageMap.get(key) || '',
-  set: (key, val) => { storageMap.set(key, val); },
+  set: (key, val) => { storageMap.set(key, JSON.stringify(val)); return true; },
+  setString: (key, val) => { storageMap.set(key, val); return true; },
   get: (key, defaultValue) => {
     const raw = storageMap.get(key);
     if (raw === undefined || raw === '') return defaultValue;
     try { return JSON.parse(raw); }
     catch (e) { return defaultValue; }
+  },
+  remove: (key) => { storageMap.delete(key); return true; },
+  getKeys: (prefix = '') => {
+    const keys = [];
+    for (const key of storageMap.keys()) {
+      if (key.startsWith(prefix)) keys.push(key);
+    }
+    return keys;
   },
 };
 
@@ -25,7 +40,9 @@ vi.mock('../../src/meetings/utils/resolution-helpers.js', () => ({
 globalThis.window = {
   location: { hostname: 'localhost' },
   _meetingsData: undefined,
+  addEventListener: vi.fn(),
 };
+globalThis.document = { addEventListener: vi.fn() };
 globalThis.fetch = vi.fn();
 
 const {
@@ -60,6 +77,7 @@ describe('meetings data-store', () => {
     it('loads meetings from localStorage', () => {
       const stored = [{ id: '2', title: 'Stored' }];
       storageMap.set('dste_meetings', JSON.stringify(stored));
+      storageMap.set('dste_meetings_version', JSON.stringify(3));
       const result = initDataStore();
       expect(result).toEqual(stored);
       expect(window._meetingsData).toEqual(stored);
@@ -86,6 +104,58 @@ describe('meetings data-store', () => {
       const result = initDataStore();
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('restores from backup when localStorage is corrupted', () => {
+      storageMap.set('dste_meetings', 'not-json');
+      storageMap.set('dste_backup_meetings__2__2026-01-01T00:00:00.000Z', JSON.stringify({
+        namespace: 'meetings',
+        version: 2,
+        exportedAt: '2026-01-01T00:00:00.000Z',
+        data: [{ id: 'restored', title: 'Restored' }],
+      }));
+      window.location.hostname = 'localhost';
+      const result = initDataStore();
+      expect(result).toEqual([{ id: 'restored', title: 'Restored', pre_report_id: '', minutes_report_id: '' }]);
+    });
+
+    it('migrates from old version and stores version key', () => {
+      storageMap.set('dste_meetings', JSON.stringify([{ id: 'old', title: 'Old' }]));
+      storageMap.set('dste_meetings_version', 1);
+      window.location.hostname = 'localhost';
+      const result = initDataStore();
+      expect(result).toEqual([{ id: 'old', title: 'Old', pre_report_id: '', minutes_report_id: '' }]);
+      expect(stored('dste_meetings_version')).toBe(4);
+    });
+
+    it('v4 migrator normalizes person fields to PersonRef', () => {
+      storageMap.set('dste_employees_v1', JSON.stringify([
+        { id: '10001', name: '张三', displayName: '张三 (Zhang.San)', orgPath: '线-大区-组', searchTokens: ['张三', 'zhang.san'] },
+      ]));
+      storageMap.set('dste_employees_v1_version', JSON.stringify(1));
+      storageMap.set('dste_meetings', JSON.stringify([{
+        id: 'm1', title: 'M1', host: '张三', recorder: '李四',
+        actions: [{ content: 'A1', owner: '张三' }],
+        decisions: [{ content: 'D1', owner: '张三', decider: '李四' }],
+        agenda_items: [{ title: 'G1', owner: '张三' }],
+      }]));
+      storageMap.set('dste_meetings_version', 3);
+      window.location.hostname = 'localhost';
+      const result = initDataStore();
+      const m = result[0];
+      expect(m.host).toMatchObject({ id: '10001', name: '张三' });
+      expect(m.recorder).toMatchObject({ _legacy: true, name: '李四' });
+      expect(m.actions[0].owner).toMatchObject({ id: '10001', name: '张三' });
+      expect(m.decisions[0].owner).toMatchObject({ id: '10001', name: '张三' });
+      expect(m.decisions[0].decider).toMatchObject({ _legacy: true, name: '李四' });
+      expect(m.agenda_items[0].owner).toMatchObject({ id: '10001', name: '张三' });
+      expect(stored('dste_meetings_version')).toBe(4);
+    });
+
+    it('persists version key on persistMeetings', () => {
+      window._meetingsData = [{ id: 'm1', title: 'M1', decisions: [], actions: [] }];
+      persistMeetings();
+      expect(stored('dste_meetings_version')).toBe(4);
     });
   });
 
@@ -116,7 +186,7 @@ describe('meetings data-store', () => {
       setMeetings(meetings);
 
       expect(getMeetings()).toBe(meetings);
-      expect(storageMap.get('dste_meetings')).toEqual(meetings);
+      expect(stored('dste_meetings')).toEqual(meetings);
       expect(mockSyncResolutionsToStore).toHaveBeenCalledWith(meetings);
     });
 
@@ -143,7 +213,7 @@ describe('meetings data-store', () => {
 
       expect(getMeetings().length).toBe(2);
       expect(getMeetings()[1]).toBe(added);
-      expect(storageMap.get('dste_meetings').length).toBe(2);
+      expect(stored('dste_meetings').length).toBe(2);
     });
   });
 
@@ -156,7 +226,7 @@ describe('meetings data-store', () => {
 
       expect(result).toBe(updated);
       expect(getMeetings()[1]).toBe(updated);
-      expect(storageMap.get('dste_meetings')[1].title).toBe('M2 Updated');
+      expect(stored('dste_meetings')[1].title).toBe('M2 Updated');
     });
 
     it('returns null for out of range index', () => {
@@ -174,7 +244,7 @@ describe('meetings data-store', () => {
 
       expect(result).toBe(true);
       expect(getMeetings().map(m => m.id)).toEqual(['m1', 'm3']);
-      expect(storageMap.get('dste_meetings').map(m => m.id)).toEqual(['m1', 'm3']);
+      expect(stored('dste_meetings').map(m => m.id)).toEqual(['m1', 'm3']);
     });
 
     it('returns false for out of range index', () => {
@@ -191,7 +261,7 @@ describe('meetings data-store', () => {
 
       persistMeetings();
 
-      expect(storageMap.get('dste_meetings')).toBe(meetings);
+      expect(stored('dste_meetings')).toEqual(meetings);
       expect(mockSyncResolutionsToStore).toHaveBeenCalledWith(meetings);
     });
   });
@@ -209,7 +279,7 @@ describe('meetings data-store', () => {
 
       expect(result).toBe(true);
       expect(getMeetings()).toEqual(remote);
-      expect(storageMap.get('dste_meetings')).toEqual(remote);
+      expect(stored('dste_meetings')).toEqual(remote);
     });
 
     it('returns false and keeps local data when remote has no data', async () => {

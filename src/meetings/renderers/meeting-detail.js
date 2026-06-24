@@ -12,6 +12,7 @@ import {
   formatAgendaSourceHint,
   getAgendaPostponeWarning,
 } from '../utils/helpers.js';
+import { renderPerson } from '../../lib/employee-directory.js';
 
 const SCENARIO_CONFIG = () => window.SCENARIO_CONFIG || {};
 const STATUS_CONFIG = () => window.STATUS_CONFIG || {};
@@ -20,6 +21,10 @@ const AGENDA_TYPE_COLORS = () => window.AGENDA_TYPE_COLORS || {};
 const AGENDA_TYPE_LABELS = () => window.AGENDA_TYPE_LABELS || {};
 const meetings = () => window.meetings || [];
 const escapeHtml = (s) => (window.escapeHtml ? window.escapeHtml(s) : String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+
+function renderPersonSafe(value) {
+  return escapeHtml(renderPerson(value));
+}
 
 function renderDetailHeader(m, sc, st) {
   return `
@@ -56,8 +61,8 @@ function renderInfoPanel(m, st) {
   const rows = [
     ['📅', '日期', m.date],
     ['📍', '地点', m.location || '待确认'],
-    ['👤', '主持人', m.host || '待定'],
-    ['📝', '记录人', m.recorder || '待定'],
+    ['👤', '主持人', renderPersonSafe(m.host)],
+    ['📝', '记录人', renderPersonSafe(m.recorder)],
     ['🏢', '层级', m.level],
     ['📊', '状态', `<span class="status-badge ${st.badgeClass}">${st.label}</span>`],
     ['🔗', 'KMS', m.meeting_link
@@ -120,7 +125,22 @@ function renderPipelineSteps(m) {
   `;
 }
 
-function renderAgendaItem(m, a, i) {
+function computeAgendaTimeSlots(meeting) {
+  const items = meeting.agenda_items || [];
+  const start = meeting.startTime || '09:00';
+  const [baseH, baseM] = start.split(':').map(Number);
+  let cursor = (baseH || 0) * 60 + (baseM || 0);
+  const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  return items.map((a) => {
+    const duration = parseInt(a.duration) || 0;
+    const s = cursor;
+    const e = cursor + duration;
+    cursor = e;
+    return { start: fmt(s), end: fmt(e) };
+  });
+}
+
+function renderAgendaItem(m, a, i, time) {
   const warning = getAgendaPostponeWarning(a);
   const sourceHint = formatAgendaSourceHint(a, meetings());
   const materialScore = getMaterialScore(a.material_link);
@@ -131,9 +151,9 @@ function renderAgendaItem(m, a, i) {
   return `
     <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${AGENDA_TYPE_COLORS()[a.type] || 'var(--text-secondary)'};">
       <div style="display: flex; flex-direction: column; align-items: center; min-width: 52px;">
-        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${a.start_time || '09:00'}</span>
+        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${time.start}</span>
         <span style="font-size: 10px; color: var(--text-secondary);">~</span>
-        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${a.end_time || '09:30'}</span>
+        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${time.end}</span>
       </div>
       <div style="flex: 1; min-width: 0;">
         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
@@ -158,6 +178,7 @@ function renderAgendaItem(m, a, i) {
 
 function renderAgendaSection(m) {
   const items = m.agenda_items || [];
+  const timeSlots = computeAgendaTimeSlots(m);
   const agendaTotalMinutes = items.reduce((s, a) => s + (a.duration || 0), 0);
   const agendaCompletion = computeAgendaCompletion(m);
   const postponedHint = agendaCompletion.postponed > 0 ? `（顺延 ${agendaCompletion.postponed}）` : '';
@@ -178,7 +199,7 @@ function renderAgendaSection(m) {
       <div style="display: flex; flex-direction: column; gap: 4px;">
         ${items.length === 0
           ? '<div style="text-align: center; color: var(--text-secondary); padding: 16px; font-size: 13px;">暂无议程</div>'
-          : items.map((a, i) => renderAgendaItem(m, a, i)).join('')}
+          : items.map((a, i) => renderAgendaItem(m, a, i, timeSlots[i])).join('')}
       </div>
     </div>
   `;
@@ -223,7 +244,7 @@ function renderActionItem(m, a, idx, arr) {
         <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
         <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
         <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.content || '')}</span>
-        <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${escapeHtml(a.owner || '待定')} · ${escapeHtml(a.deadline || '未定')}</span>
+        <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${renderPersonSafe(a.owner)} · ${escapeHtml(a.deadline || '未定')}</span>
         <button type="button" onclick="event.stopPropagation(); window.pushTodoReminder('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0;">⏰ 提醒</button>
       </div>
       ${progressRow}
@@ -257,7 +278,7 @@ function renderDecisionItem(m, d, idx, arr) {
       <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
       <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.content}</span>
       ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" onclick="event.stopPropagation()" title="打开 KMS 文档" style="font-size: 12px; color: var(--primary); text-decoration: none; flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--primary-light); border-radius: 4px; background: var(--primary-light);">🔗 KMS</a>` : ''}
-      <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${d.owner || d.decider || '待定'} · ${d.deadline || d.decision_date || '未定'}</span>
+      <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${renderPersonSafe(d.owner || d.decider)} · ${d.deadline || d.decision_date || '未定'}</span>
       <button type="button" onclick="event.stopPropagation(); window.pushResolution('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; flex-shrink: 0;">📢 推送</button>
     </div>
   `;

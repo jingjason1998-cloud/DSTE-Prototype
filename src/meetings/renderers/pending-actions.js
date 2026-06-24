@@ -4,8 +4,45 @@
  */
 
 import { getMeetings } from '../data-store.js';
+import { renderPerson } from '../../lib/employee-directory.js';
 
-function renderPendingActionsList(meetingsData) {
+const FILTER_TABS = [
+  { key: 'pending', label: '待闭环' },
+  { key: 'completed', label: '已完成' },
+  { key: 'all', label: '全部' },
+];
+
+function matchesActionFilter(a, filter) {
+  if (filter === 'all') return true;
+  if (filter === 'completed') return a.status === 'completed';
+  return a.status === 'pending' || a.status === 'in_progress';
+}
+
+function formatCompletedAt(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('zh-CN');
+  } catch (e) {
+    return '';
+  }
+}
+
+function renderPendingActionsTabs(currentFilter) {
+  return `
+    <div style="display: flex; gap: 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 12px;">
+      ${FILTER_TABS.map(t => `
+        <button type="button" onclick="switchPendingActionsTab('${t.key}')"
+          style="padding: 8px 16px; font-size: 13px; border: none; background: transparent; cursor: pointer; border-bottom: 2px solid ${currentFilter === t.key ? 'var(--primary)' : 'transparent'}; color: ${currentFilter === t.key ? 'var(--primary)' : 'var(--text-tertiary)'}; font-weight: ${currentFilter === t.key ? '600' : '400'}; transition: all 0.2s;">
+          ${t.label}
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderPendingActionsList(meetingsData, filter = 'pending') {
   const getActionStatusConfig = window.getActionStatusConfig || ((status) => ({ color: 'var(--text-tertiary)', label: status }));
   const escapeHtml = window.escapeHtml || ((s) => s || '');
   const escapeJsString = window.escapeJsString || ((s) => String(s || '').replace(/'/g, "\\'").replace(/"/g, '\\"'));
@@ -13,29 +50,40 @@ function renderPendingActionsList(meetingsData) {
   const items = (meetingsData || []).flatMap(m =>
     (m.actions || [])
       .map((a, actionIdx) => ({ ...a, meetingTitle: m.title, meetingId: m.id, meetingDate: m.date, actionIdx }))
-      .filter(a => a.status === 'pending' || a.status === 'in_progress')
+      .filter(a => matchesActionFilter(a, filter))
   );
+
   if (items.length === 0) {
-    return '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🎉 暂无待闭环行动</div>';
+    return renderPendingActionsTabs(filter) +
+      '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🎉 暂无行动项</div>';
   }
-  return items.map((a, i) => {
-    const _daysLeft = a.deadline ? Math.ceil((new Date(a.deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000) : null;
+
+  return renderPendingActionsTabs(filter) + items.map((a, i) => {
+    const _isCompleted = a.status === 'completed';
     let _timeTag = '';
-    if (_daysLeft !== null) {
+    if (!_isCompleted && a.deadline) {
+      const _daysLeft = Math.ceil((new Date(a.deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
       if (_daysLeft < 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">⚠️ 已逾期 ${Math.abs(_daysLeft)} 天</span>`;
       else if (_daysLeft === 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">🔥 今天到期</span>`;
       else if (_daysLeft <= 3) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,34,45,0.12); color: var(--danger); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
       else if (_daysLeft <= 7) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,158,11,0.12); color: var(--warning); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
       else _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(34,197,94,0.12); color: var(--success); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
     }
+
     const _statusCfg = getActionStatusConfig(a.status);
+    const _borderColor = _isCompleted ? 'var(--success)' : _statusCfg.color;
     const _bgMix = `color-mix(in srgb, ${_statusCfg.color} 15%, transparent)`;
+    const _completedHint = _isCompleted
+      ? `<span style="font-size: 11px; color: var(--success); font-weight: 500;">✅ 已完成${a.completedAt ? ' · ' + formatCompletedAt(a.completedAt) : ''}</span>`
+      : '';
+
     return `
-    <div data-pending-action="${i}" data-meeting-id="${a.meetingId}" data-action-idx="${a.actionIdx}" style="padding: 14px; background: var(--bg-page); border-radius: 8px; margin-bottom: 12px; border-left: 3px solid ${_statusCfg.color};">
+    <div data-pending-action="${i}" data-meeting-id="${a.meetingId}" data-action-idx="${a.actionIdx}" style="padding: 14px; background: var(--bg-page); border-radius: 8px; margin-bottom: 12px; border-left: 3px solid ${_borderColor};">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
         <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${escapeHtml(a.meetingTitle)}</span>
         <div style="display: flex; align-items: center; gap: 6px;">
           ${_timeTag}
+          ${_completedHint}
           <select data-action-status="${i}" onchange="updatePendingActionStatus('${escapeJsString(a.meetingId)}', ${a.actionIdx}, this.value)" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; border: 1px solid ${_statusCfg.color}; background: ${_bgMix}; color: ${_statusCfg.color}; cursor: pointer;">
             <option value="pending" ${a.status === 'pending' ? 'selected' : ''}>待办</option>
             <option value="in_progress" ${a.status === 'in_progress' ? 'selected' : ''}>进行中</option>
@@ -45,7 +93,7 @@ function renderPendingActionsList(meetingsData) {
       </div>
       <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">${escapeHtml(a.content)}</div>
       <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
-        <span>👤 ${escapeHtml(a.owner || '待定')}</span>
+        <span>👤 ${escapeHtml(renderPerson(a.owner))}</span>
         <span>📅 ${a.deadline || '未设置'}</span>
       </div>
       <div id="action-note-display-${a.meetingId}-${a.actionIdx}" data-action-note="${i}" style="margin-top: 8px;">
@@ -65,20 +113,39 @@ function renderPendingActionsList(meetingsData) {
   `;}).join('');
 }
 
+function getPendingActionsTitle(filter, meetings) {
+  const tabLabel = FILTER_TABS.find(t => t.key === filter)?.label || '待闭环';
+  let count = 0;
+  const allActions = (meetings || []).flatMap(m => m.actions || []);
+  if (filter === 'pending') {
+    count = allActions.filter(a => a.status === 'pending' || a.status === 'in_progress').length;
+  } else if (filter === 'completed') {
+    count = allActions.filter(a => a.status === 'completed').length;
+  } else {
+    count = allActions.length;
+  }
+  return `🔔 行动项 (${tabLabel} ${count})`;
+}
+
 function refreshPendingActionsList() {
   const list = document.getElementById('pending-actions-list');
   const title = document.querySelector('#pending-actions-drawer h3');
   if (!list) return;
-  const itemsHtml = renderPendingActionsList(getMeetings());
-  list.innerHTML = itemsHtml;
-  const freshItems = getMeetings().flatMap(m =>
-    (m.actions || []).filter(a => a.status === 'pending' || a.status === 'in_progress')
-  );
-  if (title) title.textContent = '🔔 待闭环行动 (' + freshItems.length + ')';
+  const filter = window._pendingActionsFilter || 'pending';
+  const meetings = getMeetings();
+  list.innerHTML = renderPendingActionsList(meetings, filter);
+  if (title) title.textContent = getPendingActionsTitle(filter, meetings);
+}
+
+function switchPendingActionsTab(filter) {
+  if (!FILTER_TABS.some(t => t.key === filter)) return;
+  window._pendingActionsFilter = filter;
+  refreshPendingActionsList();
 }
 
 // ---- window shim ----
 window.renderPendingActionsList = renderPendingActionsList;
 window.refreshPendingActionsList = refreshPendingActionsList;
+window.switchPendingActionsTab = switchPendingActionsTab;
 
-export { renderPendingActionsList, refreshPendingActionsList };
+export { renderPendingActionsList, refreshPendingActionsList, switchPendingActionsTab };

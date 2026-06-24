@@ -179,7 +179,7 @@ test('agenda types use new 6-category system', async ({ page }) => {
   // Fallback: verify rendered agenda type badges contain known categories
   const content = await page.content();
   expect(content).toContain('目标管理');
-  expect(content).toContain('重点工作管理');
+  expect(content).toContain('组织绩效管理');
   expect(content).toContain('预算与财经');
   expect(content).toContain('业务专项');
 });
