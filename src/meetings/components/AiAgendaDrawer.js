@@ -136,28 +136,30 @@ function applySelectedCandidates() {
   }
 
   const selected = _candidates.filter(c => _selectedIds.has(c.id));
-  if (!meeting.agenda_items) meeting.agenda_items = [];
-
-  let added = 0;
-  for (const c of selected) {
-    meeting.agenda_items.push(candidateToAgendaItem(c));
-    added++;
-  }
+  const newItems = selected.map(candidateToAgendaItem);
+  const added = newItems.length;
 
   // 清空已采纳的候选，避免重复添加
   _candidates = _candidates.filter(c => !_selectedIds.has(c.id));
   _selectedIds.clear();
 
   if (isEditorOpen()) {
+    if (!meeting.agenda_items) meeting.agenda_items = [];
+    for (const item of newItems) meeting.agenda_items.push(item);
     const renderFn = getRenderAgendaList();
     if (renderFn) renderFn();
     getSafeShowToast()(`已采纳 ${added} 个议程项`, 'success');
   } else {
-    // 在会议详情页中采纳时，先暂存，等进入编辑器再写入
+    // 在会议详情页中采纳时，暂存并自动打开编辑器
     if (!window._pendingAgendaAdoptions) window._pendingAgendaAdoptions = new Map();
     const existing = window._pendingAgendaAdoptions.get(meeting.id) || [];
-    window._pendingAgendaAdoptions.set(meeting.id, existing.concat(selected.map(candidateToAgendaItem)));
-    getSafeShowToast()(`已暂存 ${added} 个议程项，进入编辑器后自动应用`, 'info');
+    window._pendingAgendaAdoptions.set(meeting.id, existing.concat(newItems));
+    getSafeShowToast()(`已暂存 ${added} 个议程项，正在打开编辑器...`, 'info');
+    if (typeof window.openMeetingEditor === 'function') {
+      window.openMeetingEditor(meeting.id);
+    } else {
+      getSafeShowToast()('无法自动打开编辑器，请手动点击编辑按钮', 'warning');
+    }
   }
   renderAiAgendaPanel();
 }
