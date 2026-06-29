@@ -69,7 +69,10 @@ test.describe('Meeting Decision Edit', () => {
 
     expect(savedDecisions).not.toBeNull();
     expect(savedDecisions.length).toBeGreaterThanOrEqual(beforeCount + 1);
-    const found = savedDecisions.some(d => d.content === newContent && d.owner === '测试责任人');
+    const found = savedDecisions.some(d => {
+      const ownerName = typeof d.owner === 'object' && d.owner ? (d.owner.displayName || d.owner.name) : d.owner;
+      return d.content === newContent && ownerName === '测试责任人';
+    });
     expect(found).toBe(true);
   });
 

@@ -1,6 +1,129 @@
 {
   "versions": [
     {
+      "version": "v0.6.0",
+      "date": "2026-06-29",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**需求管理中心（Requirement Pool）**：全新独立页面 `src/requirement-pool.html`，支持 DSTE 产品需求的收集、分析、规划与状态跟踪。包含总览看板、状态管道（已收集 → 分析中 → 已规划 → 开发中 → 待发布 → 已验证/已关闭）、筛选栏、需求列表表格与分页。数据层使用 localStorage + Repository 本地存储，后端 API 接口预留。（`src/pages/requirement-pool/`, `src/requirement-pool.html`, RFC-007）"
+        },
+        {
+          "type": "Added",
+          "desc": "**AI 统一底座**：新增 `src/lib/ai-client.js`（统一 AI 客户端，封装聊天、流式输出、工具调用、会话管理与降级策略）、`src/lib/ai-context.js`（业务上下文构造器，自动聚合会议/OMP/专题/KPI/年度计划/人员目录等数据）、`src/lib/kms-vectorizer.js`（KMS 知识库前端接入，支持搜索与片段注入）。所有前端 AI 调用统一走 Kimi `k2.6` 模型，替代原有分散的 fetch 调用。"
+        },
+        {
+          "type": "Added",
+          "desc": "**会议 AI 助手侧滑面板**：`src/meetings/components/MeetingAiAssistant.js`，参考 Chrome Gemini side panel 交互，支持在会议详情页右侧打开 AI 对话，提供「总结议程/生成纪要/列出未闭环行动项/查看决议」等快捷提问，当前前端模拟回复，预留真实 AI 接口。"
+        },
+        {
+          "type": "Added",
+          "desc": "**会议编辑器独立模块**：`src/meetings/renderers/meeting-editor.js`，将原内嵌在 `meetings.html` 中的会议编辑逻辑抽离为独立模块，支持智能填充（根据会议名称自动匹配历史模板/关键词规则/日期推断）、材料审核状态缓存、议程时长自动计算。"
+        },
+        {
+          "type": "Added",
+          "desc": "**会议通知系统**：`src/meetings/renderers/notification-system.js`，支持企业微信群 Webhook 多目标配置、决议/待办/预警/议程推送、@所有人开关、发送历史记录。"
+        },
+        {
+          "type": "Added",
+          "desc": "**人员输入增强组件**：`src/components/person-input.js`，为现有 `<input>` 添加人员搜索与选择能力，支持姓名/英文名/工号模糊搜索，不破坏原表单结构，支持自由文本回退。"
+        },
+        {
+          "type": "Added",
+          "desc": "**驾驶舱 AI 战略助手**：`cockpit.html#ai` 页面重写为全局 AI 助手入口，支持自然语言问答、快捷操作（生成本月经营分析报告/查看逾期行动项/拆解年度目标等）、工具调用可视化、会话管理。"
+        },
+        {
+          "type": "Added",
+          "desc": "**KMS 知识库接入**：帆软 KMS（Confluence）作为企业知识库，支持文档索引、向量检索、引用溯源，AI 回答可标注来源页面标题与链接。（RFC-008）"
+        },
+        {
+          "type": "Added",
+          "desc": "**人员与组织目录增强**：`employee-directory.html` 新增组织树浏览（一级组织 → 一级团队 → 二级团队 → 三级团队），支持展开/收起、人员挂载显示、组织选中高亮；移除独立搜索面板，搜索能力由 `person-input` 组件统一提供。"
+        },
+        {
+          "type": "Added",
+          "desc": "**OMP 人员配置视图**：`cockpit.html` 重点工作管理新增「人员配置」视图（`staffing`），支持按组织架构浏览人员、拖拽分配任务、人员卡片渲染。"
+        },
+        {
+          "type": "Added",
+          "desc": "**E2E 测试**：`tests/e2e/ai-assistant.spec.js`（AI 战略助手交互与聊天流程）、`tests/e2e/requirement-pool.spec.js`（需求管理中心页面结构、状态管道筛选、新建需求弹窗）。"
+        },
+        {
+          "type": "Added",
+          "desc": "**单元测试**：`tests/unit/ai-client.test.js`（AI 客户端网关地址解析、会话创建、消息发送、流式解析）、`tests/unit/meeting-editor.test.js`（会议编辑器标题关键词提取、日期推断、智能填充）、`tests/unit/notification-system.test.js`（通知配置加载、Webhook 多目标迁移、发送逻辑）。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**AI 议程推荐接入统一客户端**：`src/meetings/utils/agenda-recommender.js` 从直接 `fetch` 改为通过 `AIClient` 调用，后端从 Claude（Cloudflare Worker）迁移至 Kimi `k2.6`，统一走 `/api/ai/agenda`。（RFC-008）"
+        },
+        {
+          "type": "Changed",
+          "desc": "**会议数据存储升级**：`src/meetings/data-store.js` 存储版本从 v4 升级到 v5，新增议程材料审核状态字段（`reviewReportUrl`, `reviewScore`, `reviewStatus`, `lastReviewedAt`）的迁移与初始化。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**会议详情页增强**：`src/meetings/renderers/meeting-detail.js` 新增材料审核状态摘要（已审核/审核中/失败/均分），议程项新增审核状态徽标，议程时长计算抽离为公共工具 `computeAgendaTimeSlots`。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**AI 议程推荐面板**：`src/meetings/components/AiAgendaDrawer.js` 支持从会议详情页打开时基于当前查看会议生成推荐，与 `MeetingAiAssistant` 共享会议上下文。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**人员目录数据层**：`src/lib/employee-directory.js` 新增云端同步基础设施（`syncQueue` + API 执行器），支持员工/组织/导入元数据的后端同步；重构组织层级构建逻辑，以「一级组织 → 一级团队 → 二级团队 → 三级团队」为层级，支持多级结构；`normalizePerson` 升级为 `normalizePersonField`，统一处理人员字段标准化。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**人员导入**：`src/lib/employee-import.js` 导入后自动触发 `rebuildPersonRefs`，重建人员引用关系。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**导航与构建配置**：`src/lib/config.js` 侧边栏「战略执行」分组更名为「经营分析会」，新增 `admin/requirement-pool` 外部页面映射；`vite.config.js` 构建入口新增 `requirement-pool`。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**驾驶舱页面**：`cockpit.html` 大量重构：年度经营计划 KPI 编辑归属改为 `person-input` 组件选择；Roadmap 时间线响应式优化；新增 AI 助手页面脚本与样式；OMP 任务视图支持人员配置。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**会议页面**：`meetings.html` 引入 `MeetingAiAssistant.js`、`meeting-editor.js`、`notification-system.js` 模块，新增 AI 助手侧滑面板 DOM 结构与样式，移除内嵌编辑逻辑（改为引用独立模块）。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**员工目录页**：`src/pages/admin/employee-directory.js` 移除搜索面板，聚焦组织树浏览；新增组织节点展开/收起/选中交互。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**业务专题页**：`src/pages/business-topics/main.js` 与 `src/business-topics.html` 适配人员输入组件。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**策略地图数据**：`src/lib/strategy-map-data.js` 适配人员字段标准化。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**测试覆盖**：大量 E2E 与单元测试更新以适配新组件与数据格式（`ai-agenda-recommend`, `annual-plan`, `business-topics`, `calendar-view`, `employee-directory`, `indicator-system`, `meeting-decision-edit`, `meeting-detail`, `meeting-person-selector`, `meetings-corruption`, `navigation`, `omp-migration-safety`, `omp-tasks`, `resolution-center`, `roadmap`, `strategy-map`, `test_integration.py`, `agenda-recommender.test.js`, `employee-directory.test.js`, `employee-import.test.js`, `meetings-data-store.test.js`）。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "人员选择器输入框在会议编辑/决议/行动项/议程负责人字段中统一替换为 `person-input` 组件，解决自由文本与标准化人员对象混用导致的显示与搜索不一致问题。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "组织路径解析从 `ldap` 链分段回退改为优先使用「一级组织/一级团队/二级团队/三级团队」字段拼接，解决旧数据组织层级显示错误问题。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "会议数据迁移 v4→v5 确保 `normalizePersonField` 正确应用于 `host`, `recorder`, `actions[].owner`, `decisions[].owner/decider`, `agenda_items[].owner`。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "Webhook 配置从单 URL 字符串迁移为数组结构，兼容旧配置自动升级。"
+        }
+      ]
+    },
+    {
       "version": "v0.5.5",
       "date": "2026-06-24",
       "status": "released",

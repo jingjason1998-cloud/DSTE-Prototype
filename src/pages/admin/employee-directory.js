@@ -1,18 +1,15 @@
 /**
  * 人员与组织管理页
- * Phase 1：提供员工目录导入、组织架构浏览、员工搜索。
+ * Phase 1：提供员工目录导入、组织架构浏览。
  */
 
 import {
   getEmployees,
   getOrgUnits,
   getOrgTree,
-  getEmployeeById,
-  searchEmployees,
   hasEmployeeData,
   getImportMeta,
   clearEmployeeDirectory,
-  renderPerson,
   IMPORT_META_STORAGE_KEY,
 } from '../../lib/employee-directory.js';
 import { importEmployeesFromFile, executeImport } from '../../lib/employee-import.js';
@@ -22,6 +19,7 @@ import { showToast, escapeHtml } from '../../lib/utils.js';
 let _previewSummary = null;
 let _pendingFile = null;
 let _expandedOrgIds = new Set();
+let _selectedOrgId = null;
 
 // ===================== 页面初始化 =====================
 
@@ -47,9 +45,8 @@ function renderPageLayout() {
       <section class="directory-import" id="directory-import"></section>
 
       <section class="directory-main">
-        <div class="directory-search" id="directory-search"></div>
         <div class="directory-tree" id="directory-tree"></div>
-      </div>
+      </section>
     </div>
   `;
 }
@@ -144,42 +141,6 @@ function renderMessageList(title, list, type) {
   `;
 }
 
-// ===================== 搜索面板 =====================
-
-function renderSearchPanel() {
-  const container = document.getElementById('directory-search');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div class="search-box">
-      <input type="text" id="employee-search-input" placeholder="搜索姓名、英文名、工号、部门..." autocomplete="off">
-      <button id="btn-clear-search">清空</button>
-    </div>
-    <div id="employee-search-results"></div>
-  `;
-}
-
-function renderSearchResults(results) {
-  const container = document.getElementById('employee-search-results');
-  if (!container) return;
-
-  if (results.length === 0) {
-    container.innerHTML = '<div class="empty-state">未找到匹配的员工</div>';
-    return;
-  }
-
-  const items = results.map(emp => `
-    <div class="employee-card">
-      <div class="employee-name">${escapeHtml(emp.displayName || emp.name)}</div>
-      <div class="employee-meta">工号 ${escapeHtml(emp.id)} · ${escapeHtml(emp.orgPath || '未分配组织')}</div>
-    </div>
-  `).join('');
-
-  container.innerHTML = `<div class="employee-list">${items}</div>
-    <div class="result-count">共 ${results.length} 条结果</div>
-  `;
-}
-
 // ===================== 组织树面板 =====================
 
 function renderOrgTreePanel() {
@@ -197,37 +158,81 @@ function renderOrgTreePanel() {
     return;
   }
 
+  const empMap = buildOrgEmployeesMap();
+
   container.innerHTML = `
     <div class="tree-header">
       <span>组织架构</span>
-      <button class="btn-link" id="btn-expand-all">展开全部</button>
-      <button class="btn-link" id="btn-collapse-all">收起全部</button>
+      <div style="display:flex;gap:12px;">
+        <button class="btn-link" id="btn-expand-all">展开全部</button>
+        <button class="btn-link" id="btn-collapse-all">收起全部</button>
+      </div>
     </div>
-    <div class="org-tree">${roots.map(id => renderOrgNode(id, orgUnits, 0)).join('')}</div>
+    <div class="org-tree">${roots.map(id => renderOrgNode(id, orgUnits, 0, empMap)).join('')}</div>
   `;
 }
 
-function renderOrgNode(orgId, orgUnits, depth) {
+function buildOrgEmployeesMap() {
+  const employees = getEmployees();
+  const map = {};
+  employees.forEach(emp => {
+    const pathParts = [emp.l1Org, emp.l1Team, emp.l2Team, emp.l3Team].filter(Boolean);
+    if (pathParts.length === 0) return;
+    const orgId = 'org:' + pathParts.join('/');
+    if (!map[orgId]) map[orgId] = [];
+    map[orgId].push(emp);
+  });
+  return map;
+}
+
+function renderEmployeeNode(emp, depth) {
+  const indent = depth * 20 + 22;
+  const initials = (emp.name || emp.displayName || '?').charAt(0);
+  return `
+    <div class="emp-row" style="padding-left:${indent}px;">
+      <div class="emp-avatar">${escapeHtml(initials)}</div>
+      <div class="emp-info">
+        <div class="emp-name">${escapeHtml(emp.displayName || emp.name)}</div>
+        <div class="emp-meta">${escapeHtml(emp.id)} · ${escapeHtml(emp.orgPath || '未分配组织')}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderOrgNode(orgId, orgUnits, depth, empMap) {
   const unit = orgUnits[orgId];
   if (!unit) return '';
 
   const hasChildren = unit.children && unit.children.length > 0;
   const isExpanded = _expandedOrgIds.has(orgId);
+  const isSelected = _selectedOrgId === orgId;
   const indent = depth * 20;
+  const employees = empMap[orgId] || [];
 
-  const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '└';
+  const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '';
+  const folderIcon = hasChildren ? (isExpanded ? '📂' : '📁') : '📂';
+  const rowBg = isSelected ? 'background: var(--primary-light, color-mix(in srgb, var(--primary) 12%, transparent)); border-radius: 6px;' : '';
+  const nameColor = isSelected ? 'var(--primary)' : 'var(--text-primary)';
+  const fontWeight = isSelected ? '600' : '400';
+
   const childrenHtml = hasChildren && isExpanded
-    ? `<div class="org-children">${unit.children.map(childId => renderOrgNode(childId, orgUnits, depth + 1)).join('')}</div>`
+    ? `<div class="org-children">${unit.children.map(childId => renderOrgNode(childId, orgUnits, depth + 1, empMap)).join('')}</div>`
+    : '';
+
+  const employeesHtml = isExpanded && employees.length > 0
+    ? `<div class="org-employees">${employees.map(emp => renderEmployeeNode(emp, depth + 1)).join('')}</div>`
     : '';
 
   return `
     <div class="org-node" data-org-id="${escapeHtml(orgId)}">
-      <div class="org-row" style="padding-left:${indent}px;">
+      <div class="org-row" style="padding-left:${indent}px; ${rowBg}" data-action="select-org" data-org-id="${escapeHtml(orgId)}">
         <span class="org-toggle" data-action="toggle-org" data-org-id="${escapeHtml(orgId)}" ${!hasChildren ? 'style="visibility:hidden;"' : ''}>${toggleIcon}</span>
-        <span class="org-name">${escapeHtml(unit.name)}</span>
+        <span class="org-folder" style="font-size:14px;" data-action="select-org" data-org-id="${escapeHtml(orgId)}">${folderIcon}</span>
+        <span class="org-name" style="flex:1; color:${nameColor}; font-weight:${fontWeight};" data-action="select-org" data-org-id="${escapeHtml(orgId)}">${escapeHtml(unit.name)}</span>
         <span class="org-count">${unit.employeeCount} 人</span>
       </div>
       ${childrenHtml}
+      ${employeesHtml}
     </div>
   `;
 }
@@ -236,7 +241,6 @@ function renderOrgNode(orgId, orgUnits, depth) {
 
 function bindPageEvents() {
   bindImportEvents();
-  bindSearchEvents();
   bindTreeEvents();
 }
 
@@ -288,37 +292,25 @@ async function handleFileSelected(file) {
   }
 }
 
-function bindSearchEvents() {
-  document.addEventListener('input', (e) => {
-    if (e.target.id !== 'employee-search-input') return;
-    const query = e.target.value.trim();
-    if (!query) {
-      renderSearchResults([]);
-      return;
-    }
-    const results = searchEmployees(query, 20);
-    renderSearchResults(results);
-  });
-
-  document.addEventListener('click', (e) => {
-    if (e.target.id === 'btn-clear-search') {
-      const input = document.getElementById('employee-search-input');
-      if (input) input.value = '';
-      renderSearchResults([]);
-    }
-  });
-}
-
 function bindTreeEvents() {
   document.addEventListener('click', (e) => {
     const toggle = e.target.closest('[data-action="toggle-org"]');
     if (toggle) {
+      e.stopPropagation();
       const orgId = toggle.dataset.orgId;
       if (_expandedOrgIds.has(orgId)) {
         _expandedOrgIds.delete(orgId);
       } else {
         _expandedOrgIds.add(orgId);
       }
+      renderOrgTreePanel();
+      return;
+    }
+
+    const selectRow = e.target.closest('[data-action="select-org"]');
+    if (selectRow) {
+      const orgId = selectRow.dataset.orgId;
+      _selectedOrgId = _selectedOrgId === orgId ? null : orgId;
       renderOrgTreePanel();
       return;
     }
@@ -369,7 +361,5 @@ function refreshAllPanels() {
   renderStatsPanel();
   renderImportPanel();
   bindImportEvents();
-  renderSearchPanel();
-  renderSearchResults([]);
   renderOrgTreePanel();
 }

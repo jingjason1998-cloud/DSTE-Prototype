@@ -9,6 +9,7 @@ import {
   saveEmployeeDirectory,
   getEmployees,
   IMPORT_META_STORAGE_KEY,
+  rebuildPersonRefs,
 } from './employee-directory.js';
 import { Storage, showToast } from './utils.js';
 import * as XLSX from 'xlsx';
@@ -271,8 +272,10 @@ export async function importEmployeesFromFile(file) {
     return { success: false, summary, error: writeResult.error };
   }
 
+  const rebuild = await rebuildPersonRefs();
+
   showToast(`成功导入 ${summary.employees.length} 名员工`, 'success');
-  return { success: true, summary };
+  return { success: true, summary, rebuild };
 }
 
 /**

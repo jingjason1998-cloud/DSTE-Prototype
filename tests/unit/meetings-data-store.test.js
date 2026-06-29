@@ -125,10 +125,10 @@ describe('meetings data-store', () => {
       window.location.hostname = 'localhost';
       const result = initDataStore();
       expect(result).toEqual([{ id: 'old', title: 'Old', pre_report_id: '', minutes_report_id: '' }]);
-      expect(stored('dste_meetings_version')).toBe(4);
+      expect(stored('dste_meetings_version')).toBe(5);
     });
 
-    it('v4 migrator normalizes person fields to PersonRef', () => {
+    it('v4 migrator normalizes person fields to PersonRef and chains to v5', () => {
       storageMap.set('dste_employees_v1', JSON.stringify([
         { id: '10001', name: '张三', displayName: '张三 (Zhang.San)', orgPath: '线-大区-组', searchTokens: ['张三', 'zhang.san'] },
       ]));
@@ -149,13 +149,33 @@ describe('meetings data-store', () => {
       expect(m.decisions[0].owner).toMatchObject({ id: '10001', name: '张三' });
       expect(m.decisions[0].decider).toMatchObject({ _legacy: true, name: '李四' });
       expect(m.agenda_items[0].owner).toMatchObject({ id: '10001', name: '张三' });
-      expect(stored('dste_meetings_version')).toBe(4);
+      // v5 migrator adds review fields to agenda items
+      expect(m.agenda_items[0].reviewStatus).toBe('pending');
+      expect(m.agenda_items[0].reviewScore).toBe(0);
+      expect(m.agenda_items[0].reviewReportUrl).toBe('');
+      expect(m.agenda_items[0].lastReviewedAt).toBe('');
+      expect(stored('dste_meetings_version')).toBe(5);
+    });
+
+    it('v5 migrator initializes material review fields on agenda items', () => {
+      storageMap.set('dste_meetings', JSON.stringify([{
+        id: 'm1', title: 'M1', agenda_items: [{ title: 'G1' }],
+      }]));
+      storageMap.set('dste_meetings_version', 4);
+      window.location.hostname = 'localhost';
+      const result = initDataStore();
+      const a = result[0].agenda_items[0];
+      expect(a.reviewStatus).toBe('pending');
+      expect(a.reviewScore).toBe(0);
+      expect(a.reviewReportUrl).toBe('');
+      expect(a.lastReviewedAt).toBe('');
+      expect(stored('dste_meetings_version')).toBe(5);
     });
 
     it('persists version key on persistMeetings', () => {
       window._meetingsData = [{ id: 'm1', title: 'M1', decisions: [], actions: [] }];
       persistMeetings();
-      expect(stored('dste_meetings_version')).toBe(4);
+      expect(stored('dste_meetings_version')).toBe(5);
     });
   });
 

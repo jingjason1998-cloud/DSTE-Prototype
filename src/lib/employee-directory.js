@@ -5,6 +5,8 @@
 
 import { Repository } from './repository.js';
 import { Storage } from './utils.js';
+import { getDefaultSyncQueue } from './sync-queue.js';
+import { resolveArrayConflict, ensureLastModified } from './conflict-resolver.js';
 
 // ===================== 常量 =====================
 export const EMPLOYEES_STORAGE_KEY = 'dste_employees_v1';
@@ -37,6 +39,87 @@ export function createOrgUnitsRepository(options = {}) {
 const employeesRepo = createEmployeesRepository();
 const orgUnitsRepo = createOrgUnitsRepository();
 
+// ===================== 云端同步基础设施 =====================
+
+function getApiBase() {
+  const host = (typeof window !== 'undefined' && window.location.hostname) || '';
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return Storage.getString('dste_api_base') || '';
+  }
+  return 'https://dste-api.jasonxspace.workers.dev';
+}
+
+const syncQueue = getDefaultSyncQueue();
+
+function createExecutor(endpoint) {
+  return async (operation) => {
+    const apiBase = getApiBase();
+    if (!apiBase) return;
+    const token = Storage.getString('dste-token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const resp = await fetch(apiBase + endpoint, {
+      method: operation.method || 'POST',
+      headers,
+      body: JSON.stringify(operation.payload),
+    });
+    if (resp.status === 401) {
+      console.warn(`[employee-directory] API save returned 401 for ${endpoint}`);
+      return;
+    }
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+  };
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  syncQueue.bindAutoProcess(createExecutor('/api/employees'));
+  syncQueue.bindAutoProcess(createExecutor('/api/org-units'));
+  syncQueue.bindAutoProcess(createExecutor('/api/employee-import-meta'));
+}
+
+function _apiSave(endpoint, payload) {
+  syncQueue.enqueue({
+    endpoint,
+    method: 'POST',
+    payload,
+    executor: createExecutor(endpoint),
+  });
+}
+
+function _apiSaveEmployees(employees) {
+  _apiSave('/api/employees', employees);
+}
+
+function _apiSaveOrgUnits(orgUnits) {
+  _apiSave('/api/org-units', orgUnits);
+}
+
+function _apiSaveImportMeta(meta) {
+  _apiSave('/api/employee-import-meta', meta);
+}
+
+async function _apiLoad(endpoint) {
+  const apiBase = getApiBase();
+  if (!apiBase) return { ok: false, data: null };
+  const token = Storage.getString('dste-token');
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+  try {
+    const resp = await fetch(apiBase + endpoint, { headers });
+    if (resp.status === 401) {
+      console.warn(`[employee-directory] API load returned 401 for ${endpoint}`);
+      return { ok: false, data: null, status: 401 };
+    }
+    const json = await resp.json();
+    if (json.success && json.data !== undefined) return { ok: true, data: json.data };
+    return { ok: true, data: null };
+  } catch (e) {
+    console.warn(`[employee-directory] API load failed for ${endpoint}:`, e.message);
+    return { ok: false, data: null, error: e.message };
+  }
+}
+
 // ===================== 数据构建 =====================
 
 /**
@@ -49,9 +132,16 @@ export function buildEmployeeFromRow(row) {
   const name = String(row['姓名'] || '').trim();
   const englishName = String(row['英文名'] || '').trim();
   const wechatName = String(row['同学微信名'] || row['同学本人'] || '').trim();
-  const orgPath = String(row['组织全称'] || '').trim();
   const ldap = String(row['ldap'] || '').trim();
   const orgChain = ldap.split(',').map(s => s.trim()).filter(Boolean);
+
+  const l1Org = String(row['一级组织'] || '').trim();
+  const l1Team = String(row['一级团队'] || '').trim();
+  const l2Team = String(row['二级团队'] || '').trim();
+  const l3Team = String(row['三级团队'] || '').trim();
+  const teamPath = [l1Org, l1Team, l2Team, l3Team].filter(Boolean);
+  // 优先使用团队字段拼接组织路径；没有团队字段时回退到组织全称
+  const orgPath = teamPath.length > 0 ? teamPath.join(' > ') : String(row['组织全称'] || '').trim();
 
   const displayName = name && englishName ? `${name} (${englishName})` : (name || englishName || wechatName || id);
 
@@ -64,10 +154,10 @@ export function buildEmployeeFromRow(row) {
     gender: String(row['性别'] || '').trim(),
     personnelType: String(row['人员类型_ssc'] || '').trim(),
     orgPath,
-    l1Org: String(row['一级组织'] || '').trim(),
-    l1Team: String(row['一级团队'] || '').trim(),
-    l2Team: String(row['二级团队'] || '').trim(),
-    l3Team: String(row['三级团队'] || '').trim(),
+    l1Org,
+    l1Team,
+    l2Team,
+    l3Team,
     l1Function: String(row['一级职能'] || '').trim(),
     l2Function: String(row['二级职能'] || '').trim(),
     orgId: orgChain[0] || String(row['组织ID'] || '').trim(),
@@ -75,7 +165,7 @@ export function buildEmployeeFromRow(row) {
     orgChain,
     managerName: String(row['直接负责人'] || '').trim(),
     managerEnglishName: String(row['直接负责人英文名'] || '').trim(),
-    searchTokens: buildSearchTokens({ name, englishName, wechatName, orgPath, l1Team: row['一级团队'], l2Team: row['二级团队'], l3Team: row['三级团队'] }),
+    searchTokens: buildSearchTokens({ name, englishName, wechatName, orgPath, l1Team, l2Team, l3Team }),
   };
 
   return emp;
@@ -87,105 +177,78 @@ function buildSearchTokens({ name, englishName, wechatName, orgPath, l1Team, l2T
     if (v) tokens.add(String(v).toLowerCase());
   });
   if (orgPath) {
-    orgPath.split('-').forEach(p => tokens.add(p.trim().toLowerCase()));
+    orgPath.split(/[- >]+/).forEach(p => tokens.add(p.trim().toLowerCase()));
   }
   return Array.from(tokens);
 }
 
 /**
- * 从 ldap 链解析组织名称
- * @param {string} orgId
- * @param {object} emp
- * @param {number} chainIdx 该 orgId 在 ldap 链中的索引（0=叶子）
- * @param {number} chainLength
+ * 根据团队路径生成稳定的组织单元 ID
+ * @param {string[]} pathParts
+ * @returns {string}
  */
-function resolveOrgName(orgId, emp, chainIdx, chainLength) {
-  const idMap = {
-    [String(emp['一级组织id'] || '').trim()]: emp['一级组织'],
-    [String(emp['一级团队ID'] || '').trim()]: emp['一级团队'],
-    [String(emp['二级团队ID'] || '').trim()]: emp['二级团队'],
-    [String(emp['三级团队ID'] || '').trim()]: emp['三级团队'],
-  };
-  if (idMap[orgId]) return idMap[orgId];
-
-  // 按 orgPath 分段回退
-  const parts = (emp.orgPath || '').split('-').map(s => s.trim());
-  const levelFromRoot = chainLength - 1 - chainIdx;
-  if (parts[levelFromRoot]) return parts[levelFromRoot];
-
-  return `组织-${orgId}`;
-}
-
-function buildOrgPath(chain, startIdx, orgUnits) {
-  const names = [];
-  for (let i = startIdx; i < chain.length; i++) {
-    const unit = orgUnits.get(chain[i]);
-    names.push(unit ? unit.name : chain[i]);
-  }
-  return names.join(' > ');
+function makeOrgId(pathParts) {
+  return `org:${pathParts.join('/')}`;
 }
 
 /**
  * 根据员工列表构建组织架构
+ * 以「一级组织 → 一级团队 → 二级团队 → 三级团队」为层级，保留多级结构。
  * @param {Array} employees
  * @returns {{orgUnits: object, roots: string[]}}
  */
 export function buildOrgHierarchy(employees) {
   const orgUnits = new Map();
 
-  // 第一步：创建所有组织单元
   employees.forEach(emp => {
-    const chain = emp.orgChain || [];
-    chain.forEach((orgId, idx) => {
-      if (orgUnits.has(orgId)) return;
-      const name = resolveOrgName(orgId, emp, idx, chain.length);
-      orgUnits.set(orgId, {
-        id: orgId,
-        name,
-        level: chain.length - 1 - idx,
-        parentId: idx < chain.length - 1 ? chain[idx + 1] : null,
-        path: '', // 第二步填充
-        employeeCount: 0,
-        children: [],
-      });
-    });
-  });
+    const pathParts = [emp.l1Org, emp.l1Team, emp.l2Team, emp.l3Team].filter(Boolean);
+    if (pathParts.length === 0) return;
 
-  // 第二步：建立父子关系并生成 path
-  const roots = [];
-  orgUnits.forEach((unit, id) => {
-    if (unit.parentId && orgUnits.has(unit.parentId)) {
-      const parent = orgUnits.get(unit.parentId);
-      if (!parent.children.includes(id)) parent.children.push(id);
-    } else {
-      roots.push(id);
+    // 创建路径上每一级组织单元
+    let parentId = null;
+    for (let i = 0; i < pathParts.length; i++) {
+      const nodePath = pathParts.slice(0, i + 1);
+      const id = makeOrgId(nodePath);
+      const name = pathParts[i];
+
+      if (!orgUnits.has(id)) {
+        orgUnits.set(id, {
+          id,
+          name,
+          level: i,
+          parentId,
+          path: nodePath.join(' > '),
+          employeeCount: 0,
+          children: [],
+        });
+
+        if (parentId && orgUnits.has(parentId)) {
+          const parent = orgUnits.get(parentId);
+          if (!parent.children.includes(id)) parent.children.push(id);
+        }
+      }
+
+      parentId = id;
     }
-    unit.path = buildOrgPath([id, ...getAncestorIds(id, orgUnits)], 0, orgUnits);
+
+    // 统计人数：路径上所有节点均 +1
+    for (let i = 0; i < pathParts.length; i++) {
+      const id = makeOrgId(pathParts.slice(0, i + 1));
+      const unit = orgUnits.get(id);
+      if (unit) unit.employeeCount++;
+    }
   });
 
-  // 第三步：统计人数（叶子及所有祖先）
-  employees.forEach(emp => {
-    const chain = emp.orgChain || [];
-    chain.forEach(orgId => {
-      const unit = orgUnits.get(orgId);
-      if (unit) unit.employeeCount++;
-    });
+  const roots = [];
+  orgUnits.forEach((unit) => {
+    if (!unit.parentId) roots.push(unit.id);
   });
+  roots.sort((a, b) => a.localeCompare(b, 'zh-CN'));
 
   return {
     orgUnits: Object.fromEntries(orgUnits),
     roots,
   };
-}
-
-function getAncestorIds(orgId, orgUnits) {
-  const ids = [];
-  let current = orgUnits.get(orgId);
-  while (current && current.parentId) {
-    ids.push(current.parentId);
-    current = orgUnits.get(current.parentId);
-  }
-  return ids;
 }
 
 // ===================== 搜索索引 =====================
@@ -219,7 +282,20 @@ export function getEmployees() {
 }
 
 export function getOrgUnits() {
-  return orgUnitsRepo.getRaw() || {};
+  const raw = orgUnitsRepo.getRaw() || {};
+  // 兼容旧格式：旧数据是平铺的 org 对象 map；新格式是 { lastModified, data }
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.data && typeof raw.data === 'object') {
+    return raw.data;
+  }
+  return raw;
+}
+
+export function getOrgUnitsWrapper() {
+  const raw = orgUnitsRepo.getRaw() || {};
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.data && typeof raw.data === 'object') {
+    return raw;
+  }
+  return { lastModified: 0, data: raw };
 }
 
 export function getOrgTree() {
@@ -299,17 +375,24 @@ export function hasEmployeeData() {
  */
 export function saveEmployeeDirectory(employees, meta = {}) {
   try {
+    const now = Date.now();
+    ensureLastModified(employees);
     const { orgUnits } = buildOrgHierarchy(employees);
+    const wrappedOrgUnits = { lastModified: now, data: orgUnits };
+    const wrappedMeta = { lastModified: now, importedAt: new Date().toISOString(), count: employees.length, ...meta };
+
     const empOk = employeesRepo.set(employees);
-    const orgOk = orgUnitsRepo.set(orgUnits);
+    const orgOk = orgUnitsRepo.set(wrappedOrgUnits);
     if (!empOk || !orgOk) {
       return { success: false, error: 'localStorage 写入失败，可能超出配额' };
     }
-    Storage.set(IMPORT_META_STORAGE_KEY, {
-      importedAt: new Date().toISOString(),
-      count: employees.length,
-      ...meta,
-    });
+    Storage.set(IMPORT_META_STORAGE_KEY, wrappedMeta);
+
+    // 云端同步（本地优先，失败可重试）
+    _apiSaveEmployees(employees);
+    _apiSaveOrgUnits(wrappedOrgUnits);
+    _apiSaveImportMeta(wrappedMeta);
+
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
@@ -321,15 +404,124 @@ export function saveEmployeeDirectory(employees, meta = {}) {
  */
 export function clearEmployeeDirectory() {
   employeesRepo.set([]);
-  orgUnitsRepo.set({});
+  orgUnitsRepo.set({ lastModified: Date.now(), data: {} });
   Storage.remove(IMPORT_META_STORAGE_KEY);
+
+  _apiSaveEmployees([]);
+  _apiSaveOrgUnits({ lastModified: Date.now(), data: {} });
+  _apiSaveImportMeta(null);
 }
 
 /**
- * 获取导入元信息
+ * 从云端加载并合并员工目录数据
+ * @returns {Promise<{success: boolean, merged: boolean, error?: string}>}
  */
+export async function loadRemoteEmployeeDirectory() {
+  const loadResults = await Promise.all([
+    _apiLoad('/api/employees'),
+    _apiLoad('/api/org-units'),
+    _apiLoad('/api/employee-import-meta'),
+  ]);
+  const employeesResult = loadResults[0];
+  const orgUnitsResult = loadResults[1];
+  const metaResult = loadResults[2];
+
+  // 如果所有请求都失败，视为离线
+  if (!employeesResult.ok && !orgUnitsResult.ok && !metaResult.ok) {
+    return { success: false, merged: false, error: 'offline' };
+  }
+
+  const remoteEmployees = employeesResult.data;
+  const remoteOrgUnits = orgUnitsResult.data;
+  const remoteMeta = metaResult.data;
+
+  const localEmployees = employeesRepo.getRaw() || [];
+  const localOrgUnitsWrapper = getOrgUnitsWrapper();
+  const localMetaWrapper = getImportMetaWrapper();
+
+  let mergedEmployees = localEmployees;
+  let mergedOrgUnitsWrapper = localOrgUnitsWrapper;
+  let mergedMetaWrapper = localMetaWrapper;
+  let merged = false;
+
+  // 员工数组：按 lastModified 逐条合并
+  if (Array.isArray(remoteEmployees) && remoteEmployees.length > 0) {
+    if (localEmployees.length === 0) {
+      mergedEmployees = remoteEmployees;
+    } else {
+      mergedEmployees = resolveArrayConflict(
+        ensureLastModified(localEmployees),
+        ensureLastModified(remoteEmployees),
+        'merge',
+        e => e.id
+      );
+    }
+    merged = true;
+  }
+
+  // orgUnits：wrapper 级别比较 lastModified
+  if (remoteOrgUnits && typeof remoteOrgUnits === 'object' && remoteOrgUnits.data && typeof remoteOrgUnits.data === 'object') {
+    const remoteTs = Number(remoteOrgUnits.lastModified) || 0;
+    const localTs = Number(localOrgUnitsWrapper.lastModified) || 0;
+    if (remoteTs > localTs) {
+      mergedOrgUnitsWrapper = remoteOrgUnits;
+      merged = true;
+    }
+  }
+
+  // importMeta：wrapper 级别比较 lastModified
+  if (remoteMeta && typeof remoteMeta === 'object' && remoteMeta.lastModified) {
+    const remoteTs = Number(remoteMeta.lastModified) || 0;
+    const localTs = localMetaWrapper ? (Number(localMetaWrapper.lastModified) || 0) : 0;
+    if (!localMetaWrapper || remoteTs > localTs) {
+      mergedMetaWrapper = remoteMeta;
+      merged = true;
+    }
+  }
+
+  // 写回本地
+  if (merged) {
+    employeesRepo.set(mergedEmployees);
+    orgUnitsRepo.set(mergedOrgUnitsWrapper);
+    if (mergedMetaWrapper) {
+      Storage.set(IMPORT_META_STORAGE_KEY, mergedMetaWrapper);
+    }
+  }
+
+  // 若远程为空但本地有数据，尝试把本地推上去（首次从旧设备切换过来的情况）
+  if (!remoteEmployees && localEmployees.length > 0) {
+    _apiSaveEmployees(localEmployees);
+    _apiSaveOrgUnits(localOrgUnitsWrapper);
+    if (localMetaWrapper) _apiSaveImportMeta(localMetaWrapper);
+  }
+
+  return { success: true, merged };
+}
+
+/**
+ * 初始化员工目录：从云端拉取并合并
+ */
+export async function initEmployeeDirectory() {
+  return loadRemoteEmployeeDirectory();
+}
+
 export function getImportMeta() {
-  return Storage.get(IMPORT_META_STORAGE_KEY, null);
+  const raw = Storage.get(IMPORT_META_STORAGE_KEY, null);
+  if (!raw) return null;
+  // 兼容旧格式：旧数据是 { importedAt, count, fileName }；新格式带 lastModified
+  if (typeof raw === 'object' && !raw.lastModified) {
+    return { ...raw, lastModified: 0 };
+  }
+  return raw;
+}
+
+function getImportMetaWrapper() {
+  const raw = Storage.get(IMPORT_META_STORAGE_KEY, null);
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.lastModified) {
+    return { ...raw, lastModified: 0 };
+  }
+  return raw;
 }
 
 // ===================== PersonRef 兼容层 =====================
@@ -380,6 +572,251 @@ function fuzzyFindEmployeeByDisplayName(displayName) {
   }) || null;
 }
 
+// ===================== 人员引用重建 =====================
+
+/**
+ * 标准化单个人员字段的结果描述
+ * @param {*} value
+ * @returns {{ value: *, changed: boolean, status: 'updated'|'stale'|'legacy'|'unchanged' }}
+ */
+function normalizePersonValue(value) {
+  const normalized = normalizePerson(value);
+  if (normalized === value) {
+    return { value, changed: false, status: 'unchanged' };
+  }
+  // 原值为空时 normalizePerson 返回 null，保持原空值形态不变
+  if (!value && normalized === null) {
+    return { value, changed: false, status: 'unchanged' };
+  }
+  let status = 'updated';
+  if (normalized && normalized._stale) status = 'stale';
+  else if (normalized && normalized._legacy) status = 'legacy';
+  return { value: normalized, changed: true, status };
+}
+
+/**
+ * 把标准化结果写回对象字段
+ * @param {Object} obj
+ * @param {string} field
+ * @returns {{ changed: boolean, status: 'updated'|'stale'|'legacy'|'unchanged' }}
+ */
+export function normalizePersonField(obj, field) {
+  const result = normalizePersonValue(obj[field]);
+  if (result.changed) {
+    obj[field] = result.value;
+  }
+  return result;
+}
+
+function createRebuildTracker() {
+  let scanned = 0;
+  let updated = 0;
+  let stale = 0;
+  let legacy = 0;
+  return {
+    track(result) {
+      scanned++;
+      if (result.status === 'updated') updated++;
+      else if (result.status === 'stale') stale++;
+      else if (result.status === 'legacy') legacy++;
+      return result.changed;
+    },
+    stats() {
+      return { scanned, updated, stale, legacy };
+    },
+  };
+}
+
+const PERSON_REF_STORAGE_KEYS = {
+  meetings: 'dste_meetings',
+  businessTopics: 'dste_business_topics_v2',
+  strategyMaps: 'dste_sm_maps_v3',
+  strategyObjectives: (mapId) => `dste_sm_obj_${mapId}_v3`,
+  ompKpiInstances: 'dste_omp_kpi_instances_v1',
+  ompTasks: 'dste_omp_tasks_v1',
+};
+
+function _rebuildMeetingsPersonRefs() {
+  const meetings = Storage.get(PERSON_REF_STORAGE_KEYS.meetings, []);
+  if (!Array.isArray(meetings)) return { scanned: 0, updated: 0, stale: 0, legacy: 0, changed: false };
+
+  const tracker = createRebuildTracker();
+  let changed = false;
+
+  meetings.forEach(m => {
+    changed = tracker.track(normalizePersonField(m, 'host')) || changed;
+    changed = tracker.track(normalizePersonField(m, 'recorder')) || changed;
+    (m.agenda_items || []).forEach(item => {
+      changed = tracker.track(normalizePersonField(item, 'owner')) || changed;
+    });
+    (m.actions || []).forEach(a => {
+      changed = tracker.track(normalizePersonField(a, 'owner')) || changed;
+    });
+    (m.decisions || []).forEach(d => {
+      changed = tracker.track(normalizePersonField(d, 'owner')) || changed;
+      changed = tracker.track(normalizePersonField(d, 'decider')) || changed;
+    });
+  });
+
+  if (changed) Storage.set(PERSON_REF_STORAGE_KEYS.meetings, meetings);
+  return { ...tracker.stats(), changed };
+}
+
+function _rebuildTopicsPersonRefs() {
+  const topics = Storage.get(PERSON_REF_STORAGE_KEYS.businessTopics, []);
+  if (!Array.isArray(topics)) return { scanned: 0, updated: 0, stale: 0, legacy: 0, changed: false };
+
+  const tracker = createRebuildTracker();
+  let changed = false;
+
+  topics.forEach(t => {
+    changed = tracker.track(normalizePersonField(t, 'owner')) || changed;
+  });
+
+  if (changed) Storage.set(PERSON_REF_STORAGE_KEYS.businessTopics, topics);
+  return { ...tracker.stats(), changed };
+}
+
+function _rebuildStrategyMapPersonRefs() {
+  const maps = Storage.get(PERSON_REF_STORAGE_KEYS.strategyMaps, []);
+  if (!Array.isArray(maps)) return { scanned: 0, updated: 0, stale: 0, legacy: 0, changed: false };
+
+  const tracker = createRebuildTracker();
+  let changed = false;
+
+  maps.forEach(map => {
+    if (!map || !map.id) return;
+    const objectives = Storage.get(PERSON_REF_STORAGE_KEYS.strategyObjectives(map.id), []);
+    if (!Array.isArray(objectives)) return;
+
+    let objectivesChanged = false;
+    objectives.forEach(o => {
+      objectivesChanged = tracker.track(normalizePersonField(o, 'owner')) || objectivesChanged;
+    });
+
+    if (objectivesChanged) {
+      Storage.set(PERSON_REF_STORAGE_KEYS.strategyObjectives(map.id), objectives);
+      changed = true;
+    }
+  });
+
+  return { ...tracker.stats(), changed };
+}
+
+function _rebuildOmpPersonRefs() {
+  const tracker = createRebuildTracker();
+  let changed = false;
+
+  const kpiInstances = Storage.get(PERSON_REF_STORAGE_KEYS.ompKpiInstances, []);
+  if (Array.isArray(kpiInstances)) {
+    let kpiChanged = false;
+    kpiInstances.forEach(k => {
+      kpiChanged = tracker.track(normalizePersonField(k, 'owner')) || kpiChanged;
+    });
+    if (kpiChanged) {
+      Storage.set(PERSON_REF_STORAGE_KEYS.ompKpiInstances, kpiInstances);
+      changed = true;
+    }
+  }
+
+  const tasks = Storage.get(PERSON_REF_STORAGE_KEYS.ompTasks, []);
+  if (Array.isArray(tasks)) {
+    let tasksChanged = false;
+    tasks.forEach(t => {
+      tasksChanged = tracker.track(normalizePersonField(t, 'owner')) || tasksChanged;
+      (t.members || []).forEach((member, idx) => {
+        const result = normalizePersonValue(member);
+        if (result.changed) {
+          t.members[idx] = result.value;
+          tasksChanged = true;
+        }
+        tracker.track(result);
+      });
+    });
+    if (tasksChanged) {
+      Storage.set(PERSON_REF_STORAGE_KEYS.ompTasks, tasks);
+      changed = true;
+    }
+  }
+
+  return { ...tracker.stats(), changed };
+}
+
+const _personRefRebuilders = [];
+
+/**
+ * 注册自定义人员引用重建器（用于未来扩展模块）
+ * @param {string} name
+ * @param {Function} handler - 返回 { scanned, updated, stale, legacy, changed }
+ */
+export function registerPersonRefRebuilder(name, handler) {
+  if (typeof handler !== 'function') {
+    console.warn(`[employee-directory] Invalid rebuilder for ${name}`);
+    return;
+  }
+  const idx = _personRefRebuilders.findIndex(r => r.name === name);
+  if (idx >= 0) _personRefRebuilders.splice(idx, 1);
+  _personRefRebuilders.push({ name, handler });
+}
+
+/**
+ * 移除已注册的人员引用重建器
+ * @param {string} name
+ */
+export function unregisterPersonRefRebuilder(name) {
+  const idx = _personRefRebuilders.findIndex(r => r.name === name);
+  if (idx >= 0) _personRefRebuilders.splice(idx, 1);
+}
+
+/**
+ * 重新解析现有实体中的人员引用
+ * 在人员目录重新导入后自动调用，也会扫描经营分析会、业务专题、战略地图、OMP。
+ * @returns {Promise<{success: boolean, totalScanned: number, totalUpdated: number, totalStale: number, totalLegacy: number, modules: Array, errors: Array}>}
+ */
+export async function rebuildPersonRefs() {
+  const result = {
+    success: true,
+    totalScanned: 0,
+    totalUpdated: 0,
+    totalStale: 0,
+    totalLegacy: 0,
+    modules: [],
+    errors: [],
+  };
+
+  const builtIn = [
+    ['meetings', _rebuildMeetingsPersonRefs],
+    ['business-topics', _rebuildTopicsPersonRefs],
+    ['strategy-map', _rebuildStrategyMapPersonRefs],
+    ['omp', _rebuildOmpPersonRefs],
+  ];
+
+  const allRebuilders = [
+    ...builtIn.map(([name, fn]) => ({ name, fn })),
+    ..._personRefRebuilders.map(({ name, handler }) => ({ name, fn: handler })),
+  ];
+
+  if (allRebuilders.length === 0) {
+    return result;
+  }
+
+  for (const { name, fn } of allRebuilders) {
+    try {
+      const m = await fn();
+      result.modules.push({ name, scanned: m.scanned || 0, updated: m.updated || 0, stale: m.stale || 0, legacy: m.legacy || 0, changed: !!m.changed });
+      result.totalScanned += m.scanned || 0;
+      result.totalUpdated += m.updated || 0;
+      result.totalStale += m.stale || 0;
+      result.totalLegacy += m.legacy || 0;
+    } catch (e) {
+      console.error(`[employee-directory] Rebuild failed for ${name}:`, e);
+      result.errors.push({ name, error: e.message });
+    }
+  }
+
+  return result;
+}
+
 /**
  * 渲染人员引用为展示字符串
  * @param {*} personRef
@@ -421,15 +858,4 @@ export function personMatches(personRef, target) {
   if (personRef.id && String(personRef.id) === targetStr) return true;
   if (personRef.name && String(personRef.name).trim() === targetStr) return true;
   return false;
-}
-
-// ===================== 重新关联（后续阶段扩展）====================
-
-/**
- * 重新解析现有实体中的人员引用
- * 注：第一阶段仅提供函数签名，具体模块集成在后续阶段实现
- */
-export function rebuildPersonRefs() {
-  // TODO: 第二阶段接入会议、业务专题、OMP、战略地图后扩展
-  console.log('[employee-directory] rebuildPersonRefs called');
 }

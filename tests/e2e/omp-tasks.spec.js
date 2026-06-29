@@ -128,8 +128,8 @@ test.describe('OMP 重点工作管理', () => {
     await page.goto(OMP_URL);
     await page.waitForTimeout(1500);
 
-    // 应显示「年度计划」来源标签
-    await expect(page.locator('.data-table tbody')).toContainText('年度计划');
+    // 应显示「主KMS链接」来源标签
+    await expect(page.locator('.data-table tbody')).toContainText('主KMS链接');
   });
 
   test('OMP 任务详情显示年度计划来源链接', async ({ page }) => {
@@ -215,5 +215,242 @@ test.describe('OMP 重点工作管理', () => {
 
     expect(derivedTaskCount).toBeGreaterThan(0);
     expect(derivedKpiCount).toBeGreaterThan(0);
+  });
+
+  test.describe('人员配置台通讯录', () => {
+    async function setupEmployeeDirectory(page) {
+      await page.goto('/src/cockpit.html');
+      await page.waitForTimeout(500);
+      await page.evaluate(() => {
+        const employees = [
+          {
+            id: 'E001',
+            name: '张三',
+            displayName: '张三',
+            orgPath: '销售部 > 华东区',
+            l1Org: '销售部',
+            l1Team: '华东区',
+            searchTokens: ['张三', 'e001', '销售部', '华东区'],
+          },
+          {
+            id: 'E002',
+            name: '李四',
+            displayName: '李四',
+            orgPath: '销售部 > 华南区',
+            l1Org: '销售部',
+            l1Team: '华南区',
+            searchTokens: ['李四', 'e002', '销售部', '华南区'],
+          },
+          {
+            id: 'E003',
+            name: '王五',
+            displayName: '王五',
+            orgPath: '技术部 > 平台组',
+            l1Org: '技术部',
+            l1Team: '平台组',
+            searchTokens: ['王五', 'e003', '技术部', '平台组'],
+          },
+        ];
+        localStorage.setItem('dste_employees_v1', JSON.stringify(employees));
+        localStorage.setItem('dste_org_units_v1', '{}');
+      });
+    }
+
+    test('人员配置台显示组织架构树与嵌套人员', async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+
+      await setupEmployeeDirectory(page);
+      await page.goto(OMP_URL);
+      await page.waitForTimeout(1500);
+
+      // 切换到人员配置视图
+      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.waitForTimeout(500);
+
+      const orgTree = page.locator('#omp-staffing-org-tree');
+      await expect(orgTree).toBeVisible();
+      // 默认只展示一级部门，人员需要逐层展开才可见
+      await expect(orgTree).toContainText('销售部');
+      await expect(orgTree).toContainText('技术部');
+
+      // 展开 销售部 → 华东区 查看张三
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '销售部' }).first().click();
+      await page.waitForTimeout(200);
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '华东区' }).first().click();
+      await page.waitForTimeout(200);
+      await expect(orgTree).toContainText('张三');
+
+      // 展开 技术部 → 平台组 查看王五
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '技术部' }).first().click();
+      await page.waitForTimeout(200);
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '平台组' }).first().click();
+      await page.waitForTimeout(200);
+      await expect(orgTree).toContainText('王五');
+
+      expect(errors).toEqual([]);
+    });
+
+    test('点击组织节点展开/折叠人员', async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+
+      await setupEmployeeDirectory(page);
+      await page.goto(OMP_URL);
+      await page.waitForTimeout(1500);
+
+      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.waitForTimeout(500);
+
+      const orgTree = page.locator('#omp-staffing-org-tree');
+      // 默认折叠，王五不可见
+      await expect(orgTree).not.toContainText('王五');
+
+      // 展开 技术部 → 平台组
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '技术部' }).first().click();
+      await page.waitForTimeout(200);
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '平台组' }).first().click();
+      await page.waitForTimeout(200);
+      await expect(orgTree).toContainText('王五');
+
+      // 折叠技术部，王五不可见
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '技术部' }).first().click();
+      await page.waitForTimeout(200);
+      await expect(orgTree).not.toContainText('王五');
+
+      expect(errors).toEqual([]);
+    });
+
+    test('通讯录搜索支持姓名和工号', async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+
+      await setupEmployeeDirectory(page);
+      await page.goto(OMP_URL);
+      await page.waitForTimeout(1500);
+
+      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.waitForTimeout(500);
+
+      await page.locator('#omp-staffing-dir-search').fill('E001');
+      await page.waitForTimeout(400);
+
+      // 搜索结果直接展示在通讯录面板中
+      const orgTree = page.locator('#omp-staffing-org-tree');
+      await expect(orgTree).toContainText('张三');
+      await expect(orgTree).not.toContainText('李四');
+      await expect(orgTree).not.toContainText('王五');
+
+      expect(errors).toEqual([]);
+    });
+
+    test('拖拽人员到任务卡片分配成员', async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+
+      await setupEmployeeDirectory(page);
+      // 注入一个无负责人的干净 OMP 任务
+      await page.evaluate(() => {
+        const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+        tasks.push({
+          id: 'omp_drag_test_task',
+          cycleId: 'cycle_2026_marketing',
+          source: 'omp',
+          name: '拖拽分配测试任务',
+          description: '',
+          type: 'improvement',
+          progress: 0,
+          owner: '',
+          members: [],
+          dept: '测试部',
+          startDate: '2026-01-01',
+          endDate: '2026-12-31',
+          relatedKpiIds: [],
+          budget: 0,
+          actualCost: 0,
+        });
+        localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(tasks));
+      });
+      await page.goto(OMP_URL);
+      await page.waitForTimeout(1500);
+
+      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.waitForTimeout(500);
+
+      // 展开 销售部 → 华东区 找到张三
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '销售部' }).first().click();
+      await page.waitForTimeout(200);
+      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '华东区' }).first().click();
+      await page.waitForTimeout(200);
+
+      // 将张三从通讯录拖到测试任务卡片
+      const personCard = page.locator('[data-drag="person"][data-person-ref="E001"]');
+      const taskCard = page.locator('[data-drop="task"][data-task-id="omp_drag_test_task"]');
+      await expect(personCard).toBeVisible();
+      await expect(taskCard).toBeVisible();
+      await personCard.dragTo(taskCard);
+      await page.waitForTimeout(500);
+
+      // 验证测试任务成员已更新
+      const dragTaskMembers = await page.evaluate(() => {
+        const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+        const task = tasks.find(t => t.id === 'omp_drag_test_task');
+        return task ? (task.members || []) : [];
+      });
+      expect(dragTaskMembers).toContain('E001');
+
+      expect(errors).toEqual([]);
+    });
+
+    test('点击成员 chip 的 × 移除成员', async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+
+      await setupEmployeeDirectory(page);
+      // 注入一个已有成员的 OMP 任务
+      await page.evaluate(() => {
+        const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+        tasks.push({
+          id: 'omp_remove_test_task',
+          cycleId: 'cycle_2026_marketing',
+          source: 'omp',
+          name: '移除成员测试任务',
+          description: '',
+          type: 'improvement',
+          progress: 0,
+          owner: '',
+          members: ['E001'],
+          dept: '测试部',
+          startDate: '2026-01-01',
+          endDate: '2026-12-31',
+          relatedKpiIds: [],
+          budget: 0,
+          actualCost: 0,
+        });
+        localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(tasks));
+      });
+      await page.goto(OMP_URL);
+      await page.waitForTimeout(1500);
+
+      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.waitForTimeout(500);
+
+      // 点击成员 chip 上的 ×
+      const removeBtn = page.locator('[data-drop="task"][data-task-id="omp_remove_test_task"] [data-action="omp-staffing-remove-member"]');
+      await expect(removeBtn).toBeVisible();
+      await removeBtn.click();
+      await page.waitForTimeout(500);
+
+      // 验证成员已移除
+      const removeTaskMembers = await page.evaluate(() => {
+        const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+        const task = tasks.find(t => t.id === 'omp_remove_test_task');
+        return task ? (task.members || []) : [];
+      });
+      expect(removeTaskMembers).not.toContain('E001');
+      expect(removeTaskMembers.length).toBe(0);
+
+      expect(errors).toEqual([]);
+    });
   });
 });

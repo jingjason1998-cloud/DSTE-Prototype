@@ -3,26 +3,26 @@ import { test, expect } from '@playwright/test';
 const TEST_EMPLOYEES = [
   {
     id: '10001', name: '张三', englishName: 'Zhang.San', displayName: '张三 (Zhang.San)',
-    orgPath: '国内营销与服务线-华东大区-销售组-上海一组',
+    orgPath: '国内营销与服务线 > 华东大区 > 销售组 > 上海一组',
     l1Org: '国内营销与服务线', l1Team: '华东大区', l2Team: '销售组', l3Team: '上海一组',
     orgId: '100101', ldap: '100101,10010,1001,100', orgChain: ['100101', '10010', '1001', '100'],
-    searchTokens: ['张三', 'zhang.san', '上海一组'],
+    searchTokens: ['张三', 'zhang.san', '国内营销与服务线', '华东大区', '销售组', '上海一组'],
   },
   {
     id: '10002', name: '李四', englishName: 'Li.Si', displayName: '李四 (Li.Si)',
-    orgPath: '国内营销与服务线-华东大区-销售组-上海二组',
+    orgPath: '国内营销与服务线 > 华东大区 > 销售组 > 上海二组',
     l1Org: '国内营销与服务线', l1Team: '华东大区', l2Team: '销售组', l3Team: '上海二组',
     orgId: '100102', ldap: '100102,10010,1001,100', orgChain: ['100102', '10010', '1001', '100'],
-    searchTokens: ['李四', 'li.si', '上海二组'],
+    searchTokens: ['李四', 'li.si', '国内营销与服务线', '华东大区', '销售组', '上海二组'],
   },
 ];
 
 const TEST_ORG_UNITS = {
-  '100': { id: '100', name: '国内营销与服务线', level: 0, parentId: null, path: '国内营销与服务线', employeeCount: 2, children: ['1001'] },
-  '1001': { id: '1001', name: '华东大区', level: 1, parentId: '100', path: '国内营销与服务线 > 华东大区', employeeCount: 2, children: ['10010'] },
-  '10010': { id: '10010', name: '销售组', level: 2, parentId: '1001', path: '国内营销与服务线 > 华东大区 > 销售组', employeeCount: 2, children: ['100101', '100102'] },
-  '100101': { id: '100101', name: '上海一组', level: 3, parentId: '10010', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海一组', employeeCount: 1, children: [] },
-  '100102': { id: '100102', name: '上海二组', level: 3, parentId: '10010', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海二组', employeeCount: 1, children: [] },
+  'org:国内营销与服务线': { id: 'org:国内营销与服务线', name: '国内营销与服务线', level: 0, parentId: null, path: '国内营销与服务线', employeeCount: 2, children: ['org:国内营销与服务线/华东大区'] },
+  'org:国内营销与服务线/华东大区': { id: 'org:国内营销与服务线/华东大区', name: '华东大区', level: 1, parentId: 'org:国内营销与服务线', path: '国内营销与服务线 > 华东大区', employeeCount: 2, children: ['org:国内营销与服务线/华东大区/销售组'] },
+  'org:国内营销与服务线/华东大区/销售组': { id: 'org:国内营销与服务线/华东大区/销售组', name: '销售组', level: 2, parentId: 'org:国内营销与服务线/华东大区', path: '国内营销与服务线 > 华东大区 > 销售组', employeeCount: 2, children: ['org:国内营销与服务线/华东大区/销售组/上海一组', 'org:国内营销与服务线/华东大区/销售组/上海二组'] },
+  'org:国内营销与服务线/华东大区/销售组/上海一组': { id: 'org:国内营销与服务线/华东大区/销售组/上海一组', name: '上海一组', level: 3, parentId: 'org:国内营销与服务线/华东大区/销售组', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海一组', employeeCount: 1, children: [] },
+  'org:国内营销与服务线/华东大区/销售组/上海二组': { id: 'org:国内营销与服务线/华东大区/销售组/上海二组', name: '上海二组', level: 3, parentId: 'org:国内营销与服务线/华东大区/销售组', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海二组', employeeCount: 1, children: [] },
 };
 
 test.describe('Meetings person selector', () => {

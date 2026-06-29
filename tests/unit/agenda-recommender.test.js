@@ -38,6 +38,21 @@ vi.mock('../../src/meetings/data-store.js', () => ({
   getMeetings: () => mockedMeetings,
 }));
 
+function createMockAIClient(requestFn) {
+  return class MockAIClient {
+    constructor() {
+      this.request = requestFn;
+    }
+  };
+}
+
+let mockRequest = vi.fn();
+
+vi.mock('../../src/lib/ai-client.js', () => ({
+  AIClient: createMockAIClient(mockRequest),
+  getAIGatewayUrl: () => 'https://dste-api.jasonxspace.workers.dev',
+}));
+
 // Provide browser globals before module evaluation
 globalThis.window = {
   location: { hostname: 'localhost' },
@@ -59,7 +74,7 @@ describe('agenda-recommender', () => {
   beforeEach(() => {
     storageMap.clear();
     mockedMeetings = [];
-    fetch.mockReset();
+    mockRequest.mockReset();
   });
 
   describe('getAiAgendaApiUrl', () => {
@@ -193,54 +208,41 @@ describe('agenda-recommender', () => {
   });
 
   describe('recommendAgenda', () => {
-    it('uses production worker by default', async () => {
+    it('calls AIClient.request with /api/ai/agenda and returns candidates', async () => {
       window.location.hostname = 'localhost';
-      fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, candidates: [{ id: 'c1', title: 'Test', type: 'other', duration: 20 }] }),
+      mockRequest.mockResolvedValueOnce({
+        success: true,
+        candidates: [{ id: 'c1', title: 'Test', type: 'other', duration: 20 }],
       });
       const result = await recommendAgenda({ title: 'Test' });
       expect(result.success).toBe(true);
-      expect(fetch).toHaveBeenCalledWith(
-        'https://dste-api.jasonxspace.workers.dev/api/ai/agenda',
-        expect.objectContaining({ method: 'POST' })
+      expect(mockRequest).toHaveBeenCalledWith(
+        '/api/ai/agenda',
+        expect.objectContaining({
+          meeting: expect.objectContaining({ title: 'Test' }),
+          theme: '',
+          context: expect.any(Object),
+        }),
+        { timeout: 25000 }
       );
     });
 
-    it('uses dste_api_base when configured', async () => {
+    it('uses custom proxy base via AIClient when configured', async () => {
       window.location.hostname = 'localhost';
-      storageMap.set('dste_api_base', 'http://localhost:8787');
-      fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, candidates: [{ id: 'c1', title: 'Test', type: 'other', duration: 20 }] }),
+      storageMap.set('meetingReviewerProxyUrl', 'http://localhost:9999');
+      mockRequest.mockResolvedValueOnce({
+        success: true,
+        candidates: [{ id: 'c1', title: 'Test', type: 'other', duration: 20 }],
       });
       const result = await recommendAgenda({ title: 'Test Meeting', scenario: 'hq_routine', agenda_items: [] });
       expect(result.success).toBe(true);
       expect(result.candidates).toHaveLength(1);
-      expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8787/api/ai/agenda',
-        expect.objectContaining({ method: 'POST' })
-      );
+      expect(mockRequest).toHaveBeenCalledWith('/api/ai/agenda', expect.any(Object), { timeout: 25000 });
     });
 
-    it('uses reviewer proxy url when configured', async () => {
+    it('returns error on request failure', async () => {
       window.location.hostname = 'localhost';
-      storageMap.set('meetingReviewerProxyUrl', 'http://localhost:9999');
-      fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, candidates: [{ id: 'c1', title: 'Test', type: 'other', duration: 20 }] }),
-      });
-      const result = await recommendAgenda({ title: 'Test Meeting', scenario: 'hq_routine', agenda_items: [] });
-      expect(result.success).toBe(true);
-      expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:9999/api/ai/agenda',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-
-    it('returns error on fetch failure', async () => {
-      window.location.hostname = 'localhost';
-      fetch.mockRejectedValueOnce(new Error('Network error'));
+      mockRequest.mockRejectedValueOnce(new Error('Network error'));
       const result = await recommendAgenda({ title: 'Test' });
       expect(result.success).toBe(false);
       expect(result.error).toContain('Network error');
@@ -250,7 +252,7 @@ describe('agenda-recommender', () => {
       window.location.hostname = 'localhost';
       const err = new Error('timeout');
       err.name = 'AbortError';
-      fetch.mockRejectedValueOnce(err);
+      mockRequest.mockRejectedValueOnce(err);
       const result = await recommendAgenda({ title: 'Test' });
       expect(result.success).toBe(false);
       expect(result.error).toContain('超时');

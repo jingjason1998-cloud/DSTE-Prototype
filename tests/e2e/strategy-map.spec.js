@@ -2,38 +2,10 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = '/src/strategy-map.html';
 
-function getTestStorageState() {
-  return {
-    'dste_sm_maps_v3': JSON.stringify([{
-      id: 'yx_2025_2027',
-      name: '营销线 SP823(25~27) 战略地图',
-      dept: 'yx',
-      deptName: '营销线',
-      cycle: { startYear: 2025, endYear: 2027 },
-      description: '营销线2025-2027三年业务战略规划（Marks战略宣贯）',
-      status: 'approved',
-      version: 1,
-      versionLabel: 'v1.0 初始版',
-      createdBy: '系统',
-      updatedBy: '系统',
-      approvedBy: '系统',
-      createdAt: '2025-01-01T00:00:00Z',
-      updatedAt: '2025-01-01T00:00:00Z',
-      approvedAt: '2025-01-01T00:00:00Z',
-      source: 'https://kms.fineres.com/pages/viewpage.action?pageId=1340311504'
-    }]),
-    'dste_sm_current_v3': 'yx_2025_2027',
-    // 不设置 dste_strategy_data_version，让 ensureVersion 自动初始化默认目标与连线
-  };
-}
-
 async function seedDefaultData(page) {
-  // 通过 localStorage 注入默认数据，避免测试之间相互污染
-  await page.addInitScript((state) => {
-    Object.entries(state).forEach(([k, v]) => {
-      try { localStorage.setItem(k, v); } catch (e) { void e; }
-    });
-  }, getTestStorageState());
+  // 不注入任何 localStorage，让 strategy-map-data.js 的 ensureVersion()
+  // 自动 resetToDefaults()，生成完整的默认地图、目标、连线数据。
+  // 这样可避免因只注入 map config 而缺少 objectives/links 导致页面空白。
 }
 
 test.describe('Strategy Map', () => {

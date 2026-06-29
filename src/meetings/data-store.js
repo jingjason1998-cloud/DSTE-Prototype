@@ -12,11 +12,11 @@ import { Storage } from '../lib/utils.js';
 import { createMeetingsRepository } from '../lib/repository.js';
 import { getDefaultSyncQueue } from '../lib/sync-queue.js';
 import { detectArrayConflicts, resolveArrayConflict, ensureLastModified } from '../lib/conflict-resolver.js';
-import { normalizePerson } from '../lib/employee-directory.js';
+import { normalizePersonField } from '../lib/employee-directory.js';
 import { normalizeResolution, syncResolutionsToStore } from './utils/resolution-helpers.js';
 
 const meetingsRepo = createMeetingsRepository({
-  version: 4,
+  version: 5,
   migrators: {
     3: (data) => {
       window._meetingsData = data;
@@ -25,14 +25,26 @@ const meetingsRepo = createMeetingsRepository({
     },
     4: (data) => {
       data.forEach(m => {
-        m.host = normalizePerson(m.host) || m.host;
-        m.recorder = normalizePerson(m.recorder) || m.recorder;
-        (m.actions || []).forEach(a => { a.owner = normalizePerson(a.owner) || a.owner; });
+        normalizePersonField(m, 'host');
+        normalizePersonField(m, 'recorder');
+        (m.actions || []).forEach(a => { normalizePersonField(a, 'owner'); });
         (m.decisions || []).forEach(d => {
-          d.owner = normalizePerson(d.owner || d.decider) || d.owner;
-          d.decider = normalizePerson(d.decider) || d.decider;
+          if (!d.owner && d.decider) d.owner = d.decider;
+          normalizePersonField(d, 'owner');
+          normalizePersonField(d, 'decider');
         });
-        (m.agenda_items || []).forEach(item => { item.owner = normalizePerson(item.owner) || item.owner; });
+        (m.agenda_items || []).forEach(item => { normalizePersonField(item, 'owner'); });
+      });
+      return data;
+    },
+    5: (data) => {
+      data.forEach(m => {
+        (m.agenda_items || []).forEach(a => {
+          if (typeof a.reviewReportUrl !== 'string') a.reviewReportUrl = '';
+          if (typeof a.reviewScore !== 'number') a.reviewScore = 0;
+          if (typeof a.reviewStatus !== 'string') a.reviewStatus = 'pending';
+          if (typeof a.lastReviewedAt !== 'string') a.lastReviewedAt = '';
+        });
       });
       return data;
     },
@@ -417,6 +429,11 @@ export function migrateMeetingsData() {
       if (!a.carriedFromAgendaId) a.carriedFromAgendaId = null;
       if (!a.carriedFromMeetingId) a.carriedFromMeetingId = null;
       if (!Array.isArray(a.postponedHistory)) a.postponedHistory = [];
+      // G2: 材料审核状态缓存（additive）
+      if (typeof a.reviewReportUrl !== 'string') a.reviewReportUrl = '';
+      if (typeof a.reviewScore !== 'number') a.reviewScore = 0;
+      if (typeof a.reviewStatus !== 'string') a.reviewStatus = 'pending';
+      if (typeof a.lastReviewedAt !== 'string') a.lastReviewedAt = '';
     });
     if (Array.isArray(m.decisions)) {
       m.decisions = m.decisions.map(d => normalizeResolution(d, m));

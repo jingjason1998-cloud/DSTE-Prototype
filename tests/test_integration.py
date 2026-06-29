@@ -18,6 +18,7 @@ def _meetings_combined():
         SRC / "meetings" / "utils" / "helpers.js",
         SRC / "meetings" / "utils" / "resolution-helpers.js",
         SRC / "meetings" / "renderers" / "meeting-detail.js",
+        SRC / "meetings" / "renderers" / "meeting-editor.js",
         SRC / "meetings" / "renderers" / "meeting-prep.js",
         SRC / "meetings" / "renderers" / "eval-form.js",
         SRC / "meetings" / "renderers" / "pending-actions.js",
@@ -79,7 +80,7 @@ def test_cockpit_has_external_page_mapping():
     config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
     combined = cockpit_content + config_content
     assert "EXTERNAL_PAGES" in combined, "缺少外部页面映射机制"
-    assert "'exe/meeting-review': 'reviewer.html'" in combined, "未映射到 reviewer.html"
+    assert "'admin/requirement-pool': 'requirement-pool.html'" in combined, "未映射到 requirement-pool.html"
 
 def test_cockpit_meetings_has_review_link():
     """经营分析会页面包含审核入口"""
@@ -228,8 +229,8 @@ def test_meeting_host_save_persisted():
     content = (SRC / "meetings.html").read_text(encoding="utf-8")
     combined = _meetings_combined()
     assert "window._meetingsData" in combined, "缺少 meetings 数据持久化机制"
-    # saveMeeting 中应修改 meetings 数组（搜索整个文件，函数可能在 renderMeetings 外部）
-    save_section = content.split("window.saveMeeting = function()")[1] if "window.saveMeeting = function()" in content else ""
+    # saveMeeting 中应修改 meetings 数组（函数已迁移到 meeting-editor.js）
+    save_section = combined.split("function saveMeeting()")[1] if "function saveMeeting()" in combined else ""
     assert "edit-host" in save_section, "saveMeeting 未读取主持人输入"
     assert ".host" in save_section, "saveMeeting 未保存主持人"
 
@@ -307,10 +308,11 @@ def test_meeting_card_pipeline_hidden_when_not_enabled():
 
 def test_renderEditorForm_is_global():
     """renderEditorForm 必须暴露为全局函数，供 navigate 中的编辑页面初始化调用"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    # 确认 renderEditorForm 被附加到 window（函数可能在 renderMeetings 外部）
-    assert "window.renderEditorForm" in content or "function renderEditorForm()" in content, "renderEditorForm 未暴露为全局函数"
+    combined = _meetings_combined()
+    # 确认 renderEditorForm 被附加到 window（函数已迁移到 meeting-editor.js）
+    assert "window.renderEditorForm" in combined or "function renderEditorForm()" in combined, "renderEditorForm 未暴露为全局函数"
     # 确认 navigate 函数中调用了 renderEditorForm
+    content = (SRC / "meetings.html").read_text(encoding="utf-8")
     nav_section = content.split("function navigate(")[1] if "function navigate(" in content else ""
     assert "renderEditorForm()" in nav_section, "navigate 函数未调用 renderEditorForm"
 
@@ -318,10 +320,10 @@ def test_renderEditorForm_is_global():
 # ========== 层级与场景映射关系 ==========
 def test_level_scenario_mapping():
     """L1/L2/L3 与场景的映射关系正确：region_routine=L2, lagging_region=L3, lagging_vertical=L3"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    
-    # 提取所有 mock 数据中的 scenario 和 level（按行匹配，mock 数据可能在 getMockMeetings 中）
-    lines = content.splitlines()
+    combined = _meetings_combined()
+
+    # 提取所有 mock 数据中的 scenario 和 level（按行匹配，mock 数据在 data-store.js 的 getMockMeetings 中）
+    lines = combined.splitlines()
     scenario_levels = []
     current_scenario = None
     for line in lines:
@@ -407,10 +409,8 @@ def test_renderMeetings_uses_localStorage_fallback():
 
 def test_renderEditorForm_auto_save_draft():
     """renderEditorForm 应绑定 input 事件，实时同步表单值到 _meetingEditData（草稿自动保存）"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    editor_form_section = content.split("function renderEditorForm()")[1] if "function renderEditorForm()" in content else ""
-    if not editor_form_section:
-        editor_form_section = content.split("window.renderEditorForm = function()")[1] if "window.renderEditorForm = function()" in content else ""
+    combined = _meetings_combined()
+    editor_form_section = combined.split("function renderEditorForm()")[1] if "function renderEditorForm()" in combined else ""
     # 应有 input/change 事件绑定
     assert "oninput" in editor_form_section or "addEventListener" in editor_form_section, "renderEditorForm 未绑定表单变化事件"
     # 应同步到 window._meetingEditData
@@ -420,25 +420,25 @@ def test_renderEditorForm_auto_save_draft():
 # ========== 行动项编辑功能 ==========
 def test_edit_form_has_action_section():
     """编辑表单应包含行动项编辑区域"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    # 整个文件都应包含行动项编辑相关元素
-    assert "edit-action-list" in content, "缺少行动项列表容器"
-    assert "addActionItem()" in content, "缺少添加行动项按钮"
-    assert "removeActionItem(" in content, "缺少删除行动项功能"
-    assert "updateActionContent(" in content, "缺少更新行动内容功能"
+    combined = _meetings_combined()
+    # 整个会议模块都应包含行动项编辑相关元素
+    assert "edit-action-list" in combined, "缺少行动项列表容器"
+    assert "addActionItem()" in combined, "缺少添加行动项按钮"
+    assert "removeActionItem(" in combined, "缺少删除行动项功能"
+    assert "updateActionContent(" in combined, "缺少更新行动内容功能"
 
 def test_action_edit_functions_exist():
     """行动项编辑相关函数必须存在"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    assert "function renderActionList()" in content or "window.renderActionList = function" in content, "缺少 renderActionList 函数"
-    assert "window.addActionItem" in content, "缺少 addActionItem 函数"
-    assert "window.removeActionItem" in content, "缺少 removeActionItem 函数"
-    assert "window.updateAction" in content, "缺少 updateAction 相关函数"
+    combined = _meetings_combined()
+    assert "function renderActionList()" in combined or "window.renderActionList = function" in combined, "缺少 renderActionList 函数"
+    assert "window.addActionItem" in combined, "缺少 addActionItem 函数"
+    assert "window.removeActionItem" in combined, "缺少 removeActionItem 函数"
+    assert "window.updateAction" in combined, "缺少 updateAction 相关函数"
 
 def test_saveMeeting_preserves_actions():
     """saveMeeting 应保存行动项数据到 meetings"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    save_section = content.split("window.saveMeeting = function()")[1] if "window.saveMeeting = function()" in content else ""
+    combined = _meetings_combined()
+    save_section = combined.split("function saveMeeting()")[1] if "function saveMeeting()" in combined else ""
     # 新建会议时保存 actions
     assert "actions: (d.actions || [])" in save_section or "actions: d.actions" in save_section, "saveMeeting 未保存 actions"
     # 编辑现有会议时保存 actions
@@ -448,12 +448,12 @@ def test_saveMeeting_preserves_actions():
 # ========== 议程材料链接与审核评分 ==========
 def test_agenda_has_material_link_field():
     """编辑表单的议程项应包含材料链接输入框，位于负责人之前"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
+    combined = _meetings_combined()
     # renderAgendaList 中应有 material_link 输入框
-    assert "material_link" in content, "缺少 material_link 字段定义"
-    agenda_section = content.split("function renderAgendaList()")[1] if "function renderAgendaList()" in content else ""
+    assert "material_link" in combined, "缺少 material_link 字段定义"
+    agenda_section = combined.split("function renderAgendaList()")[1] if "function renderAgendaList()" in combined else ""
     assert "material_link" in agenda_section, "renderAgendaList 未渲染 material_link"
-    assert "updateAgendaMaterialLink" in content, "缺少 updateAgendaMaterialLink 函数"
+    assert "updateAgendaMaterialLink" in combined, "缺少 updateAgendaMaterialLink 函数"
 
 def test_agenda_material_link_in_detail():
     """详情弹窗中应展示材料链接和审核得分"""
@@ -512,3 +512,57 @@ def test_agenda_type_colors_covers_all_types():
     # 确保所有 label 键都有对应颜色
     missing = label_keys - color_keys
     assert not missing, f"AGENDA_TYPE_COLORS 缺少以下议程类型颜色: {missing}"
+
+
+# ========== 需求管理中心 ==========
+def test_requirement_pool_html_exists():
+    """需求管理中心独立页面存在"""
+    f = SRC / "requirement-pool.html"
+    assert f.exists(), "requirement-pool.html 不存在"
+    content = f.read_text(encoding="utf-8")
+    assert "<!DOCTYPE html>" in content
+    assert 'data-theme' in content
+
+
+def test_requirement_pool_has_dste_nav():
+    """需求管理中心页面包含 DSTE 导航条"""
+    content = (SRC / "requirement-pool.html").read_text(encoding="utf-8")
+    assert "DSTE 战略管理平台" in content, "缺少 DSTE 品牌标识"
+    assert 'class="top-nav"' in content, "缺少统一顶部导航"
+    assert "cockpit.html" in content, "缺少返回驾驶舱链接"
+    assert "../assets/css/main.css" in content, "未引入 DSTE 主样式"
+
+
+def test_requirement_pool_configured_as_external_page():
+    """需求管理中心在 config.js 中配置为独立外部页面"""
+    config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
+    assert "'admin/requirement-pool': 'requirement-pool.html'" in config_content, "未映射需求管理中心到独立页面"
+    vite_content = (PROJECT_ROOT / "vite.config.js").read_text(encoding="utf-8")
+    assert "requirement-pool" in vite_content, "vite.config.js 未添加 requirement-pool 构建入口"
+
+
+def test_requirement_pool_prd_updated():
+    """需求管理中心 PRD 已更新为 DSTE 产品迭代方向"""
+    doc = PROJECT_ROOT / "docs" / "01-Product产品" / "需求管理中心-产品设计文档.md"
+    assert doc.exists(), "需求管理中心 PRD 不存在"
+    content = doc.read_text(encoding="utf-8")
+    assert "DSTE 平台自身产品迭代" in content, "PRD 未明确 DSTE 产品迭代定位"
+    assert "RoadMap" in content, "PRD 未关联 RoadMap"
+    assert "版本审计" in content, "PRD 未关联版本审计"
+
+
+def test_requirement_pool_module_files_exist():
+    """需求管理中心模块 JS/CSS 文件存在"""
+    assert (SRC / "pages" / "requirement-pool" / "main.js").exists(), "main.js 不存在"
+    assert (SRC / "pages" / "requirement-pool" / "requirement-store.js").exists(), "requirement-store.js 不存在"
+    assert (SRC / "pages" / "requirement-pool" / "requirement-renderer.js").exists(), "requirement-renderer.js 不存在"
+    assert (SRC / "pages" / "requirement-pool" / "style.css").exists(), "style.css 不存在"
+
+
+def test_requirement_pool_uses_event_delegation():
+    """需求管理中心使用事件委托，避免 inline onclick"""
+    main_js = (SRC / "pages" / "requirement-pool" / "main.js").read_text(encoding="utf-8")
+    html = (SRC / "requirement-pool.html").read_text(encoding="utf-8")
+    assert "data-req-action" in main_js, "main.js 未使用 data-req-action 事件委托"
+    assert "addEventListener('click'" in main_js, "main.js 未绑定 click 事件委托"
+    assert "onclick=" not in html, "requirement-pool.html 存在 inline onclick"

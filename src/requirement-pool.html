@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>需求管理中心 - DSTE战略管理平台</title>
+    <link rel="stylesheet" href="../assets/css/main.css?v=2">
+    <link rel="stylesheet" href="./styles/shell.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="../assets/js/main.js"></script>
+    <script>
+        (function() {
+            const theme = DSTE.Storage.getString('dste-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+
+            if (new URLSearchParams(location.search).get('embed') === '1') {
+                document.documentElement.setAttribute('data-embed', 'true');
+                if (window !== window.top) {
+                    let lastHeight = 0;
+                    const reportHeight = () => {
+                        const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+                        if (h !== lastHeight) {
+                            lastHeight = h;
+                            window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*');
+                        }
+                    };
+                    reportHeight();
+                    let timer;
+                    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                    if (typeof ResizeObserver !== 'undefined') {
+                        const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                        ro.observe(document.body);
+                    }
+                }
+            }
+        })();
+    </script>
+    <script>
+    (function() {
+        'use strict';
+
+        const API_BASE = (() => {
+            const host = window.location.hostname;
+            if (host === 'localhost' || host === '127.0.0.1') {
+                return DSTE.Storage.getString('dste_api_base') || '';
+            }
+            return 'https://dste-api.jasonxspace.workers.dev';
+        })();
+
+        const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
+
+        function redirectToCasLogin() {
+            const service = encodeURIComponent(window.location.origin + window.location.pathname);
+            window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
+        }
+
+        async function handleCasCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ticket = urlParams.get('ticket');
+            if (!ticket) return false;
+
+            const cleanUrl = window.location.pathname + window.location.hash;
+            history.replaceState(null, '', cleanUrl);
+
+            try {
+                const service = encodeURIComponent(window.location.origin + window.location.pathname);
+                const resp = await fetch(`${API_BASE}/api/auth/cas/login?ticket=${encodeURIComponent(ticket)}&service=${service}`);
+                const json = await resp.json();
+                if (json.success && json.token) {
+                    DSTE.Storage.setString('dste-token', json.token);
+                    DSTE.Storage.setString('dste-user', json.user?.name || json.user?.username || '');
+                    sessionStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
+                    updateUserUI();
+                    return true;
+                }
+            } catch (e) {
+                console.error('CAS callback failed:', e);
+            }
+            return false;
+        }
+
+        async function checkLoginStatus() {
+            const token = DSTE.Storage.getString('dste-token');
+            if (!token) return false;
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resp.ok) {
+                    const json = await resp.json();
+                    if (json.success && json.user) {
+                        DSTE.Storage.setString('dste-user', json.user.name || json.user.username || '');
+                        sessionStorage.setItem('dste-user', json.user.name || json.user.username || '');
+                        updateUserUI();
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Login status check failed:', e);
+            }
+
+            DSTE.Storage.remove('dste-token');
+            DSTE.Storage.remove('dste-user');
+            sessionStorage.removeItem('dste-user');
+            return false;
+        }
+
+        function updateUserUI() {
+            const user = sessionStorage.getItem('dste-user') || DSTE.Storage.getString('dste-user') || '张总';
+            const avatarEl = document.getElementById('user-avatar');
+            const nameEl = document.getElementById('user-dropdown-name');
+            if (avatarEl) avatarEl.textContent = user.slice(0, 1);
+            if (nameEl) nameEl.textContent = user;
+        }
+
+        function logout() {
+            DSTE.Storage.remove('dste-token');
+            DSTE.Storage.remove('dste-user');
+            sessionStorage.removeItem('dste-user');
+            window.location.href = '/';
+        }
+
+        async function initAuth() {
+            const casHandled = await handleCasCallback();
+            if (!casHandled) {
+                const isLoggedIn = await checkLoginStatus();
+                if (!isLoggedIn && !isLocalDev) {
+                    redirectToCasLogin();
+                }
+            }
+
+            const avatar = document.getElementById('user-avatar');
+            const dropdown = document.getElementById('user-dropdown');
+            const logoutBtn = document.getElementById('user-logout');
+            if (avatar && dropdown) {
+                avatar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('open');
+                });
+                document.addEventListener('click', (e) => {
+                    if (!avatar.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.remove('open');
+                    }
+                });
+            }
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAuth);
+        } else {
+            initAuth();
+        }
+    })();
+    </script>
+    <link rel="stylesheet" href="./pages/requirement-pool/style.css">
+    <script type="module" src="./lib/shell-injector.js"></script>
+</head>
+<body>
+    <div class="app">
+        <nav class="top-nav">
+            <div style="display: flex; align-items: center;">
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单">☰</button>
+                <div class="top-nav-brand">
+                    <div class="top-nav-logo">D</div>
+                    <span class="top-nav-title">DSTE 战略管理平台</span>
+                </div>
+            </div>
+            <ul class="top-nav-links" id="top-nav-links"></ul>
+            <div class="top-nav-actions">
+                <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
+                <button class="icon-btn" title="通知">🔔</button>
+                <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;position:relative;cursor:pointer;">张</div>
+                <div class="user-dropdown" id="user-dropdown">
+                    <div class="user-dropdown-name" id="user-dropdown-name">张总</div>
+                    <div class="user-dropdown-divider"></div>
+                    <button class="user-dropdown-item" id="user-logout">🚪 退出登录</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="app-body">
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+            <aside class="sidebar" id="sidebar"></aside>
+
+            <main class="content-area">
+                <div class="req-breadcrumb">
+                    <a href="cockpit.html#dashboard">驾驶舱</a>
+                    <span class="req-breadcrumb-separator">/</span>
+                    <span>需求管理中心</span>
+                </div>
+                <div class="req-page-container" id="req-page-container">
+                    <!-- JS rendered -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 新建/编辑需求弹窗 -->
+    <div class="req-modal-overlay" id="req-form-modal" style="display:none;">
+        <div class="req-modal">
+            <div class="req-modal-header">
+                <h3 id="req-form-heading">新建需求</h3>
+                <button class="req-modal-close" data-req-action="close-form-modal">×</button>
+            </div>
+            <div class="req-modal-body" id="req-form-body">
+                <!-- JS rendered -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 需求详情弹窗 -->
+    <div class="req-modal-overlay" id="req-detail-modal" style="display:none;">
+        <div class="req-modal req-modal-wide">
+            <div class="req-modal-header">
+                <h3>需求详情</h3>
+                <button class="req-modal-close" data-req-action="close-detail-modal">×</button>
+            </div>
+            <div class="req-modal-body" id="req-detail-body">
+                <!-- JS rendered -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div class="req-modal-overlay" id="req-delete-modal" style="display:none;">
+        <div class="req-modal" style="max-width:420px;">
+            <div class="req-modal-header">
+                <h3>确认删除</h3>
+                <button class="req-modal-close" data-req-action="close-delete-modal">×</button>
+            </div>
+            <div class="req-modal-body">
+                <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
+                    确定要删除需求 <strong id="req-delete-target"></strong> 吗？此操作不可恢复。
+                </p>
+                <div class="req-form-actions">
+                    <button class="btn btn-secondary" data-req-action="close-delete-modal">取消</button>
+                    <button class="btn btn-danger" id="req-confirm-delete-btn">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./pages/requirement-pool/main.js"></script>
+</body>
+</html>

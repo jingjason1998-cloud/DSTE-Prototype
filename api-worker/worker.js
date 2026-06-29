@@ -41,6 +41,10 @@ const KEYS = {
   topics: 'dste_topics_v2',
   issues: 'dste_issues_v1',
   meetings: 'dste_meetings_v1',
+  // 人员/组织目录（按用户隔离，前缀 user:{userId}:
+  employees: 'dste_employees_v1',
+  orgUnits: 'dste_org_units_v1',
+  employeeImportMeta: 'dste_employee_import_meta_v1',
   // OMP 数据层
   indicators: 'dste_omp_indicators_v1',
   kpiInstances: 'dste_omp_kpi_instances_v1',
@@ -69,6 +73,14 @@ function generateToken() {
     token += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return token;
+}
+
+// 按登录用户生成隔离的 KV key
+function getUserKey(auth, baseKey) {
+  if (auth && auth.valid && auth.user && auth.user.id) {
+    return `user:${auth.user.id}:${baseKey}`;
+  }
+  return baseKey;
 }
 
 // 从请求中提取 Token
@@ -147,6 +159,9 @@ const DEFAULTS = {
   topics: '[]',
   issues: '[]',
   meetings: '[]',
+  employees: '[]',
+  orgUnits: '{}',
+  employeeImportMeta: 'null',
   indicators: '[]',
   kpiInstances: '[]',
   tasks: '[]',
@@ -427,6 +442,80 @@ export default {
           const body = await request.json();
           await env.DSTE_KV.put(KEYS.meetings, JSON.stringify(body));
           return jsonResponse({ success: true, message: 'meetings saved' }, 200, request);
+        }
+      }
+
+      // --- 人员/组织目录 API（全局共享，短期方案）---
+      if (path === '/api/employees') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.employees) || DEFAULTS.employees;
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          await env.DSTE_KV.put(KEYS.employees, JSON.stringify(body));
+          return jsonResponse({ success: true, message: 'employees saved' }, 200, request);
+        }
+      }
+
+      if (path === '/api/org-units') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.orgUnits) || DEFAULTS.orgUnits;
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          await env.DSTE_KV.put(KEYS.orgUnits, JSON.stringify(body));
+          return jsonResponse({ success: true, message: 'org units saved' }, 200, request);
+        }
+      }
+
+      if (path === '/api/employee-import-meta') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.employeeImportMeta);
+          return jsonResponse({ success: true, data: data ? JSON.parse(data) : null }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          await env.DSTE_KV.put(KEYS.employeeImportMeta, JSON.stringify(body));
+          return jsonResponse({ success: true, message: 'employee import meta saved' }, 200, request);
+        }
+      }
+
+      // --- OMP 重点工作成员配置 API ---
+      const ompTaskMembersMatch = path.match(/^\/api\/omp\/tasks\/([^\/]+)\/members$/);
+      if (ompTaskMembersMatch) {
+        const taskId = decodeURIComponent(ompTaskMembersMatch[1]);
+        if (method === 'PATCH') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const members = Array.isArray(body.members) ? body.members : [];
+          const kvKey = getUserKey(auth, KEYS.tasks);
+          const raw = await env.DSTE_KV.get(kvKey) || DEFAULTS.tasks || '[]';
+          let tasks;
+          try { tasks = JSON.parse(raw); } catch (e) { tasks = []; }
+          const task = tasks.find(t => t.id === taskId);
+          if (!task) {
+            return errorResponse('Task not found', 404, request);
+          }
+          task.members = members;
+          await env.DSTE_KV.put(kvKey, JSON.stringify(tasks));
+          return jsonResponse({ success: true, message: 'members updated', taskId }, 200, request);
         }
       }
 

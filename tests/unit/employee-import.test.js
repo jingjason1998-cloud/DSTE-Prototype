@@ -30,6 +30,7 @@ const {
   validateEmployeeRow,
   buildImportSummary,
   executeImport,
+  importEmployeesFromFile,
 } = await import('../../src/lib/employee-import.js');
 
 describe('employee-import', () => {
@@ -97,8 +98,8 @@ describe('employee-import', () => {
   describe('executeImport', () => {
     it('saves valid employees and builds org units', async () => {
       const employees = [
-        { id: '1', name: '张三', orgPath: '线-大区-A组', orgChain: ['1', '2', '3'], ldap: '1,2,3', searchTokens: [] },
-        { id: '2', name: '李四', orgPath: '线-大区-B组', orgChain: ['4', '2', '3'], ldap: '4,2,3', searchTokens: [] },
+        { id: '1', name: '张三', orgPath: '线 > 大区 > A组', orgChain: ['1', '2', '3'], ldap: '1,2,3', searchTokens: [], l1Org: '线', l1Team: '大区', l2Team: 'A组', l3Team: '' },
+        { id: '2', name: '李四', orgPath: '线 > 大区 > B组', orgChain: ['4', '2', '3'], ldap: '4,2,3', searchTokens: [], l1Org: '线', l1Team: '大区', l2Team: 'B组', l3Team: '' },
       ];
       const result = executeImport(employees, { fileName: 'test.xlsx' });
       expect(result.success).toBe(true);
@@ -106,6 +107,47 @@ describe('employee-import', () => {
       const { getEmployees, getOrgUnits } = await import('../../src/lib/employee-directory.js');
       expect(getEmployees().length).toBe(2);
       expect(Object.keys(getOrgUnits()).length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('importEmployeesFromFile', () => {
+    it('triggers rebuildPersonRefs after successful import', async () => {
+      globalThis.File = class {
+        constructor(parts, name, options) {
+          this.name = name;
+          this.type = options?.type || '';
+          this._content = parts[0] || '';
+        }
+      };
+      const originalFileReader = globalThis.FileReader;
+      globalThis.FileReader = class {
+        readAsText(file) {
+          if (this.onload) this.onload({ target: { result: file._content } });
+        }
+        readAsArrayBuffer() { throw new Error('not mocked'); }
+      };
+
+      // 准备现有会议数据，等待重建
+      storageMap.set('dste_meetings', JSON.stringify([
+        { id: 'm1', title: 'M1', host: '张三', recorder: '', agenda_items: [], actions: [], decisions: [] },
+      ]));
+
+      const file = new File(['工号,姓名,组织全称,ldap,一级组织,一级团队,二级团队,三级团队\n1,张三,线-大区-A组,1,线,大区,A组,'], 'test.csv', { type: 'text/csv' });
+      const result = await importEmployeesFromFile(file);
+
+      globalThis.FileReader = originalFileReader;
+      delete globalThis.File;
+
+      expect(result.success).toBe(true);
+      expect(result.rebuild).toBeDefined();
+      expect(result.rebuild.success).toBe(true);
+      const meetingsModule = result.rebuild.modules.find(m => m.name === 'meetings');
+      expect(meetingsModule.scanned).toBe(2);
+      expect(meetingsModule.updated).toBe(1);
+
+      // 验证会议数据已被持久化为 PersonRef
+      const meetings = JSON.parse(storageMap.get('dste_meetings'));
+      expect(meetings[0].host).toMatchObject({ id: '1', name: '张三' });
     });
   });
 });

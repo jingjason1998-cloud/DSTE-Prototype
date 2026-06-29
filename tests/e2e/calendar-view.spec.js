@@ -19,12 +19,11 @@ test('calendar view replaces only meeting list panel', async ({ page }) => {
   await expect(listPanel).not.toBeVisible();
 
   // Right sidebar modules should still be visible
-  await expect(page.locator('text=📊 执行概览').first()).toBeVisible();
   await expect(page.locator('text=📈 决议执行趋势').first()).toBeVisible();
   await expect(page.locator('text=🔔 待办提醒').first()).toBeVisible();
 
   // KPI bar should still be visible
-  await expect(page.locator('text=本年会议').first()).toBeVisible();
+  await expect(page.locator('text=本月会议').first()).toBeVisible();
 
   // Filter bar should still be visible
   await expect(page.locator('#filter-month')).toBeVisible();

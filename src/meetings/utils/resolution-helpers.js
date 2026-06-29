@@ -24,6 +24,17 @@ export const RESOLUTION_STATUSES = Object.keys(RESOLUTION_STATUS_CONFIG);
 /** 终结态 */
 export const TERMINAL_STATUSES = new Set(['closed']);
 
+/**
+ * 统一从人员对象或字符串中读取显示名/可搜索文本
+ * @param {string|Object} person
+ * @returns {string}
+ */
+function getPersonName(person) {
+  if (!person) return '';
+  if (typeof person === 'string') return person;
+  return person.displayName || person.name || person.username || person.id || '';
+}
+
 /** 正常流转路径 */
 export const RESOLUTION_TRANSITIONS = {
   pending: ['approved', 'closed'],
@@ -350,7 +361,7 @@ export function filterResolutions(resolutions, filter, search) {
     const kw = search.toLowerCase();
     list = list.filter(d =>
       (d.content || '').toLowerCase().includes(kw) ||
-      (d.owner || '').toLowerCase().includes(kw) ||
+      getPersonName(d.owner).toLowerCase().includes(kw) ||
       (d.sourceMeetingTitle || '').toLowerCase().includes(kw)
     );
   }
@@ -407,7 +418,7 @@ export function renderResolutionCard(d, actionsMap = {}) {
       </div>
       <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; margin-bottom: 8px;">
         <span>📅 ${d.deadline || '未设置'}</span>
-        <span>👤 ${escapeHtml(d.owner || '待定')}</span>
+        <span>👤 ${escapeHtml(getPersonName(d.owner) || '待定')}</span>
         ${d.sourceMeetingId ? `<span style="cursor: pointer; color: var(--primary);" onclick="gotoSourceMeeting('${d.sourceMeetingId}')">📋 ${escapeHtml(d.sourceMeetingTitle || '')}</span>` : ''}
         ${d.kmsUrl ? `<a href="${escapeHtml(d.kmsUrl)}" target="_blank" style="color: var(--primary); text-decoration: none;">🔗 KMS</a>` : ''}
       </div>

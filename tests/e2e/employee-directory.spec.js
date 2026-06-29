@@ -3,26 +3,26 @@ import { test, expect } from '@playwright/test';
 const TEST_EMPLOYEES = [
   {
     id: '10001', name: '张三', englishName: 'Zhang.San', displayName: '张三 (Zhang.San)',
-    orgPath: '国内营销与服务线-华东大区-销售组-上海一组',
+    orgPath: '国内营销与服务线 > 华东大区 > 销售组 > 上海一组',
     l1Org: '国内营销与服务线', l1Team: '华东大区', l2Team: '销售组', l3Team: '上海一组',
     orgId: '100101', ldap: '100101,10010,1001,100', orgChain: ['100101', '10010', '1001', '100'],
-    searchTokens: ['张三', 'zhang.san', '上海一组'],
+    searchTokens: ['张三', 'zhang.san', '国内营销与服务线', '华东大区', '销售组', '上海一组'],
   },
   {
     id: '10002', name: '李四', englishName: 'Li.Si', displayName: '李四 (Li.Si)',
-    orgPath: '国内营销与服务线-华东大区-销售组-上海二组',
+    orgPath: '国内营销与服务线 > 华东大区 > 销售组 > 上海二组',
     l1Org: '国内营销与服务线', l1Team: '华东大区', l2Team: '销售组', l3Team: '上海二组',
     orgId: '100102', ldap: '100102,10010,1001,100', orgChain: ['100102', '10010', '1001', '100'],
-    searchTokens: ['李四', 'li.si', '上海二组'],
+    searchTokens: ['李四', 'li.si', '国内营销与服务线', '华东大区', '销售组', '上海二组'],
   },
 ];
 
 const TEST_ORG_UNITS = {
-  '100': { id: '100', name: '国内营销与服务线', level: 0, parentId: null, path: '国内营销与服务线', employeeCount: 2, children: ['1001'] },
-  '1001': { id: '1001', name: '华东大区', level: 1, parentId: '100', path: '国内营销与服务线 > 华东大区', employeeCount: 2, children: ['10010'] },
-  '10010': { id: '10010', name: '销售组', level: 2, parentId: '1001', path: '国内营销与服务线 > 华东大区 > 销售组', employeeCount: 2, children: ['100101', '100102'] },
-  '100101': { id: '100101', name: '上海一组', level: 3, parentId: '10010', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海一组', employeeCount: 1, children: [] },
-  '100102': { id: '100102', name: '上海二组', level: 3, parentId: '10010', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海二组', employeeCount: 1, children: [] },
+  'org:国内营销与服务线': { id: 'org:国内营销与服务线', name: '国内营销与服务线', level: 0, parentId: null, path: '国内营销与服务线', employeeCount: 2, children: ['org:国内营销与服务线/华东大区'] },
+  'org:国内营销与服务线/华东大区': { id: 'org:国内营销与服务线/华东大区', name: '华东大区', level: 1, parentId: 'org:国内营销与服务线', path: '国内营销与服务线 > 华东大区', employeeCount: 2, children: ['org:国内营销与服务线/华东大区/销售组'] },
+  'org:国内营销与服务线/华东大区/销售组': { id: 'org:国内营销与服务线/华东大区/销售组', name: '销售组', level: 2, parentId: 'org:国内营销与服务线/华东大区', path: '国内营销与服务线 > 华东大区 > 销售组', employeeCount: 2, children: ['org:国内营销与服务线/华东大区/销售组/上海一组', 'org:国内营销与服务线/华东大区/销售组/上海二组'] },
+  'org:国内营销与服务线/华东大区/销售组/上海一组': { id: 'org:国内营销与服务线/华东大区/销售组/上海一组', name: '上海一组', level: 3, parentId: 'org:国内营销与服务线/华东大区/销售组', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海一组', employeeCount: 1, children: [] },
+  'org:国内营销与服务线/华东大区/销售组/上海二组': { id: 'org:国内营销与服务线/华东大区/销售组/上海二组', name: '上海二组', level: 3, parentId: 'org:国内营销与服务线/华东大区/销售组', path: '国内营销与服务线 > 华东大区 > 销售组 > 上海二组', employeeCount: 1, children: [] },
 };
 
 test.describe('Employee Directory Admin', () => {
@@ -54,10 +54,12 @@ test.describe('Employee Directory Admin', () => {
     await expect(page.locator('.org-tree')).toContainText('上海二组');
   });
 
-  test('employee search returns matching results', async ({ page }) => {
-    await page.fill('#employee-search-input', '张三');
-    await expect(page.locator('.employee-list')).toContainText('张三');
-    await expect(page.locator('.result-count')).toContainText('共 1 条结果');
+  test('employees are shown as leaf nodes in org tree', async ({ page }) => {
+    await page.click('#btn-expand-all');
+    await expect(page.locator('.org-tree')).toContainText('张三 (Zhang.San)');
+    await expect(page.locator('.org-tree')).toContainText('李四 (Li.Si)');
+    // 旧的右侧搜索面板不应存在
+    await expect(page.locator('#directory-search')).toHaveCount(0);
   });
 
   test('imports employees from Excel file', async ({ page }) => {
@@ -82,5 +84,119 @@ test.describe('Employee Directory Admin', () => {
     const employees = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_employees_v1') || '[]'));
     expect(employees.length).toBe(3);
     expect(employees.some(e => e.id === '10001' && e.name === '张三')).toBe(true);
+  });
+});
+
+test.describe('Employee Directory Cloud Sync', () => {
+  test('loads remote employee data on page init', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dste_api_base', 'http://localhost:8787');
+    });
+
+    await page.route('http://localhost:8787/api/employees', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: TEST_EMPLOYEES }),
+      });
+    });
+    await page.route('http://localhost:8787/api/org-units', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { lastModified: Date.now(), data: TEST_ORG_UNITS } }),
+      });
+    });
+    await page.route('http://localhost:8787/api/employee-import-meta', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: null }),
+      });
+    });
+
+    await page.goto('/src/employee-directory.html');
+    await page.waitForLoadState('networkidle');
+
+    const employees = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_employees_v1') || '[]'));
+    expect(employees.length).toBe(2);
+    expect(employees.some(e => e.id === '10001')).toBe(true);
+  });
+
+  test('pushes employee data to API on import', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dste_api_base', 'http://localhost:8787');
+    });
+
+    await page.route('http://localhost:8787/api/employees', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+    });
+    await page.route('http://localhost:8787/api/org-units', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {} }) });
+    });
+    await page.route('http://localhost:8787/api/employee-import-meta', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: null }) });
+    });
+
+    await page.goto('/src/employee-directory.html');
+    await page.waitForLoadState('networkidle');
+
+    const postPromise = page.waitForRequest(
+      (req) => req.url() === 'http://localhost:8787/api/employees' && req.method() === 'POST',
+      { timeout: 10000 }
+    );
+
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.click('#import-drop-zone'),
+    ]);
+    await fileChooser.setFiles('tests/fixtures/test-employees.xlsx');
+
+    const request = await postPromise;
+    const postedEmployees = request.postDataJSON();
+    expect(Array.isArray(postedEmployees)).toBe(true);
+    expect(postedEmployees.length).toBe(3);
+    expect(postedEmployees.every(e => e.lastModified)).toBe(true);
+  });
+
+  test('pushes empty state to API on clear', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dste_api_base', 'http://localhost:8787');
+    });
+
+    await page.route('http://localhost:8787/api/employees', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+    });
+    await page.route('http://localhost:8787/api/org-units', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+    });
+    await page.route('http://localhost:8787/api/employee-import-meta', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: null }) });
+    });
+
+    await page.goto('/src/employee-directory.html');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(({ employees, orgUnits }) => {
+      localStorage.setItem('dste_employees_v1', JSON.stringify(employees));
+      localStorage.setItem('dste_org_units_v1', JSON.stringify(orgUnits));
+    }, { employees: TEST_EMPLOYEES, orgUnits: TEST_ORG_UNITS });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+
+    // 页面没有清空按钮，通过模块 API 触发清空并同步
+    await page.evaluate(async () => {
+      const { clearEmployeeDirectory } = await import('./lib/employee-directory.js');
+      clearEmployeeDirectory();
+    });
+
+    // 验证同步队列中包含清空后的 POST payload
+    const queue = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_sync_queue') || '[]'));
+    const employeesOp = queue.find(q => q.endpoint === '/api/employees' && q.method === 'POST');
+    const orgUnitsOp = queue.find(q => q.endpoint === '/api/org-units' && q.method === 'POST');
+    expect(employeesOp).toBeDefined();
+    expect(employeesOp.payload).toEqual([]);
+    expect(orgUnitsOp).toBeDefined();
+    expect(orgUnitsOp.payload).toMatchObject({ data: {} });
   });
 });

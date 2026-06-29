@@ -41,6 +41,9 @@ test.describe('Resolution Center Drawer', () => {
   });
 
   test('advances resolution status from pending to approved', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', err => errors.push(err.message));
+
     // 先添加一个待审批的决议
     await page.locator('[data-edit-meeting]').first().click();
     await page.waitForSelector('#edit-title', { state: 'visible' });
@@ -79,5 +82,6 @@ test.describe('Resolution Center Drawer', () => {
     // 验证审批日志出现
     await card.locator('summary').filter({ hasText: /审批日志/ }).click();
     await expect(card.locator('text=approved')).toBeVisible();
+    expect(errors).toEqual([]);
   });
 });

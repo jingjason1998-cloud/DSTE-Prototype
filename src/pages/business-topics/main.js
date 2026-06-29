@@ -3,7 +3,8 @@ import { Repository } from '../../lib/repository.js';
 import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
 import { resolveArrayConflict, ensureLastModified } from '../../lib/conflict-resolver.js';
 import { enhancePersonInput, getPersonInputValue } from '../../components/person-input.js';
-import { renderPerson, normalizePerson, personMatches } from '../../lib/employee-directory.js';
+import { renderPerson, normalizePerson, personMatches, normalizePersonField, getOrgTree } from '../../lib/employee-directory.js';
+import { createOrgSelector } from '../../components/org-selector.js';
 
 import {
     validateIssueRow, safeIssueId, hasCsvFormulaInjection, sanitizeCsvCell,
@@ -60,6 +61,8 @@ let _cachedTopics = null;
 let _deleteTargetId = null;
 let _currentTab = 'all';
 const _sortConfig = { field: 'priority', direction: 'desc' };
+let _deptOrgSelector = null;
+let _deptOrgTree = null;
 
 const topicsRepo = new Repository('businessTopics', {
   storageKey: STORAGE_KEY,
@@ -76,8 +79,7 @@ const topicsRepo = new Repository('businessTopics', {
     },
     3: (topics) => {
       topics.forEach(t => {
-        const normalized = normalizePerson(t.owner);
-        if (normalized && normalized !== t.owner) t.owner = normalized;
+        normalizePersonField(t, 'owner');
       });
       return topics;
     },
@@ -575,7 +577,9 @@ function formatPeriod(start, end) {
 function getFilteredTopics() {
     let topics = loadTopics();
     const search = document.getElementById('searchInput').value.trim().toLowerCase();
-    const dept = document.getElementById('filterDept').value;
+    const selectedOrgId = _deptOrgSelector?.getValue?.() || '';
+    const selectedOrg = selectedOrgId && _deptOrgTree ? _deptOrgTree.orgUnits[selectedOrgId] : null;
+    const dept = selectedOrg ? selectedOrg.name : '';
     const priority = document.getElementById('filterPriority').value;
     const year = document.getElementById('filterYear').value;
 
@@ -647,13 +651,37 @@ function getFilteredTopics() {
 }
 
 // ===================== Render =====================
-function renderDeptFilter() {
+function renderDeptOrgSelector() {
+    const container = document.getElementById('filterDeptContainer');
+    if (!container) return;
+    const currentVal = _deptOrgSelector?.getValue?.() || null;
+    if (_deptOrgSelector) {
+        _deptOrgSelector.destroy();
+    }
+    _deptOrgTree = getOrgTree();
+    if (!_deptOrgTree || !_deptOrgTree.roots || _deptOrgTree.roots.length === 0) {
+        _deptOrgTree = buildFallbackOrgTreeFromTopics();
+    }
+    _deptOrgSelector = createOrgSelector(container, {
+        placeholder: '全部部门',
+        allowClear: true,
+        value: currentVal,
+        orgTree: _deptOrgTree,
+        onChange: () => applyFilters(),
+    });
+}
+
+function buildFallbackOrgTreeFromTopics() {
     const topics = loadTopics();
     const depts = [...new Set(topics.map(t => t.department).filter(Boolean))].sort();
-    const select = document.getElementById('filterDept');
-    const currentVal = select.value;
-    select.innerHTML = '<option value="">全部部门</option>' + depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
-    select.value = depts.includes(currentVal) ? currentVal : '';
+    const orgUnits = {};
+    const roots = [];
+    depts.forEach((dept, idx) => {
+        const id = `_dept_${idx}`;
+        orgUnits[id] = { id, name: dept, children: [], employeeCount: 0 };
+        roots.push(id);
+    });
+    return { orgUnits, roots };
 }
 
 function renderTable() {
@@ -1131,9 +1159,14 @@ function collectFormMilestones() {
 }
 
 function saveTopic() {
+  try {
     const id = document.getElementById('formTopicId').value;
     const name = document.getElementById('fName').value.trim();
-    const owner = window.getPersonValue ? window.getPersonValue('fOwner') : (document.getElementById('fOwner').value.trim() || '');
+    let owner = window.getPersonValue ? window.getPersonValue('fOwner') : null;
+    // person-input 未选中时回退到 input 原始值（兼容自由文本和测试直接 fill）
+    if (!owner || (typeof owner === 'object' && !owner.name && !owner.id && !owner._freeText && !owner._legacy)) {
+      owner = document.getElementById('fOwner').value.trim() || null;
+    }
     if (!name || !owner) {
         showToast('请填写必填字段：专题名称、负责人', 'warning');
         return;
@@ -1182,7 +1215,11 @@ function saveTopic() {
     closeModal('formModal');
     renderTable();
     renderStats();
-    renderDeptFilter();
+    renderDeptOrgSelector();
+  } catch (e) {
+    console.error('[saveTopic] failed:', e);
+    showToast('保存失败：' + e.message, 'error');
+  }
 }
 
 // ===================== Detail Modal =====================
@@ -1394,7 +1431,7 @@ function importTopicsFromFile(event) {
             saveTopics(validTopics);
             renderTable();
             renderStats();
-            renderDeptFilter();
+            renderDeptOrgSelector();
             showToast(`导入成功！共恢复 ${validTopics.length} 个专题`, 'success');
         } catch (err) {
             showToast('备份文件解析失败：' + err.message, 'error');
@@ -1492,7 +1529,7 @@ async function init() {
 
     renderTable();
     renderStats();
-    renderDeptFilter();
+    renderDeptOrgSelector();
     populateYearFilter(); // 动态填充年度筛选
     updateAiReportCards(); // v2.1: update AI report entry cards
 

@@ -11,6 +11,7 @@ import {
   computeAgendaCompletion,
   formatAgendaSourceHint,
   getAgendaPostponeWarning,
+  computeAgendaTimeSlots,
 } from '../utils/helpers.js';
 import { renderPerson } from '../../lib/employee-directory.js';
 
@@ -58,6 +59,34 @@ function renderInfoPanel(m, st) {
     ? `<span style="font-size: 12px; font-weight: 600; color: ${getScoreColor(m.effectiveness.overallScore)};">${m.effectiveness.overallScore} · ${getScoreLabel(m.effectiveness.overallScore)}${m.effectiveness.auto ? '（系统）' : ''}</span>`
     : '<span style="font-size: 12px; color: var(--text-tertiary);">未评估</span>';
 
+  // G2: 材料审核状态摘要
+  const agendaItems = m.agenda_items || [];
+  const itemsWithMaterial = agendaItems.filter(a => a.material_link?.trim());
+  const reviewedCount = agendaItems.filter(a => a.reviewStatus === 'reviewed').length;
+  const failedCount = agendaItems.filter(a => a.reviewStatus === 'failed').length;
+  const reviewingCount = agendaItems.filter(a => a.reviewStatus === 'reviewing').length;
+  const reviewScores = agendaItems.filter(a => a.reviewStatus === 'reviewed' && a.reviewScore > 0).map(a => a.reviewScore);
+  const avgScore = reviewScores.length > 0 ? Math.round(reviewScores.reduce((s, v) => s + v, 0) / reviewScores.length) : null;
+  let reviewSummaryHtml = '';
+  if (itemsWithMaterial.length === 0) {
+    reviewSummaryHtml = '<span style="font-size: 12px; color: var(--text-tertiary);">未配置材料</span>';
+  } else if (reviewedCount === itemsWithMaterial.length) {
+    const scoreText = avgScore !== null ? ` · 均分 ${avgScore}` : '';
+    reviewSummaryHtml = `<span style="font-size: 12px; font-weight: 600; color: var(--success);">${reviewedCount}/${itemsWithMaterial.length} 已审核${scoreText}</span>`;
+  } else if (failedCount > 0 || reviewingCount > 0) {
+    const parts = [];
+    if (reviewingCount > 0) parts.push(`${reviewingCount} 审核中`);
+    if (reviewedCount > 0) parts.push(`${reviewedCount} 已审核`);
+    if (failedCount > 0) parts.push(`${failedCount} 失败`);
+    reviewSummaryHtml = `<span style="font-size: 12px; font-weight: 600; color: var(--warning);">${parts.join(' · ')}</span>`;
+  } else if (reviewedCount > 0) {
+    // 部分已审核、剩余待审核
+    const scoreText = avgScore !== null ? ` · 均分 ${avgScore}` : '';
+    reviewSummaryHtml = `<span style="font-size: 12px; font-weight: 600; color: var(--warning);">${reviewedCount}/${itemsWithMaterial.length} 已审核${scoreText}</span>`;
+  } else {
+    reviewSummaryHtml = `<span style="font-size: 12px; color: var(--text-tertiary);">${itemsWithMaterial.length} 项待审核</span>`;
+  }
+
   const rows = [
     ['📅', '日期', m.date],
     ['📍', '地点', m.location || '待确认'],
@@ -69,6 +98,7 @@ function renderInfoPanel(m, st) {
       ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 140px;">${m.meeting_link.replace(/^https?:\/\//, '')}</a>`
       : '<span style="font-size: 12px; color: var(--text-tertiary);">未设置</span>'],
     ['📋', '会前准备', `<span style="font-size: 12px; font-weight: 600; color: ${readinessColor};">${readiness.percentage}% · ${readinessLabel}</span>`],
+    ['🔍', '材料审核', reviewSummaryHtml],
     ['⭐', '评估', evalHtml],
   ];
 
@@ -125,21 +155,6 @@ function renderPipelineSteps(m) {
   `;
 }
 
-function computeAgendaTimeSlots(meeting) {
-  const items = meeting.agenda_items || [];
-  const start = meeting.startTime || '09:00';
-  const [baseH, baseM] = start.split(':').map(Number);
-  let cursor = (baseH || 0) * 60 + (baseM || 0);
-  const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-  return items.map((a) => {
-    const duration = parseInt(a.duration) || 0;
-    const s = cursor;
-    const e = cursor + duration;
-    cursor = e;
-    return { start: fmt(s), end: fmt(e) };
-  });
-}
-
 function renderAgendaItem(m, a, i, time) {
   const warning = getAgendaPostponeWarning(a);
   const sourceHint = formatAgendaSourceHint(a, meetings());
@@ -147,6 +162,14 @@ function renderAgendaItem(m, a, i, time) {
   const materialBadge = materialScore === null
     ? ''
     : `<span style="font-size: 10px; font-weight: 600; color: ${getScoreColor(materialScore)};">⭐ ${materialScore}分</span>`;
+  // G2: 审核状态徽标
+  const reviewStatusBadge = a.reviewStatus === 'reviewed'
+    ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: rgba(16,185,129,0.08); color: var(--success); border: 1px solid rgba(16,185,129,0.2);">已审核</span>`
+    : a.reviewStatus === 'failed'
+    ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: rgba(245,34,45,0.06); color: var(--danger); border: 1px solid rgba(245,34,45,0.2);">审核失败</span>`
+    : a.reviewStatus === 'reviewing'
+    ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary);">审核中</span>`
+    : '';
 
   return `
     <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${AGENDA_TYPE_COLORS()[a.type] || 'var(--text-secondary)'};">
@@ -162,6 +185,7 @@ function renderAgendaItem(m, a, i, time) {
           ${getAgendaStatusBadge(a.status)}
           ${warning ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: rgba(245,34,45,0.08); color: var(--danger); border: 1px solid rgba(245,34,45,0.2); font-weight: 600;">${warning}</span>` : ''}
           ${materialBadge}
+          ${reviewStatusBadge}
         </div>
         <div style="display: flex; gap: 12px; font-size: 11px; color: var(--text-secondary); flex-wrap: wrap;">
           ${a.speaker ? `<span>👤 ${a.speaker}</span>` : ''}

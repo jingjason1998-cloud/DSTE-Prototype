@@ -31,6 +31,6 @@ test.describe('Meetings storage resilience', () => {
     await page.waitForLoadState('networkidle');
 
     const version = await page.evaluate(() => localStorage.getItem('dste_meetings_version'));
-    expect(version).toBe('3');
+    expect(version).toBe('5');
   });
 });

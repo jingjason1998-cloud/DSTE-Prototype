@@ -110,11 +110,12 @@ test.describe('Page Content', () => {
     await expect(page.locator('.page-content')).toContainText('预警事件');
   });
 
-  test('requirement pool placeholder accessible from sidebar', async ({ page }) => {
+  test('requirement pool page accessible from sidebar', async ({ page }) => {
     await page.goto('/src/cockpit.html');
     await page.locator('.sidebar-item[data-page="admin/requirement-pool"]').click();
-    await expect(page.locator('.page-content')).toContainText('需求管理中心');
-    await expect(page.locator('.page-content')).toContainText('统一收集、评审、跟踪');
+    await page.waitForURL(/requirement-pool\.html/);
+    await expect(page.locator('.req-page-title')).toContainText('需求管理中心');
+    await expect(page.locator('.req-table')).toBeVisible();
   });
 });
 

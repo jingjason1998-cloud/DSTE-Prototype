@@ -16,7 +16,7 @@ test.describe('Business Topics - Page Load', () => {
   test('page loads with correct title and navigation', async ({ page }) => {
     await expect(page.locator('body')).toContainText('业务专题管理');
     await expect(page.locator('.top-nav-links li')).toHaveCount(6);
-    await expect(page.locator('#sidebar')).toContainText('战略执行');
+    await expect(page.locator('#sidebar')).toContainText('组织绩效管理');
     await expect(page.locator('#sidebar')).toContainText('业务专题管理');
   });
 
@@ -325,18 +325,29 @@ test.describe('Business Topics - Milestone Management', () => {
 // ===================== Filters =====================
 test.describe('Business Topics - Filters', () => {
   test('department filter updates table', async ({ page }) => {
-    const deptSelect = page.locator('#filterDept');
-    const options = await deptSelect.locator('option').allTextContents();
+    // 展开组织选择器
+    await page.locator('#filterDeptContainer .org-selector-header').first().click();
+    await page.waitForTimeout(300);
 
-    expect(options.length).toBeGreaterThan(1); // "全部部门" + at least one dept
+    // 获取第一个组织名称
+    const firstOrgName = await page.locator('#filterDeptContainer .org-name').first().textContent();
+    expect(firstOrgName).toBeTruthy();
 
-    // Select first non-empty department
-    await deptSelect.selectOption(options[1]);
+    // 点击第一个组织
+    await page.locator('#filterDeptContainer .org-name').first().click();
     await page.waitForTimeout(500);
 
     const count = await page.locator('#topicTableBody tr').count();
     expect(count).toBeGreaterThanOrEqual(0);
     expect(count).toBeLessThanOrEqual(11);
+
+    // 如果表格有数据，验证部门列都匹配
+    if (count > 0) {
+      const depts = await page.locator('#topicTableBody tr td:nth-child(4)').allTextContents();
+      for (const d of depts) {
+        expect(d.trim()).toBe(firstOrgName.trim());
+      }
+    }
   });
 
   test('priority filter updates table', async ({ page }) => {

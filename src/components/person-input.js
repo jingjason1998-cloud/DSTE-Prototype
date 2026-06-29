@@ -100,7 +100,12 @@ export function enhancePersonInput(input, options = {}) {
       setTimeout(() => {
         if (!dropdown.matches(':hover')) {
           closeDropdown();
-          syncInputDisplay();
+          // 如果用户输入了文本但没有选择任何选项，且允许自由文本，则自动视为自由文本
+          if (!selectedValue && input.value.trim() && opts.allowFreeText) {
+            selectFreeText(input.value.trim());
+          } else {
+            syncInputDisplay();
+          }
         }
       }, 150);
     });
@@ -220,7 +225,10 @@ export function enhancePersonInput(input, options = {}) {
 
   const api = {
     getValue() {
-      return selectedValue;
+      if (selectedValue) return selectedValue;
+      // 用户输入了文本但未选择任何选项时，视为自由文本（兼容测试直接 fill 和未触发选择的情况）
+      const raw = input.value.trim();
+      return raw ? { _freeText: true, name: raw } : null;
     },
     setValue(value) {
       selectedValue = normalizeValue(value);

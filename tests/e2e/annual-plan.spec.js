@@ -75,6 +75,57 @@ test.describe('年度经营计划', () => {
     await expect(page.locator('.omp-modal')).not.toBeVisible();
   });
 
+  test('添加 KPI 部门归属可从人员目录团队树选择', async ({ page }) => {
+    const orgUnits = {
+      'org:国内营销与服务线': { id: 'org:国内营销与服务线', name: '国内营销与服务线', level: 0, parentId: null, path: '国内营销与服务线', employeeCount: 2, children: ['org:国内营销与服务线/华东大区'] },
+      'org:国内营销与服务线/华东大区': { id: 'org:国内营销与服务线/华东大区', name: '华东大区', level: 1, parentId: 'org:国内营销与服务线', path: '国内营销与服务线 > 华东大区', employeeCount: 2, children: ['org:国内营销与服务线/华东大区/销售组'] },
+      'org:国内营销与服务线/华东大区/销售组': { id: 'org:国内营销与服务线/华东大区/销售组', name: '销售组', level: 2, parentId: 'org:国内营销与服务线/华东大区', path: '国内营销与服务线 > 华东大区 > 销售组', employeeCount: 2, children: [] },
+    };
+    const employees = [
+      { id: '10001', name: '张三', englishName: 'Zhang.San', displayName: '张三 (Zhang.San)', orgPath: '国内营销与服务线 > 华东大区 > 销售组', l1Org: '国内营销与服务线', l1Team: '华东大区', l2Team: '销售组', l3Team: '', orgId: '100101', ldap: '100101,10010,1001,100', orgChain: ['100101', '10010', '1001', '100'], searchTokens: ['张三', 'zhang.san', '国内营销与服务线', '华东大区', '销售组'] },
+    ];
+    await page.evaluate(({ employees, orgUnits }) => {
+      localStorage.setItem('dste_employees_v1', JSON.stringify(employees));
+      localStorage.setItem('dste_employees_v1_version', JSON.stringify(1));
+      localStorage.setItem('dste_org_units_v1', JSON.stringify(orgUnits));
+      localStorage.setItem('dste_org_units_v1_version', JSON.stringify(1));
+      localStorage.setItem('dste_employee_import_meta', JSON.stringify({ importedAt: new Date().toISOString(), count: employees.length, fileName: 'test.xlsx' }));
+    }, { employees, orgUnits });
+    await page.reload();
+    await page.waitForTimeout(1000);
+
+    await page.locator('[data-action="ap-add-kpi"]').click();
+    await page.waitForTimeout(300);
+    await page.locator('#ap-add-indicator').selectOption('ind_opportunity');
+    await page.locator('#ap-add-target').fill('1000');
+
+    await page.locator('#ap-add-assessment-level').selectOption('department');
+    await page.waitForTimeout(200);
+
+    // 组织选择器应展示团队树（默认折叠，需逐级展开）
+    await expect(page.locator('#ap-add-dept')).toContainText('国内营销与服务线');
+    await page.locator('#ap-add-dept .org-selector-header').click();
+    await page.waitForTimeout(200);
+    await page.locator('#ap-add-dept .org-node[data-org-id="org:国内营销与服务线"] .org-toggle').click();
+    await page.waitForTimeout(200);
+    await page.locator('#ap-add-dept .org-node[data-org-id="org:国内营销与服务线/华东大区"] .org-toggle').click();
+    await page.waitForTimeout(200);
+    await page.locator('#ap-add-dept .org-node[data-org-id="org:国内营销与服务线/华东大区/销售组"] .org-name').click();
+    await page.waitForTimeout(200);
+
+    await page.locator('[data-modal-action="modal-save-add-kpi"]').click();
+    await page.waitForTimeout(500);
+
+    await expect(page.locator('.omp-modal')).not.toBeVisible();
+
+    // 验证新 KPI 的 dept 已保存为选中的团队名称
+    const savedKpis = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_omp_kpi_instances_v1') || '[]'));
+    const newKpi = savedKpis.find(k => k.indicatorId === 'ind_opportunity' && k.targetValue === 1000);
+    expect(newKpi).toBeTruthy();
+    expect(newKpi.dept).toBe('销售组');
+    expect(newKpi.assessmentLevel).toBe('department');
+  });
+
   test('新增、编辑、删除重点工作', async ({ page }) => {
     await acceptConfirms(page);
 
@@ -409,5 +460,40 @@ test.describe('年度经营计划', () => {
     expect(newKpi).toBeTruthy();
     expect(newKpi.source).toBe('annual_plan');
     expect(newKpi.annualPlanKpiId).toBeNull();
+  });
+
+  test('部门级 KPI 在分解视图中按归属显示目标值', async ({ page }) => {
+    await page.locator('[data-action="ap-add-kpi"]').click();
+    await page.waitForTimeout(300);
+
+    await page.locator('#ap-add-indicator').selectOption('ind_conversion');
+    await page.locator('#ap-add-assessment-level').selectOption('department');
+    await page.waitForTimeout(200);
+    await page.evaluate(() => {
+      const hidden = document.getElementById('ap-add-dept-hidden');
+      if (hidden) hidden.value = '销售部';
+    });
+    await page.locator('#ap-add-target').fill('50');
+    await page.locator('[data-modal-action="modal-save-add-kpi"]').click();
+    await page.waitForTimeout(500);
+
+    await page.locator('[data-action="ap-switch-tab"][data-tab="decomposition"]').click();
+    await page.waitForTimeout(500);
+    await page.locator('[data-action="ap-switch-decompose-dim"][data-dim="dept"]').click();
+    await page.waitForTimeout(500);
+
+    // 合同转化率行应显示在销售部列
+    await expect(page.locator('#ap-tab-content')).toContainText('合同转化率');
+    const cellText = await page.evaluate(() => {
+      const rows = document.querySelectorAll('#ap-tab-content table tbody tr');
+      for (const row of rows) {
+        if (row.textContent.includes('合同转化率')) {
+          const cells = row.querySelectorAll('td');
+          return cells[2]?.textContent?.trim(); // 销售部列
+        }
+      }
+      return null;
+    });
+    expect(cellText).toBe('50');
   });
 });

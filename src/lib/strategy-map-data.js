@@ -1,6 +1,6 @@
 import { Storage } from './utils.js';
 import { createStrategyMapRepository, Repository } from './repository.js';
-import { normalizePerson } from './employee-directory.js';
+import { normalizePersonField } from './employee-directory.js';
 
 /**
  * 战略地图数据层
@@ -257,11 +257,7 @@ function normalizeObjectiveOwners() {
     if (!Array.isArray(objectives)) return;
     let changed = false;
     objectives.forEach(o => {
-      const normalized = normalizePerson(o.owner);
-      if (normalized && normalized !== o.owner) {
-        o.owner = normalized;
-        changed = true;
-      }
+      changed = normalizePersonField(o, 'owner').changed || changed;
     });
     if (changed) {
       objectivesRepo(map.id).set(objectives);

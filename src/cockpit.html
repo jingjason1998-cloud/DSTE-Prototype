@@ -417,7 +417,10 @@
     import { createBackup, restoreFromBackup, cleanupOldBackups, getBackupKeys } from './lib/migration-utils.js';
     import { createOmpRepository } from './lib/repository.js';
     import { enhancePersonInput, getPersonInputValue } from './components/person-input.js';
-    import { renderPerson, normalizePerson } from './lib/employee-directory.js';
+    import { renderPerson, normalizePerson, getEmployees, getOrgTree, buildOrgHierarchy, searchEmployees } from './lib/employee-directory.js';
+    import { createOrgSelector } from './components/org-selector.js';
+    import { AIClient, AITools } from './lib/ai-client.js';
+    import { buildSystemPrompt, gatherBusinessContext, getContextSummary } from './lib/ai-context.js';
 
     (function() {
       'use strict';
@@ -630,6 +633,12 @@
         taskViewMode: 'list',
         kpiFilter: { dept: 'all', status: 'all', category: 'all', assessmentLevel: 'all' },
         taskFilter: { status: 'all', priority: 'all', dept: 'all', type: 'all' },
+        staffingState: {
+          searchQuery: '',
+          dirSearchQuery: '',
+          selectedOrgId: null,
+          expandedOrgIds: new Set(),
+        },
         selectedPeriod: `${new Date().getFullYear()}-Q1`,
         editingKpiId: null,
         editingTaskId: null,
@@ -758,6 +767,7 @@
           bscDimension: at.bscDimension,
           kmsUrl: at.kmsUrl,
           owner: at.owner,
+          members: Array.isArray(at.members) ? [...at.members] : [],
           status: 'planning',
           description: at.description,
           type: at.type,
@@ -832,7 +842,13 @@
           if (at.status === 'closed') return;
           const ompId = omp_deriveTaskIdFromAnnualPlan(at.id);
           const existing = tasks.find(t => t.id === ompId || t.annualPlanTaskId === at.id);
-          if (!existing) {
+          if (existing) {
+            // 若年度计划源头负责人变更，同步到 OMP 派生任务
+            if (existing.owner !== at.owner) {
+              existing.owner = at.owner || '';
+              changed = true;
+            }
+          } else {
             tasks.push({
               id: ompId,
               cycleId: at.cycleId,
@@ -843,6 +859,7 @@
               bscDimension: at.bscDimension || 'customer',
               kmsUrl: at.kmsUrl || '#',
               owner: at.owner || '',
+              members: Array.isArray(at.members) ? [...at.members] : [],
               status: 'planning',
               description: at.description || '',
               type: at.type || 'strategic',
@@ -951,7 +968,7 @@
 
       function omp_initData() {
         // 版本号检测：代码更新时尝试非破坏性迁移与备份
-        const DATA_VERSION = 'canvas-v13'; // 人员目录：owner 字段规范化
+        const DATA_VERSION = 'canvas-v14'; // 重点工作：新增 task.members 人员配置
         const storedVersion = DSTE.Storage.getString('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
           // 1) 备份整个 OMP 数据快照（保留最近 5 份）
@@ -997,6 +1014,8 @@
             tasks.forEach(t => {
               const normalized = window.normalizePerson(t.owner);
               if (normalized && normalized !== t.owner) { t.owner = normalized; tasksChanged = true; }
+              // 5) 为老任务补齐 members 字段
+              if (!Array.isArray(t.members)) { t.members = []; tasksChanged = true; }
             });
             if (tasksChanged) omp_save('tasks', tasks);
           }
@@ -1074,6 +1093,20 @@
 
         // 一次性迁移：将里程碑/进度记录关联到 OMP 执行任务
         omp_syncMilestonesAndRecordsToOmpTasks();
+
+        // 一次性迁移/修复：同步所有 OMP 派生任务的负责人与年度计划源头保持一致
+        const tasksForOwnerSync = omp_load('tasks');
+        let ownerSyncChanged = false;
+        tasksForOwnerSync.forEach(t => {
+          if (t.source === 'omp' && t.annualPlanTaskId) {
+            const sourceTask = tasksForOwnerSync.find(st => st.id === t.annualPlanTaskId);
+            if (sourceTask && sourceTask.owner !== t.owner) {
+              t.owner = sourceTask.owner;
+              ownerSyncChanged = true;
+            }
+          }
+        });
+        if (ownerSyncChanged) omp_save('tasks', tasksForOwnerSync);
 
         // 暴露恢复入口，便于事故排查
         window._ompRestoreFromBackup = function() {
@@ -1441,7 +1474,7 @@
                           </div>
                           <div>
                             <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;">责任部门</div>
-                            <div style="font-size:13px;color:var(--text-primary);">${selectedInd.responsibleDept}</div>
+                            <div style="font-size:13px;color:var(--text-primary);">${resolveResponsibleDeptName(selectedInd.responsibleDept)}</div>
                           </div>
                         </div>
 
@@ -1764,22 +1797,39 @@
               </thead>
               <tbody>
                 ${kpis.map(parentKpi => {
+                  // 支持部门级/小组级独立 KPI：只在当前维度与其归属匹配时显示
+                  const isVisible = parentKpi.assessmentLevel === 'marketing-line' || items.includes(parentKpi.dept);
+                  if (!isVisible) return '';
                   const ind = indicators.find(i => i.id === parentKpi.indicatorId);
                   const name = escapeHtml(ind ? ind.name : parentKpi.indicatorId);
-                  const myChildren = childKpis.filter(k => k.parentId === parentKpi.id && items.includes(k.dept));
-                  const actualTotal = myChildren.reduce((sum, k) => sum + (k.targetValue || 0), 0);
-                  const match = Math.abs(actualTotal - parentKpi.targetValue) < 0.01;
+                  const isMarketingLine = parentKpi.assessmentLevel === 'marketing-line';
+                  const levelLabel = isMarketingLine ? '' : (ASSESSMENT_LEVELS[parentKpi.assessmentLevel]?.short || '部门');
+                  const levelBadge = isMarketingLine ? '' : `<span style="font-size:11px;margin-left:6px;padding:2px 6px;border-radius:4px;background:color-mix(in srgb, var(--info) 12%, transparent);color:var(--info);">${levelLabel}</span>`;
+                  const myChildren = isMarketingLine
+                    ? childKpis.filter(k => k.parentId === parentKpi.id && items.includes(k.dept))
+                    : [];
+                  const actualTotal = isMarketingLine
+                    ? myChildren.reduce((sum, k) => sum + (k.targetValue || 0), 0)
+                    : (parentKpi.targetValue || 0);
+                  const match = isMarketingLine ? Math.abs(actualTotal - parentKpi.targetValue) < 0.01 : true;
                   const totalColor = match ? 'var(--success)' : 'var(--danger)';
+                  const totalTitle = isMarketingLine
+                    ? `父级目标: ${parentKpi.targetValue.toLocaleString()} | 实际合计: ${actualTotal.toLocaleString()}`
+                    : `本级目标: ${parentKpi.targetValue.toLocaleString()}`;
                   return `
                     <tr style="border-bottom:1px solid var(--border-light);">
-                      <td style="padding:8px;text-align:center;font-weight:600;">${name}</td>
-                      <td style="padding:8px;text-align:center;color:${totalColor};font-weight:600;" title="父级目标: ${parentKpi.targetValue.toLocaleString()} | 实际合计: ${actualTotal.toLocaleString()}">
+                      <td style="padding:8px;text-align:center;font-weight:600;">${name}${levelBadge}</td>
+                      <td style="padding:8px;text-align:center;color:${totalColor};font-weight:600;" title="${totalTitle}">
                         ${actualTotal.toLocaleString()}
-                        ${match ? '' : '<span style="font-size:11px;margin-left:4px;">≠</span>'}
+                        ${isMarketingLine && !match ? '<span style="font-size:11px;margin-left:4px;">≠</span>' : ''}
                       </td>
                       ${items.map(z => {
-                        const child = childKpis.find(k => k.parentId === parentKpi.id && k.dept === z);
-                        return `<td style="padding:8px;text-align:center;">${child ? child.targetValue.toLocaleString() : '-'}</td>`;
+                        if (isMarketingLine) {
+                          const child = childKpis.find(k => k.parentId === parentKpi.id && k.dept === z);
+                          return `<td style="padding:8px;text-align:center;">${child ? child.targetValue.toLocaleString() : '-'}</td>`;
+                        }
+                        const ownValue = parentKpi.dept === z ? (parentKpi.targetValue || 0).toLocaleString() : '-';
+                        return `<td style="padding:8px;text-align:center;">${ownValue}</td>`;
                       }).join('')}
                     </tr>
                   `;
@@ -1876,9 +1926,7 @@
               </div>
               <div id="ap-edit-dept-wrap" style="${isMarketingLine ? 'display:none;' : ''}">
                 <label id="ap-edit-dept-label" style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">归属</label>
-                <select id="ap-edit-dept" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-                  ${window.ap_buildAffiliationOptions(kpi.dept || '')}
-                </select>
+                <div id="ap-edit-dept" style="width:100%;"></div>
               </div>
               <input type="hidden" id="ap-edit-dept-hidden" value="${escapeHtml(kpi.dept || '营销线')}">
               <div>
@@ -1931,12 +1979,8 @@
         const challengePct = parseFloat(document.getElementById('ap-edit-challenge-pct')?.value) / 100;
         const scoringRule = document.getElementById('ap-edit-scoring')?.value?.trim();
         const assessmentLevel = document.getElementById('ap-edit-assessment-level')?.value || 'marketing-line';
-        let dept = kpis[idx].dept || '营销线';
-        if (assessmentLevel === 'marketing-line') {
-          dept = document.getElementById('ap-edit-dept-hidden')?.value?.trim() || '营销线';
-        } else {
-          dept = document.getElementById('ap-edit-dept')?.value?.trim() || dept;
-        }
+        let dept = document.getElementById('ap-edit-dept-hidden')?.value?.trim() || kpis[idx].dept || '营销线';
+        if (assessmentLevel === 'marketing-line' && !dept) dept = '营销线';
         if (!targetValue || isNaN(targetValue)) {
           showToast('请输入有效的目标值', 'warning');
           return;
@@ -1977,9 +2021,7 @@
               </div>
               <div id="ap-add-dept-wrap" style="display:none;">
                 <label id="ap-add-dept-label" style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">归属</label>
-                <select id="ap-add-dept" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-                  ${window.ap_buildAffiliationOptions('')}
-                </select>
+                <div id="ap-add-dept" style="width:100%;"></div>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -2039,44 +2081,64 @@
         if (unitInput && ind) unitInput.value = ind.unit || '';
       };
 
-      window.ap_buildAffiliationOptions = function(selected) {
-        const warzones = DECOMPOSE_DIMENSIONS.warzone.items;
-        const depts = DECOMPOSE_DIMENSIONS.dept.items;
-        let html = '<option value="">请选择归属</option>';
-        html += '<optgroup label="战区">' + warzones.map(d => `<option value="${d}" ${selected === d ? 'selected' : ''}>${d}</option>`).join('') + '</optgroup>';
-        html += '<optgroup label="职能部门">' + depts.map(d => `<option value="${d}" ${selected === d ? 'selected' : ''}>${d}</option>`).join('') + '</optgroup>';
-        return html;
+      window.ap_initDeptSelector = function(context, selectedName) {
+        const container = document.getElementById(`${context}-dept`);
+        const hidden = document.getElementById(`${context}-dept-hidden`);
+        if (!container) return;
+        container.innerHTML = '';
+
+        const tree = getOrgTree();
+        const hasOrgData = tree && tree.roots && tree.roots.length > 0;
+        if (!hasOrgData) {
+          container.innerHTML = '<div style="padding:8px 0;color:var(--text-muted);font-size:13px;">暂无组织数据，请先导入人员信息表</div>';
+          return;
+        }
+
+        let selectedOrgId = null;
+        if (selectedName && selectedName !== '营销线') {
+          const matched = Object.values(tree.orgUnits).find(u => u.name === selectedName);
+          if (matched) selectedOrgId = matched.id;
+        }
+
+        createOrgSelector(container, {
+          placeholder: '请选择归属',
+          allowClear: false,
+          value: selectedOrgId,
+          orgTree: tree,
+          onChange: (orgId) => {
+            const unit = tree.orgUnits[orgId];
+            if (hidden) hidden.value = unit ? unit.name : '';
+          },
+        });
+
+        if (hidden && selectedName && selectedName !== '营销线') {
+          hidden.value = selectedName;
+        }
       };
 
       window.ap_onAssessmentLevelChange = function(context, level) {
         const deptWrap = document.getElementById(`${context}-dept-wrap`);
-        const deptInput = document.getElementById(`${context}-dept`);
         const deptLabel = document.getElementById(`${context}-dept-label`);
-        if (!deptWrap || !deptInput) return;
+        const hidden = document.getElementById(`${context}-dept-hidden`);
+        if (!deptWrap) return;
         if (level === 'marketing-line') {
           deptWrap.style.display = 'none';
-          deptInput.value = '营销线';
+          if (hidden) hidden.value = '营销线';
         } else {
           deptWrap.style.display = 'block';
-          deptLabel.textContent = level === 'team' ? '所属部门/小组' : '归属';
-          if (deptInput.tagName === 'SELECT') {
-            deptInput.innerHTML = window.ap_buildAffiliationOptions(deptInput.value || '');
-          }
-          if (!deptInput.value || deptInput.value === '营销线') {
-            deptInput.value = '';
-          }
+          if (deptLabel) deptLabel.textContent = level === 'team' ? '所属部门/小组' : '归属';
+          const currentName = hidden?.value || '';
+          const selectorName = (currentName === '营销线' ? '' : currentName);
+          if (hidden && currentName === '营销线') hidden.value = '';
+          window.ap_initDeptSelector(context, selectorName);
         }
       };
 
       window.ap_confirmAddKpi = function() {
         const indicatorId = document.getElementById('ap-add-indicator')?.value;
         const assessmentLevel = document.getElementById('ap-add-assessment-level')?.value || 'marketing-line';
-        let dept = '营销线';
-        if (assessmentLevel === 'marketing-line') {
-          dept = document.getElementById('ap-add-dept-hidden')?.value?.trim() || '营销线';
-        } else {
-          dept = document.getElementById('ap-add-dept')?.value?.trim() || '';
-        }
+        let dept = document.getElementById('ap-add-dept-hidden')?.value?.trim() || '';
+        if (assessmentLevel === 'marketing-line' && !dept) dept = '营销线';
         const targetValue = parseFloat(document.getElementById('ap-add-target')?.value);
         const weight = parseFloat(document.getElementById('ap-add-weight')?.value) || 10;
         const bscDimension = document.getElementById('ap-add-dim')?.value || 'financial';
@@ -2290,6 +2352,19 @@
         omp_save('tasks', kts);
         window._apEditingKeyTaskId = null;
         document.getElementById('omp-active-modal')?.remove();
+
+        // 同步更新派生的 OMP 执行任务负责人（若已存在）
+        if (editId !== 'new') {
+          const derivedTasks = kts.filter(t => t.annualPlanTaskId === editId);
+          if (derivedTasks.length > 0) {
+            let ompChanged = false;
+            derivedTasks.forEach(dt => {
+              if (dt.owner !== owner) { dt.owner = owner; ompChanged = true; }
+            });
+            if (ompChanged) omp_save('tasks', kts);
+          }
+        }
+
         navigate('bp/annual-plan');
       };
       window.ap_deleteKeyTask = function() {
@@ -2627,6 +2702,11 @@
         // 绑定事件委托（替代内联 onclick）
         bindPageEvents(contentEl);
 
+        // AI 页面初始化
+        if (pageId === 'ai') {
+          initAIClient();
+        }
+
         // 外部模块挂载钩子（如战略指标库）
         if (typeof window.__afterNavigate === 'function') {
           window.__afterNavigate(pageId, contentEl);
@@ -2653,6 +2733,8 @@
 
       // ===== 事件委托（替代内联 onclick）=====
       function bindPageEvents(container) {
+        if (container._dsteEventsBound) return;
+        container._dsteEventsBound = true;
         container.addEventListener('click', (e) => {
           // data-navigate: 面包屑/相关链接导航
           const navLink = e.target.closest('[data-navigate]');
@@ -2677,32 +2759,48 @@
           // OMP: data-action 事件委托
           const actionBtn = e.target.closest('[data-action]');
           if (actionBtn) {
-            const action = actionBtn.dataset.action;
-            const id = actionBtn.dataset.id;
-            const filter = actionBtn.dataset.filter;
-            const view = actionBtn.dataset.view;
-            switch(action) {
-              case 'omp-switch-task-view': window.omp_switchTaskView(view); break;
-              case 'omp-view-kpi': window.omp_viewKpi(id); break;
-              case 'omp-edit-kpi': window.omp_editKpi(id); break;
-              case 'omp-new-kpi': window.omp_newKpi(); break;
-              case 'omp-view-task': window.omp_viewTask(id); break;
-              case 'omp-edit-task': window.omp_editTask(id); break;
-              case 'omp-new-task': window.omp_newTask(); break;
-              case 'omp-delete-kpi': window.omp_deleteKpi(id); break;
-              case 'omp-delete-task': window.omp_deleteTask(id); break;
-              case 'omp-export': window.omp_exportData(); break;
-              case 'omp-toggle-view':
-                window._ompState.kpiViewMode = actionBtn.dataset.view;
-                navigate('exe/kpi');
-                break;
-              case 'omp-decompose-kpi': window.omp_openDecomposeModal(id); break;
-              case 'omp-filter-kpi':
-                if (filter) { window._ompState.kpiFilter[filter] = actionBtn.value; navigate('exe/kpi'); }
-                break;
-              case 'omp-filter-task':
-                if (filter) { window._ompState.taskFilter[filter] = actionBtn.value; navigate('exe/tasks'); }
-                break;
+            try {
+              const action = actionBtn.dataset.action;
+              const id = actionBtn.dataset.id;
+              const filter = actionBtn.dataset.filter;
+              const view = actionBtn.dataset.view;
+              switch(action) {
+                case 'omp-switch-task-view': window.omp_switchTaskView(view); break;
+                case 'omp-view-kpi': window.omp_viewKpi(id); break;
+                case 'omp-edit-kpi': window.omp_editKpi(id); break;
+                case 'omp-new-kpi': window.omp_newKpi(); break;
+                case 'omp-view-task': window.omp_viewTask(id); break;
+                case 'omp-edit-task': window.omp_editTask(id); break;
+                case 'omp-new-task': window.omp_newTask(); break;
+                case 'omp-delete-kpi': window.omp_deleteKpi(id); break;
+                case 'omp-delete-task': window.omp_deleteTask(id); break;
+                case 'omp-export': window.omp_exportData(); break;
+                case 'omp-toggle-view':
+                  window._ompState.kpiViewMode = actionBtn.dataset.view;
+                  navigate('exe/kpi');
+                  break;
+                case 'omp-decompose-kpi': window.omp_openDecomposeModal(id); break;
+                case 'omp-filter-kpi':
+                  if (filter) { window._ompState.kpiFilter[filter] = actionBtn.value; navigate('exe/kpi'); }
+                  break;
+                case 'omp-filter-task':
+                  if (filter) { window._ompState.taskFilter[filter] = actionBtn.value; navigate('exe/tasks'); }
+                  break;
+                case 'omp-staffing-remove-member':
+                  window.omp_staffingRemoveMember(actionBtn.dataset.taskId || actionBtn.closest('[data-task-id]')?.dataset?.taskId, actionBtn.dataset.personRef);
+                  break;
+                case 'omp-staffing-search':
+                  // input event handled separately via change/input listener
+                  break;
+                case 'omp-staffing-toggle-org':
+                  window.omp_staffingToggleOrg(actionBtn.dataset.orgId);
+                  break;
+                case 'omp-staffing-select-org':
+                  window.omp_staffingSelectOrg(actionBtn.dataset.orgId);
+                  break;
+                case 'omp-staffing-clear-search':
+                  window.omp_staffingClearSearch();
+                  break;
               // ===== 战略指标库事件 =====
               case 'ind-select':
                 window._indicatorState.selectedIndicatorId = id;
@@ -2809,8 +2907,61 @@
                 window.copyVersionAuditReport();
                 break;
             }
+            } catch (err) {
+              console.error('[OMP] 处理操作失败:', actionBtn.dataset.action, err);
+            }
             return;
           }
+        });
+
+        // 重点工作人员配置台：拖拽分配（PRD v1.8：从通讯录拖拽人员到任务卡片）
+        container.addEventListener('dragstart', (e) => {
+          const personCard = e.target.closest('[data-drag="person"]');
+          if (!personCard) return;
+          const personRef = personCard.dataset.personRef;
+          e.dataTransfer.setData('text/plain', JSON.stringify({ personRef }));
+          e.dataTransfer.effectAllowed = 'copy';
+          personCard.classList.add('dragging');
+          document.querySelectorAll('[data-drop="task"]').forEach(el => el.classList.add('drop-ready'));
+        });
+        container.addEventListener('dragend', (e) => {
+          const personCard = e.target.closest('[data-drag="person"]');
+          if (personCard) personCard.classList.remove('dragging');
+          document.querySelectorAll('[data-drop="task"]').forEach(el => el.classList.remove('drop-active', 'drop-ready'));
+        });
+        container.addEventListener('dragover', (e) => {
+          const taskCard = e.target.closest('[data-drop="task"]');
+          if (!taskCard) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        });
+        container.addEventListener('dragenter', (e) => {
+          const taskCard = e.target.closest('[data-drop="task"]');
+          if (!taskCard) return;
+          e.preventDefault();
+          taskCard.classList.add('drop-active');
+        });
+        container.addEventListener('dragleave', (e) => {
+          const taskCard = e.target.closest('[data-drop="task"]');
+          if (!taskCard) return;
+          const related = e.relatedTarget;
+          if (taskCard.contains(related)) return;
+          taskCard.classList.remove('drop-active');
+        });
+        container.addEventListener('drop', (e) => {
+          const taskCard = e.target.closest('[data-drop="task"]');
+          if (!taskCard) return;
+          e.preventDefault();
+          taskCard.classList.remove('drop-active');
+          document.querySelectorAll('[data-drop="task"]').forEach(el => el.classList.remove('drop-ready'));
+          const raw = e.dataTransfer.getData('text/plain');
+          if (!raw) return;
+          try {
+            const payload = JSON.parse(raw);
+            if (payload.personRef) {
+              window.omp_staffingAssignDrag([taskCard.dataset.taskId], payload.personRef, 'member');
+            }
+          } catch (err) {}
         });
 
         // 战略指标库：搜索框实时搜索（防抖）
@@ -2825,7 +2976,34 @@
             }, 300);
           });
         }
+
+        // 重点工作人员配置台：搜索框实时搜索（防抖）
+        const staffingSearchInput = container.querySelector('#omp-staffing-search');
+        if (staffingSearchInput) {
+          let staffingDebounceTimer;
+          staffingSearchInput.addEventListener('input', (e) => {
+            clearTimeout(staffingDebounceTimer);
+            staffingDebounceTimer = setTimeout(() => {
+              window._ompState.staffingState.searchQuery = e.target.value.trim();
+              navigate('exe/tasks');
+            }, 300);
+          });
+        }
       }
+
+      // 全局 input 委托：人员配置通讯录搜索框（DOM 会重新渲染，用委托保证始终有效）
+      document.addEventListener('input', (e) => {
+        const target = e.target;
+        if (!target.dataset) return;
+        if (target.dataset.action === 'omp-staffing-dir-search') {
+          clearTimeout(window._ompStaffingDirSearchDebounce);
+          window._ompStaffingDirSearchDebounce = setTimeout(() => {
+            window._ompState.staffingState.dirSearchQuery = target.value.trim();
+            window._ompState.staffingState.selectedOrgId = null;
+            navigate('exe/tasks');
+          }, 300);
+        }
+      });
 
       // ===== 渲染左侧栏 =====
       function renderSidebar(phase) {
@@ -2867,7 +3045,8 @@
               name: '营销线组织绩效IOC平台',
               description: '营销线组织绩效 IOC 驾驶舱，集成 FineReport BI 看板',
               url: 'https://bi.finereporthelp.com/webroot/decision?#/?activeTab=24d22c15-75c0-4ab2-9cec-6d727c9e45cd',
-              embed: true
+              embed: true,
+              hideSidebar: 220
             }
           ]
         },
@@ -2932,6 +3111,9 @@
         const totalReports = REPORT_CATALOG.reduce((s, c) => s + (c.reports?.length || 0), 0);
         const activeCat = REPORT_CATALOG[window._reportCenterActiveCategory];
         const activeReport = activeCat?.reports?.find(x => x.id === window._reportCenterActiveReport);
+        const hideSidebar = activeReport && activeReport.hideSidebar ? activeReport.hideSidebar : 0;
+        const iframeLeft = hideSidebar ? `-${hideSidebar}px` : '0';
+        const iframeWidth = hideSidebar ? `calc(100% + ${hideSidebar}px)` : '100%';
 
         const welcomeContent = `
           <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; min-height: 400px;">
@@ -2997,7 +3179,9 @@
                   <button type="button" onclick="window._reportCenterActiveReport=null; renderReportCenterUI();" style="font-size: 12px; color: var(--text-tertiary); background: none; border: none; cursor: pointer;">✕ 关闭</button>
                 </div>
               </div>
-              <iframe id="report-center-iframe" style="width: 100%; height: calc(100% - 41px); border: none;" src="${activeReport ? activeReport.url : 'about:blank'}"></iframe>
+              <div style="position: relative; width: 100%; height: calc(100% - 41px); overflow: hidden;">
+                <iframe id="report-center-iframe" style="position: absolute; left: ${iframeLeft}; top: 0; width: ${iframeWidth}; height: 100%; border: none;" src="${activeReport ? activeReport.url : 'about:blank'}"></iframe>
+              </div>
             </div>
 
             <!-- 主内容区（iframe 隐藏时显示） -->
@@ -3172,7 +3356,12 @@
           omp_syncMilestonesAndRecordsToOmpTasks();
         }
         const viewMode = window._ompState.taskViewMode || 'list';
-        const tabContent = viewMode === 'gantt' ? omp_renderGanttTab() : omp_renderTaskTab();
+        let tabContent = '';
+        if (viewMode === 'staffing') {
+          tabContent = omp_renderTaskStaffingTab();
+        } else {
+          tabContent = viewMode === 'gantt' ? omp_renderGanttTab() : omp_renderTaskTab();
+        }
         return `
           <div class="breadcrumb">
             <a href="#dashboard" data-navigate="dashboard">驾驶舱</a>
@@ -3189,6 +3378,7 @@
               <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">周期: ${getCurrentCycle().year} — ${getCurrentCycle().organization}</span>
               <button class="btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="list" style="margin-right:8px;">📋 列表</button>
               <button class="btn ${viewMode === 'gantt' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="gantt" style="margin-right:8px;">📅 甘特图</button>
+              <button class="btn ${viewMode === 'staffing' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="staffing" style="margin-right:8px;">👥 人员配置</button>
               <button class="btn btn-secondary" data-action="omp-export">📤 导出</button>
             </div>
           </div>
@@ -3692,41 +3882,20 @@
         const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
         const filter = window._ompState.taskFilter;
         let filtered = tasks.filter(t => t.cycleId === cycleId && t.source !== 'annual_plan');
-        if (filter.status !== 'all') filtered = filtered.filter(t => t.status === filter.status);
         if (filter.priority !== 'all') filtered = filtered.filter(t => t.priority === filter.priority);
-        if (filter.dept !== 'all') filtered = filtered.filter(t => t.dept === filter.dept);
-        if (filter.type !== 'all') filtered = filtered.filter(t => t.type === filter.type);
-        const typeLabels = { strategic: '战略举措', improvement: '业务改进', capability: '能力建设', risk_response: '风险应对', meeting_resolution: '会议决议' };
         const priorityColors = { P0: 'var(--danger)', P1: 'var(--warning)', P2: 'var(--success)' };
-        const statusColors = { planning: 'var(--text-tertiary)', active: 'var(--success)', at_risk: 'var(--warning)', delayed: 'var(--danger)', done: 'var(--primary)', closed: 'var(--text-tertiary)' };
-        const statusLabels = { planning: '规划中', active: '进行中', at_risk: '有风险', delayed: '已延期', done: '已完成', closed: '已关闭' };
-        const depts = ['all', ...new Set(tasks.map(t => t.dept))];
+        const renderMemberName = (m) => {
+          const rendered = window.renderPerson ? window.renderPerson(m) : m;
+          return (typeof rendered === 'string' && rendered !== '[object Object]') ? rendered : '未知';
+        };
         return `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <select data-action="omp-filter-task" data-filter="status" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
-                <option value="all" ${filter.status === 'all' ? 'selected' : ''}>全部状态</option>
-                <option value="active" ${filter.status === 'active' ? 'selected' : ''}>🟢 进行中</option>
-                <option value="at_risk" ${filter.status === 'at_risk' ? 'selected' : ''}>🟡 有风险</option>
-                <option value="delayed" ${filter.status === 'delayed' ? 'selected' : ''}>🔴 已延期</option>
-                <option value="done" ${filter.status === 'done' ? 'selected' : ''}>✅ 已完成</option>
-                <option value="planning" ${filter.status === 'planning' ? 'selected' : ''}>📋 规划中</option>
-              </select>
               <select data-action="omp-filter-task" data-filter="priority" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
                 <option value="all" ${filter.priority === 'all' ? 'selected' : ''}>全部优先级</option>
                 <option value="P0" ${filter.priority === 'P0' ? 'selected' : ''}>🔴 P0</option>
                 <option value="P1" ${filter.priority === 'P1' ? 'selected' : ''}>🟡 P1</option>
                 <option value="P2" ${filter.priority === 'P2' ? 'selected' : ''}>🟢 P2</option>
-              </select>
-              <select data-action="omp-filter-task" data-filter="dept" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
-                ${depts.map(d => `<option value="${d}" ${filter.dept === d ? 'selected' : ''}>${d === 'all' ? '全部部门' : d}</option>`).join('')}
-              </select>
-              <select data-action="omp-filter-task" data-filter="type" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
-                <option value="all" ${filter.type === 'all' ? 'selected' : ''}>全部类型</option>
-                <option value="strategic" ${filter.type === 'strategic' ? 'selected' : ''}>🎯 战略举措</option>
-                <option value="improvement" ${filter.type === 'improvement' ? 'selected' : ''}>🔧 业务改进</option>
-                <option value="capability" ${filter.type === 'capability' ? 'selected' : ''}>📚 能力建设</option>
-                <option value="risk_response" ${filter.type === 'risk_response' ? 'selected' : ''}>⚠️ 风险应对</option>
               </select>
             </div>
             <button class="btn btn-primary" data-action="omp-new-task" style="font-size:13px;">+ 新建工作</button>
@@ -3735,28 +3904,35 @@
             <div style="overflow-x:auto;">
               <table class="data-table">
                 <thead>
-                  <tr><th>工作名称</th><th>类型</th><th>优先级</th><th>负责人</th><th>部门</th><th style="text-align:center;">进度</th><th style="text-align:center;">状态</th><th>截止日期</th><th style="text-align:center;">操作</th></tr>
+                  <tr><th>工作名称</th><th>优先级</th><th>负责人</th><th>成员</th><th style="text-align:center;">进度</th><th>截止日期</th><th style="text-align:center;">操作</th></tr>
                 </thead>
                 <tbody>
                   ${filtered.map(t => {
                     const relatedKpiNames = t.relatedKpiIds.map(id => omp_getIndicatorName(id)).filter(Boolean).join(', ');
-                    const sourceTag = t.annualPlanTaskId
-                      ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--primary-bg);color:var(--primary);margin-left:6px;">📋 年度计划</span>`
-                      : '';
+                    const sourceTag = (() => {
+                      if (!t.annualPlanTaskId) return '';
+                      const sourceTask = tasks.find(task => task.id === t.annualPlanTaskId);
+                      const kmsUrl = (sourceTask && sourceTask.kmsUrl) || t.kmsUrl;
+                      const hasExternalUrl = kmsUrl && kmsUrl !== '#' && kmsUrl.startsWith('http');
+                      const linkUrl = hasExternalUrl ? kmsUrl : '#bp/annual-plan';
+                      const attrs = hasExternalUrl ? 'target="_blank" rel="noopener noreferrer"' : 'data-navigate="bp/annual-plan"';
+                      return `<a href="${linkUrl}" ${attrs} style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--primary-bg);color:var(--primary);margin-left:6px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">🔗 主KMS链接</a>`;
+                    })();
+                    const memberList = (t.members || []).filter(Boolean);
+                    const memberNames = memberList.slice(0, 2).map(m => renderMemberName(m)).join('、');
+                    const memberExtra = memberList.length > 2 ? ` +${memberList.length - 2}` : '';
                     return `
                       <tr>
                         <td><strong>${t.name}</strong>${sourceTag}${relatedKpiNames ? `<br><span style="font-size:11px;color:var(--text-tertiary);">关联: ${relatedKpiNames}</span>` : ''}</td>
-                        <td><span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--bg-page);">${typeLabels[t.type] || t.type}</span></td>
                         <td><span style="font-weight:600;color:${priorityColors[t.priority]};font-size:12px;">${t.priority}</span></td>
                         <td>${escapeHtml(window.renderPerson ? window.renderPerson(t.owner) : (t.owner || ''))}</td>
-                        <td>${t.dept}</td>
+                        <td style="font-size:12px;color:var(--text-secondary);">${memberList.length > 0 ? escapeHtml(memberNames + memberExtra) : '-'}</td>
                         <td style="text-align:center;">
                           <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
                             <div class="progress-bar" style="width:60px;"><div class="progress-bar-fill ${t.progress < 50 && t.status !== 'done' ? 'warning' : ''}" style="width:${t.progress}%"></div></div>
                             <span style="font-size:12px;">${t.progress}%</span>
                           </div>
                         </td>
-                        <td style="text-align:center;"><span style="font-size:12px;padding:3px 8px;border-radius:4px;background:${statusColors[t.status]}15;color:${statusColors[t.status]};font-weight:500;">${statusLabels[t.status]}</span></td>
                         <td style="font-size:12px;color:var(--text-secondary);">${t.endDate}</td>
                         <td style="text-align:center;">
                           <button class="btn btn-sm btn-secondary" data-action="omp-view-task" data-id="${t.id}" style="font-size:12px;padding:3px 8px;">详情</button>
@@ -3765,7 +3941,7 @@
                         </td>
                       </tr>`;
                   }).join('')}
-                  ${filtered.length === 0 ? '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无匹配数据</td></tr>' : ''}
+                  ${filtered.length === 0 ? '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无匹配数据</td></tr>' : ''}
                 </tbody>
               </table>
             </div>
@@ -3821,6 +3997,322 @@
               <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--success);border-radius:2px;"></span>已完成</span>
             </div>
           </div>`;
+      }
+
+      // ===== Tab 5: 重点工作人员配置台 =====
+      function omp_renderTaskStaffingTab() {
+        try {
+          const cycleId = window._dsteState.currentCycleId;
+          const allTasks = omp_load('tasks') || [];
+          // PRD v1.8：人员配置台显示当前周期全部重点工作（含年度计划派生任务），仅负责人字段对派生任务只读
+          const tasks = allTasks.filter(t => t && t.cycleId === cycleId && t.source !== 'annual_plan');
+          const rawEmployees = (typeof getEmployees === 'function' ? getEmployees() : []) || [];
+          const employees = Array.isArray(rawEmployees) ? rawEmployees.filter(e => e && e.id) : [];
+          const taskPersonRefs = new Set();
+          tasks.forEach(t => {
+            if (t.owner) taskPersonRefs.add(t.owner);
+            (t.members || []).forEach(m => { if (m) taskPersonRefs.add(m); });
+          });
+          const employeeIds = new Set(employees.map(e => e.id));
+          const pseudoEmployees = Array.from(taskPersonRefs)
+            .filter(ref => !employeeIds.has(ref))
+            .map(ref => ({ id: ref, name: window.renderPerson ? window.renderPerson(ref) : ref }));
+          const allPeople = [...employees, ...pseudoEmployees];
+          const state = window._ompState.staffingState || { searchQuery: '', dirSearchQuery: '', selectedOrgId: null, expandedOrgIds: new Set() };
+          const filter = window._ompState.taskFilter || { dept: 'all', type: 'all' };
+
+          const typeLabels = { improvement: '业务改进', capability: '能力建设', risk_response: '风险应对', meeting_resolution: '会议决议' };
+          const depts = ['all', ...new Set(tasks.map(t => t.dept).filter(Boolean))];
+
+          let filtered = tasks.filter(t => {
+            if (filter.dept !== 'all' && t.dept !== filter.dept) return false;
+            if (filter.type !== 'all' && t.type !== filter.type) return false;
+            if (state.searchQuery) {
+              const q = state.searchQuery.toLowerCase();
+              const nameMatch = (t.name || '').toLowerCase().includes(q);
+              const ownerMatch = (window.renderPerson ? window.renderPerson(t.owner) : (t.owner || '')).toLowerCase().includes(q);
+              return nameMatch || ownerMatch;
+            }
+            return true;
+          });
+
+          // PRD v1.8：人员列表默认按姓名升序，本期不做推荐排序
+          const displayedPeopleBase = allPeople.slice().sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b), 'zh-CN'));
+
+          // 构建组织架构树
+          const hasEmployeeData = employees.length > 0;
+          const orgTree = hasEmployeeData ? buildOrgHierarchy(employees) : { orgUnits: {}, roots: [] };
+          // PRD v1.8 企业微信风格：默认只展示一级部门，全部折叠，由用户逐层展开
+          // state.expandedOrgIds 为空即表示全部折叠
+
+          // 通讯录筛选：搜索优先于组织树
+          const dirSearchQuery = (state.dirSearchQuery || '').trim();
+          let displayedPeople = [];
+          if (dirSearchQuery) {
+            const searchResults = searchEmployees(dirSearchQuery, 100);
+            const matchedIds = new Set(searchResults.map(e => e.id));
+            displayedPeople = displayedPeopleBase.filter(emp => matchedIds.has(emp.id));
+          }
+
+          // 将人员按组织路径挂到对应组织节点下（取最长匹配路径；匹配不上时按末级名称兜底）
+          const peopleByOrgId = {};
+          let unassignedPeople = [];
+          displayedPeopleBase.forEach(emp => {
+            const empPath = String(emp.orgPath || '');
+            let bestUnit = null;
+            let bestLen = 0;
+            // 1) 精确前缀匹配
+            Object.values(orgTree.orgUnits).forEach(unit => {
+              const unitPath = String(unit.path || '');
+              if (unitPath && (empPath === unitPath || empPath.startsWith(unitPath + ' > '))) {
+                if (unitPath.length > bestLen) {
+                  bestUnit = unit;
+                  bestLen = unitPath.length;
+                }
+              }
+            });
+            // 2) 前缀未匹配时，按组织路径末级名称兜底
+            if (!bestUnit) {
+              const lastSegment = empPath.split(' > ').filter(Boolean).pop() || '';
+              if (lastSegment) {
+                Object.values(orgTree.orgUnits).forEach(unit => {
+                  if (unit.name === lastSegment) {
+                    bestUnit = unit;
+                  }
+                });
+              }
+            }
+            if (bestUnit) {
+              if (!peopleByOrgId[bestUnit.id]) peopleByOrgId[bestUnit.id] = [];
+              peopleByOrgId[bestUnit.id].push(emp);
+            } else {
+              unassignedPeople.push(emp);
+            }
+          });
+
+          function renderAvatar(personRef, size = 32) {
+            const refStr = typeof personRef === 'string' ? personRef : (personRef && typeof personRef.toString === 'function' ? personRef.toString() : String(personRef || ''));
+            const rawName = window.renderPerson ? window.renderPerson(personRef) : refStr;
+            const name = typeof rawName === 'string' ? rawName : String(rawName || '');
+            const firstChar = name ? name.charAt(0) : '?';
+            const hue = refStr ? (refStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360) : 200;
+            return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:hsl(${hue},65%,45%);color:#fff;display:flex;align-items:center;justify-content:center;font-size:${size * 0.4}px;font-weight:600;flex-shrink:0;" title="${escapeHtml(name)}">${escapeHtml(firstChar)}</div>`;
+          }
+
+          function renderOrgTree(orgId, orgUnits, peopleMap, depth) {
+            const unit = orgUnits[orgId];
+            if (!unit) return '';
+            const hasChildren = Array.isArray(unit.children) && unit.children.length > 0;
+            const isExpanded = state.expandedOrgIds.has(orgId);
+            const isSelected = state.selectedOrgId === orgId;
+            const indent = depth * 14;
+            const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '·';
+            const rowBg = isSelected ? 'background:var(--primary-bg);' : '';
+            const nameColor = isSelected ? 'var(--primary)' : 'var(--text-primary)';
+            const fontWeight = isSelected ? '600' : '400';
+            const unitPeople = (peopleMap[orgId] || []).slice().sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b), 'zh-CN'));
+            const isLeaf = !hasChildren;
+            const peopleHtml = (isExpanded || isLeaf) && unitPeople.length > 0
+              ? `<div style="margin-left:10px;border-left:1px dashed var(--border-color);padding-left:4px;">${unitPeople.map(emp => renderCompactPersonCard(emp, depth + 1)).join('')}</div>`
+              : '';
+            const childrenHtml = hasChildren && isExpanded
+              ? `<div style="margin-left:10px;border-left:1px dashed var(--border-color);">${unit.children.map(childId => renderOrgTree(childId, orgUnits, peopleMap, depth + 1)).join('')}</div>`
+              : '';
+            return `
+              <div class="omp-staffing-org-node" data-org-id="${escapeHtml(orgId)}">
+                <div class="omp-staffing-org-row" style="display:flex;align-items:center;gap:4px;padding:5px 8px 5px ${8 + indent}px;cursor:pointer;${rowBg}" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">
+                  <span class="omp-staffing-org-toggle" style="font-size:10px;color:var(--text-tertiary);width:14px;text-align:center;${hasChildren || unitPeople.length > 0 ? '' : 'visibility:hidden;'}" data-action="omp-staffing-toggle-org" data-org-id="${escapeHtml(orgId)}">${toggleIcon}</span>
+                  <span class="omp-staffing-org-name" style="flex:1;font-size:12px;color:${nameColor};font-weight:${fontWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">${escapeHtml(unit.name)}</span>
+                  <span class="omp-staffing-org-count" style="font-size:10px;color:var(--text-muted);flex-shrink:0;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">${unit.employeeCount || 0}</span>
+                </div>
+                ${childrenHtml}
+                ${peopleHtml}
+              </div>`;
+          }
+
+          function getDisplayName(emp) {
+            if (!emp) return '未知';
+            if (typeof emp.name === 'string' && emp.name.trim()) return emp.name.trim();
+            if (window.renderPerson) return window.renderPerson(emp.id);
+            return String(emp.id || '未知');
+          }
+
+          function renderCompactPersonCard(emp, depth = 0) {
+            const personRef = emp.id;
+            const displayName = getDisplayName(emp);
+            const deptName = emp.l1Team || emp.l1Org || (emp.orgPath ? emp.orgPath.split(' > ').pop() : '') || '未指定部门';
+            const indent = depth * 14;
+            return `
+              <div class="omp-staffing-person-card" data-person-ref="${escapeHtml(personRef)}" data-drag="person" draggable="true" style="padding:8px 10px;border-radius:6px;cursor:grab;transition:all 0.15s;margin:2px 0;${depth > 0 ? 'margin-left:' + indent + 'px;' : ''}">
+                <div style="display:flex;align-items:center;gap:8px;pointer-events:none;">
+                  ${renderAvatar(personRef, 28)}
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                      <span style="font-weight:600;color:var(--text-primary);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+                      <span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;" title="${escapeHtml(emp.orgPath || deptName)}">${escapeHtml(deptName)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>`;
+          }
+
+          function renderSearchResultCard(emp) {
+            const personRef = emp.id;
+            const displayName = getDisplayName(emp);
+            const orgPath = emp.orgPath || '未指定部门';
+            return `
+              <div class="omp-staffing-person-card" data-person-ref="${escapeHtml(personRef)}" data-drag="person" draggable="true" style="padding:10px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-card);cursor:grab;transition:all 0.15s;">
+                <div style="display:flex;align-items:center;gap:8px;pointer-events:none;">
+                  ${renderAvatar(personRef, 32)}
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                      <span style="font-weight:600;color:var(--text-primary);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(orgPath)}">${escapeHtml(orgPath)}</div>
+                  </div>
+                </div>
+              </div>`;
+          }
+
+          function renderMemberChip(personRef) {
+            const name = window.renderPerson ? window.renderPerson(personRef) : personRef;
+            return `
+              <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px 2px 2px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);margin:2px;" title="${escapeHtml(name)}">
+                ${renderAvatar(personRef, 16)}
+                <span style="max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</span>
+                <span style="cursor:pointer;color:var(--danger);font-weight:700;margin-left:2px;" data-action="omp-staffing-remove-member" data-person-ref="${escapeHtml(personRef)}">×</span>
+              </span>`;
+          }
+
+          const taskCards = filtered.map(t => {
+            const memberList = (t.members || []).filter(Boolean);
+            const ownerAvatar = t.owner ? renderAvatar(t.owner, 22) : '';
+            const memberChips = memberList.map(m => renderMemberChip(m)).join('');
+            const extraMembers = memberList.length > 3 ? `<span style="font-size:11px;color:var(--text-tertiary);margin-left:2px;">+${memberList.length - 3}</span>` : '';
+            const ownerReadOnly = t.annualPlanTaskId ? '<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(只读)</span>' : '';
+            return `
+              <div class="omp-staffing-task-card" data-drop="task" data-task-id="${t.id}" style="padding:12px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-card);transition:all 0.15s;">
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+                      <span style="font-weight:600;color:var(--text-primary);font-size:13px;">${escapeHtml(t.name)}</span>
+                      <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);">${typeLabels[t.type] || t.type}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
+                      <span>${t.dept || '未指定部门'}</span>
+                      <span>·</span>
+                      <span>截止 ${t.endDate}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                      <span style="font-size:11px;color:var(--text-tertiary);">负责人:</span>
+                      ${t.owner ? `<div style="display:flex;align-items:center;gap:4px;">${ownerAvatar}<span style="font-size:12px;color:var(--text-primary);">${escapeHtml(window.renderPerson ? window.renderPerson(t.owner) : t.owner)}</span>${ownerReadOnly}</div>` : '<span style="font-size:12px;color:var(--text-tertiary);">未分配</span>'}
+                    </div>
+                    ${memberList.length > 0 ? `
+                    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:6px;">
+                      <span style="font-size:11px;color:var(--text-tertiary);">成员:</span>
+                      <div style="display:flex;align-items:center;gap:2px;flex-wrap:wrap;">${memberChips}${extraMembers}</div>
+                    </div>` : ''}
+                  </div>
+                </div>
+              </div>`;
+          }).join('');
+
+          const unassignedHtml = !dirSearchQuery && unassignedPeople.length > 0
+            ? `
+              <div style="margin-top:8px;border-top:1px solid var(--border-light);padding-top:8px;">
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);padding:0 10px 6px;">未分配部门 (${unassignedPeople.length})</div>
+                ${unassignedPeople.map(emp => renderSearchResultCard(emp)).join('')}
+              </div>`
+            : '';
+
+          const orgTreeHtml = hasEmployeeData
+            ? `<div style="flex:1;overflow-y:auto;padding-right:2px;">
+                ${orgTree.roots.map(id => renderOrgTree(id, orgTree.orgUnits, peopleByOrgId, 0)).join('')}
+                ${unassignedHtml}
+              </div>`
+            : `<div style="padding:16px 12px;text-align:center;color:var(--text-muted);font-size:12px;line-height:1.6;">
+                暂无组织数据<br>请先前往「系统管理 → 人员与组织管理」导入
+              </div>`;
+
+          const searchResultsHtml = dirSearchQuery
+            ? (displayedPeople.length > 0
+                ? `<div style="display:flex;flex-direction:column;gap:8px;">${displayedPeople.map(emp => renderSearchResultCard(emp)).join('')}</div>`
+                : `<div style="text-align:center;padding:40px 20px;color:var(--text-tertiary);">
+                    <div style="font-size:28px;margin-bottom:8px;">🔍</div>
+                    <div style="font-size:13px;">无匹配人员</div>
+                  </div>`)
+            : '';
+
+          return `
+            <div style="display:flex;flex-direction:column;gap:12px;height:calc(100vh - 200px);min-height:500px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                  <select data-action="omp-filter-task" data-filter="dept" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+                    ${depts.map(d => `<option value="${d}" ${filter.dept === d ? 'selected' : ''}>${d === 'all' ? '全部部门' : d}</option>`).join('')}
+                  </select>
+                  <select data-action="omp-filter-task" data-filter="type" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+                    <option value="all" ${filter.type === 'all' ? 'selected' : ''}>全部类型</option>
+                    <option value="improvement" ${filter.type === 'improvement' ? 'selected' : ''}>🔧 业务改进</option>
+                    <option value="capability" ${filter.type === 'capability' ? 'selected' : ''}>📚 能力建设</option>
+                    <option value="risk_response" ${filter.type === 'risk_response' ? 'selected' : ''}>⚠️ 风险应对</option>
+                    <option value="meeting_resolution" ${filter.type === 'meeting_resolution' ? 'selected' : ''}>📝 会议决议</option>
+                  </select>
+                  <input type="text" id="omp-staffing-search" placeholder="搜索任务或负责人..." value="${escapeHtml(state.searchQuery || '')}" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-width:180px;" data-action="omp-staffing-search">
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <span style="font-size:13px;color:var(--text-secondary);">仅配置成员，负责人在年度规划中设定</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:16px;flex:1;min-height:0;">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">任务池 (${filtered.length})</h3>
+                  </div>
+                  <div style="flex:1;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:8px;" id="omp-staffing-task-list">
+                    ${filtered.length > 0 ? taskCards : '<div style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无匹配任务</div>'}
+                  </div>
+                </div>
+                <div style="width:380px;min-width:380px;display:flex;flex-direction:column;gap:10px;" id="omp-staffing-address-book">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">📋 资源人选 (通讯录)</h3>
+                    <span style="font-size:12px;color:var(--text-secondary);">${dirSearchQuery ? `${displayedPeople.length} 条结果` : `${displayedPeopleBase.length} 人`}</span>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" id="omp-staffing-dir-search" placeholder="搜索姓名、工号、部门..." value="${escapeHtml(dirSearchQuery)}" style="flex:1;min-width:0;padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;" data-action="omp-staffing-dir-search">
+                    <button class="btn btn-sm btn-secondary" style="font-size:12px;${dirSearchQuery ? '' : 'visibility:hidden;'}" data-action="omp-staffing-clear-search">清除</button>
+                  </div>
+                  <div style="flex:1;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:8px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;padding:8px 0;" id="omp-staffing-org-tree">
+                    ${dirSearchQuery ? searchResultsHtml : `
+                      <div style="font-size:12px;font-weight:600;color:var(--text-primary);padding:0 10px 6px;border-bottom:1px solid var(--border-light);margin-bottom:4px;">组织架构</div>
+                      ${orgTreeHtml}
+                    `}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <style>
+              .omp-staffing-task-card { cursor: default; }
+              .omp-staffing-task-card:hover { border-color: var(--primary) !important; }
+              .omp-staffing-task-card.drop-active { border-color: var(--primary) !important; border-style: dashed !important; background: var(--primary-bg) !important; }
+              .omp-staffing-org-row { border-radius: 4px; transition: background 0.15s; }
+              .omp-staffing-org-row:hover { background: var(--bg-hover); }
+              .omp-staffing-person-card { border-radius: 8px; }
+              .omp-staffing-person-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); background: var(--bg-hover); }
+              .omp-staffing-person-card.dragging { opacity: 0.5; }
+              @media (max-width: 768px) {
+                #omp-staffing-address-book { width: 100% !important; min-width: 0 !important; }
+              }
+            </style>`;
+        } catch (err) {
+          console.error('[OMP] 渲染人员配置视图失败:', err);
+          return `
+            <div style="padding:40px;text-align:center;color:var(--text-secondary);">
+              <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+              <div style="font-size:16px;font-weight:600;margin-bottom:8px;">人员配置视图加载失败</div>
+              <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:16px;">${escapeHtml(err.message || '未知错误')}</div>
+              <button class="btn btn-primary" data-action="omp-switch-task-view" data-view="list">返回列表</button>
+            </div>`;
+        }
       }
 
       // ===== 战略洞察与专题（整合页面） =====
@@ -4572,25 +5064,85 @@
 
       // ===== AI 助手 =====
       function renderAI() {
-        return `
-          <div class="ai-fullscreen">
-            <div class="ai-chat-area" id="ai-chat-area">
-              <div class="ai-message bot">
-                <strong>🤖 AI 战略助手</strong><br><br>
-                你好！我是 DSTE 战略助手，可以帮你：<br>
-                • 分析 KPI 达成情况与差距根因<br>
-                • 生成经营分析报告与会议纪要的初稿<br>
-                • 模拟战略调整对财务/客户维度的影响<br>
-                • 识别风险预警与机会洞察<br><br>
-                请直接输入你的问题。
+        const client = getAIClient();
+        const sessions = client.listSessions();
+        const currentSession = client.getCurrentSession();
+        const contextSummary = getContextSummary();
+
+        const sessionListHtml = sessions.map((s) => `
+          <div class="ai-session-item ${s.id === currentSession.id ? 'active' : ''}" data-session-id="${s.id}">
+            <div class="ai-session-title">${escapeHtml(s.title || '新会话')}</div>
+            <div class="ai-session-meta">${s.messages.length} 条消息</div>
+          </div>
+        `).join('');
+
+        const welcomeHtml = `
+          <div class="ai-message bot ai-welcome">
+            <div class="ai-avatar">🤖</div>
+            <div class="ai-message-content">
+              <strong>AI 战略助手</strong>
+              <p>你好！我是 DSTE 战略助手，可以帮你：</p>
+              <ul>
+                <li>分析 KPI 达成情况与差距根因</li>
+                <li>生成经营分析报告与会议纪要初稿</li>
+                <li>识别风险预警与机会洞察</li>
+                <li>查询企业知识库与制度规范</li>
+              </ul>
+              <div class="ai-quick-actions">
+                <button class="ai-quick-btn" data-ai-prompt="分析当前季度 KPI 达成情况">📊 KPI 分析</button>
+                <button class="ai-quick-btn" data-ai-prompt="列出本月待开经营分析会">📅 会议提醒</button>
+                <button class="ai-quick-btn" data-ai-prompt="识别高风险重点工作">⚠️ 风险预警</button>
+                <button class="ai-quick-btn" data-ai-prompt="生成战略复盘报告模板">📝 报告模板</button>
               </div>
-            </div>
-            <div class="ai-input-bar">
-              <input type="text" id="ai-chat-input" placeholder="输入你的问题，例如：Q1 营收差距的根因是什么？">
-              <button class="btn btn-primary" id="ai-chat-send">发送</button>
             </div>
           </div>
         `;
+
+        const historyHtml = currentSession.messages
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .map((m) => `
+            <div class="ai-message ${m.role}" data-message-id="${m.id}">
+              <div class="ai-avatar">${m.role === 'user' ? '👤' : '🤖'}</div>
+              <div class="ai-message-content">${escapeHtml(m.content)}</div>
+            </div>
+          `).join('');
+
+        return `
+          <div class="ai-fullscreen">
+            <div class="ai-sidebar" id="ai-sidebar">
+              <div class="ai-sidebar-header">
+                <button class="btn btn-primary btn-sm" id="ai-new-session">+ 新会话</button>
+              </div>
+              <div class="ai-session-list">
+                ${sessionListHtml || '<div class="ai-empty-sessions">暂无历史会话</div>'}
+              </div>
+              <div class="ai-context-info">
+                <div class="ai-context-label">上下文</div>
+                <div class="ai-context-summary">${escapeHtml(contextSummary)}</div>
+              </div>
+            </div>
+            <div class="ai-main">
+              <div class="ai-chat-area" id="ai-chat-area">
+                ${historyHtml || welcomeHtml}
+              </div>
+              <div class="ai-input-bar">
+                <input type="text" id="ai-chat-input" placeholder="输入你的问题，例如：Q1 营收差距的根因是什么？">
+                <button class="btn btn-primary" id="ai-chat-send">发送</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function getAIClient() {
+        if (!window._aiClient) {
+          window._aiClient = new AIClient();
+        }
+        return window._aiClient;
+      }
+
+      function initAIClient() {
+        getAIClient();
       }
 
       // ===== 面包屑辅助函数 =====
@@ -4655,6 +5207,29 @@
       document.addEventListener('keypress', (e) => {
         if (e.target.id === 'ai-chat-input' && e.key === 'Enter') sendAIMessage();
       });
+      document.addEventListener('click', (e) => {
+        const quickBtn = e.target.closest('[data-ai-prompt]');
+        if (!quickBtn) return;
+        const input = document.getElementById('ai-chat-input');
+        if (input) {
+          input.value = quickBtn.dataset.aiPrompt;
+          sendAIMessage();
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if (e.target.id === 'ai-new-session') {
+          const client = getAIClient();
+          client.createSession();
+          navigate('ai');
+        }
+      });
+      document.addEventListener('click', (e) => {
+        const sessionItem = e.target.closest('[data-session-id]');
+        if (!sessionItem) return;
+        const client = getAIClient();
+        client.switchSession(sessionItem.dataset.sessionId);
+        navigate('ai');
+      });
 
       // ===== 全站弹窗按钮事件委托（替代 inline onclick）=====
       document.addEventListener('click', (e) => {
@@ -4689,47 +5264,98 @@
         }
       });
 
-      function sendAIMessage() {
+      async function sendAIMessage() {
         const input = document.getElementById('ai-chat-input');
         if (!input) return;
         const text = input.value.trim();
         if (!text) return;
 
         const area = document.getElementById('ai-chat-area');
-        const userMsg = document.createElement('div');
-        userMsg.className = 'ai-message user';
-        userMsg.textContent = text;
-        area.appendChild(userMsg);
-        const thinking = document.createElement('div');
-        thinking.className = 'ai-message bot';
-        thinking.id = 'ai-thinking';
-        const strong = document.createElement('strong');
-        strong.textContent = '🤖';
-        thinking.appendChild(strong);
-        thinking.appendChild(document.createTextNode(' 正在分析战略数据...'));
-        area.appendChild(thinking);
-        area.scrollTop = area.scrollHeight;
+        appendMessage(area, 'user', text);
+        const thinkingId = appendThinking(area);
         input.value = '';
+        area.scrollTop = area.scrollHeight;
 
-        setTimeout(() => {
-          const thinking = document.getElementById('ai-thinking');
-          if (thinking) {
-            thinking.replaceChildren();
-            const title = document.createElement('strong');
-            title.textContent = '🤖 AI 战略助手';
-            thinking.appendChild(title);
-            thinking.appendChild(document.createElement('br'));
-            thinking.appendChild(document.createElement('br'));
-            thinking.appendChild(document.createTextNode(`基于当前数据，关于「${text}」的分析如下：`));
-            thinking.appendChild(document.createElement('br'));
-            thinking.appendChild(document.createElement('br'));
-            thinking.appendChild(document.createTextNode('该功能为演示版本，完整 AI 分析能力将接入企业知识库与 BI 数据引擎，支持自然语言查询、多维度钻取和 What-if 模拟。'));
-            thinking.appendChild(document.createElement('br'));
-            thinking.appendChild(document.createElement('br'));
-            thinking.appendChild(document.createTextNode('你可以尝试问："Q1 营收差距的根因"、"战略地图客户维度预警" 等。'));
+        try {
+          const client = getAIClient();
+          const context = gatherBusinessContext();
+          const session = client.getCurrentSession();
+
+          removeThinking(thinkingId);
+          const botEl = appendMessage(area, 'bot', '', { streaming: true });
+          let fullContent = '';
+
+          for await (const chunk of client.streamChat(text, {
+            session,
+            context,
+            systemPrompt: buildSystemPrompt(),
+            tools: [AITools.navigateTo, AITools.searchKms],
+          })) {
+            if (chunk.done) break;
+            fullContent += chunk.content;
+            updateStreamingMessage(botEl, fullContent);
+            area.scrollTop = area.scrollHeight;
           }
-          area.scrollTop = area.scrollHeight;
-        }, 1200);
+
+          finalizeMessage(botEl, fullContent);
+
+          if (fullContent.includes('【mock 模式】') || fullContent.includes('当前为 mock')) {
+            showToast('当前为 AI mock 模式，未调用真实模型', 'info', 3000);
+          }
+        } catch (err) {
+          removeThinking(thinkingId);
+          appendMessage(area, 'bot', `抱歉，AI 服务暂时不可用：${err.message}。请检查网络连接或稍后重试。`);
+          console.error('[AI] send message error:', err);
+        }
+        area.scrollTop = area.scrollHeight;
+      }
+
+      function appendMessage(area, role, content, options = {}) {
+        const el = document.createElement('div');
+        el.className = `ai-message ${role}${options.streaming ? ' ai-streaming' : ''}`;
+        if (options.id) el.id = options.id;
+        el.innerHTML = `
+          <div class="ai-avatar">${role === 'user' ? '👤' : '🤖'}</div>
+          <div class="ai-message-content">${options.streaming ? '' : escapeHtml(content)}</div>
+        `;
+        area.appendChild(el);
+        area.scrollTop = area.scrollHeight;
+        return el;
+      }
+
+      function appendThinking(area) {
+        const id = 'ai-thinking-' + Date.now();
+        const el = document.createElement('div');
+        el.className = 'ai-message bot ai-thinking';
+        el.id = id;
+        el.innerHTML = `
+          <div class="ai-avatar">🤖</div>
+          <div class="ai-message-content">正在分析战略数据…</div>
+        `;
+        area.appendChild(el);
+        area.scrollTop = area.scrollHeight;
+        return id;
+      }
+
+      function removeThinking(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+        return el;
+      }
+
+      function updateStreamingMessage(elOrId, content) {
+        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+        if (!el) return;
+        const contentEl = el.querySelector('.ai-message-content');
+        if (contentEl) contentEl.textContent = content;
+      }
+
+      function finalizeMessage(elOrId, content) {
+        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+        if (!el) return;
+        el.classList.remove('ai-streaming');
+        const contentEl = el.querySelector('.ai-message-content');
+        if (contentEl) contentEl.textContent = content;
       }
 
       
@@ -4759,6 +5385,7 @@
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
       }
       window.omp_openModal = omp_openModal;
+      window.omp_viewKpi = omp_viewKpiModal;
 
       function omp_viewKpiModal(kpiId) {
         const kpis = omp_load('kpiInstances');
@@ -4877,6 +5504,7 @@
             <div><div style="font-size:12px;color:var(--text-tertiary);">类型</div><div style="font-weight:500;">${typeLabels[task.type]}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">优先级</div><div style="font-weight:500;color:${task.priority === 'P0' ? 'var(--danger)' : task.priority === 'P1' ? 'var(--warning)' : 'var(--success)'}">${task.priority}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">负责人</div><div>${escapeHtml(window.renderPerson ? window.renderPerson(task.owner) : (task.owner || ''))}</div></div>
+            <div><div style="font-size:12px;color:var(--text-tertiary);">成员</div><div>${(() => { const ms = (task.members || []).filter(Boolean); return ms.length > 0 ? ms.map(m => escapeHtml(window.renderPerson ? window.renderPerson(m) : m)).join('、') : '无'; })()}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">部门</div><div>${task.dept}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">开始日期</div><div>${task.startDate}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">截止日期</div><div>${task.endDate}</div></div>
@@ -4907,12 +5535,14 @@
             <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">描述</label><textarea id="omp-task-desc" rows="2" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${task.description}</textarea></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型 *</label><select id="omp-task-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="strategic" ${task.type === 'strategic' ? 'selected' : ''}>🎯 战略举措</option><option value="improvement" ${task.type === 'improvement' ? 'selected' : ''}>🔧 业务改进</option><option value="capability" ${task.type === 'capability' ? 'selected' : ''}>📚 能力建设</option><option value="risk_response" ${task.type === 'risk_response' ? 'selected' : ''}>⚠️ 风险应对</option></select></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">优先级 *</label><select id="omp-task-priority" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="P0" ${task.priority === 'P0' ? 'selected' : ''}>🔴 P0</option><option value="P1" ${task.priority === 'P1' ? 'selected' : ''}>🟡 P1</option><option value="P2" ${task.priority === 'P2' ? 'selected' : ''}>🟢 P2</option></select></div>
-            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人 *</label><input type="text" id="omp-task-owner" value="${typeof task.owner === 'object' ? (task.owner.displayName || task.owner.name || '') : (task.owner || '')}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人 *</label><input type="text" id="omp-task-owner" value="${typeof task.owner === 'object' ? (task.owner.displayName || task.owner.name || '') : (task.owner || '')}" ${task.annualPlanTaskId ? 'disabled' : ''} style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:${task.annualPlanTaskId ? 'var(--bg-page)' : 'var(--bg-card)'};color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门 *</label><input type="text" id="omp-task-dept" value="${task.dept}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            ${task.annualPlanTaskId ? `<div style="grid-column:1 / -1;font-size:12px;color:var(--text-tertiary);padding:8px 12px;background:var(--bg-page);border-radius:6px;">ℹ️ 负责人由年度经营计划同步，如需修改请前往「年度经营计划」页面</div>` : ''}
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label><input type="date" id="omp-task-start" value="${task.startDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">截止日期 *</label><input type="date" id="omp-task-end" value="${task.endDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">预算 (万)</label><input type="number" id="omp-task-budget" value="${task.budget}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">实际成本 (万)</label><input type="number" id="omp-task-cost" value="${task.actualCost}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">成员（请在「人员配置」视图中管理）</label><div style="padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-page);color:var(--text-secondary);font-size:13px;min-height:36px;">${(() => { const ms = (task.members || []).filter(Boolean); return ms.length > 0 ? ms.map(m => escapeHtml(window.renderPerson ? window.renderPerson(m) : m)).join('、') : '暂无成员'; })()}</div></div>
             <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">关联 KPI (多选)</label><select id="omp-task-kpis" multiple style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-height:80px;">${kpiOptions}</select></div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
@@ -5040,10 +5670,15 @@
         const tasks = omp_load('tasks');
         const editId = window._ompState.editingTaskId;
         if (editId === 'new') {
-          tasks.push({ id: 'task_' + Date.now(), cycleId: window._dsteState.currentCycleId, source: 'omp', name, description, type, priority, status: 'planning', progress: 0, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost });
+          tasks.push({ id: 'task_' + Date.now(), cycleId: window._dsteState.currentCycleId, source: 'omp', name, description, type, priority, status: 'planning', progress: 0, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost, members: [] });
         } else {
           const idx = tasks.findIndex(t => t.id === editId);
-          if (idx > -1) tasks[idx] = { ...tasks[idx], name, description, type, priority, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost };
+          if (idx > -1) {
+            const existingMembers = Array.isArray(tasks[idx].members) ? tasks[idx].members : [];
+            const isDerived = tasks[idx].annualPlanTaskId;
+            const finalOwner = isDerived ? tasks[idx].owner : owner;
+            tasks[idx] = { ...tasks[idx], name, description, type, priority, owner: finalOwner, dept, startDate, endDate, relatedKpiIds, budget, actualCost, members: existingMembers };
+          }
         }
         omp_save('tasks', tasks);
         window._ompState.editingTaskId = null;
@@ -5051,8 +5686,123 @@
         navigate('exe/tasks');
       };
 
-      window.omp_switchTaskView = function(view) { window._ompState.taskViewMode = view; navigate('exe/tasks'); };
-      window.omp_viewKpi = function(id) { omp_viewKpiModal(id); };
+      window.omp_switchTaskView = function(view) {
+        try {
+          window._ompState.taskViewMode = view;
+          navigate('exe/tasks');
+        } catch (err) {
+          console.error('[OMP] 切换任务视图失败:', view, err);
+          alert('切换视图失败，请检查控制台错误信息或刷新页面重试。');
+        }
+      };
+
+      // ===== 重点工作人员配置台交互（PRD v1.8） =====
+      function omp_getApiBase() {
+        const host = window.location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1') {
+          return DSTE.Storage.getString('dste_api_base') || '';
+        }
+        return 'https://dste-api.jasonxspace.workers.dev';
+      }
+      async function omp_saveMembersToApi(taskId, members) {
+        const apiBase = omp_getApiBase();
+        if (!apiBase) return true; // 本地模式视为成功
+        try {
+          const token = DSTE.Storage.getString('dste-token');
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const resp = await fetch(`${apiBase}/api/omp/tasks/${encodeURIComponent(taskId)}/members`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ members })
+          });
+          if (!resp.ok) {
+            const text = await resp.text().catch(() => '');
+            throw new Error(`HTTP ${resp.status}: ${text}`);
+          }
+          return true;
+        } catch (err) {
+          console.error('[OMP] 保存成员到 API 失败:', taskId, err);
+          showToast('成员保存到服务端失败，请重试', 'error');
+          return false;
+        }
+      }
+      window.omp_staffingAssignDrag = async function(taskIds, personRef, mode) {
+        if (!taskIds || taskIds.length === 0 || !personRef) return;
+        const tasks = omp_load('tasks');
+        let changed = false;
+        let skippedAsOwner = 0;
+        const changedTaskIds = [];
+        tasks.forEach(t => {
+          if (!taskIds.includes(t.id)) return;
+          t.members = Array.isArray(t.members) ? t.members : [];
+          if (mode === 'owner') {
+            // PRD v1.8：人员配置台不处理负责人变更
+            return;
+          }
+          if (t.owner === personRef) { skippedAsOwner++; return; }
+          if (!t.members.includes(personRef)) {
+            t.members.push(personRef);
+            changed = true;
+            changedTaskIds.push(t.id);
+          }
+        });
+        if (changed) {
+          omp_save('tasks', tasks);
+          // API 持久化（并行）
+          const results = await Promise.all(changedTaskIds.map(id => {
+            const task = tasks.find(t => t.id === id);
+            return task ? omp_saveMembersToApi(id, task.members) : Promise.resolve(true);
+          }));
+          if (results.every(r => r)) {
+            showToast(`已分配 ${changedTaskIds.length} 项任务`, 'success');
+          }
+        } else if (skippedAsOwner > 0) {
+          showToast('该人员已是这些任务的负责人，无需添加为成员', 'warning');
+        }
+        navigate('exe/tasks');
+      };
+      window.omp_staffingRemoveMember = async function(taskId, personRef) {
+        if (!taskId || !personRef) return;
+        const tasks = omp_load('tasks');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task || !Array.isArray(task.members)) return;
+        const idx = task.members.indexOf(personRef);
+        if (idx === -1) return;
+        task.members.splice(idx, 1);
+        omp_save('tasks', tasks);
+        const saved = await omp_saveMembersToApi(taskId, task.members);
+        if (saved) showToast('已移除成员', 'success');
+        navigate('exe/tasks');
+      };
+      window.omp_staffingToggleOrg = function(orgId) {
+        const state = window._ompState.staffingState;
+        if (!state.expandedOrgIds) state.expandedOrgIds = new Set();
+        if (state.expandedOrgIds.has(orgId)) {
+          state.expandedOrgIds.delete(orgId);
+        } else {
+          state.expandedOrgIds.add(orgId);
+        }
+        navigate('exe/tasks');
+      };
+      window.omp_staffingSelectOrg = function(orgId) {
+        const state = window._ompState.staffingState;
+        state.selectedOrgId = orgId || null;
+        state.dirSearchQuery = '';
+        // PRD v1.8 企业微信风格：点击部门行展开/折叠该部门
+        if (orgId) {
+          if (state.expandedOrgIds.has(orgId)) {
+            state.expandedOrgIds.delete(orgId);
+          } else {
+            state.expandedOrgIds.add(orgId);
+          }
+        }
+        navigate('exe/tasks');
+      };
+      window.omp_staffingClearSearch = function() {
+        window._ompState.staffingState.dirSearchQuery = '';
+        navigate('exe/tasks');
+      };
       window.omp_editKpi = function(id) { omp_editKpiModal(id); };
       window.omp_newKpi = function() { omp_newKpiModal(); };
       window.omp_viewTask = function(id) { omp_viewTaskModal(id); };
@@ -5423,6 +6173,31 @@
       };
 
       // ===== 战略指标库全局函数 =====
+      let _indDeptSelector = null;
+
+      function resolveResponsibleDeptName(value) {
+        if (!value) return '-';
+        if (String(value).startsWith('org:')) {
+          const tree = getOrgTree();
+          const unit = tree?.orgUnits?.[value];
+          if (unit) return unit.name;
+        }
+        return value;
+      }
+
+      function findOrgIdByName(name) {
+        if (!name) return null;
+        const tree = getOrgTree();
+        const units = tree?.orgUnits || {};
+        for (const [id, unit] of Object.entries(units)) {
+          if (unit.name === name) return id;
+        }
+        for (const [id, unit] of Object.entries(units)) {
+          if (unit.name.includes(name) || name.includes(unit.name)) return id;
+        }
+        return null;
+      }
+
       window.ind_delete = function(id) {
         const indicators = omp_load('indicators');
         const ind = indicators.find(i => i.id === id);
@@ -5454,7 +6229,7 @@
         const headers = ['编码', '名称', '定义', '计算公式', '单位', '频次', '分类', '子分类', '数据来源', '责任部门', '状态'];
         const rows = indicators.map(i => [
           i.code, i.name, i.description, i.formula, i.unit,
-          i.frequency, i.category, i.subCategory, i.dataSource, i.responsibleDept, i.status
+          i.frequency, i.category, i.subCategory, i.dataSource, resolveResponsibleDeptName(i.responsibleDept), i.status
         ]);
         const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
         const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -5503,7 +6278,6 @@
           { value: 'days', label: '📅 天数' },
           { value: 'score', label: '⭐ 分数' }
         ];
-        const depts = ['销售部', '市场部', '财务部', '客户成功部', '项目管理部', '质量部', '产品部', 'HR部', 'IT部', '法务部'];
 
         omp_openModal(isEdit ? '编辑指标' : '新建指标', `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
@@ -5564,9 +6338,7 @@
             </div>
             <div>
               <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">责任部门</label>
-              <select id="ind-dept" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-                ${depts.map(d => `<option value="${d}" ${isEdit && ind.responsibleDept === d ? 'selected' : ''}>${d}</option>`).join('')}
-              </select>
+              <div id="ind-dept-selector" style="width:100%;"></div>
             </div>
             <div>
               <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">趋势方向</label>
@@ -5588,6 +6360,21 @@
             <button class="btn btn-primary" onclick="window.ind_save('${isEdit ? id : 'new'}')">保存</button>
           </div>
         `, true);
+
+        const deptSelectorContainer = document.getElementById('ind-dept-selector');
+        if (deptSelectorContainer) {
+          let initialDeptValue = null;
+          if (isEdit && ind.responsibleDept) {
+            initialDeptValue = String(ind.responsibleDept).startsWith('org:')
+              ? ind.responsibleDept
+              : findOrgIdByName(ind.responsibleDept);
+          }
+          _indDeptSelector = createOrgSelector(deptSelectorContainer, {
+            placeholder: '选择责任部门...',
+            allowClear: true,
+            value: initialDeptValue
+          });
+        }
 
         window.ind_updateSubCats = function() {
           const cat = document.getElementById('ind-category').value;
@@ -5621,7 +6408,7 @@
         const category = document.getElementById('ind-category')?.value;
         const subCategory = document.getElementById('ind-subcategory')?.value;
         const dataSource = document.getElementById('ind-source')?.value?.trim();
-        const responsibleDept = document.getElementById('ind-dept')?.value;
+        const responsibleDept = _indDeptSelector ? _indDeptSelector.getValue() : null;
         const isPositive = document.getElementById('ind-positive')?.value === 'true';
         const status = document.getElementById('ind-status')?.value || 'active';
 

@@ -69,3 +69,20 @@ test('Search filter works', async ({ page }) => {
   const body = await page.locator('body').innerHTML();
   expect(body).toContain('销售额-D');
 });
+
+test('New indicator modal uses org selector for responsible department', async ({ page }) => {
+  await page.goto('/src/cockpit.html#bp/kpi');
+  await page.waitForTimeout(2000);
+
+  await page.locator('[data-action="ind-new"]').first().click();
+  await page.waitForTimeout(500);
+
+  const modal = await page.locator('.omp-modal').first();
+  await expect(modal).toBeVisible();
+
+  // 旧的 <select id="ind-dept"> 应已被替换
+  await expect(page.locator('#ind-dept')).toHaveCount(0);
+  // 新的组织选择器容器应存在
+  await expect(page.locator('#ind-dept-selector')).toHaveCount(1);
+  await expect(page.locator('#ind-dept-selector [data-org-selector="true"]')).toHaveCount(1);
+});

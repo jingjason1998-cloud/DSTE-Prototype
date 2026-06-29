@@ -136,6 +136,22 @@ export function getAgendaPostponeWarning(agenda) {
   return null;
 }
 
+/** 行动项状态配置 */
+export const ACTION_STATUS_CONFIG = {
+  pending: { label: '待办', color: 'var(--warning)' },
+  in_progress: { label: '进行中', color: 'var(--primary)' },
+  completed: { label: '已完成', color: 'var(--success)' },
+};
+
+/**
+ * 获取行动项状态配置
+ * @param {string} status
+ * @returns {Object}
+ */
+export function getActionStatusConfig(status) {
+  return ACTION_STATUS_CONFIG[status] || ACTION_STATUS_CONFIG.pending;
+}
+
 export function computeMeetingReadiness(meeting, reportAssets = {}, reviewScores = {}) {
   const checks = [];
 
@@ -209,4 +225,24 @@ export function computeMeetingReadiness(meeting, reportAssets = {}, reviewScores
     status,
     checks,
   };
+}
+
+/**
+ * 计算议程时间槽
+ * @param {Object} meeting - 会议对象
+ * @returns {{start: string, end: string}[]}
+ */
+export function computeAgendaTimeSlots(meeting) {
+  const items = meeting?.agenda_items || [];
+  const start = meeting?.startTime || '09:00';
+  const [baseH, baseM] = start.split(':').map(Number);
+  let cursor = (baseH || 0) * 60 + (baseM || 0);
+  const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  return items.map((a) => {
+    const duration = parseInt(a?.duration) || 0;
+    const s = cursor;
+    const e = cursor + duration;
+    cursor = e;
+    return { start: fmt(s), end: fmt(e) };
+  });
 }

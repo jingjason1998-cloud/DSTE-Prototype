@@ -52,7 +52,7 @@ export const SIDEBAR_CONFIG = {
       { id: 'exe/kpi', icon: '📈', label: 'KPI管理' },
       { id: 'exe/tasks', icon: '✅', label: '重点工作管理' }
     ]},
-    { type: 'group', title: '战略执行', items: [
+    { type: 'group', title: '经营分析会', items: [
       { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
       { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' }
     ]},
@@ -80,6 +80,7 @@ export const SIDEBAR_CONFIG = {
 
 export const EXTERNAL_PAGES = {
   'admin/employee-directory': 'employee-directory.html',
+  'admin/requirement-pool': 'requirement-pool.html',
   'exe/business-topics': 'business-topics.html',
   'exe/meetings': 'meetings.html',
   'sp/strategy-map': 'strategy-map-list.html',

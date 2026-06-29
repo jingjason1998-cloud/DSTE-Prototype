@@ -59,6 +59,25 @@ async function openFirstMeetingEditor(page) {
   await page.waitForSelector('#edit-title', { state: 'visible' });
 }
 
+async function openAiAgendaPanel(page) {
+  // 新版 UI：议程推荐在会议 AI 助手抽屉的「议程推荐」标签页内
+  // openMeetingAiAssistantFromEditor 默认打开 agenda 标签
+  await page.evaluate(() => {
+    if (typeof openMeetingAiAssistantFromEditor === 'function') {
+      openMeetingAiAssistantFromEditor();
+    } else {
+      throw new Error('openMeetingAiAssistantFromEditor is not defined');
+    }
+  });
+  await page.waitForTimeout(200);
+  await expect(page.locator('#meeting-ai-agenda-content')).toBeVisible();
+  await expect(page.locator('#meeting-ai-agenda-content').locator('text=AI 推荐议程').first()).toBeVisible();
+}
+
+function getAgendaPanel(page) {
+  return page.locator('#meeting-ai-agenda-content');
+}
+
 async function interceptAiApi(page, responseBody, status = 200) {
   await page.route('**/api/ai/agenda', async (route, request) => {
     if (request.method() !== 'POST') {
@@ -78,11 +97,11 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
     await interceptAiApi(page, MOCK_CANDIDATES);
   });
 
-  test('shows AI agenda panel side by side with agenda editor', async ({ page }) => {
+  test('shows AI agenda panel inside meeting AI assistant drawer', async ({ page }) => {
     await openFirstMeetingEditor(page);
+    await openAiAgendaPanel(page);
 
-    const panel = page.locator('.ai-agenda-panel').first();
-    await expect(panel).toBeVisible();
+    const panel = getAgendaPanel(page);
     await expect(panel.locator('text=AI 推荐议程').first()).toBeVisible();
     await expect(panel.locator('text=候选挑选，人工确认后采纳').first()).toBeVisible();
     await expect(panel.locator('button:has-text("生成候选议程")')).toBeVisible();
@@ -90,8 +109,9 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
 
   test('generates and displays candidate agendas', async ({ page }) => {
     await openFirstMeetingEditor(page);
+    await openAiAgendaPanel(page);
 
-    const panel = page.locator('.ai-agenda-panel').first();
+    const panel = getAgendaPanel(page);
     await panel.locator('#ai-agenda-theme-input').fill('降本增效');
     await panel.locator('button:has-text("生成候选议程")').click();
 
@@ -103,8 +123,9 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
 
   test('selects high-confidence candidates by default', async ({ page }) => {
     await openFirstMeetingEditor(page);
+    await openAiAgendaPanel(page);
 
-    const panel = page.locator('.ai-agenda-panel').first();
+    const panel = getAgendaPanel(page);
     await panel.locator('button:has-text("生成候选议程")').click();
 
     await expect(panel.locator('#ai-agenda-candidates-list')).toBeVisible();
@@ -115,9 +136,10 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
 
   test('applies selected candidates to agenda list', async ({ page }) => {
     await openFirstMeetingEditor(page);
+    await openAiAgendaPanel(page);
 
     const beforeCount = await page.locator('#edit-agenda-list > div').count();
-    const panel = page.locator('.ai-agenda-panel').first();
+    const panel = getAgendaPanel(page);
 
     await panel.locator('button:has-text("生成候选议程")').click();
 
@@ -138,8 +160,9 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
 
   test('select all toggles candidate selection', async ({ page }) => {
     await openFirstMeetingEditor(page);
+    await openAiAgendaPanel(page);
 
-    const panel = page.locator('.ai-agenda-panel').first();
+    const panel = getAgendaPanel(page);
     await panel.locator('button:has-text("生成候选议程")').click();
 
     await expect(panel.locator('#ai-agenda-candidates-list')).toBeVisible();
@@ -156,8 +179,9 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
 
   test('shows empty state before generating', async ({ page }) => {
     await openFirstMeetingEditor(page);
+    await openAiAgendaPanel(page);
 
-    const panel = page.locator('.ai-agenda-panel').first();
+    const panel = getAgendaPanel(page);
     await expect(panel.locator('text=点击上方按钮').first()).toBeVisible();
   });
 
@@ -174,8 +198,9 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
       });
     });
     await openFirstMeetingEditor(page);
+    await openAiAgendaPanel(page);
 
-    const panel = page.locator('.ai-agenda-panel').first();
+    const panel = getAgendaPanel(page);
     await panel.locator('button:has-text("生成候选议程")').click();
 
     await expect(panel.locator('text=AI service unavailable')).toBeVisible();
@@ -186,7 +211,8 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
     page.on('pageerror', err => errors.push(err.message));
 
     await openFirstMeetingEditor(page);
-    const panel = page.locator('.ai-agenda-panel').first();
+    await openAiAgendaPanel(page);
+    const panel = getAgendaPanel(page);
     await panel.locator('#ai-agenda-theme-input').fill('专题会');
     await panel.locator('button:has-text("生成候选议程")').click();
     await page.waitForTimeout(300);

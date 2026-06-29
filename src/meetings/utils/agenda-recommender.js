@@ -7,9 +7,11 @@
  */
 
 import { Storage, escapeHtml } from '../../lib/utils.js';
+import { AIClient } from '../../lib/ai-client.js';
 import { getMeetings } from '../data-store.js';
 
 const AI_AGENDA_ENDPOINT = '/api/ai/agenda';
+const AI_AGENDA_TIMEOUT = 25000;
 
 /**
  * 获取 AI 议程推荐 API 完整 URL
@@ -204,35 +206,18 @@ export function buildRecommendationContext(meeting, options = {}) {
  * @returns {Promise<{success: boolean, candidates?: Array, error?: string}>}
  */
 export async function recommendAgenda(meeting, options = {}) {
-  const url = getAiAgendaApiUrl();
+  const client = new AIClient();
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-    const resp = await fetch(url, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const data = await client.request(
+      AI_AGENDA_ENDPOINT,
+      {
         meeting,
         theme: options.theme || meeting.theme || '',
         context: buildRecommendationContext(meeting, options),
-      }),
-    });
-
-    clearTimeout(timeoutId);
-
-    let data;
-    try {
-      data = await resp.json();
-    } catch (e) {
-      return { success: false, error: `服务返回非 JSON: ${resp.status}` };
-    }
-
-    if (!resp.ok) {
-      return { success: false, error: data.error || `请求失败: ${resp.status}` };
-    }
+      },
+      { timeout: AI_AGENDA_TIMEOUT }
+    );
 
     return data;
   } catch (err) {

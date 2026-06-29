@@ -29,9 +29,16 @@ function getSafeShowToast() {
 }
 
 function getMeetingEditData() {
-  return typeof window !== 'undefined' && window._meetingEditData
-    ? window._meetingEditData
-    : null;
+  if (typeof window !== 'undefined' && window._meetingEditData) {
+    return window._meetingEditData;
+  }
+  // 从会议详情页打开 AI 助手时，允许基于当前查看的会议生成推荐
+  const detailId = typeof window !== 'undefined' ? window._currentDetailMeetingId : null;
+  if (detailId && typeof window !== 'undefined' && typeof window.findMeetingById === 'function') {
+    const m = window.findMeetingById(detailId);
+    if (m) return JSON.parse(JSON.stringify(m));
+  }
+  return null;
 }
 
 function getRenderAgendaList() {
@@ -107,9 +114,18 @@ function selectAllCandidates() {
   renderAiAgendaPanel();
 }
 
+function isEditorOpen() {
+  const overlay = document.getElementById('meeting-editor-overlay');
+  if (overlay && overlay.style.display !== 'none') return true;
+  // 页面编辑器模式通过 hash 判断
+  if (typeof window !== 'undefined' && window.location && window.location.hash === '#exe/meetings/edit') return true;
+  // 会议列表内联编辑器模式（data-edit-meeting 触发的全页编辑）
+  if (typeof window !== 'undefined' && window._meetingEditData && document.getElementById('edit-meeting-id')) return true;
+  return false;
+}
+
 function applySelectedCandidates() {
   const meeting = getMeetingEditData();
-  const renderFn = getRenderAgendaList();
   if (!meeting) {
     getSafeShowToast()('编辑数据丢失，请重新打开编辑器', 'error');
     return;
@@ -132,9 +148,30 @@ function applySelectedCandidates() {
   _candidates = _candidates.filter(c => !_selectedIds.has(c.id));
   _selectedIds.clear();
 
-  if (renderFn) renderFn();
-  getSafeShowToast()(`已采纳 ${added} 个议程项`, 'success');
+  if (isEditorOpen()) {
+    const renderFn = getRenderAgendaList();
+    if (renderFn) renderFn();
+    getSafeShowToast()(`已采纳 ${added} 个议程项`, 'success');
+  } else {
+    // 在会议详情页中采纳时，先暂存，等进入编辑器再写入
+    if (!window._pendingAgendaAdoptions) window._pendingAgendaAdoptions = new Map();
+    const existing = window._pendingAgendaAdoptions.get(meeting.id) || [];
+    window._pendingAgendaAdoptions.set(meeting.id, existing.concat(selected.map(candidateToAgendaItem)));
+    getSafeShowToast()(`已暂存 ${added} 个议程项，进入编辑器后自动应用`, 'info');
+  }
   renderAiAgendaPanel();
+}
+
+function flushPendingAgendaAdoptions(meeting) {
+  if (!meeting || !window._pendingAgendaAdoptions) return;
+  const pending = window._pendingAgendaAdoptions.get(meeting.id);
+  if (!pending || pending.length === 0) return;
+  if (!meeting.agenda_items) meeting.agenda_items = [];
+  for (const item of pending) {
+    meeting.agenda_items.push(item);
+  }
+  window._pendingAgendaAdoptions.delete(meeting.id);
+  getSafeShowToast()(`已自动应用 ${pending.length} 个暂存议程项`, 'success');
 }
 
 function getActiveAiAgendaPanel() {
@@ -159,14 +196,11 @@ function getActiveAiAgendaPanel() {
   return panels[0];
 }
 
-function renderAiAgendaPanel() {
-  const panel = getActiveAiAgendaPanel();
-  if (!panel) return;
-
+function renderAiAgendaContent() {
   const meeting = getMeetingEditData();
   const meetingTitle = meeting ? escapeHtml(meeting.title || '当前会议') : '当前会议';
 
-  panel.innerHTML = `
+  return `
     <div id="ai-agenda-panel-header" style="padding: 14px 16px; border-bottom: 1px solid var(--border-color); background: var(--bg-page); flex-shrink: 0;">
       <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">🤖 AI 推荐议程</div>
       <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">候选挑选，人工确认后采纳</div>
@@ -178,6 +212,22 @@ function renderAiAgendaPanel() {
       ${renderPanelFooter()}
     </div>
   `;
+}
+
+function renderAiAgendaPanel() {
+  // 优先渲染到传统并列 panel；若不存在则渲染到会议 AI 助手抽屉
+  const panel = getActiveAiAgendaPanel();
+  if (panel) {
+    panel.innerHTML = renderAiAgendaContent();
+    return;
+  }
+  renderAiAgendaInto('meeting-ai-agenda-content');
+}
+
+function renderAiAgendaInto(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = renderAiAgendaContent();
 }
 
 function renderPanelBody(meetingTitle) {
@@ -301,39 +351,6 @@ function closeAiAgendaDrawer() {
   // 并列模式下无需关闭
 }
 
-// ---- 防御性渲染：确保编辑器打开时面板一定被渲染 ----
-function ensureAiAgendaPanelRendered() {
-  const panel = getActiveAiAgendaPanel();
-  if (!panel) return;
-  if (!getMeetingEditData()) return;
-  // 如果面板为空或只包含注释，重新渲染
-  if (panel.children.length === 0 || panel.innerHTML.trim() === '') {
-    console.log('[AI Agenda] panel empty, re-rendering');
-    renderAiAgendaPanel();
-  }
-}
-
-// 方案 A：页面加载后延迟检查一次（应对模块晚于 renderEditorForm 加载的极端情况）
-if (typeof window !== 'undefined') {
-  setTimeout(ensureAiAgendaPanelRendered, 100);
-  setTimeout(ensureAiAgendaPanelRendered, 500);
-
-  // 方案 B：监听编辑器浮层显示状态变化
-  const overlay = document.getElementById('meeting-editor-overlay');
-  if (overlay) {
-    let lastDisplay = overlay.style.display;
-    const observer = new MutationObserver(() => {
-      const currentDisplay = overlay.style.display;
-      if (currentDisplay !== 'none' && lastDisplay === 'none') {
-        console.log('[AI Agenda] editor overlay shown, rendering panel');
-        ensureAiAgendaPanelRendered();
-      }
-      lastDisplay = currentDisplay;
-    });
-    observer.observe(overlay, { attributes: true, attributeFilter: ['style'] });
-  }
-}
-
 // ---- window shim ----
 window.setAiAgendaTheme = setAiAgendaTheme;
 window.generateAiAgendaCandidates = generateAiAgendaCandidates;
@@ -341,6 +358,8 @@ window.toggleCandidateSelection = toggleCandidateSelection;
 window.selectAllCandidates = selectAllCandidates;
 window.applySelectedCandidates = applySelectedCandidates;
 window.renderAiAgendaPanel = renderAiAgendaPanel;
+window.renderAiAgendaInto = renderAiAgendaInto;
+window.flushPendingAgendaAdoptions = flushPendingAgendaAdoptions;
 window.openAiAgendaDrawer = openAiAgendaDrawer;
 window.closeAiAgendaDrawer = closeAiAgendaDrawer;
 
@@ -351,6 +370,8 @@ export {
   selectAllCandidates,
   applySelectedCandidates,
   renderAiAgendaPanel,
+  renderAiAgendaInto,
+  flushPendingAgendaAdoptions,
   openAiAgendaDrawer,
   closeAiAgendaDrawer,
 };
