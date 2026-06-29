@@ -214,6 +214,53 @@ function safeExtractJson(text) {
   }
 }
 
+/**
+ * 带指数退避重试的 fetch
+ * 对 429 / 5xx / 网络错误自动重试
+ */
+async function fetchWithRetry(url, options, timeout = 60000, retries = 3) {
+  const baseDelay = 500;
+  let lastError;
+
+  for (let i = 0; i <= retries; i++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const resp = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        const shouldRetry = (resp.status === 429 || resp.status >= 500) && i < retries;
+        if (shouldRetry) {
+          const delay = baseDelay * Math.pow(2, i) + Math.floor(Math.random() * 300);
+          console.warn(`[retry] Kimi API ${resp.status}, attempt ${i + 1}/${retries + 1}, next in ${delay}ms`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+
+      return resp;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      lastError = err;
+      const shouldRetry = i < retries && (err.name === 'AbortError' || err.name === 'TypeError');
+      if (shouldRetry) {
+        const delay = baseDelay * Math.pow(2, i) + Math.floor(Math.random() * 300);
+        console.warn(`[retry] fetch error: ${err.message}, attempt ${i + 1}/${retries + 1}, next in ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError || new Error('All retries failed');
+}
+
 async function handleAiAgendaRecommend(request, env) {
   if (request.method !== 'POST') {
     return errorResponse('Method not allowed', 405, request);
@@ -248,12 +295,8 @@ async function handleAiAgendaRecommend(request, env) {
   }, null, 2);
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-    const resp = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+    const resp = await fetchWithRetry('https://api.moonshot.cn/v1/chat/completions', {
       method: 'POST',
-      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
@@ -266,9 +309,7 @@ async function handleAiAgendaRecommend(request, env) {
           { role: 'user', content: userContent },
         ],
       }),
-    });
-
-    clearTimeout(timeoutId);
+    }, 25000, 3);
 
     if (!resp.ok) {
       const errorText = await resp.text();
@@ -339,12 +380,8 @@ async function handleChat(request, env) {
   const max_tokens = body.max_tokens || 4096;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-    const resp = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+    const resp = await fetchWithRetry('https://api.moonshot.cn/v1/chat/completions', {
       method: 'POST',
-      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
@@ -356,9 +393,7 @@ async function handleChat(request, env) {
         tools: tools && tools.length > 0 ? tools : undefined,
         max_tokens,
       }),
-    });
-
-    clearTimeout(timeoutId);
+    }, 60000, 3);
 
     if (!resp.ok) {
       const errorText = await resp.text();
