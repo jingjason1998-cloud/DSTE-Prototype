@@ -219,7 +219,7 @@ async function handleAiAgendaRecommend(request, env) {
     return errorResponse('Method not allowed', 405, request);
   }
 
-  const apiKey = env.CLAUDE_API_KEY;
+  const apiKey = env.KIMI_API_KEY;
   if (!apiKey) {
     return errorResponse('AI service not configured', 503, request);
   }
@@ -251,19 +251,18 @@ async function handleAiAgendaRecommend(request, env) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('https://api.moonshot.cn/v1/chat/completions', {
       method: 'POST',
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'moonshot-v1-8k',
         max_tokens: 2048,
-        system: AI_AGENDA_PROMPT,
         messages: [
+          { role: 'system', content: AI_AGENDA_PROMPT },
           { role: 'user', content: userContent },
         ],
       }),
@@ -273,12 +272,12 @@ async function handleAiAgendaRecommend(request, env) {
 
     if (!resp.ok) {
       const errorText = await resp.text();
-      console.error('Claude API error:', resp.status, errorText);
+      console.error('Kimi API error:', resp.status, errorText);
       return errorResponse(`AI service error: ${resp.status}`, 502, request);
     }
 
     const aiData = await resp.json();
-    const rawContent = aiData.content && aiData.content[0] ? aiData.content[0].text : '';
+    const rawContent = aiData.choices && aiData.choices[0] ? aiData.choices[0].message?.content || '' : '';
     const parsed = safeExtractJson(rawContent);
 
     if (!parsed || !Array.isArray(parsed.candidates)) {
@@ -308,6 +307,82 @@ async function handleAiAgendaRecommend(request, env) {
       return errorResponse('AI request timeout', 504, request);
     }
     console.error('AI agenda recommend error:', err);
+    return errorResponse(err.message || 'AI request failed', 502, request);
+  }
+}
+
+// --- AI 通用对话 ---
+async function handleChat(request, env) {
+  if (request.method !== 'POST') {
+    return errorResponse('Method not allowed', 405, request);
+  }
+
+  const apiKey = env.KIMI_API_KEY;
+  if (!apiKey) {
+    return errorResponse('AI service not configured', 503, request);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return errorResponse('Invalid JSON body', 400, request);
+  }
+
+  const messages = body.messages || [];
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return errorResponse('Missing messages', 400, request);
+  }
+
+  const stream = !!body.stream;
+  const tools = body.tools;
+  const max_tokens = body.max_tokens || 4096;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    const resp = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'moonshot-v1-8k',
+        messages,
+        stream,
+        tools: tools && tools.length > 0 ? tools : undefined,
+        max_tokens,
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      console.error('Kimi API error:', resp.status, errorText);
+      return errorResponse(`AI service error: ${resp.status}`, 502, request);
+    }
+
+    if (stream) {
+      return new Response(resp.body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          ...getCorsHeaders(request),
+        },
+      });
+    }
+
+    const data = await resp.json();
+    return jsonResponse({ success: true, ...data }, 200, request);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return errorResponse('AI request timeout', 504, request);
+    }
+    console.error('AI chat error:', err);
     return errorResponse(err.message || 'AI request failed', 502, request);
   }
 }
@@ -610,6 +685,11 @@ export default {
       // --- AI 议程推荐 ---
       if (path === '/api/ai/agenda') {
         return handleAiAgendaRecommend(request, env);
+      }
+
+      // --- AI 通用对话 ---
+      if (path === '/api/ai/chat') {
+        return handleChat(request, env);
       }
 
       // --- 健康检查 ---
