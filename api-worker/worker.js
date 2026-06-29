@@ -452,6 +452,7 @@ async function handleAiAgendaRecommend(request, env) {
       body: JSON.stringify({
         model: 'kimi-k2.7-code-highspeed',
         max_tokens: 2048,
+        response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: AI_AGENDA_PROMPT },
           { role: 'user', content: userContent },
