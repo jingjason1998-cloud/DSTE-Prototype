@@ -1,11 +1,12 @@
 /**
  * Meeting AI Assistant Component
- * 经营分析会议 AI 助手轻量版侧滑面板
+ * 经营分析会议 AI 助手侧滑面板
  *
  * 交互形态参考 Chrome Gemini side panel：
  * - 右侧固定抽屉，从屏幕外 translateX(100%) 平滑推入
  * - 半透明遮罩同步淡入淡出
- * - 当前仅前端模拟回复，预留 sendMeetingAiMessage() 接口供后续替换真实 AI
+ * - 对话 tab 通过 AIClient 调用后端 /api/ai/chat，流式输出 Kimi 回复
+ * - 议程推荐 tab 调用后端 /api/ai/agenda
  *
  * 依赖全局：
  * - window.findMeetingById
@@ -14,11 +15,28 @@
  */
 
 import { renderAiAgendaInto } from './AiAgendaDrawer.js';
+import { AIClient } from '../../lib/ai-client.js';
 
 let _aiMessages = [];
 let _aiLoading = false;
 let _currentMeetingForAi = null;
 let _activeAiTab = 'chat'; // 'chat' | 'agenda'
+let _aiClient = null;
+let _aiSession = null;
+
+function getAiClient() {
+  if (!_aiClient) {
+    _aiClient = new AIClient();
+  }
+  return _aiClient;
+}
+
+function getAiSession() {
+  if (!_aiSession) {
+    _aiSession = getAiClient().getCurrentSession();
+  }
+  return _aiSession;
+}
 
 const SUGGESTIONS = [
   '总结本次会议议程',
@@ -187,6 +205,7 @@ function renderContextChip() {
 function initMeetingAiState() {
   _aiMessages = [];
   _aiLoading = false;
+  _aiSession = null;
 
   const meetingId = getCurrentMeetingId();
   const meeting = meetingId ? getSafeFindMeeting()(meetingId) : null;
@@ -288,6 +307,60 @@ function buildResponse(text) {
   return `💡 收到你的问题：「${text}」。\n\n你可以尝试问我：\n• 总结本次会议议程\n• 生成会议纪要要点\n• 列出未闭环行动项\n• 本次会议有哪些决议？`;
 }
 
+function buildMeetingSystemPrompt() {
+  const ctx = _currentMeetingForAi;
+  if (!ctx) {
+    return '你是 DSTE 战略管理平台的会议 AI 助手。当前没有打开任何会议，请提示用户先打开一个会议详情。';
+  }
+
+  return `你是 DSTE 战略管理平台的会议 AI 助手。当前会议信息如下：
+
+会议名称：${ctx.title}
+日期：${ctx.date || '未设置'}
+主持人：${ctx.host || '未设置'}
+场景：${ctx.scenario || '未设置'}
+议程项数：${ctx.agendaCount}，总时长 ${ctx.agendaTotalMinutes} 分钟
+决议数：${ctx.decisionCount}
+行动项总数：${ctx.actionCount}，待闭环 ${ctx.pendingActionCount}，已完成 ${ctx.completedActionCount}
+
+请基于以上信息，用中文简洁、专业地回答用户关于本次会议的问题。如果问题与会议无关，可以友好地说明。`;
+}
+
+async function streamAiResponse(text) {
+  const client = getAiClient();
+  const session = getAiSession();
+  const systemPrompt = buildMeetingSystemPrompt();
+
+  _aiMessages.push({ role: 'assistant', content: '' });
+  renderMessages();
+
+  try {
+    for await (const chunk of client.streamChat(text, {
+      session,
+      systemPrompt,
+      maxTokens: 2048,
+    })) {
+      if (chunk.content) {
+        const lastMsg = _aiMessages[_aiMessages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+          lastMsg.content += chunk.content;
+          renderMessages();
+        }
+      }
+    }
+  } catch (err) {
+    console.error('AI chat error:', err);
+    const lastMsg = _aiMessages[_aiMessages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant') {
+      lastMsg.content = `❌ AI 请求失败：${err.message || '网络错误'}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
+      renderMessages();
+    }
+  } finally {
+    _aiLoading = false;
+    renderMessages();
+  }
+}
+
 function sendMeetingAiMessage() {
   const input = document.getElementById('meeting-ai-input');
   if (!input) return;
@@ -299,12 +372,7 @@ function sendMeetingAiMessage() {
   input.value = '';
   renderMessages();
 
-  setTimeout(() => {
-    const response = buildResponse(text);
-    _aiMessages.push({ role: 'assistant', content: response });
-    _aiLoading = false;
-    renderMessages();
-  }, 800);
+  streamAiResponse(text);
 }
 
 function askMeetingAi(text) {
