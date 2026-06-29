@@ -15,7 +15,7 @@
  */
 
 import { renderAiAgendaInto } from './AiAgendaDrawer.js';
-import { AIClient } from '../../lib/ai-client.js';
+import { AIClient, AITools } from '../../lib/ai-client.js';
 
 let _aiMessages = [];
 let _aiLoading = false;
@@ -323,37 +323,38 @@ function buildMeetingSystemPrompt() {
 决议数：${ctx.decisionCount}
 行动项总数：${ctx.actionCount}，待闭环 ${ctx.pendingActionCount}，已完成 ${ctx.completedActionCount}
 
-请基于以上信息，用中文简洁、专业地回答用户关于本次会议的问题。如果问题与会议无关，可以友好地说明。`;
+请基于以上信息，用中文简洁、专业地回答用户关于本次会议的问题。\n\n你可以使用以下工具获取更详细的会议数据：\n- queryMeetingAgenda(meetingId): 查询会议议程项\n- queryMeetingActions(meetingId): 查询会议行动项\n- queryMeetingResolutions(meetingId): 查询会议决议\n\n当用户问题涉及具体议程、行动项或决议时，请先调用对应工具获取完整数据，再基于数据回答。如果问题与会议无关，可以友好地说明。`;
 }
 
 async function streamAiResponse(text) {
   const client = getAiClient();
   const session = getAiSession();
   const systemPrompt = buildMeetingSystemPrompt();
+  const meetingId = getCurrentMeetingId();
 
   _aiMessages.push({ role: 'assistant', content: '' });
   renderMessages();
 
   try {
-    for await (const chunk of client.streamChat(text, {
+    const tools = [
+      AITools.queryMeetingAgenda,
+      AITools.queryMeetingActions,
+      AITools.queryMeetingResolutions,
+    ];
+    const result = await client.callWithTools(text, tools, {
       session,
       systemPrompt,
       maxTokens: 2048,
-    })) {
-      if (chunk.content) {
-        const lastMsg = _aiMessages[_aiMessages.length - 1];
-        if (lastMsg && lastMsg.role === 'assistant') {
-          lastMsg.content += chunk.content;
-          renderMessages();
-        }
-      }
+    });
+    const lastMsg = _aiMessages[_aiMessages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant') {
+      lastMsg.content = result.content || 'AI 未返回有效回复';
     }
   } catch (err) {
     console.error('AI chat error:', err);
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
       lastMsg.content = `❌ AI 请求失败：${err.message || '网络错误'}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
-      renderMessages();
     }
   } finally {
     _aiLoading = false;

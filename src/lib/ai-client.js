@@ -63,6 +63,57 @@ export const AITools = {
       },
     },
   },
+  queryMeetingAgenda: {
+    type: 'function',
+    function: {
+      name: 'queryMeetingAgenda',
+      description: '查询指定会议的议程项列表',
+      parameters: {
+        type: 'object',
+        properties: {
+          meetingId: {
+            type: 'string',
+            description: '会议 ID',
+          },
+        },
+        required: ['meetingId'],
+      },
+    },
+  },
+  queryMeetingActions: {
+    type: 'function',
+    function: {
+      name: 'queryMeetingActions',
+      description: '查询指定会议的行动项列表',
+      parameters: {
+        type: 'object',
+        properties: {
+          meetingId: {
+            type: 'string',
+            description: '会议 ID',
+          },
+        },
+        required: ['meetingId'],
+      },
+    },
+  },
+  queryMeetingResolutions: {
+    type: 'function',
+    function: {
+      name: 'queryMeetingResolutions',
+      description: '查询指定会议的决议列表',
+      parameters: {
+        type: 'object',
+        properties: {
+          meetingId: {
+            type: 'string',
+            description: '会议 ID',
+          },
+        },
+        required: ['meetingId'],
+      },
+    },
+  },
 };
 
 function generateId(prefix = 'id') {
@@ -380,6 +431,25 @@ export class AIClient {
         return { success: true, snippets: data.snippets || [] };
       } catch (err) {
         return { success: false, error: err.message };
+      }
+    }
+
+    if (['queryMeetingAgenda', 'queryMeetingActions', 'queryMeetingResolutions'].includes(name)) {
+      const meetingId = args.meetingId;
+      const meeting = typeof window !== 'undefined' && window.findMeetingById
+        ? window.findMeetingById(meetingId)
+        : null;
+      if (!meeting) {
+        return { success: false, error: 'Meeting not found' };
+      }
+      if (name === 'queryMeetingAgenda') {
+        return { success: true, agendaItems: meeting.agenda_items || [] };
+      }
+      if (name === 'queryMeetingActions') {
+        return { success: true, actions: meeting.actions || [] };
+      }
+      if (name === 'queryMeetingResolutions') {
+        return { success: true, resolutions: meeting.decisions || meeting.resolutions || [] };
       }
     }
 
