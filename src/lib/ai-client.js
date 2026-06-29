@@ -114,6 +114,35 @@ export const AITools = {
       },
     },
   },
+  createActionItem: {
+    type: 'function',
+    function: {
+      name: 'createActionItem',
+      description: '为用户草拟一个会议行动项。此工具不会直接写入系统，只会生成草案等待用户确认',
+      parameters: {
+        type: 'object',
+        properties: {
+          meetingId: {
+            type: 'string',
+            description: '会议 ID',
+          },
+          content: {
+            type: 'string',
+            description: '行动项具体内容',
+          },
+          owner: {
+            type: 'string',
+            description: '负责人姓名或工号，可选',
+          },
+          deadline: {
+            type: 'string',
+            description: '截止日期，格式 YYYY-MM-DD，可选',
+          },
+        },
+        required: ['meetingId', 'content'],
+      },
+    },
+  },
 };
 
 function generateId(prefix = 'id') {
@@ -379,7 +408,7 @@ export class AIClient {
     const first = await this.chat(message, { ...options, tools });
 
     if (!first.toolCalls || first.toolCalls.length === 0) {
-      return first;
+      return { content: first.content || '', toolResults: [] };
     }
 
     // 执行已知工具
@@ -387,18 +416,18 @@ export class AIClient {
     for (const call of first.toolCalls) {
       const result = await this._executeTool(call);
       toolResults.push({
-        role: 'tool',
-        tool_call_id: call.id,
-        content: JSON.stringify(result),
+        call,
+        result,
       });
     }
 
     // 把工具结果追加到会话再请求一次
     const session = options.session || this.getCurrentSession();
-    toolResults.forEach((r) => session.addMessage(r.role, r.content, { tool_call_id: r.tool_call_id }));
+    toolResults.forEach((tr) => session.addMessage('tool', JSON.stringify(tr.result), { tool_call_id: tr.call.id }));
     this.saveSession(session);
 
-    return this.chat('请基于工具返回结果继续回答。', { ...options, session, tools: [] });
+    const second = await this.chat('请基于工具返回结果继续回答。', { ...options, session, tools: [] });
+    return { content: second.content || '', toolResults };
   }
 
   // ========== 工具执行 ==========
@@ -451,6 +480,26 @@ export class AIClient {
       if (name === 'queryMeetingResolutions') {
         return { success: true, resolutions: meeting.decisions || meeting.resolutions || [] };
       }
+    }
+
+    if (name === 'createActionItem') {
+      const today = new Date().toISOString().split('T')[0];
+      const actionItem = {
+        id: 'A' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        content: String(args.content || '').trim(),
+        owner: String(args.owner || '').trim(),
+        deadline: args.deadline || today,
+        status: 'pending',
+        sourceAgendaId: '',
+        sourceDecisionId: '',
+      };
+      return {
+        draft: true,
+        type: 'actionItem',
+        meetingId: args.meetingId,
+        actionItem,
+        message: '已草拟行动项，等待用户确认',
+      };
     }
 
     return { success: false, error: `Unknown tool: ${name}` };

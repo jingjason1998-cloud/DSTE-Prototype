@@ -23,6 +23,7 @@ let _currentMeetingForAi = null;
 let _activeAiTab = 'chat'; // 'chat' | 'agenda'
 let _aiClient = null;
 let _aiSession = null;
+let _pendingAiDrafts = []; // AI 生成的待确认草案（行动项/决议等）
 
 function getAiClient() {
   if (!_aiClient) {
@@ -155,6 +156,8 @@ function renderChatMessages() {
     `;
   }
 
+  html += renderDraftCards();
+
   container.innerHTML = html;
   container.scrollTop = container.scrollHeight;
 }
@@ -206,6 +209,7 @@ function initMeetingAiState() {
   _aiMessages = [];
   _aiLoading = false;
   _aiSession = null;
+  _pendingAiDrafts = [];
 
   const meetingId = getCurrentMeetingId();
   const meeting = meetingId ? getSafeFindMeeting()(meetingId) : null;
@@ -323,7 +327,8 @@ function buildMeetingSystemPrompt() {
 决议数：${ctx.decisionCount}
 行动项总数：${ctx.actionCount}，待闭环 ${ctx.pendingActionCount}，已完成 ${ctx.completedActionCount}
 
-请基于以上信息，用中文简洁、专业地回答用户关于本次会议的问题。\n\n你可以使用以下工具获取更详细的会议数据：\n- queryMeetingAgenda(meetingId): 查询会议议程项\n- queryMeetingActions(meetingId): 查询会议行动项\n- queryMeetingResolutions(meetingId): 查询会议决议\n\n当用户问题涉及具体议程、行动项或决议时，请先调用对应工具获取完整数据，再基于数据回答。如果问题与会议无关，可以友好地说明。`;
+请基于以上信息，用中文简洁、专业地回答用户关于本次会议的问题。\n\n你可以使用以下工具获取更详细的会议数据：\n- queryMeetingAgenda(meetingId): 查询会议议程项\n- queryMeetingActions(meetingId): 查询会议行动项\n- queryMeetingResolutions(meetingId): 查询会议决议\n
+当用户想要创建行动项时，使用 createActionItem(meetingId, content, owner?, deadline?) 草拟行动项。此工具不会直接写入系统，只会生成草案等待用户确认。\n当用户问题涉及具体议程、行动项或决议时，请先调用对应工具获取完整数据，再基于数据回答。如果问题与会议无关，可以友好地说明。`;
 }
 
 async function streamAiResponse(text) {
@@ -340,6 +345,7 @@ async function streamAiResponse(text) {
       AITools.queryMeetingAgenda,
       AITools.queryMeetingActions,
       AITools.queryMeetingResolutions,
+      AITools.createActionItem,
     ];
     const result = await client.callWithTools(text, tools, {
       session,
@@ -349,6 +355,20 @@ async function streamAiResponse(text) {
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
       lastMsg.content = result.content || 'AI 未返回有效回复';
+    }
+
+    // 收集需要用户确认的草案
+    const drafts = (result.toolResults || [])
+      .filter(tr => tr.result && tr.result.draft)
+      .map(tr => ({
+        id: generateDraftId(),
+        type: tr.result.type,
+        meetingId: tr.result.meetingId || meetingId,
+        data: tr.result.actionItem || tr.result.data,
+        raw: tr.result,
+      }));
+    if (drafts.length > 0) {
+      _pendingAiDrafts.push(...drafts);
     }
   } catch (err) {
     console.error('AI chat error:', err);
@@ -360,6 +380,85 @@ async function streamAiResponse(text) {
     _aiLoading = false;
     renderMessages();
   }
+}
+
+function generateDraftId() {
+  return `ai_draft_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function getSafeShowToast() {
+  return typeof window !== 'undefined' && typeof window.showToast === 'function'
+    ? window.showToast
+    : (msg, type = 'info') => console.log(`[toast:${type}]`, msg);
+}
+
+function confirmAiDraft(draftId) {
+  const idx = _pendingAiDrafts.findIndex(d => d.id === draftId);
+  if (idx < 0) return;
+  const draft = _pendingAiDrafts[idx];
+
+  if (draft.type === 'actionItem' && draft.data) {
+    applyAiActionItem(draft.meetingId, draft.data);
+  }
+
+  _pendingAiDrafts.splice(idx, 1);
+  renderMessages();
+}
+
+function cancelAiDraft(draftId) {
+  const idx = _pendingAiDrafts.findIndex(d => d.id === draftId);
+  if (idx < 0) return;
+  _pendingAiDrafts.splice(idx, 1);
+  renderMessages();
+}
+
+function applyAiActionItem(meetingId, actionItem) {
+  if (!meetingId || !actionItem) return;
+
+  // 优先写入当前编辑中的会议
+  const editData = typeof window !== 'undefined' ? window._meetingEditData : null;
+  if (editData && editData.id === meetingId) {
+    if (!editData.actions) editData.actions = [];
+    editData.actions.push(actionItem);
+    if (typeof window.renderActionList === 'function') window.renderActionList();
+    getSafeShowToast()('已创建行动项', 'success');
+    return;
+  }
+
+  // 否则暂存，进入编辑器后自动应用
+  if (!window._pendingActionItemAdoptions) window._pendingActionItemAdoptions = new Map();
+  const existing = window._pendingActionItemAdoptions.get(meetingId) || [];
+  window._pendingActionItemAdoptions.set(meetingId, existing.concat(actionItem));
+  if (typeof window.openMeetingEditor === 'function') {
+    window.openMeetingEditor(meetingId);
+  } else {
+    getSafeShowToast()('无法自动打开编辑器，请手动编辑会议', 'warning');
+  }
+}
+
+function renderDraftCards() {
+  if (_pendingAiDrafts.length === 0) return '';
+
+  return _pendingAiDrafts.map(draft => {
+    if (draft.type === 'actionItem' && draft.data) {
+      const item = draft.data;
+      return `
+        <div class="ai-draft-card" style="margin: 10px 0; padding: 12px; border: 1px dashed var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 6%, transparent);">
+          <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">📝 AI 草拟行动项（待确认）</div>
+          <div style="font-size: 12px; color: var(--text-primary); line-height: 1.6;">
+            <div><strong>内容：</strong>${escapeHtmlLocal(item.content)}</div>
+            <div><strong>负责人：</strong>${escapeHtmlLocal(item.owner) || '<span style="color:var(--text-tertiary)">未指定</span>'}</div>
+            <div><strong>截止：</strong>${escapeHtmlLocal(item.deadline)}</div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button type="button" onclick="confirmAiDraft('${draft.id}')" style="padding: 5px 12px; font-size: 11px; border: none; border-radius: 4px; background: var(--primary); color: #fff; cursor: pointer;">确认创建</button>
+            <button type="button" onclick="cancelAiDraft('${draft.id}')" style="padding: 5px 12px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">取消</button>
+          </div>
+        </div>
+      `;
+    }
+    return '';
+  }).join('');
 }
 
 function sendMeetingAiMessage() {
@@ -408,6 +507,8 @@ window.askMeetingAi = askMeetingAi;
 window.handleMeetingAiKey = handleMeetingAiKey;
 window.switchAiTab = switchAiTab;
 window.refreshMeetingAiAssistant = refreshMeetingAiAssistant;
+window.confirmAiDraft = confirmAiDraft;
+window.cancelAiDraft = cancelAiDraft;
 
 export {
   openMeetingAiAssistant,
