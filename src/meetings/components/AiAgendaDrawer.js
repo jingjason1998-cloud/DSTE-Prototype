@@ -353,6 +353,11 @@ function closeAiAgendaDrawer() {
   // 并列模式下无需关闭
 }
 
+function refreshAiAgendaState() {
+  initAiAgendaState();
+  renderAiAgendaPanel();
+}
+
 // ---- window shim ----
 window.setAiAgendaTheme = setAiAgendaTheme;
 window.generateAiAgendaCandidates = generateAiAgendaCandidates;
@@ -364,6 +369,7 @@ window.renderAiAgendaInto = renderAiAgendaInto;
 window.flushPendingAgendaAdoptions = flushPendingAgendaAdoptions;
 window.openAiAgendaDrawer = openAiAgendaDrawer;
 window.closeAiAgendaDrawer = closeAiAgendaDrawer;
+window.refreshAiAgendaState = refreshAiAgendaState;
 
 export {
   setAiAgendaTheme,

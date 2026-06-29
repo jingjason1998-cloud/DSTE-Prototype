@@ -320,6 +320,16 @@ function handleMeetingAiKey(e) {
   }
 }
 
+function refreshMeetingAiAssistant() {
+  if (!document.body.classList.contains('meeting-ai-open')) return;
+  initMeetingAiState();
+  renderContextChip();
+  renderMessages();
+  if (typeof window.refreshAiAgendaState === 'function') {
+    window.refreshAiAgendaState();
+  }
+}
+
 // ---- window shim ----
 window.openMeetingAiAssistant = openMeetingAiAssistant;
 window.openMeetingAiAssistantFromEditor = openMeetingAiAssistantFromEditor;
@@ -328,6 +338,7 @@ window.sendMeetingAiMessage = sendMeetingAiMessage;
 window.askMeetingAi = askMeetingAi;
 window.handleMeetingAiKey = handleMeetingAiKey;
 window.switchAiTab = switchAiTab;
+window.refreshMeetingAiAssistant = refreshMeetingAiAssistant;
 
 export {
   openMeetingAiAssistant,

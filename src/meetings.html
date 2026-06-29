@@ -1210,6 +1210,9 @@
           window.renderMeetingDetail(m);
           const ov = document.getElementById('meeting-detail-overlay');
           if (ov) ov.style.display = 'flex';
+          if (typeof window.refreshMeetingAiAssistant === 'function') {
+            window.refreshMeetingAiAssistant();
+          }
         };
 
         // ---- 会前准备度计算 ----
