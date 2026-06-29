@@ -107,6 +107,154 @@ async function requireAuth(request, env) {
   }
 }
 
+// ========== 通用 CRUD 辅助函数（支持单条冲突检测）==========
+
+async function getKvData(env, key, defaultValue) {
+  const raw = await env.DSTE_KV.get(key);
+  if (!raw) return defaultValue;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return defaultValue;
+  }
+}
+
+function findItemById(items, id) {
+  if (!Array.isArray(items)) return undefined;
+  return items.find(item => item && String(item.id) === String(id));
+}
+
+function getItem(data, id, lookupMode) {
+  if (lookupMode === 'map') {
+    return data && typeof data === 'object' ? data[id] : undefined;
+  }
+  if (lookupMode === 'object') {
+    return data && String(data.id) === String(id) ? data : undefined;
+  }
+  return findItemById(data, id);
+}
+
+function setItem(data, id, item, lookupMode) {
+  if (lookupMode === 'map') {
+    data[id] = item;
+    return data;
+  }
+  if (lookupMode === 'object') {
+    return item;
+  }
+  const index = data.findIndex(i => i && String(i.id) === String(id));
+  if (index >= 0) {
+    data[index] = item;
+  }
+  return data;
+}
+
+function applyAuditFields(item, user, isCreate = false) {
+  const now = Date.now();
+  if (isCreate || item.version === undefined) {
+    item.version = 1;
+    if (!item.createdBy && user) item.createdBy = user.id;
+    if (!item.createdAt) item.createdAt = now;
+  } else {
+    item.version = (Number(item.version) || 0) + 1;
+  }
+  item.lastModified = now;
+  if (user) item.updatedBy = user.id;
+  return item;
+}
+
+function normalizeArrayItems(items, user) {
+  if (!Array.isArray(items)) return items;
+  return items.map(item => {
+    if (!item || typeof item !== 'object') return item;
+    return applyAuditFields({ ...item }, user, item.version === undefined);
+  });
+}
+
+function checkIfMatch(request, item) {
+  const ifMatch = request.headers.get('If-Match');
+  if (!ifMatch) return { ok: true }; // 无 If-Match 视为兼容/创建
+  const expected = Number(ifMatch);
+  const current = Number(item?.version) || 0;
+  if (expected !== current) {
+    return { ok: false, current };
+  }
+  return { ok: true };
+}
+
+async function handleEntityItem(request, env, options = {}) {
+  const { key, id, user, lookupMode = 'array' } = options;
+  if (!user) {
+    return errorResponse('Unauthorized', 401, request);
+  }
+
+  const defaultValue = lookupMode === 'array' ? [] : {};
+  const data = await getKvData(env, key, defaultValue);
+
+  if (request.method === 'GET') {
+    const item = getItem(data, id, lookupMode);
+    if (item === undefined) {
+      return errorResponse('Not found', 404, request);
+    }
+    return jsonResponse({ success: true, data: item }, 200, request);
+  }
+
+  if (request.method === 'PUT' || request.method === 'PATCH') {
+    const body = await request.json();
+    const item = getItem(data, id, lookupMode);
+    const isCreate = !item;
+
+    // 无 If-Match 时接受写操作（当前阶段不做冲突拦截）
+    if (!isCreate) {
+      const match = checkIfMatch(request, item);
+      if (!match.ok) {
+        return jsonResponse({ success: false, error: 'Conflict', data: item, currentVersion: match.current }, 409, request);
+      }
+    }
+
+    const updated = request.method === 'PUT'
+      ? { ...body, id }
+      : isCreate
+        ? { ...body, id }
+        : { ...item, ...body, id };
+    applyAuditFields(updated, user, isCreate);
+
+    let newData;
+    if (isCreate && lookupMode === 'array') {
+      data.push(updated);
+      newData = data;
+    } else {
+      newData = setItem(data, id, updated, lookupMode);
+    }
+    await env.DSTE_KV.put(key, JSON.stringify(newData));
+    return jsonResponse({ success: true, data: updated }, isCreate ? 201 : 200, request);
+  }
+
+  if (request.method === 'DELETE') {
+    const item = getItem(data, id, lookupMode);
+    if (!item) {
+      return errorResponse('Not found', 404, request);
+    }
+
+    const match = checkIfMatch(request, item);
+    if (!match.ok) {
+      return jsonResponse({ success: false, error: 'Conflict', data: item, currentVersion: match.current }, 409, request);
+    }
+
+    // 软删除
+    item.deleted = true;
+    item.version = (Number(item.version) || 0) + 1;
+    item.lastModified = Date.now();
+    if (user) item.updatedBy = user.id;
+
+    const newData = setItem(data, id, item, lookupMode);
+    await env.DSTE_KV.put(key, JSON.stringify(newData));
+    return jsonResponse({ success: true, data: item }, 200, request);
+  }
+
+  return errorResponse('Method not allowed', 405, request);
+}
+
 // CAS Ticket 验证
 async function validateCasTicket(ticket, service) {
   const validateUrl = `${CAS_CONFIG.server}/cas/serviceValidate?service=${encodeURIComponent(service)}&ticket=${encodeURIComponent(ticket)}`;
@@ -302,14 +450,14 @@ async function handleAiAgendaRecommend(request, env) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'moonshot-v1-8k',
+        model: 'kimi-k2.7-code-highspeed',
         max_tokens: 2048,
         messages: [
           { role: 'system', content: AI_AGENDA_PROMPT },
           { role: 'user', content: userContent },
         ],
       }),
-    }, 25000, 3);
+    }, 29000, 3);
 
     if (!resp.ok) {
       const errorText = await resp.text();
@@ -387,13 +535,13 @@ async function handleChat(request, env) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'moonshot-v1-8k',
+        model: 'kimi-k2.7-code-highspeed',
         messages,
         stream,
         tools: tools && tools.length > 0 ? tools : undefined,
         max_tokens,
       }),
-    }, 60000, 3);
+    }, 29000, 3);
 
     if (!resp.ok) {
       const errorText = await resp.text();
@@ -504,6 +652,26 @@ export default {
         return jsonResponse({ success: true, message: 'Logged out' }, 200, request);
       }
 
+      // --- 单条 CRUD 端点（新增）---
+      const itemMatch = path.match(/^\/api\/(topics|issues|meetings|employees|org-units)\/([^\/]+)$/);
+      if (itemMatch) {
+        const entity = itemMatch[1];
+        const id = decodeURIComponent(itemMatch[2]);
+        const key = KEYS[entity === 'org-units' ? 'orgUnits' : entity];
+        const auth = await requireAuth(request, env);
+        // GET 保持开放与全量接口一致；写操作需认证
+        const user = auth.valid ? auth.user : null;
+        if (request.method !== 'GET' && !user) {
+          return errorResponse('Unauthorized', 401, request);
+        }
+        return handleEntityItem(request, env, {
+          key,
+          id,
+          user,
+          lookupMode: entity === 'org-units' ? 'map' : 'array',
+        });
+      }
+
       // --- 业务专题 API ---
       if (path === '/api/topics') {
         if (method === 'GET') {
@@ -516,7 +684,8 @@ export default {
             return errorResponse(auth.error, auth.status, request);
           }
           const body = await request.json();
-          await env.DSTE_KV.put(KEYS.topics, JSON.stringify(body));
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.topics, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'topics saved' }, 200, request);
         }
       }
@@ -533,7 +702,8 @@ export default {
             return errorResponse(auth.error, auth.status, request);
           }
           const body = await request.json();
-          await env.DSTE_KV.put(KEYS.issues, JSON.stringify(body));
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.issues, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'issues saved' }, 200, request);
         }
       }
@@ -550,7 +720,8 @@ export default {
             return errorResponse(auth.error, auth.status, request);
           }
           const body = await request.json();
-          await env.DSTE_KV.put(KEYS.meetings, JSON.stringify(body));
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.meetings, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'meetings saved' }, 200, request);
         }
       }
@@ -567,7 +738,8 @@ export default {
             return errorResponse(auth.error, auth.status, request);
           }
           const body = await request.json();
-          await env.DSTE_KV.put(KEYS.employees, JSON.stringify(body));
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.employees, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'employees saved' }, 200, request);
         }
       }
@@ -583,7 +755,13 @@ export default {
             return errorResponse(auth.error, auth.status, request);
           }
           const body = await request.json();
-          await env.DSTE_KV.put(KEYS.orgUnits, JSON.stringify(body));
+          const normalized = {};
+          if (body && typeof body === 'object') {
+            for (const [k, v] of Object.entries(body)) {
+              normalized[k] = v && typeof v === 'object' ? applyAuditFields({ ...v }, auth.user, v.version === undefined) : v;
+            }
+          }
+          await env.DSTE_KV.put(KEYS.orgUnits, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'org units saved' }, 200, request);
         }
       }
@@ -599,7 +777,8 @@ export default {
             return errorResponse(auth.error, auth.status, request);
           }
           const body = await request.json();
-          await env.DSTE_KV.put(KEYS.employeeImportMeta, JSON.stringify(body));
+          const normalized = body && typeof body === 'object' ? applyAuditFields({ ...body }, auth.user, body.version === undefined) : body;
+          await env.DSTE_KV.put(KEYS.employeeImportMeta, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'employee import meta saved' }, 200, request);
         }
       }

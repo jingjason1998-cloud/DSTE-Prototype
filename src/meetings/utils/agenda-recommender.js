@@ -11,7 +11,7 @@ import { AIClient } from '../../lib/ai-client.js';
 import { getMeetings } from '../data-store.js';
 
 const AI_AGENDA_ENDPOINT = '/api/ai/agenda';
-const AI_AGENDA_TIMEOUT = 25000;
+const AI_AGENDA_TIMEOUT = 29000;
 
 /**
  * 获取 AI 议程推荐 API 完整 URL
