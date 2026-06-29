@@ -1,8 +1,8 @@
 # RFC-008：DSTE 战略合作伙伴 — AI 全局能力设计方案
 
-> 状态：草案（待评审）  
+> 状态：已确认，按 1+N+统一工具层 架构推进  
 > 适用范围：DSTE 战略管理平台全流程（SP / BP / Execute / Review / 公共支撑）  
-> 更新日期：2026-06-24
+> 更新日期：2026-06-29
 
 ---
 
@@ -13,18 +13,20 @@
 | 能力 | 实现状态 | 后端 |
 |------|----------|------|
 | 会议材料智能审核 | 完整 | Kimi 代理 |
-| 经营分析会议程推荐 | 完整 | Claude (Cloudflare Worker) → 计划迁移到 Kimi |
+| 经营分析会议程推荐 | 完整 | Kimi（Cloudflare Worker `/api/ai/agenda`） |
+| 会议 AI 助手对话 | 已接入真实模型 | Kimi（Cloudflare Worker `/api/ai/chat`） |
 | 业务专题 AI 智能匹配 | 纯前端算法 | 无 |
 | 业务专题 AI 浮窗 | UI 占位 | 无 |
 | 驾驶舱 AI 战略助手 | UI 占位 | 无 |
 
-这些能力彼此独立、后端不统一、数据未打通，缺少一份贯穿 DSTE 全流程的 AI 顶层 design。本 RFC 的目标是：
+这些能力彼此独立、缺少 Agent 编排，尚未形成「感知 → 规划 → 工具调用 → 执行」的闭环。本 RFC 的目标是：
 
-1. **把 AI 从「零散工具」升级为「战略合作伙伴」**，覆盖战略制定、解码、执行、评估四大阶段。
+1. **把 AI 从「零散工具」升级为「战略合作伙伴 Agent」**，覆盖战略制定、解码、执行、评估四大阶段。
 2. **统一 AI 技术底座**：网关、模型路由、上下文、知识库、观测。
-3. **明确交互范式**：全局助手、场景化嵌入、主动洞察、批量报告四位一体。
-4. **接入帆软 KMS 等企业知识源**，让 AI 的回答基于真实企业上下文。
-5. **给出可落地的实施路线**，优先落地「经营分析会智能闭环」和「BP/年度经营计划 AI 辅助」。
+3. **建立 1+N+统一工具层 的 Agent 架构**：1 个战略中枢 Agent 调度 N 个领域专家 Agent，通过统一工具层操作 DSTE 系统。
+4. **明确交互范式**：全局助手、场景化嵌入、主动洞察、批量报告四位一体。
+5. **接入帆软 KMS 等企业知识源**，让 AI 的回答基于真实企业上下文。
+6. **给出可落地的实施路线**，优先落地「经营分析会智能闭环」和「BP/年度经营计划 AI 辅助」。
 
 ---
 
@@ -197,7 +199,114 @@ interface AIResponse {
 6. **审计日志**：记录请求、模型、耗时、token、用户反馈。
 7. **缓存**：相同查询缓存结果，降低成本。
 
-### 4.3 模型路由策略（已确认）
+### 4.3 Agent 编排层：1 个中枢 + N 个专家 Agent + 统一工具层
+
+从「直接调用大模型」升级为「Agent 化架构」是本 RFC 的核心演进方向。
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        前端交互层（全局助手 / 页面嵌入）                    │
+└────────────────────────────────────────┬────────────────────────────────┘
+                                         │
+                    ┌────────────────────▼────────────────────┐
+                    │      战略中枢 Agent（Orchestrator）      │
+                    │  • 意图识别：判断用户想问什么、要做什么    │
+                    │  • 任务分解：把复杂请求拆成子任务          │
+                    │  • Agent 路由：决定调用哪个专家 Agent      │
+                    │  • 结果汇总：整合多 Agent 输出给前端        │
+                    │  • 长期记忆：用户偏好、历史采纳、战略上下文  │
+                    └────────────────────┬────────────────────┘
+                                         │
+        ┌────────────────┬───────────────┼───────────────┬────────────────┐
+        ▼                ▼               ▼               ▼                ▼
+   ┌─────────┐     ┌─────────┐    ┌─────────┐    ┌─────────┐     ┌─────────┐
+   │ 会议管理 │     │ 经营分析 │    │ 战略解码 │    │ 风险预警 │     │ 报告生成 │
+   │ Agent   │     │ Agent   │    │ Agent   │    │ Agent   │     │ Agent   │
+   └────┬────┘     └────┬────┘    └────┬────┘    └────┬────┘     └────┬────┘
+        │                │               │               │                │
+        └────────────────┴───────────────┴───────────────┴────────────────┘
+                                         │
+                    ┌────────────────────▼────────────────────┐
+                    │              统一工具层                   │
+                    │  查询：KPI / OMP / 会议 / 决议 / 行动项   │
+                    │  写入：创建任务 / 决议 / 议程 / 通知      │
+                    │  生成：报告 / PPT / 纪要 / 催办文案       │
+                    │  跳转： navigateTo / 打开编辑器          │
+                    │  知识： searchKms / 向量检索             │
+                    └─────────────────────────────────────────┘
+```
+
+#### 4.3.1 战略中枢 Agent（Orchestrator）
+
+中枢本身不处理具体业务，只做**编排**：
+
+1. **意图识别**：区分「查询」「生成」「执行」「分析」四类意图。
+2. **任务分解**：例如「帮我准备下周经营分析会」拆成：
+   - 查当前周期 KPI 状态
+   - 查未闭环决议/行动项
+   - 生成建议议程
+   - 生成一页纸分析报告
+   - 发送会前通知
+3. **Agent 路由**：把子任务发给对应的专家 Agent。
+4. **上下文管理**：维护跨 Agent 的共享上下文，避免重复查询。
+5. **人在回路**：涉及写入操作（创建任务、修改 KPI 等）必须生成草稿，等用户确认后再执行。
+
+#### 4.3.2 专家 Agent（N）
+
+每个专家 Agent 聚焦一个 DSTE 领域，拥有领域提示词和专用工具：
+
+| 专家 Agent | 核心能力 | 典型工具 |
+|---|---|---|
+| **会议管理 Agent** | 议程推荐、纪要提取、决议/行动项生成、会前准备检查 | `queryMeeting`、`createAgendaItem`、`createResolution`、`createAction`、`sendNotification` |
+| **经营分析 Agent** | KPI 根因分析、趋势解读、预算偏差分析、经营报告生成 | `queryKpi`、`queryBudget`、`analyzeTrend`、`generateReport` |
+| **战略解码 Agent** | 战略目标拆解、KPI 推荐、预算 What-if、计划书生成 | `queryAnnualPlan`、`createKpi`、`simulateBudget`、`generatePlan` |
+| **风险预警 Agent** | 扫描异常、生成预警卡片、推荐升级策略 | `scanKpiRisk`、`scanOverdueActions`、`generateAlert` |
+| **报告生成 Agent** | 会议纪要汇总、经营月报、决议跟踪报告、PPT 生成 | `queryMeetings`、`queryResolutions`、`generatePpt`、`generateDoc` |
+
+专家 Agent 之间可以互相调用：例如会议管理 Agent 生成议程时，可以调用经营分析 Agent 识别高风险议题。
+
+#### 4.3.3 统一工具层
+
+工具层是 Agent 能真正「动手」的关键，当前已定义 `navigateTo`、`searchKms`，需要扩展为 DSTE 专用工具集：
+
+```typescript
+// 查询类
+queryMeeting(id)
+queryKpi(id / dept / period)
+queryOmpTasks(filters)
+queryResolutions(filters)
+queryActions(filters)
+queryAnnualPlan(cycleId)
+queryBusinessTopic(id)
+
+// 写入类（均需人在回路确认）
+createActionItem(meetingId, content, owner, deadline)
+createResolution(meetingId, content, owner)
+createAgendaItem(meetingId, title, duration, owner)
+updateKpiActual(kpiId, value, period)
+sendNotification(channel, content, recipients)
+
+// 生成类
+generateReport(type, scope, format)
+generateMeetingMinutes(meetingId)
+generatePpt(template, data)
+
+// 交互类
+navigateTo(pageId)
+searchKms(query, limit)
+```
+
+工具执行统一由 Worker 端 `ToolExecutor` 完成，前端只负责展示结果和接收用户确认。
+
+#### 4.3.4 与现有直接 LLM 调用的关系
+
+当前已实现的 `/api/ai/chat` 和 `/api/ai/agenda` 属于**单轮直接调用**。Agent 化后：
+
+- `/api/ai/chat` 升级为可携带 `tools` 的 Agent 对话入口。
+- `/api/ai/agenda` 由「会议管理 Agent」接管，支持多轮追问和跨会议推荐。
+- 新增 `/api/ai/agent` 作为中枢编排入口，支持复杂任务。
+
+### 4.4 模型路由策略（已确认）
 
 基于当前无 Claude 付费账号、且 Kimi 多模态模型能力已足够覆盖 DSTE 业务场景，统一采用 **Kimi 多模态模型**作为唯一大模型 provider。
 
@@ -212,14 +321,15 @@ interface AIResponse {
 
 > **迁移注意**：现有 `agenda-recommender.js` 调用的是 Claude（Cloudflare Worker）。接入统一网关后，前端不再关心底层模型，由网关统一转发到 Kimi `k2.6`。
 
-### 4.4 上下文与记忆
+### 4.5 上下文与记忆
 
 - **短期记忆**：会话级消息历史，保存在前端 `sessionStorage` 或后端缓存。
 - **长期记忆**：用户对 AI 建议的采纳/反馈、常用查询、偏好模板，写入 `dste_ai_memory`。
 - **业务上下文**：当前页面实体（会议、专题、KPI 等）自动注入，避免用户重复描述。
 - **企业上下文**：KMS 文档片段、制度文件、历史会议纪要通过 RAG 注入。
+- **Agent 上下文**：中枢 Agent 维护跨专家 Agent 的共享上下文，包含任务计划、中间结果、用户确认状态。
 
-### 4.5 评估与观测
+### 4.6 评估与观测
 
 | 指标 | 说明 |
 |------|------|
@@ -428,49 +538,69 @@ const meetingContext = {
 
 ## 九、实施路线图
 
-### Phase 1：统一 AI 底座 + 全局助手（C，约 2-3 周）
+### Phase 0：统一 AI 底座（已完成 / 基本就绪）
 
-目标：先让 AI 有一个统一的入口和可工作的全局助手，后续场景再往上挂。
+| 模块 | 状态 | 说明 |
+|---|---|---|
+| `src/lib/ai-client.js` | ✅ 已完成 | 统一前端 AI 客户端，支持 chat / streamChat / 工具调用 |
+| `/api/ai/agenda` | ✅ 已迁移到 Kimi | 议程推荐后端接入 Kimi，支持 retry 与 JSON 格式强制 |
+| `/api/ai/chat` | ✅ 已完成 | 通用对话后端，支持流式输出 |
+| 会议 AI 助手 | ✅ 已接入真实模型 | `meetings.html` 右侧边栏对话已调用大模型 |
+| `ai-context.js` | 🟡 基础版 | 已聚合会议基础上下文，需继续扩展为全量 DSTE 上下文 |
+
+### Phase 1：工具层 + 单 Agent 闭环（约 2-3 周）
+
+目标：让 AI 从一个「对话模型」变成能调用系统工具的 Agent，先在一个场景跑通闭环。
 
 | 模块 | 任务 |
-|------|------|
-| 统一底座 | 创建 `src/lib/ai-client.js`；扩展本地代理为统一 AI 网关；定义标准请求/响应 schema；将议程推荐后端从 Claude 迁移至 Kimi |
-| 全局助手 | 重写 `cockpit.html#ai`：自然语言问答、快捷操作、工具调用可视化、会话管理 |
-| 上下文接入 | 打通会议/OMP/业务专题/KPI/年度计划等数据，构造标准 `AIContext` |
-| KMS 基础 | 建立 KMS 文档抓取脚本，先支持少量空间索引，全局助手可查询 |
-| 验证 | 新增/更新单元测试、E2E 测试；跑通 `npm run build` 与 `check:scope` |
+|---|---|
+| 统一工具层 | 在 `ai-client.js` 扩展 `AITools`：queryMeeting、queryKpi、queryActions、createActionItem、sendNotification 等 |
+| Worker 工具执行 | `api-worker/worker.js` 新增 `ToolExecutor`，根据工具名调用对应 KV/API 查询或执行写入（写入需用户确认） |
+| 会议管理 Agent | 把议程推荐、会中问答、行动项/决议生成封装为第一个专家 Agent |
+| 人在回路 | AI 建议创建/修改数据时，先生成草稿卡片，用户点「确认」后再写入 |
+| 验证 | 新增工具调用 E2E 测试；确保 `createActionItem` 等写入类工具不会误写 |
 
-### Phase 2：经营分析会智能闭环（A，约 2-3 周）
+**Phase 1 成功标准**：用户可以在会议 AI 助手里说「帮我把逾期行动项列出来并生成催办通知」，Agent 自动查询 + 生成通知文案 + 用户确认后发送。
 
-目标：把会议会前/会中/会后的 AI 辅助跑通，全部接入统一 client。
+### Phase 2：多 Agent 编排 + 全局助手升级（约 3-4 周）
 
-- 议程推荐接入统一 client，后端已迁移到 Kimi。
-- 材料审核与会议流程打通（审核报告关联到会议详情）。
-- 新增会中助手侧边栏：实时问答、补充数据、KMS 资料查询。
-- 新增会议纪要/决议/行动项生成。
-- 督办：逾期催办文案生成、升级建议。
+目标：建立 1+N 架构，支持复杂任务自动分解到多个专家 Agent。
 
-### Phase 3：BP 辅助 + 主动洞察 + 报告中心（约 2-3 周）
+| 模块 | 任务 |
+|---|---|
+| 战略中枢 Agent | 新增 `/api/ai/agent` 路由，支持意图识别、任务分解、Agent 路由、结果汇总 |
+| 经营分析 Agent | 实现 KPI 根因分析、预算偏差分析、趋势解读 |
+| 风险预警 Agent | 扫描 KPI/OMP/行动项异常，生成主动洞察卡片 |
+| 全局助手 | `cockpit.html#ai` 接入中枢 Agent，支持跨模块复杂问答 |
+| 上下文增强 | `ai-context.js` 扩展为全量 DSTE 上下文：SP/BP/Execute/Review 全阶段数据 |
+| KMS RAG | Worker 端接入 KMS 向量检索，回答必须标注来源 |
 
-目标：把 AI 能力扩展到 BP/年度计划，并实现主动洞察与报告生成。
+**Phase 2 成功标准**：用户问「Q2 为什么回款落后？」，中枢自动路由到经营分析 Agent，调用 queryKpi → 下钻区域 → 查相关会议纪要 → 返回根因分析并标注数据来源。
 
-- 年度经营计划页面新增「AI 拆解」按钮：目标拆解、KPI 推荐、预算 What-if 模拟、计划书生成。
-- 主动洞察卡片：逾期行动项、落后 KPI、预算异常、会议材料未审核等。
-- AI 报告中心：经营月报、会议纪要汇总、决议跟踪报告。
-- KMS 知识库全面接入。
+### Phase 3：主动式战略中枢 + 报告中心（约 3-4 周）
 
-### Phase 4：SP/Review 高级能力（约 2-3 周）
+目标：AI 从被动回答升级为主动推送和批量生成。
+
+| 模块 | 任务 |
+|---|---|
+| 主动洞察 | 驾驶舱/列表页展示 AI 主动发现的风险/机会卡片 |
+| 调度层 | Cloudflare Cron / 后端定时任务，周期性触发风险扫描 |
+| 报告生成 Agent | 经营月报、会议纪要汇总、决议跟踪报告、PPT 生成 |
+| BP/年度计划 Agent | 目标拆解、KPI 推荐、预算 What-if、计划书生成 |
+| 通知闭环 | 预警/报告生成后自动通知相关负责人 |
+
+### Phase 4：SP/Review 高级能力（约 3-4 周）
 
 - 战略地图 AI 辅助生成节点与关联。
 - 战略洞察与专题自动生成。
-- KPI 根因分析与趋势预测。
 - 复盘辅助与绩效评估建议。
+- 多 Agent 协作优化（例如战略解码 Agent 调用经营分析 Agent 做可行性校验）。
 
 ### Phase 5：企业级扩展（长期）
 
 - 私有化模型接入。
 - 与帆软 BI/报表实时数据打通。
-- 企业知识图谱。
+- 企业知识图谱（人-组织-KPI-会议-专题-文档关系网络）。
 - 多语言、语音输入、智能体编排。
 
 ---
@@ -480,34 +610,40 @@ const meetingContext = {
 | 指标 | 目标（Phase 1 结束） | 目标（Phase 2 结束） |
 |------|----------------------|----------------------|
 | AI 调用成功率 | ≥ 95% | ≥ 98% |
+| 工具调用成功率 | ≥ 90% | ≥ 95% |
 | 议程推荐采纳率 | ≥ 60% | ≥ 70% |
 | 材料审核覆盖率 | ≥ 80% 的会议材料经过 AI 预审 | ≥ 95% |
 | 全局助手周活跃用户 | ≥ 30% 的目标用户 | ≥ 60% |
 | 报告生成人工确认后发布率 | ≥ 90% | ≥ 95% |
 | AI 结论幻觉率（人工抽检） | ≤ 15% | ≤ 8% |
+| 复杂任务自动分解准确率 | — | ≥ 70% |
 
 ---
 
 ## 十一、与现有能力的对接
 
-| 现有能力 | 对接方式 |
-|----------|----------|
-| `src/meetings/utils/agenda-recommender.js` | 封装进 `ai-client.js`；**后端从 Claude 迁移到 Kimi**，统一走 `/api/ai/agenda` |
-| `src/meetings/utils/reviewer.js` | 封装进 `ai-client.js`，继续走 Kimi，统一走 `/api/ai/review` |
-| `src/pages/business-topics/ai-analysis.js` | 保留前端算法作为无模型降级方案；有模型时调用 `/api/ai/analyze` |
-| `src/cockpit.html#ai` | 重写为全局助手，接入 `ai-client.js` |
-| `api-worker/worker.js` | 扩展为统一 AI 网关，新增路由和 provider registry |
-| KMS Confluence API | 新增 `src/lib/kms-vectorizer.js` 或 worker 端 RAGService |
+| 现有能力 | 当前状态 | Agent 化后的对接方式 |
+|----------|----------|---------------------|
+| `src/lib/ai-client.js` | ✅ 已完成 | 作为前端统一入口，扩展 `AITools` 定义和工具调用能力 |
+| `api-worker/worker.js` | ✅ 已有 `/api/ai/chat`、`/api/ai/agenda` | 扩展为统一 AI 网关 + Agent 编排层 + ToolExecutor |
+| `src/meetings/utils/agenda-recommender.js` | ✅ 已接入 Kimi | 封装进「会议管理 Agent」，支持多轮和跨会议推荐 |
+| `src/meetings/utils/reviewer.js` | ✅ 已接入 Kimi | 封装进「会议管理 Agent」的会前材料审核能力 |
+| `src/meetings/components/MeetingAiAssistant.js` | ✅ 已接入真实模型 | 作为会议场景嵌入 Agent 的 UI 入口 |
+| `src/lib/ai-context.js` | 🟡 基础版 | 扩展为全量 DSTE 上下文构造器，供所有 Agent 使用 |
+| `src/lib/kms-vectorizer.js` | 🟡 占位 | Worker 端 RAGService 调用，提供知识检索工具 |
+| `src/pages/business-topics/ai-analysis.js` | 纯前端算法 | 保留作为无模型降级方案；有模型时调用「经营分析 Agent」 |
+| `src/cockpit.html#ai` | UI 占位 | 重写为全局助手，接入「战略中枢 Agent」 |
 
 ---
 
 ## 十二、已确认事项
 
-1. **Kimi 模型版本**：通用任务统一使用 `kimi-k2.6`，复用会议审核现有 Kimi API；不启用 `kimi-k2.7-code` 代码通道。
-2. **KMS 接入范围**：KMS 有 API 且可接入全部可见空间，不做前置范围限制。
-3. **数据隐私边界**：已确认当前阶段允许全量业务数据（含财务、薪酬、干部评估）进入 AI 上下文与记忆。
-4. **部署环境**：生产先调用现有会议审核代理（nginx 反向代理），保证可用性；Cloudflare Worker 链路暂不启用。
-5. **实施顺序**：先做 **C（统一 AI 底座 + 全局助手）**，再做 **A（经营分析会智能闭环）**，BP/年度计划后续排期。
+1. **架构共识**：采用 **1 个战略中枢 Agent + N 个领域专家 Agent + 统一工具层** 的 Agent 化架构，替代直接调用大模型的对话框模式。
+2. **Kimi 模型版本**：通用任务统一使用 `kimi-k2.6` / `moonshot-v1-8k`，复用会议审核现有 Kimi API；议程推荐等可切换 `kimi-k2.7-code-highspeed` 以提升速度。
+3. **KMS 接入范围**：KMS 有 API 且可接入全部可见空间，不做前置范围限制。
+4. **数据隐私边界**：已确认当前阶段允许全量业务数据（含财务、薪酬、干部评估）进入 AI 上下文与记忆。
+5. **部署环境**：生产先调用 Cloudflare Worker（`/api/ai/chat`、`/api/ai/agenda`），保证可用性；未来可切换为 nginx 反向代理或私有化网关。
+6. **实施顺序**：先做 **Phase 1（工具层 + 会议管理 Agent 闭环）**，再做 **Phase 2（多 Agent 编排 + 全局助手升级）**，BP/年度计划后续排期。
 
 ---
 
