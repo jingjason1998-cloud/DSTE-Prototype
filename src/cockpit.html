@@ -3133,12 +3133,8 @@
           e.preventDefault();
 
           const memberChip = e.target.closest('[data-drag="member-chip"]');
-          const raw = e.dataTransfer.getData('text/plain');
-          let isReorder = false;
-          try {
-            const payload = JSON.parse(raw || '{}');
-            isReorder = payload.action === 'reorder';
-          } catch (err) {}
+          // 重排时 effectAllowed 为 move；外部人员拖入为 copy
+          const isReorder = e.dataTransfer.effectAllowed === 'move' || e.dataTransfer.effectAllowed === 'copyMove' || e.dataTransfer.effectAllowed === 'all';
 
           if (isReorder && memberChip) {
             e.dataTransfer.dropEffect = 'move';
