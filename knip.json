@@ -1,0 +1,62 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "index.html",
+    "src/*.html",
+    "public/restore-meetings.html",
+    "src/lib/shell-injector.js",
+    "src/lib/strategy-map-list.js",
+    "src/meetings/utils/reviewer.js",
+    "src/pages/business-topics/main.js",
+    "src/pages/reviewer/main.js",
+    "src/pages/requirement-pool/main.js",
+    "api-worker/worker.js",
+    "tests/unit/**/*.test.js",
+    "tests/e2e/**/*.spec.js",
+    "tests/e2e/**/*.spec.cjs",
+    "scripts/*.js",
+    "scripts/*.cjs",
+    "scripts/*.mjs",
+    "*.js"
+  ],
+  "project": [
+    "src/**/*.{js,html}",
+    "tests/**/*.{js,cjs}",
+    "scripts/**/*.{js,cjs,mjs}",
+    "api-worker/**/*.js",
+    "*.js"
+  ],
+  "ignore": [
+    "dist/**",
+    "node_modules/**",
+    "api-worker/node_modules/**",
+    "docs/**",
+    "assets/**",
+    "public/**",
+    ".claude/**",
+    ".ai/**",
+    ".kimi/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".pytest_cache/**",
+    "scripts/kv-backup-*/**",
+    "src/pages/_template/**",
+    "src/pages/reviewer/main.js.bak",
+    "reports/**"
+  ],
+  "ignoreDependencies": [
+    "esbuild",
+    "prettier",
+    "wrangler"
+  ],
+  "ignoreBinaries": [
+    "python3"
+  ],
+  "rules": {
+    "files": "warn",
+    "exports": "warn",
+    "dependencies": "warn",
+    "unlisted": "off",
+    "binaries": "off"
+  }
+}
