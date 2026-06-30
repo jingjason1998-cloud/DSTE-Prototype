@@ -152,7 +152,6 @@ test.describe('OMP 资源配置矩阵', () => {
   });
 
   test('可在成员单元格内左右拖动调整成员顺序', async ({ page }) => {
-    page.on('console', msg => console.log('PAGE CONSOLE:', msg.text()));
     await seedTask(page, {
       id: 'matrix_reorder',
       cycleId: 'cycle_2026_marketing',
@@ -189,7 +188,8 @@ test.describe('OMP 资源配置矩阵', () => {
     if (srcBox && tgtBox) {
       await page.mouse.move(srcBox.x + srcBox.width / 2, srcBox.y + srcBox.height / 2);
       await page.mouse.down();
-      await page.mouse.move(tgtBox.x + 5, tgtBox.y + tgtBox.height / 2, { steps: 10 });
+      // 拖到目标 chip 右侧，插入到目标之后
+      await page.mouse.move(tgtBox.x + tgtBox.width - 5, tgtBox.y + tgtBox.height / 2, { steps: 10 });
       await page.mouse.up();
     }
     await page.waitForTimeout(800);

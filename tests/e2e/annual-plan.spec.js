@@ -133,15 +133,21 @@ test.describe('年度经营计划', () => {
     await page.waitForTimeout(300);
     await page.locator('#ap-kt-name').fill('E2E测试重点工作');
     await page.locator('#ap-kt-seq').fill('99');
+    await page.locator('#ap-kt-annual-target').fill('E2E年度目标');
+    await page.locator('#ap-kt-sp-link').fill('https://sp.example.com');
+    await page.locator('#ap-kt-bi-dashboard').fill('https://bi.example.com');
     await page.locator('[data-modal-action="modal-save-keytask"]').click();
     await page.waitForTimeout(500);
 
     await expect(page.locator('#ap-tab-content')).toContainText('E2E测试重点工作');
 
-    // 编辑
+    // 编辑并校验三个新字段已保存
     const editBtn = page.locator('[data-action="ap-edit-keytask"]').last();
     await editBtn.click();
     await page.waitForTimeout(300);
+    await expect(page.locator('#ap-kt-annual-target')).toHaveValue('E2E年度目标');
+    await expect(page.locator('#ap-kt-sp-link')).toHaveValue('https://sp.example.com');
+    await expect(page.locator('#ap-kt-bi-dashboard')).toHaveValue('https://bi.example.com');
     await page.locator('#ap-kt-name').fill('E2E测试重点工作-已改');
     await page.locator('[data-modal-action="modal-save-keytask"]').click();
     await page.waitForTimeout(500);

@@ -7,6 +7,14 @@
 
 ---
 
+## [v0.6.4] - 2026-06-30
+
+### Fixed
+- 进一步加强年度计划与 OMP 数据的隔离：
+  - 提升 OMP `DATA_VERSION` 到 `canvas-v16`，触发老任务/老 KPI 的 `source` 字段迁移。
+  - 将 OMP 列表、甘特图、人员配置矩阵、KPI 管理、总览看板等视图的过滤条件从 `source !== 'annual_plan'` 改为 `source === 'omp'`，即使源头数据未标记也不会混入 OMP。
+  - 年度计划向 OMP 派生 KPI 时，同步标记源头 KPI 的 `source: 'annual_plan'`。
+
 ## [v0.6.3] - 2026-06-30
 
 ### Fixed
