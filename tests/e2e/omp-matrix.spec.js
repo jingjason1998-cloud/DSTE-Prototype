@@ -35,7 +35,7 @@ test.describe('OMP 资源配置矩阵', () => {
     await page.waitForTimeout(500);
   });
 
-  test('矩阵视图渲染任务行和负责人/成员/进度列', async ({ page }) => {
+  test('矩阵视图渲染任务行和负责人/成员列', async ({ page }) => {
     await seedTask(page, {
       id: 'matrix_parent_1',
       cycleId: 'cycle_2026_marketing',
@@ -64,13 +64,11 @@ test.describe('OMP 资源配置矩阵', () => {
     await expect(page.locator('th:has-text("工作名称")')).toBeVisible();
     await expect(page.locator('th:has-text("负责人")')).toBeVisible();
     await expect(page.locator('th:has-text("成员")')).toBeVisible();
-    await expect(page.locator('th:has-text("进度")')).toBeVisible();
 
     // Verify task row content
     await expect(page.locator('text=矩阵测试父任务')).toBeVisible();
     await expect(page.locator('text=负责人A')).toBeVisible();
     await expect(page.locator('text=成员B')).toBeVisible();
-    await expect(page.locator('text=30%')).toBeVisible();
   });
 
   test('从左侧人员列表拖拽人员到矩阵成员单元格', async ({ page }) => {

@@ -3494,7 +3494,8 @@
         const cycleId = window._dsteState.currentCycleId;
         // 若当前周期没有任何 OMP 执行任务，自动把年度计划重点工作同步过来（首次进入/老数据补偿）。
         // 这样新用户或只有旧年度计划数据的用户能直接看到重点工作，同时保留「发布到执行」的显式流程。
-        const hasOmpTasks = omp_load('tasks').some(t => t.cycleId === cycleId && t.source === 'omp');
+        const tasksRaw = omp_load('tasks') || [];
+        const hasOmpTasks = tasksRaw.some(t => t.cycleId === cycleId && t.source === 'omp');
         if (!hasOmpTasks && omp_syncAnnualPlanTasksToExecution(cycleId)) {
           // 若新增 OMP 任务，立即把里程碑/进度记录关联过来
           omp_syncMilestonesAndRecordsToOmpTasks();
@@ -3503,7 +3504,7 @@
         const tasks = omp_load('tasks') || [];
         let progressChanged = false;
         tasks.forEach(t => {
-          if (!t.parentId && hasSubtasks(tasks, t.id) && !t.progressOverridden) {
+          if (t && !t.parentId && hasSubtasks(tasks, t.id) && !t.progressOverridden) {
             if (recalculateParentProgress(tasks, t.id)) progressChanged = true;
           }
         });
@@ -4067,7 +4068,8 @@
                 </thead>
                 <tbody>
                   ${filtered.map(t => {
-                    const relatedKpiNames = t.relatedKpiIds.map(id => omp_getIndicatorName(id)).filter(Boolean).join(', ');
+                    const relatedKpiIds = Array.isArray(t.relatedKpiIds) ? t.relatedKpiIds : [];
+                    const relatedKpiNames = relatedKpiIds.map(id => omp_getIndicatorName(id)).filter(Boolean).join(', ');
                     const sourceTag = (() => {
                       if (!t.annualPlanTaskId) return '';
                       const sourceTask = tasks.find(task => task.id === t.annualPlanTaskId);
@@ -4077,7 +4079,7 @@
                       const attrs = hasExternalUrl ? 'target="_blank" rel="noopener noreferrer"' : 'data-navigate="bp/annual-plan"';
                       return `<a href="${linkUrl}" ${attrs} style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--primary-bg);color:var(--primary);margin-left:6px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">🔗 主KMS链接</a>`;
                     })();
-                    const memberList = (t.members || []).filter(Boolean);
+                    const memberList = Array.isArray(t.members) ? t.members.filter(Boolean) : [];
                     const memberNames = memberList.slice(0, 2).map(m => renderMemberName(m)).join('、');
                     const memberExtra = memberList.length > 2 ? ` +${memberList.length - 2}` : '';
                     return `
@@ -4193,9 +4195,15 @@
         const hasEmployeeData = employees.length > 0;
         const orgTree = hasEmployeeData ? buildOrgHierarchy(employees) : { orgUnits: {}, roots: [] };
 
-        // 矩阵视图默认展开「一级组织」，下级团队由用户手动展开，避免战区类子团队默认暴露且排序混乱
+        // 矩阵视图默认仅展开「销服团队」一级组织，其他一级组织收起；下级团队全部手动展开
         if (hasEmployeeData && (!state.expandedOrgIds || state.expandedOrgIds.size === 0)) {
-          state.expandedOrgIds = new Set(orgTree.roots);
+          state.expandedOrgIds = new Set();
+          orgTree.roots.forEach(rootId => {
+            const root = orgTree.orgUnits[rootId];
+            if (root && /(营销|销售|服务|销服)/.test(root.name)) {
+              state.expandedOrgIds.add(rootId);
+            }
+          });
         }
 
         // 通讯录筛选：搜索优先于组织树
@@ -4409,9 +4417,8 @@
 
         function renderMatrixTaskRow(t, { isSubtask = false } = {}) {
           const memberList = (t.members || []).filter(Boolean);
-          const ownerReadOnly = !isSubtask && t.annualPlanTaskId ? '<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(只读)</span>' : '';
           const ownerCell = t.owner
-            ? `<div style="display:flex;align-items:center;gap:4px;">${renderAvatarLocal(t.owner, 20, resolvePersonDisplayName(t.owner))}<span style="font-size:12px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(resolvePersonDisplayName(t.owner))}</span>${ownerReadOnly}</div>`
+            ? `<div style="display:flex;align-items:center;gap:4px;">${renderAvatarLocal(t.owner, 20, resolvePersonDisplayName(t.owner))}<span style="font-size:12px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(resolvePersonDisplayName(t.owner))}</span></div>`
             : '<span style="font-size:12px;color:var(--text-tertiary);">未分配</span>';
           const membersCell = memberList.length > 0
             ? `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">${memberList.map(m => renderMemberChipLocal(m, t.id)).join('')}</div>`
@@ -4432,14 +4439,6 @@
               ${nameCell}
               <td style="padding:8px 10px;min-width:120px;max-width:180px;">${ownerCell}</td>
               <td class="omp-matrix-members-cell" data-drop="matrix-member" data-task-id="${t.id}" style="padding:8px 10px;min-width:160px;max-width:320px;vertical-align:top;">${membersCell}</td>
-              <td style="padding:8px 10px;min-width:120px;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">${t.progress}%</span>
-                  <div style="flex:1;min-width:60px;height:4px;background:var(--bg-page);border-radius:2px;overflow:hidden;">
-                    <div style="width:${t.progress}%;height:100%;background:var(--primary);border-radius:2px;"></div>
-                  </div>
-                </div>
-              </td>
             </tr>`;
         }
 
@@ -4496,12 +4495,11 @@
                         <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">工作名称</th>
                         <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">负责人</th>
                         <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">成员（可拖拽分配）</th>
-                        <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">进度</th>
                       </tr>
                     </thead>
                     <tbody>
                       ${matrixRows}
-                      ${filtered.length === 0 ? '<tr><td colspan="4" style="padding:40px;text-align:center;color:var(--text-tertiary);">暂无匹配任务</td></tr>' : ''}
+                      ${filtered.length === 0 ? '<tr><td colspan="3" style="padding:40px;text-align:center;color:var(--text-tertiary);">暂无匹配任务</td></tr>' : ''}
                     </tbody>
                   </table>
                 </div>
@@ -4529,7 +4527,7 @@
         try {
           const cycleId = window._dsteState.currentCycleId;
           const allTasks = omp_load('tasks') || [];
-          // PRD v1.8：人员配置台显示当前周期全部重点工作（含年度计划派生任务），仅负责人字段对派生任务只读
+          // PRD v1.8：人员配置台显示当前周期全部重点工作（含年度计划派生任务）
           const tasks = allTasks.filter(t => t && t.cycleId === cycleId && t.source !== 'annual_plan');
           const rawEmployees = (typeof getEmployees === 'function' ? getEmployees() : []) || [];
           const employees = Array.isArray(rawEmployees) ? rawEmployees.filter(e => e && e.id) : [];
@@ -4757,10 +4755,8 @@
             const ownerAvatar = t.owner ? renderAvatar(t.owner, 20, resolvePersonDisplayName(t.owner)) : '';
             const memberChips = memberList.map(m => renderMemberChip(m)).join('');
             const extraMembers = memberList.length > 3 ? `<span style="font-size:11px;color:var(--text-tertiary);margin-left:2px;">+${memberList.length - 3}</span>` : '';
-            const ownerReadOnly = t.annualPlanTaskId ? '<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(只读)</span>' : '';
             const hasSubtasks = omp_hasSubtasks(t.id);
             const expandIcon = window._ompState.taskExpandedIds.has(t.id) ? '▼' : '▶';
-            const progressHint = (!isSubtask && hasSubtasks) ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(按子任务聚合)</span>` : '';
             return `
               <div class="omp-staffing-task-card ${isSubtask ? 'omp-staffing-subtask-card' : ''}" data-drop="task" data-task-id="${t.id}" style="padding:8px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-card);transition:all 0.15s;${isSubtask ? 'margin-left:24px;border-color:var(--border-color);background:var(--bg-page);' : ''}">
                 <div style="display:flex;align-items:flex-start;gap:8px;">
@@ -4772,19 +4768,13 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                       <span style="font-size:11px;color:var(--text-tertiary);">负责人:</span>
-                      ${t.owner ? `<div style="display:flex;align-items:center;gap:4px;">${ownerAvatar}<span style="font-size:12px;color:var(--text-primary);">${escapeHtml(resolvePersonDisplayName(t.owner))}</span>${ownerReadOnly}</div>` : '<span style="font-size:12px;color:var(--text-tertiary);">未分配</span>'}
+                      ${t.owner ? `<div style="display:flex;align-items:center;gap:4px;">${ownerAvatar}<span style="font-size:12px;color:var(--text-primary);">${escapeHtml(resolvePersonDisplayName(t.owner))}</span></div>` : '<span style="font-size:12px;color:var(--text-tertiary);">未分配</span>'}
                     </div>
                     ${memberList.length > 0 ? `
                     <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:4px;">
                       <span style="font-size:11px;color:var(--text-tertiary);">成员:</span>
                       <div style="display:flex;align-items:center;gap:2px;flex-wrap:wrap;">${memberChips}${extraMembers}</div>
                     </div>` : ''}
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-                      <span style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;">进度 ${t.progress}%${progressHint}</span>
-                      <div style="flex:1;min-width:60px;height:4px;background:var(--bg-page);border-radius:2px;overflow:hidden;">
-                        <div style="width:${t.progress}%;height:100%;background:var(--primary);border-radius:2px;"></div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>`;
