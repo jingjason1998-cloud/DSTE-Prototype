@@ -151,6 +151,56 @@ test.describe('OMP 资源配置矩阵', () => {
     await expect(memberCell).not.toContainText('待移除成员');
   });
 
+  test('可在成员单元格内左右拖动调整成员顺序', async ({ page }) => {
+    page.on('console', msg => console.log('PAGE CONSOLE:', msg.text()));
+    await seedTask(page, {
+      id: 'matrix_reorder',
+      cycleId: 'cycle_2026_marketing',
+      source: 'omp',
+      name: '排序任务',
+      description: '',
+      type: 'improvement',
+      priority: 'P0',
+      status: 'active',
+      progress: 0,
+      owner: '负责人A',
+      dept: '测试部',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      relatedKpiIds: [],
+      budget: 0,
+      actualCost: 0,
+      members: ['成员A', '成员B', '成员C'],
+    });
+
+    await page.goto(OMP_URL);
+    await page.waitForTimeout(1000);
+    await page.locator('[data-action="omp-switch-task-view"][data-view="matrix"]').click();
+    await page.waitForTimeout(500);
+
+    const cell = page.locator('[data-drop="matrix-member"][data-task-id="matrix_reorder"]').first();
+    const chips = cell.locator('.omp-matrix-member-chip');
+    await expect(chips).toHaveCount(3);
+
+    const source = chips.filter({ hasText: '成员A' });
+    const target = chips.filter({ hasText: '成员B' });
+    const srcBox = await source.boundingBox();
+    const tgtBox = await target.boundingBox();
+    if (srcBox && tgtBox) {
+      await page.mouse.move(srcBox.x + srcBox.width / 2, srcBox.y + srcBox.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(tgtBox.x + 5, tgtBox.y + tgtBox.height / 2, { steps: 10 });
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(800);
+
+    const members = await page.evaluate(() => {
+      const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+      return tasks.find(t => t.id === 'matrix_reorder')?.members;
+    });
+    expect(members).toEqual(['成员B', '成员A', '成员C']);
+  });
+
   test('矩阵视图不显示子任务作为独立行', async ({ page }) => {
     await seedTask(page, {
       id: 'matrix_parent_4',

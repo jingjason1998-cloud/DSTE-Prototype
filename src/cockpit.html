@@ -859,6 +859,8 @@
 
         annualTasks.forEach(at => {
           if (at.status === 'closed') return;
+          // 标记年度计划源头任务，避免在 OMP 重点工作列表中显示重复行
+          if (at.source !== 'annual_plan') { at.source = 'annual_plan'; changed = true; }
           const ompId = omp_deriveTaskIdFromAnnualPlan(at.id);
           const existing = tasks.find(t => t.id === ompId || t.annualPlanTaskId === at.id);
           if (existing) {
@@ -1056,6 +1058,27 @@
               if (!Array.isArray(t.members)) { t.members = []; tasksChanged = true; }
             });
             if (tasksChanged) omp_save('tasks', tasks);
+
+            // 7) 为老任务补齐 source 字段：
+            //    - 若存在某个任务以其 id 作为 annualPlanTaskId，则它是年度计划源头任务
+            //    - 若自身有 annualPlanTaskId，则是 OMP 派生任务
+            //    - id 以 omp_ 开头的是 OMP 派生任务；以 cycle_ 开头的是年度计划源头任务
+            //    - 其余视为 OMP 手动创建任务
+            const tasks2 = omp_load('tasks');
+            let sourceChanged = false;
+            tasks2.forEach(t => {
+              if (!t.source) {
+                if (t.annualPlanTaskId || String(t.id).startsWith('omp_')) {
+                  t.source = 'omp';
+                } else if (tasks2.some(other => other.annualPlanTaskId === t.id) || String(t.id).startsWith('cycle_')) {
+                  t.source = 'annual_plan';
+                } else {
+                  t.source = 'omp';
+                }
+                sourceChanged = true;
+              }
+            });
+            if (sourceChanged) omp_save('tasks', tasks2);
           }
         }
         if (!omp_getRepo('indicators').getRaw().length) {
@@ -3047,8 +3070,46 @@
           }
         });
 
+        // ===== 战略洞察与专题事件委托 =====
+        container.addEventListener('click', (e) => {
+          const btn = e.target.closest('.edit-insight-btn, .delete-insight-btn, .generate-topic-btn, .view-topic-btn, .edit-topic-btn, .delete-topic-btn, #btn-new-insight, #btn-new-topic');
+          if (!btn) return;
+
+          const insightId = btn.dataset.insightId;
+          const topicId = btn.dataset.topicId;
+
+          if (btn.id === 'btn-new-insight' || btn.classList.contains('edit-insight-btn')) {
+            window.openInsightEdit(insightId);
+          } else if (btn.classList.contains('delete-insight-btn')) {
+            window.confirmDeleteInsight(insightId);
+          } else if (btn.classList.contains('generate-topic-btn')) {
+            window.generateTopicFromInsight(insightId);
+          } else if (btn.id === 'btn-new-topic') {
+            window.openTopicCreate();
+          } else if (btn.classList.contains('view-topic-btn')) {
+            window.viewTopicDetail(topicId);
+          } else if (btn.classList.contains('edit-topic-btn')) {
+            window.openTopicEdit(topicId);
+          } else if (btn.classList.contains('delete-topic-btn')) {
+            window.confirmDeleteTopic(topicId);
+          }
+        });
+
         // 重点工作人员配置台：拖拽分配（PRD v1.8：从通讯录拖拽人员到任务卡片）
         container.addEventListener('dragstart', (e) => {
+          const memberChip = e.target.closest('[data-drag="member-chip"]');
+          if (memberChip) {
+            console.log('[DRAGSTART] member-chip', memberChip.dataset.personRef);
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+              action: 'reorder',
+              personRef: memberChip.dataset.personRef,
+              sourceTaskId: memberChip.dataset.taskId,
+            }));
+            e.dataTransfer.effectAllowed = 'move';
+            memberChip.classList.add('dragging');
+            document.querySelectorAll('[data-drop="matrix-member"]').forEach(el => el.classList.add('drop-ready'));
+            return;
+          }
           const personCard = e.target.closest('[data-drag="person"]');
           if (!personCard) return;
           const personRef = personCard.dataset.personRef;
@@ -3058,18 +3119,40 @@
           document.querySelectorAll('[data-drop="task"], [data-drop="matrix-member"]').forEach(el => el.classList.add('drop-ready'));
         });
         container.addEventListener('dragend', (e) => {
+          const memberChip = e.target.closest('[data-drag="member-chip"]');
+          if (memberChip) memberChip.classList.remove('dragging');
           const personCard = e.target.closest('[data-drag="person"]');
           if (personCard) personCard.classList.remove('dragging');
           document.querySelectorAll('[data-drop="task"], [data-drop="matrix-member"]').forEach(el => el.classList.remove('drop-active', 'drop-ready'));
+          document.querySelectorAll('.omp-matrix-member-chip').forEach(el => el.classList.remove('drop-before', 'drop-after'));
         });
         container.addEventListener('dragover', (e) => {
           const dropTarget = e.target.closest('[data-drop="task"], [data-drop="matrix-member"]');
+          console.log('[DRAGOVER] target class', e.target.className, 'dropTarget', dropTarget?.dataset?.drop);
           if (!dropTarget) return;
           e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
+
+          const memberChip = e.target.closest('[data-drag="member-chip"]');
+          const raw = e.dataTransfer.getData('text/plain');
+          let isReorder = false;
+          try {
+            const payload = JSON.parse(raw || '{}');
+            isReorder = payload.action === 'reorder';
+          } catch (err) {}
+
+          if (isReorder && memberChip) {
+            e.dataTransfer.dropEffect = 'move';
+            document.querySelectorAll('.omp-matrix-member-chip').forEach(el => el.classList.remove('drop-before', 'drop-after'));
+            const rect = memberChip.getBoundingClientRect();
+            const before = e.clientX < rect.left + rect.width / 2;
+            memberChip.classList.add(before ? 'drop-before' : 'drop-after');
+          } else {
+            e.dataTransfer.dropEffect = 'copy';
+          }
         });
         container.addEventListener('dragenter', (e) => {
           const dropTarget = e.target.closest('[data-drop="task"], [data-drop="matrix-member"]');
+          console.log('[DRAGENTER] target class', e.target.className, 'dropTarget', dropTarget?.dataset?.drop);
           if (!dropTarget) return;
           e.preventDefault();
           dropTarget.classList.add('drop-active');
@@ -3082,15 +3165,30 @@
           dropTarget.classList.remove('drop-active');
         });
         container.addEventListener('drop', (e) => {
+          console.log('[DROP] fired target', e.target.className, e.target.tagName);
           const dropTarget = e.target.closest('[data-drop="task"], [data-drop="matrix-member"]');
+          console.log('[DROP] dropTarget', dropTarget?.dataset?.drop, 'target class', e.target.className);
           if (!dropTarget) return;
           e.preventDefault();
           dropTarget.classList.remove('drop-active');
           document.querySelectorAll('[data-drop="task"], [data-drop="matrix-member"]').forEach(el => el.classList.remove('drop-ready'));
+          document.querySelectorAll('.omp-matrix-member-chip').forEach(el => el.classList.remove('drop-before', 'drop-after'));
           const raw = e.dataTransfer.getData('text/plain');
+          console.log('[DROP] raw', raw);
           if (!raw) return;
           try {
             const payload = JSON.parse(raw);
+            console.log('[DROP] payload', payload);
+            if (payload.action === 'reorder' && payload.personRef && payload.sourceTaskId) {
+              const memberChip = e.target.closest('[data-drag="member-chip"]');
+              console.log('[DROP] memberChip', memberChip?.dataset?.personRef);
+              if (memberChip && memberChip.dataset.taskId === payload.sourceTaskId) {
+                const rect = memberChip.getBoundingClientRect();
+                const before = e.clientX < rect.left + rect.width / 2;
+                window.omp_staffingReorderMember(payload.sourceTaskId, payload.personRef, memberChip.dataset.personRef, before);
+              }
+              return;
+            }
             if (payload.personRef) {
               window.omp_staffingAssignDrag([dropTarget.dataset.taskId], payload.personRef, 'member');
             }
@@ -3110,14 +3208,25 @@
           });
         }
 
-        // 重点工作人员配置台：搜索框实时搜索（防抖）
+        // 重点工作人员配置台：搜索框实时搜索（防抖），忽略 IME 组合过程避免拼音+汉字残留
         const staffingSearchInput = container.querySelector('#omp-staffing-search');
         if (staffingSearchInput) {
           let staffingDebounceTimer;
-          staffingSearchInput.addEventListener('input', (e) => {
+          let staffingComposing = false;
+          staffingSearchInput.addEventListener('compositionstart', () => { staffingComposing = true; clearTimeout(staffingDebounceTimer); });
+          staffingSearchInput.addEventListener('compositionend', () => {
+            staffingComposing = false;
             clearTimeout(staffingDebounceTimer);
             staffingDebounceTimer = setTimeout(() => {
-              window._ompState.staffingState.searchQuery = e.target.value.trim();
+              window._ompState.staffingState.searchQuery = staffingSearchInput.value.trim();
+              navigate('exe/tasks');
+            }, 300);
+          });
+          staffingSearchInput.addEventListener('input', () => {
+            if (staffingComposing) return;
+            clearTimeout(staffingDebounceTimer);
+            staffingDebounceTimer = setTimeout(() => {
+              window._ompState.staffingState.searchQuery = staffingSearchInput.value.trim();
               navigate('exe/tasks');
             }, 300);
           });
@@ -3125,10 +3234,21 @@
         const matrixSearchInput = container.querySelector('#omp-matrix-search');
         if (matrixSearchInput) {
           let matrixDebounceTimer;
-          matrixSearchInput.addEventListener('input', (e) => {
+          let matrixComposing = false;
+          matrixSearchInput.addEventListener('compositionstart', () => { matrixComposing = true; clearTimeout(matrixDebounceTimer); });
+          matrixSearchInput.addEventListener('compositionend', () => {
+            matrixComposing = false;
             clearTimeout(matrixDebounceTimer);
             matrixDebounceTimer = setTimeout(() => {
-              window._ompState.staffingState.searchQuery = e.target.value.trim();
+              window._ompState.staffingState.searchQuery = matrixSearchInput.value.trim();
+              navigate('exe/tasks');
+            }, 300);
+          });
+          matrixSearchInput.addEventListener('input', () => {
+            if (matrixComposing) return;
+            clearTimeout(matrixDebounceTimer);
+            matrixDebounceTimer = setTimeout(() => {
+              window._ompState.staffingState.searchQuery = matrixSearchInput.value.trim();
               navigate('exe/tasks');
             }, 300);
           });
@@ -3136,9 +3256,31 @@
       }
 
       // 全局 input 委托：人员配置通讯录搜索框（DOM 会重新渲染，用委托保证始终有效）
+      document.addEventListener('compositionstart', (e) => {
+        const target = e.target;
+        if (!target.dataset) return;
+        if (target.dataset.action === 'omp-staffing-dir-search' || target.dataset.action === 'omp-matrix-dir-search') {
+          window._ompStaffingDirSearchComposing = true;
+          clearTimeout(window._ompStaffingDirSearchDebounce);
+        }
+      });
+      document.addEventListener('compositionend', (e) => {
+        const target = e.target;
+        if (!target.dataset) return;
+        if (target.dataset.action === 'omp-staffing-dir-search' || target.dataset.action === 'omp-matrix-dir-search') {
+          window._ompStaffingDirSearchComposing = false;
+          clearTimeout(window._ompStaffingDirSearchDebounce);
+          window._ompStaffingDirSearchDebounce = setTimeout(() => {
+            window._ompState.staffingState.dirSearchQuery = target.value.trim();
+            window._ompState.staffingState.selectedOrgId = null;
+            navigate('exe/tasks');
+          }, 300);
+        }
+      });
       document.addEventListener('input', (e) => {
         const target = e.target;
         if (!target.dataset) return;
+        if (window._ompStaffingDirSearchComposing) return;
         if (target.dataset.action === 'omp-staffing-dir-search' || target.dataset.action === 'omp-matrix-dir-search') {
           clearTimeout(window._ompStaffingDirSearchDebounce);
           window._ompStaffingDirSearchDebounce = setTimeout(() => {
@@ -4289,7 +4431,7 @@
         function renderMemberChipLocal(personRef, taskId) {
           const displayName = resolvePersonDisplayName(personRef);
           return `
-            <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px 2px 2px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);margin:2px;" title="${escapeHtml(displayName)}">
+            <span class="omp-matrix-member-chip" draggable="true" data-drag="member-chip" data-person-ref="${escapeHtml(personRef)}" data-task-id="${escapeHtml(taskId)}" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px 2px 2px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);margin:2px;cursor:grab;" title="${escapeHtml(displayName)}">
               ${renderAvatarLocal(personRef, 16, displayName)}
               <span style="max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(displayName)}</span>
               <span style="cursor:pointer;color:var(--danger);font-weight:700;margin-left:2px;" data-action="omp-staffing-remove-member" data-person-ref="${escapeHtml(personRef)}" data-task-id="${escapeHtml(taskId)}">×</span>
@@ -4509,6 +4651,12 @@
               .omp-matrix-members-cell { transition: all 0.15s; }
               .omp-matrix-members-cell.drop-active { background: var(--primary-bg) !important; border: 1px dashed var(--primary) !important; border-radius: 4px; }
               .omp-matrix-members-cell.drop-ready { background: var(--bg-page); }
+              .omp-matrix-member-chip { transition: transform 0.15s, opacity 0.15s; }
+              .omp-matrix-member-chip.dragging { opacity: 0.5; }
+              .omp-matrix-member-chip.drop-before { position: relative; }
+              .omp-matrix-member-chip.drop-before::before { content: ''; position: absolute; left: -3px; top: 0; bottom: 0; width: 3px; background: var(--primary); border-radius: 2px; }
+              .omp-matrix-member-chip.drop-after { position: relative; }
+              .omp-matrix-member-chip.drop-after::after { content: ''; position: absolute; right: -3px; top: 0; bottom: 0; width: 3px; background: var(--primary); border-radius: 2px; }
               .omp-staffing-org-row { border-radius: 6px; transition: background 0.15s; }
               .omp-staffing-org-row:hover { background: var(--bg-hover); }
               .omp-staffing-org-row.selected { background: var(--primary-bg); }
@@ -5419,6 +5567,22 @@
           };
 
           saveTopics(topics);
+
+          // 同步关联洞察的 linkedTopicId
+          const allInsights = loadInsights();
+          let insightsChanged = false;
+          allInsights.forEach(insight => {
+            const inTopic = selectedInsights.includes(insight.id);
+            if (inTopic && insight.linkedTopicId !== topicId) {
+              insight.linkedTopicId = topicId;
+              insightsChanged = true;
+            } else if (!inTopic && insight.linkedTopicId === topicId) {
+              insight.linkedTopicId = null;
+              insightsChanged = true;
+            }
+          });
+          if (insightsChanged) saveInsights(allInsights);
+
           window._topicEditId = null;
           const overlay = document.getElementById('topic-edit-overlay');
           if (overlay) overlay.remove();
@@ -5457,8 +5621,405 @@
             topics[idx].deleted = true;
             topics[idx].updatedAt = new Date().toISOString().slice(0, 10);
             saveTopics(topics);
+
+            // 清理关联洞察的 linkedTopicId
+            const insights = loadInsights();
+            let insightsChanged = false;
+            insights.forEach(insight => {
+              if (insight.linkedTopicId === topicId) {
+                insight.linkedTopicId = null;
+                insightsChanged = true;
+              }
+            });
+            if (insightsChanged) saveInsights(insights);
           }
           const overlay = document.getElementById('delete-confirm-overlay');
+          if (overlay) overlay.remove();
+          navigate('sp/insights-topics');
+        };
+
+        // ===== 洞察 CRUD =====
+
+        function generateInsightId() {
+          return 'ins_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        }
+
+        window._insightEditId = null;
+
+        window.openInsightEdit = function(insightId) {
+          const isCreate = !insightId;
+          const insights = loadInsights();
+          const insight = isCreate ? {
+            type: 'trend',
+            title: '',
+            content: '',
+            source: '',
+            confidence: 80,
+            impact: 'medium'
+          } : insights.find(i => i.id === insightId);
+
+          if (!insight) return;
+          window._insightEditId = isCreate ? null : insightId;
+
+          const typeOptions = [
+            ['trend', '📈 看趋势'],
+            ['customer', '👥 看客户'],
+            ['competitor', '⚔️ 看竞争'],
+            ['self', '🔍 看自己'],
+            ['opportunity', '💡 看机会']
+          ].map(([v, l]) => `<option value="${v}" ${insight.type === v ? 'selected' : ''}>${l}</option>`).join('');
+
+          const impactOptions = [
+            ['high', '🔴 高影响'],
+            ['medium', '🟡 中影响'],
+            ['low', '🟢 低影响']
+          ].map(([v, l]) => `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="edit-insight-impact" value="${v}" ${insight.impact === v ? 'checked' : ''}> ${l}</label>`).join('');
+
+          const overlay = document.createElement('div');
+          overlay.id = 'insight-edit-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+          overlay.innerHTML = `
+            <div id="insight-edit-modal" style="background:var(--bg-card);border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border-color);">
+                <h2 style="margin:0;font-size:18px;">${isCreate ? '新增洞察' : '编辑洞察'}</h2>
+                <button onclick="document.getElementById('insight-edit-overlay').remove(); window._insightEditId = null;" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">×</button>
+              </div>
+              <div style="padding:24px;">
+                <div style="margin-bottom:16px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">五看类型 <span style="color:var(--danger)">*</span></label>
+                  <select id="edit-insight-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${typeOptions}</select>
+                </div>
+                <div style="margin-bottom:16px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">标题 <span style="color:var(--danger)">*</span></label>
+                  <input type="text" id="edit-insight-title" value="${escapeHtml(insight.title)}" placeholder="洞察标题" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                </div>
+                <div style="margin-bottom:16px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">内容 <span style="color:var(--danger)">*</span></label>
+                  <textarea id="edit-insight-content" rows="4" placeholder="描述洞察的具体内容" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);resize:vertical;">${escapeHtml(insight.content)}</textarea>
+                </div>
+                <div style="margin-bottom:16px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">来源</label>
+                  <input type="text" id="edit-insight-source" value="${escapeHtml(insight.source || '')}" placeholder="如：Gartner 2026" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                </div>
+                <div style="margin-bottom:16px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">置信度: <span id="confidence-value">${insight.confidence || 80}</span>%</label>
+                  <input type="range" id="edit-insight-confidence" value="${insight.confidence || 80}" min="0" max="100" style="width:100%;" oninput="document.getElementById('confidence-value').textContent = this.value">
+                </div>
+                <div style="margin-bottom:20px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:8px;">影响程度 <span style="color:var(--danger)">*</span></label>
+                  <div style="display:flex;gap:16px;">${impactOptions}</div>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border-color);">
+                  <button class="btn btn-secondary" onclick="document.getElementById('insight-edit-overlay').remove(); window._insightEditId = null;">取消</button>
+                  <button class="btn btn-primary" onclick="window.saveInsightEdit()">保存</button>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); window._insightEditId = null; } });
+        };
+
+        window.saveInsightEdit = function() {
+          const title = document.getElementById('edit-insight-title').value.trim();
+          const content = document.getElementById('edit-insight-content').value.trim();
+          if (!title || !content) {
+            showToast('请填写标题和内容', 'warning');
+            return;
+          }
+
+          const insights = loadInsights();
+          const type = document.getElementById('edit-insight-type').value;
+          const source = document.getElementById('edit-insight-source').value.trim();
+          const confidence = parseInt(document.getElementById('edit-insight-confidence').value, 10) || 80;
+          const impactEl = document.querySelector('input[name="edit-insight-impact"]:checked');
+          const impact = impactEl ? impactEl.value : 'medium';
+
+          if (window._insightEditId) {
+            const idx = insights.findIndex(i => i.id === window._insightEditId);
+            if (idx > -1) {
+              insights[idx] = { ...insights[idx], type, title, content, source, confidence, impact };
+            }
+          } else {
+            insights.push({
+              id: generateInsightId(),
+              type, title, content, source, confidence, impact,
+              linkedTopicId: null,
+              createdAt: new Date().toISOString().slice(0, 10)
+            });
+          }
+
+          saveInsights(insights);
+          window._insightEditId = null;
+          const overlay = document.getElementById('insight-edit-overlay');
+          if (overlay) overlay.remove();
+          navigate('sp/insights-topics');
+        };
+
+        window.confirmDeleteInsight = function(insightId) {
+          const insights = loadInsights();
+          const insight = insights.find(i => i.id === insightId);
+          if (!insight) return;
+
+          const linkedTopic = insight.linkedTopicId ? getActiveTopics().find(t => t.id === insight.linkedTopicId) : null;
+          const warningText = linkedTopic
+            ? `该洞察已生成专题「${linkedTopic.name}」，删除后将解除关联。`
+            : '删除后不可恢复，是否确认？';
+
+          const overlay = document.createElement('div');
+          overlay.id = 'insight-delete-confirm-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+          overlay.innerHTML = `
+            <div id="insight-delete-confirm-modal" style="background:var(--bg-card);border-radius:12px;max-width:400px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+              <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+              <h3 style="margin:0 0 8px;font-size:18px;">确认删除洞察?</h3>
+              <p style="margin:0 0 20px;font-size:14px;color:var(--text-secondary);">「${escapeHtml(insight.title)}」${warningText}</p>
+              <div style="display:flex;gap:10px;justify-content:center;">
+                <button class="btn btn-secondary" onclick="document.getElementById('insight-delete-confirm-overlay').remove()">取消</button>
+                <button class="btn btn-danger" onclick="window.executeDeleteInsight('${insightId}')">确认删除</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        };
+
+        window.executeDeleteInsight = function(insightId) {
+          let insights = loadInsights();
+          const insight = insights.find(i => i.id === insightId);
+          if (!insight) return;
+
+          // 清理关联专题
+          if (insight.linkedTopicId) {
+            const topics = loadTopics();
+            const topicIdx = topics.findIndex(t => t.id === insight.linkedTopicId);
+            if (topicIdx > -1) {
+              topics[topicIdx].insights = (topics[topicIdx].insights || []).filter(id => id !== insightId);
+              topics[topicIdx].updatedAt = new Date().toISOString().slice(0, 10);
+              saveTopics(topics);
+            }
+          }
+
+          insights = insights.filter(i => i.id !== insightId);
+          saveInsights(insights);
+
+          const overlay = document.getElementById('insight-delete-confirm-overlay');
+          if (overlay) overlay.remove();
+          navigate('sp/insights-topics');
+        };
+
+        // ===== 从洞察生成专题 =====
+
+        window.generateTopicFromInsight = function(insightId) {
+          const insights = loadInsights();
+          const insight = insights.find(i => i.id === insightId);
+          if (!insight) return;
+          window._topicCreateFromInsightId = insightId;
+          openTopicCreate({
+            name: insight.title,
+            summary: insight.content,
+            insights: [insight.id],
+            status: 'insight'
+          });
+        };
+
+        // ===== 新建专题 =====
+
+        window._topicCreateFromInsightId = null;
+
+        window.openTopicCreate = function(prefill = {}) {
+          const currentYear = new Date().getFullYear();
+          const topic = {
+            name: prefill.name || '',
+            summary: prefill.summary || '',
+            type: prefill.type || 'breakthrough',
+            dimension: prefill.dimension || '流程',
+            priority: prefill.priority || 'P1',
+            status: prefill.status || 'insight',
+            owner: prefill.owner || '',
+            startDate: prefill.startDate || '',
+            endDate: prefill.endDate || '',
+            progress: prefill.progress || 0,
+            budget: prefill.budget || '',
+            actualCost: prefill.actualCost || '',
+            milestones: prefill.milestones || [],
+            insights: prefill.insights || [],
+            year: prefill.year || currentYear
+          };
+
+          const insightsData = loadInsights();
+          const typeOptions = [['breakthrough','突破型'],['incremental','增量型'],['maintenance','维持型']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
+          const priorityOptions = [['P0','🔴 P0 - 最高'],['P1','🟡 P1 - 高'],['P2','🟢 P2 - 中']].map(([v,l]) => `<option value="${v}" ${topic.priority === v ? 'selected' : ''}>${l}</option>`).join('');
+          const statusOptions = [['insight','洞察阶段'],['planning','规划阶段'],['execution','执行阶段'],['closed','已闭环']].map(([v,l]) => `<option value="${v}" ${topic.status === v ? 'selected' : ''}>${l}</option>`).join('');
+
+          const milestoneRows = (topic.milestones || []).map((m, idx) => `
+            <div class="milestone-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+              <input type="checkbox" class="ms-completed" ${m.completed ? 'checked' : ''} style="width:16px;height:16px;">
+              <input type="text" class="ms-title" value="${escapeHtml(m.title)}" placeholder="里程碑标题" style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+              <input type="date" class="ms-date" value="${m.date || ''}" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+              <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;">×</button>
+            </div>
+          `).join('') || '';
+
+          const insightOptions = insightsData.map(i => `<option value="${i.id}" ${(topic.insights || []).includes(i.id) ? 'selected' : ''}>${escapeHtml(i.source)}: ${escapeHtml(i.title)}</option>`).join('');
+
+          // 年份选项：当前年、下一年、所有已有年份
+          const allYears = new Set([currentYear, currentYear + 1]);
+          loadTopics().forEach(t => { if (t.year) allYears.add(t.year); });
+          const yearOptions = Array.from(allYears).sort((a, b) => b - a).map(y => `<option value="${y}" ${y === topic.year ? 'selected' : ''}>${y}年</option>`).join('');
+
+          const overlay = document.createElement('div');
+          overlay.id = 'topic-edit-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+          overlay.innerHTML = `
+            <div id="topic-edit-modal" style="background:var(--bg-card);border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border-color);">
+                <h2 style="margin:0;font-size:18px;">新建专题</h2>
+                <button onclick="document.getElementById('topic-edit-overlay').remove(); window._topicCreateFromInsightId = null;" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">×</button>
+              </div>
+              <div style="padding:24px;">
+                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:16px;margin-bottom:16px;">
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">专题名称 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="edit-topic-name" value="${escapeHtml(topic.name)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人</label>
+                    <input type="text" id="edit-topic-owner" value="${escapeHtml(typeof topic.owner === 'object' ? (topic.owner.displayName || topic.owner.name || '') : (topic.owner || ''))}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度</label>
+                    <input type="text" id="edit-topic-dimension" value="${escapeHtml(topic.dimension)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型</label>
+                    <select id="edit-topic-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${typeOptions}</select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">优先级</label>
+                    <select id="edit-topic-priority" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${priorityOptions}</select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">阶段</label>
+                    <select id="edit-topic-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${statusOptions}</select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label>
+                    <input type="date" id="edit-topic-startDate" value="${topic.startDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">结束日期</label>
+                    <input type="date" id="edit-topic-endDate" value="${topic.endDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">预算</label>
+                    <input type="text" id="edit-topic-budget" value="${escapeHtml(topic.budget)}" placeholder="例如: 50万" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度 (%)</label>
+                    <input type="number" id="edit-topic-progress" value="${topic.progress}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">年份 <span style="color:var(--danger)">*</span></label>
+                  <select id="edit-topic-year" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${yearOptions}</select>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-tertiary);">📌 里程碑</label>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="window.addMilestoneRow()">+ 添加里程碑</button>
+                  </div>
+                  <div id="edit-topic-milestones">${milestoneRows}</div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">🔗 关联洞察 (多选)</label>
+                  <select id="edit-topic-insights" multiple style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);min-height:80px;">${insightOptions}</select>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border-color);">
+                  <button class="btn btn-secondary" onclick="document.getElementById('topic-edit-overlay').remove(); window._topicCreateFromInsightId = null;">取消</button>
+                  <button class="btn btn-primary" onclick="window.saveTopicCreate()">保存</button>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); window._topicCreateFromInsightId = null; } });
+          if (window.ensurePersonInput) window.ensurePersonInput('edit-topic-owner', topic.owner || '');
+        };
+
+        function generateTopicId() {
+          return 'st_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        }
+
+        window.saveTopicCreate = function() {
+          const name = document.getElementById('edit-topic-name').value.trim();
+          if (!name) {
+            showToast('请填写专题名称', 'warning');
+            return;
+          }
+
+          const milestoneRows = document.querySelectorAll('#edit-topic-milestones .milestone-row');
+          const milestones = Array.from(milestoneRows).map(row => ({
+            title: row.querySelector('.ms-title').value.trim(),
+            date: row.querySelector('.ms-date').value,
+            completed: row.querySelector('.ms-completed').checked
+          })).filter(m => m.title);
+
+          const insightSelect = document.getElementById('edit-topic-insights');
+          const selectedInsights = insightSelect ? Array.from(insightSelect.selectedOptions).map(o => o.value) : [];
+
+          const yearSelect = document.getElementById('edit-topic-year');
+          const year = yearSelect ? parseInt(yearSelect.value, 10) : new Date().getFullYear();
+
+          const fromInsightId = window._topicCreateFromInsightId;
+          let summary = '';
+          if (fromInsightId) {
+            const insight = loadInsights().find(i => i.id === fromInsightId);
+            if (insight) summary = insight.content;
+          }
+
+          const newTopic = {
+            id: generateTopicId(),
+            name: name,
+            dimension: document.getElementById('edit-topic-dimension').value.trim() || '流程',
+            type: document.getElementById('edit-topic-type').value,
+            priority: document.getElementById('edit-topic-priority').value,
+            owner: (window.getPersonValue ? window.getPersonValue('edit-topic-owner') : null) || document.getElementById('edit-topic-owner').value.trim() || '',
+            status: document.getElementById('edit-topic-status').value,
+            startDate: document.getElementById('edit-topic-startDate').value,
+            endDate: document.getElementById('edit-topic-endDate').value,
+            budget: document.getElementById('edit-topic-budget').value.trim(),
+            progress: parseInt(document.getElementById('edit-topic-progress').value, 10) || 0,
+            year: year,
+            milestones: milestones,
+            insights: selectedInsights,
+            summary: summary,
+            deleted: false,
+            createdAt: new Date().toISOString().slice(0, 10),
+            updatedAt: new Date().toISOString().slice(0, 10)
+          };
+
+          const topics = loadTopics();
+          topics.push(newTopic);
+          saveTopics(topics);
+
+          // 回写 linkedTopicId
+          selectedInsights.forEach(insightId => {
+            const insights = loadInsights();
+            const idx = insights.findIndex(i => i.id === insightId);
+            if (idx > -1) {
+              insights[idx].linkedTopicId = newTopic.id;
+              saveInsights(insights);
+            }
+          });
+
+          window._topicEditId = null;
+          window._topicCreateFromInsightId = null;
+          const overlay = document.getElementById('topic-edit-overlay');
           if (overlay) overlay.remove();
           navigate('sp/insights-topics');
         };
@@ -6832,6 +7393,25 @@
         if (saved) showToast('已移除成员', 'success');
         navigate('exe/tasks');
       };
+      window.omp_staffingReorderMember = async function(taskId, sourceRef, targetRef, before) {
+        if (!taskId || !sourceRef || !targetRef || sourceRef === targetRef) return;
+        const tasks = omp_load('tasks');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task || !Array.isArray(task.members)) return;
+        const members = task.members.filter(m => m);
+        const fromIdx = members.indexOf(sourceRef);
+        const toIdx = members.indexOf(targetRef);
+        if (fromIdx === -1 || toIdx === -1) return;
+        members.splice(fromIdx, 1);
+        let insertIdx = members.indexOf(targetRef);
+        if (!before) insertIdx++;
+        members.splice(insertIdx, 0, sourceRef);
+        task.members = members;
+        omp_save('tasks', tasks);
+        const saved = await omp_saveMembersToApi(taskId, task.members);
+        if (saved) showToast('已调整成员顺序', 'success');
+        navigate('exe/tasks');
+      };
       window.omp_staffingToggleOrg = function(orgId) {
         const state = window._ompState.staffingState;
         if (!state.expandedOrgIds) state.expandedOrgIds = new Set();
@@ -7221,6 +7801,10 @@
           : '确定要删除这个重点工作吗？关联的里程碑和进度记录也将被删除。此操作不可恢复。';
         if (!confirm(confirmMsg)) return;
         const idsToDelete = collectCascadeDeleteIds(tasks, id);
+        // 若删除的是 OMP 派生任务，同步删除年度计划源头任务，避免自动同步再次创建
+        if (task && task.annualPlanTaskId) {
+          idsToDelete.add(task.annualPlanTaskId);
+        }
         const filteredTasks = tasks.filter(t => !idsToDelete.has(t.id));
         omp_save('tasks', filteredTasks);
         const milestones = omp_load('milestones');
