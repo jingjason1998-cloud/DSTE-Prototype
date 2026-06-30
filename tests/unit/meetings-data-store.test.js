@@ -210,7 +210,7 @@ describe('meetings data-store', () => {
       expect(mockSyncResolutionsToStore).toHaveBeenCalledWith(meetings);
     });
 
-    it('persists to remote API when API_BASE is set', async () => {
+    it('persists each meeting to remote API when API_BASE is set', async () => {
       storageMap.set('dste_api_base', 'http://localhost:8787');
       fetch.mockResolvedValueOnce({ status: 200 });
 
@@ -220,7 +220,27 @@ describe('meetings data-store', () => {
       // flush async
       await new Promise(r => setTimeout(r, 0));
       expect(fetch).toHaveBeenCalledTimes(1);
-      expect(fetch.mock.calls[0][0]).toBe('http://localhost:8787/api/meetings');
+      expect(fetch.mock.calls[0][0]).toBe('http://localhost:8787/api/meetings/m1');
+      expect(fetch.mock.calls[0][1].method).toBe('PUT');
+    });
+
+    it('sends per-meeting PUT for multiple meetings', async () => {
+      storageMap.set('dste_api_base', 'http://localhost:8787');
+      fetch.mockResolvedValue({ status: 200 });
+
+      const meetings = [
+        { id: 'm1', title: 'M1', decisions: [], actions: [] },
+        { id: 'm2', title: 'M2', decisions: [], actions: [] },
+      ];
+      setMeetings(meetings);
+
+      await new Promise(r => setTimeout(r, 0));
+      expect(fetch).toHaveBeenCalledTimes(2);
+      const urls = fetch.mock.calls.map(c => c[0]).sort();
+      expect(urls).toEqual([
+        'http://localhost:8787/api/meetings/m1',
+        'http://localhost:8787/api/meetings/m2',
+      ]);
     });
   });
 
@@ -325,6 +345,46 @@ describe('meetings data-store', () => {
 
       expect(result).toBe(false);
       expect(getMeetings()).toEqual([{ id: 'local' }]);
+    });
+  });
+
+  describe('per-meeting sync', () => {
+    beforeEach(() => {
+      storageMap.set('dste_api_base', 'http://localhost:8787');
+      fetch.mockResolvedValue({ status: 200 });
+    });
+
+    it('only sends PUT for changed meeting on update', async () => {
+      window._meetingsData = [
+        { id: 'm1', title: 'M1', decisions: [], actions: [] },
+        { id: 'm2', title: 'M2', decisions: [], actions: [] },
+      ];
+      persistMeetings();
+      await new Promise(r => setTimeout(r, 0));
+      fetch.mockClear();
+
+      updateMeeting(1, { id: 'm2', title: 'M2 Updated', decisions: [], actions: [] });
+      await new Promise(r => setTimeout(r, 0));
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch.mock.calls[0][0]).toBe('http://localhost:8787/api/meetings/m2');
+    });
+
+    it('sends DELETE when meeting is removed', async () => {
+      window._meetingsData = [
+        { id: 'm1', title: 'M1', decisions: [], actions: [] },
+        { id: 'm2', title: 'M2', decisions: [], actions: [] },
+      ];
+      persistMeetings();
+      await new Promise(r => setTimeout(r, 0));
+      fetch.mockClear();
+
+      deleteMeetingByIndex(0);
+      await new Promise(r => setTimeout(r, 0));
+
+      const deleteCalls = fetch.mock.calls.filter(c => c[1].method === 'DELETE');
+      expect(deleteCalls.length).toBe(1);
+      expect(deleteCalls[0][0]).toBe('http://localhost:8787/api/meetings/m1');
     });
   });
 

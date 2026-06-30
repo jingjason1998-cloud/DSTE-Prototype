@@ -2,6 +2,92 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-06-29
+- **主题**：接手排查并修复 OMP E2E 失败
+- **操作**：
+  - 复现：串行/并行运行全部 `tests/e2e/omp-*.spec.js`，稳定复现 5 个失败，排除“并行测试隔离/localStorage 污染”结论
+  - 根因分析：
+    1. `omp-migration-safety.spec.js`：per-record 同步将 OMP `DATA_VERSION` 升级到 canvas-v15，测试仍断言 canvas-v14
+    2. `omp-tasks.spec.js` 人员配置台 3 个用例：同一次提交把人员从组织架构树内嵌展示改为独立 `#omp-staffing-person-list` 面板，测试仍断言人员出现在 `#omp-staffing-org-tree`
+    3. `omp-subtasks.spec.js` 第一个用例：保存后固定等待 500ms，per-record 同步路径下偶发不够，点击详情时被未关闭编辑弹窗拦截
+  - 修复：
+    - `tests/e2e/omp-migration-safety.spec.js`：`canvas-v14` → `canvas-v15`
+    - `tests/e2e/omp-tasks.spec.js`：选中部门后断言 `#omp-staffing-person-list`；搜索后直接断言人员列表
+    - `tests/e2e/omp-subtasks.spec.js`：保存后改为 `await expect(#omp-active-modal).toHaveCount(0)`
+  - 删除临时 debug 文件 `tests/e2e/omp-staffing-debug.spec.js`、`tests/e2e/omp-subtask-debug.spec.js`
+  - 更新 `.ai/memory/01-current-focus.md` 中 OMP E2E 状态说明
+- **修改文件**：
+  - `tests/e2e/omp-migration-safety.spec.js`
+  - `tests/e2e/omp-tasks.spec.js`
+  - `tests/e2e/omp-subtasks.spec.js`
+  - `.ai/memory/01-current-focus.md`
+- **验证**：
+  - `npx playwright test tests/e2e/omp-*.spec.js --workers=1` → 21 passed
+  - `npx playwright test tests/e2e/omp-*.spec.js --workers=4` → 21 passed
+  - `npx playwright test --workers=4` → 319 passed / 2 failed / 20 skipped
+    - 失败 1：`roadmap.spec.js` 期望 v0.5.5，但 `package.json` 已是 0.6.0（与本次无关，pre-existing）
+    - 失败 2：`strategy-map.spec.js` delete objective UI 超时（与本次无关，pre-existing，已在记忆中记录）
+- **状态**：complete
+- **下一步**：提交 per-record 同步相关改动；如需可顺手修复 roadmap 版本断言
+
+## 2026-06-29
+- **主题**：5 模块 per-record 单条同步迁移
+- **操作**：
+  - 按会议模块已落地的模式，将 per-record 单条同步推广到业务专题、需求池、OMP、战略地图、人员/组织目录
+  - 提取公共库 `src/lib/per-record-sync.js`（diff/merge/enqueue/executor/apiLoad）
+  - 后端 `api-worker/worker.js`：新增 requirements、OMP 单条、战略地图 map/objective/link 单条端点；DELETE 改为硬删除
+  - 前端改造：
+    - 业务专题 `src/pages/business-topics/main.js`：version 4，saveTopics 单条同步
+    - 需求池 `src/pages/requirement-pool/requirement-store.js`：version 2，CRUD 收口到 persistRequirements
+    - OMP `src/cockpit.html`：DATA_VERSION canvas-v15，omp_save 按实体单条同步
+    - 战略地图 `src/lib/strategy-map-data.js`：version 5，map/objective/link 单条同步，link 新增 id
+    - 人员目录 `src/lib/employee-directory.js`：employees version 2，导入/清空 per-record，orgUnits/importMeta 保持批量
+  - 更新相关单元测试与 E2E 测试
+- **修改文件**（本次新增/关键改动）：
+  - 新增：`src/lib/per-record-sync.js`、`tests/unit/per-record-sync.test.js`
+  - 后端：`api-worker/worker.js`
+  - 前端：`src/pages/business-topics/main.js`、`src/pages/requirement-pool/requirement-store.js`、`src/pages/requirement-pool/main.js`、`src/cockpit.html`、`src/lib/strategy-map-data.js`、`src/lib/strategy-map-list.js`、`src/strategy-map.html`、`src/lib/employee-directory.js`
+  - 测试：`tests/unit/employee-directory.test.js`、`tests/unit/strategy-map-data.test.js`、`tests/e2e/employee-directory.spec.js`
+- **验证**：
+  - `npm run build` → 通过
+  - `npm run test:unit` → 23 files, 372 passed
+  - `npm run check:scope` → 通过
+  - `python3 -m pytest tests/` → 177 passed, 1 failed（reviewer 同步 pre-existing）
+  - `npx playwright test tests/e2e/business-topics.spec.js` → 29 passed
+  - `npx playwright test tests/e2e/requirement-pool.spec.js tests/e2e/strategy-map-list.spec.js` → 26 passed
+  - `npx playwright test tests/e2e/employee-directory.spec.js` → 7 passed
+  - `npx playwright test tests/e2e/strategy-map.spec.js` → 15 passed, 1 failed（delete objective UI 超时）
+  - OMP E2E 大面积失败，待确认是本次引入还是前序已坏
+- **状态**：partial
+- **下一步**：排查 OMP E2E 失败根因；补齐 per-record 同步的 E2E 覆盖（并发编辑、删除清 pending、离线恢复）
+
+## 2026-06-29
+- **主题**：隔壁会话接手 — 将 AI 工具执行迁移到 Worker
+- **操作**：
+  - 读取 `.ai/tasks/active/`、设计文档 `docs/01-Product产品/经营分析会AI辅助能力-开发计划.md` 与 `docs/02-RFC功能设计/008-ai-strategic-partner-global-design.md`，确认迁移目标
+  - 发现 `api-worker/worker.js` 中 `/api/ai/tools/execute` 与 `executeTool`/`handleToolsExecute` 已由前序会话实现，前端 `src/lib/ai-client.js` 仍本地执行
+  - 改造 `src/lib/ai-client.js`：
+    - `callWithTools()` 透传 `options.toolContext`
+    - `_executeTool()` 仅 `navigateTo` 保留本地执行，其余统一 POST 到 Worker `/api/ai/tools/execute`
+    - 移除对 `window.findMeetingById` 和旧 `/api/ai/kms-search` 的依赖
+  - 改造 `src/meetings/components/MeetingAiAssistant.js`：调用 `callWithTools` 时传入 `toolContext: { meeting }`
+  - 扩展 `tests/unit/ai-client.test.js`：新增 `_executeTool` 与 `callWithTools` 单测共 5 个
+  - 运行回归验证
+- **修改文件**：
+  - `src/lib/ai-client.js`
+  - `src/meetings/components/MeetingAiAssistant.js`
+  - `tests/unit/ai-client.test.js`
+- **验证**：
+  - `npx vitest run tests/unit/ai-client.test.js` → 21 passed
+  - `npm run test:unit` → 22 files, 362 passed
+  - `npm run build` → 通过
+  - `npx playwright test tests/e2e/ai-assistant.spec.js tests/e2e/ai-agenda-recommend.spec.js` → 12 passed
+  - `npx playwright test tests/e2e/meeting-detail.spec.js tests/e2e/meeting-detail-dist.spec.js` → 6 passed, 1 skipped
+  - `npm run check:scope` → 通过
+  - `python3 -m pytest tests/` → 177 passed, 1 failed（`test_reviewer_syncs_score_to_localStorage`，与本次修改无关）
+- **状态**：complete
+- **下一步**：如需让 cockpit.html 的全局 AI 助手在流式输出中也执行工具，需在 UI 消费端补齐 `toolCalls` 处理
+
 ## 2026-06-23（下半场）
 - **主题**：启动人员与组织目录接入（第一阶段）
 - **操作**：

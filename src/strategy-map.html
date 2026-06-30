@@ -770,7 +770,8 @@
 <script type="module">
 import {
   MapConfigStore, ObjectiveStore, LinkStore,
-  exportMapData, LINK_TYPES, DEFAULT_MAP_ID
+  exportMapData, LINK_TYPES, DEFAULT_MAP_ID,
+  loadRemoteStrategyMaps
 } from './lib/strategy-map-data.js';
 import { render, drawLinks, getCausalChain, getObjById } from './lib/strategy-map-render.js';
 import {
@@ -794,7 +795,8 @@ const state = {
 };
 
 // ========== 初始化 ==========
-function init() {
+async function init() {
+  await loadRemoteStrategyMaps();
   bindGlobalModalHandlers();
   loadUrlState();
   loadCurrentMap();

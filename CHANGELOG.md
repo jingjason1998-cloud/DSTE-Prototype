@@ -7,6 +7,31 @@
 
 ---
 
+## [v0.6.1] - 2026-06-30
+
+### Added
+- **AI 助手接入真实 Kimi 模型**：`src/lib/ai-client.js` 统一封装聊天、流式输出、工具调用、会话管理与降级策略；`src/meetings/components/MeetingAiAssistant.js` 侧滑面板接入真实 Kimi `k2.6` 模型，支持自然语言对话、快捷提问、工具调用可视化。
+- **AI 工具调用（最小 Agent 闭环）**：会议 AI 助手支持「总结议程/生成纪要/列出未闭环行动项/查看决议」等工具调用，自动解析并执行后返回结果。
+- **AI 创建行动项草案**：AI 助手可根据会议内容生成行动项草案，支持人在回路确认后保存。
+- **AI 议程推荐增强**：`src/meetings/utils/agenda-recommender.js` 接入统一 `AIClient`，后端迁移至 Kimi `k2.6`，支持指数退避重试与 JSON 格式强制输出。
+- **Knip 死代码检测**：新增 `knip.json` 配置，集成 `npm run check:deadcode` 与 `npm run check:deadcode:ci`（`--max-issues 0` 门禁）。
+
+### Changed
+- **RFC-008 更新**：AI 战略伙伴架构更新为 1+N+统一工具层设计文档。
+- **AI 助手跟随会议切换**：侧滑面板内容随左侧会议列表切换自动更新上下文。
+
+### Removed
+- 删除未使用模块：`src/components/person-selector.js`、`src/lib/kms-vectorizer.js`、`src/meetings/components/CalendarView.js`。
+- 删除一次性恢复页面：`public/restore-meetings.html`。
+- 删除重复 `src/assets` 符号链接。
+- 删除孤儿模板文件：`src/pages/_template/external-page.js`、`src/pages/_template/index.js`。
+- 删除 reviewer 备份文件：`src/pages/reviewer/main.js.bak`。
+
+### Fixed
+- 详情页采纳 AI 议程后自动打开编辑器。
+- API Worker 强制议程推荐输出 JSON 格式，避免解析失败。
+- API Worker Kimi 请求增加指数退避重试，提升稳定性。
+
 ## [v0.6.0] - 2026-06-29
 
 ### Added

@@ -1,7 +1,14 @@
-import { showToast, Storage } from '../../lib/utils.js';
+import { showToast } from '../../lib/utils.js';
 import { Repository } from '../../lib/repository.js';
 import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
-import { resolveArrayConflict, ensureLastModified } from '../../lib/conflict-resolver.js';
+import { ensureLastModified } from '../../lib/conflict-resolver.js';
+import {
+  computeEntityDiff,
+  mergeEntities,
+  enqueuePerRecordSync,
+  createPerItemExecutor,
+  apiLoadArray,
+} from '../../lib/per-record-sync.js';
 import { enhancePersonInput, getPersonInputValue } from '../../components/person-input.js';
 import { renderPerson, normalizePerson, personMatches, normalizePersonField, getOrgTree } from '../../lib/employee-directory.js';
 import { createOrgSelector } from '../../components/org-selector.js';
@@ -11,7 +18,8 @@ import {
     checkStorageCapacity, parseCSV, buildIssueFromRow, importIssuesFromPaste,
     openImportModal, handleDragOver, handleDragLeave, handleFileDrop,
     handleFileSelect, processImportFile, isIssueClosed, importIssuesFromRows,
-    updateImportPreview, confirmImport, ISSUE_STORAGE_KEY, loadAllIssues
+    updateImportPreview, confirmImport, loadAllIssues,
+    issuesStRepo, issuesAtRepo
 } from './issue-import.js';
 
 import {
@@ -67,7 +75,7 @@ let _deptOrgTree = null;
 const topicsRepo = new Repository('businessTopics', {
   storageKey: STORAGE_KEY,
   schema: 'array',
-  version: 3,
+  version: 4,
   migrators: {
     2: (topics) => {
       topics.forEach(t => {
@@ -83,105 +91,58 @@ const topicsRepo = new Repository('businessTopics', {
       });
       return topics;
     },
+    4: (topics) => {
+      topics.forEach(t => {
+        if (!t.lastModified) t.lastModified = Date.now();
+      });
+      return topics;
+    },
   },
 });
 
-// ===== API 同步配置 =====
-const API_BASE = (() => {
-    // 生产环境使用 Cloudflare Worker，开发环境可覆盖
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-        return Storage.getString('dste_api_base') || '';
-    }
-    return 'https://dste-api.jasonxspace.workers.dev';
-})();
-
+// ===== API 同步配置（per-record）=====
 const syncQueue = getDefaultSyncQueue();
-
-function createApiExecutor(endpoint) {
-    return async (operation) => {
-        if (!API_BASE) return;
-        const token = Storage.getString('dste-token');
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        const resp = await fetch(API_BASE + endpoint, {
-            method: operation.method || 'POST',
-            headers,
-            body: JSON.stringify(operation.payload),
-        });
-        if (resp.status === 401) {
-            redirectToCasLogin();
-            return;
-        }
-        if (!resp.ok) {
-            throw new Error(`HTTP ${resp.status}`);
-        }
-    };
-}
+const perItemExecutor = createPerItemExecutor();
 
 if (typeof window !== 'undefined') {
-    syncQueue.bindAutoProcess(createApiExecutor('/api/topics'));
+  syncQueue.bindAutoProcess(perItemExecutor);
 }
 
 // CAS 登录跳转
 function redirectToCasLogin() {
-    const service = encodeURIComponent(window.location.origin + window.location.pathname);
-    window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
+  const service = encodeURIComponent(window.location.origin + window.location.pathname);
+  window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
 }
 
-async function apiSave(endpoint, data) {
-    syncQueue.enqueue({
-        endpoint,
-        method: 'POST',
-        payload: data,
-        executor: createApiExecutor(endpoint),
-    });
-}
-
-async function apiLoad(endpoint) {
-    if (!API_BASE) return null;
-    try {
-        const token = Storage.getString('dste-token');
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        const resp = await fetch(API_BASE + endpoint, { headers });
-        if (resp.status === 401) {
-            redirectToCasLogin();
-            return null;
-        }
-        const json = await resp.json();
-        if (!json.success) return null;
-        if (endpoint === '/api/topics' && json.data) {
-            const local = topicsRepo.getRaw();
-            if (local && local.length > 0) {
-                return resolveArrayConflict(
-                    ensureLastModified(local),
-                    ensureLastModified(json.data),
-                    'merge'
-                );
-            }
-        }
-        return json.data;
-    } catch (e) {
-        console.warn('API load failed (offline?):', e.message);
-        return null;
-    }
+async function loadRemoteTopics() {
+  const remote = await apiLoadArray('/api/topics');
+  if (!remote || remote.length === 0) return false;
+  const local = topicsRepo.getRaw();
+  const merged = local && local.length > 0
+    ? mergeEntities(ensureLastModified(local), ensureLastModified(remote))
+    : remote;
+  _cachedTopics = merged;
+  topicsRepo.set(merged);
+  return true;
 }
 
 function loadTopics() {
-    if (_cachedTopics) return [..._cachedTopics];
-    const topics = topicsRepo.get();
-    _cachedTopics = topics;
-    return [..._cachedTopics];
+  if (_cachedTopics) return [..._cachedTopics];
+  const topics = topicsRepo.get();
+  _cachedTopics = topics;
+  return [..._cachedTopics];
 }
 
 function saveTopics(topics) {
-    ensureLastModified(topics);
-    _cachedTopics = topics;
-    const ok = topicsRepo.set(topics);
-    if (!ok) {
-        showToast('专题数据保存失败，可能是存储空间不足', 'error');
-    }
-    apiSave('/api/topics', topics); // 同步到云端
+  const oldTopics = topicsRepo.getRaw();
+  ensureLastModified(topics);
+  _cachedTopics = topics;
+  const ok = topicsRepo.set(topics);
+  if (!ok) {
+    showToast('专题数据保存失败，可能是存储空间不足', 'error');
+  }
+  const { created, updated, deleted } = computeEntityDiff(oldTopics, topics);
+  enqueuePerRecordSync('topics', { created, updated, deleted }, perItemExecutor, syncQueue);
 }
 
 function initDefaultData(shouldSave = true) {
@@ -1489,11 +1450,7 @@ async function init() {
     migrateV1ToV2(); // v2.1: auto-migrate v1.2 data on load
 
     // 优先从云端加载数据
-    const remoteTopics = await apiLoad('/api/topics');
-    if (remoteTopics && remoteTopics.length > 0) {
-        topicsRepo.set(remoteTopics);
-        _cachedTopics = remoteTopics;
-    }
+    await loadRemoteTopics();
 
     let topics = loadTopics();
     const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
@@ -1518,13 +1475,13 @@ async function init() {
     _cachedTopics = topics;
 
     // 同步加载云端议题数据
-    const remoteIssues = await apiLoad('/api/issues');
+    const remoteIssues = await apiLoadArray('/api/issues');
     if (remoteIssues && remoteIssues.length > 0) {
         // 按 sourceSystem 分组保存
         const stIssues = remoteIssues.filter(i => i.sourceSystem === 'ST');
         const atIssues = remoteIssues.filter(i => i.sourceSystem === 'AT');
-        Storage.set(ISSUE_STORAGE_KEY + '_ST', stIssues);
-        Storage.set(ISSUE_STORAGE_KEY + '_AT', atIssues);
+        issuesStRepo.set(stIssues);
+        issuesAtRepo.set(atIssues);
     }
 
     renderTable();
@@ -1846,7 +1803,6 @@ window.renderTable = renderTable;
 window.renderStats = renderStats;
 window.CURRENT_USER = CURRENT_USER;
 window.escapeHtml = escapeHtml;
-window.apiSave = apiSave;
 window.linkIssueToTopic = linkIssueToTopic;
 window.unlinkIssueFromTopic = unlinkIssueFromTopic;
 window._currentLinkTopicId = _currentLinkTopicId;

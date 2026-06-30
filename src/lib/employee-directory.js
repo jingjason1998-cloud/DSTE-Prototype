@@ -6,7 +6,14 @@
 import { Repository } from './repository.js';
 import { Storage } from './utils.js';
 import { getDefaultSyncQueue } from './sync-queue.js';
-import { resolveArrayConflict, ensureLastModified } from './conflict-resolver.js';
+import { ensureLastModified } from './conflict-resolver.js';
+import {
+  computeEntityDiff,
+  mergeEntities,
+  enqueuePerRecordSync,
+  createPerItemExecutor,
+  apiLoadArray,
+} from './per-record-sync.js';
 
 // ===================== 常量 =====================
 export const EMPLOYEES_STORAGE_KEY = 'dste_employees_v1';
@@ -16,8 +23,18 @@ export const IMPORT_META_STORAGE_KEY = 'dste_employee_import_meta';
 const DEFAULT_EMPLOYEES_REPO_OPTIONS = {
   storageKey: EMPLOYEES_STORAGE_KEY,
   schema: 'array',
-  version: 1,
+  version: 2,
   backupNamespace: 'directory',
+  migrators: {
+    2: (employees) => {
+      employees.forEach(emp => {
+        if (emp && typeof emp === 'object' && !emp.lastModified) {
+          emp.lastModified = Date.now();
+        }
+      });
+      return employees;
+    },
+  },
 };
 
 const DEFAULT_ORG_UNITS_REPO_OPTIONS = {
@@ -50,8 +67,9 @@ function getApiBase() {
 }
 
 const syncQueue = getDefaultSyncQueue();
+const perItemExecutor = createPerItemExecutor();
 
-function createExecutor(endpoint) {
+function createBulkExecutor(endpoint) {
   return async (operation) => {
     const apiBase = getApiBase();
     if (!apiBase) return;
@@ -74,30 +92,26 @@ function createExecutor(endpoint) {
 }
 
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  syncQueue.bindAutoProcess(createExecutor('/api/employees'));
-  syncQueue.bindAutoProcess(createExecutor('/api/org-units'));
-  syncQueue.bindAutoProcess(createExecutor('/api/employee-import-meta'));
+  syncQueue.bindAutoProcess(perItemExecutor);
+  syncQueue.bindAutoProcess(createBulkExecutor('/api/org-units'));
+  syncQueue.bindAutoProcess(createBulkExecutor('/api/employee-import-meta'));
 }
 
-function _apiSave(endpoint, payload) {
+function _apiSaveBulk(endpoint, payload) {
   syncQueue.enqueue({
     endpoint,
     method: 'POST',
     payload,
-    executor: createExecutor(endpoint),
+    executor: createBulkExecutor(endpoint),
   });
 }
 
-function _apiSaveEmployees(employees) {
-  _apiSave('/api/employees', employees);
-}
-
 function _apiSaveOrgUnits(orgUnits) {
-  _apiSave('/api/org-units', orgUnits);
+  _apiSaveBulk('/api/org-units', orgUnits);
 }
 
 function _apiSaveImportMeta(meta) {
-  _apiSave('/api/employee-import-meta', meta);
+  _apiSaveBulk('/api/employee-import-meta', meta);
 }
 
 async function _apiLoad(endpoint) {
@@ -243,7 +257,13 @@ export function buildOrgHierarchy(employees) {
   orgUnits.forEach((unit) => {
     if (!unit.parentId) roots.push(unit.id);
   });
-  roots.sort((a, b) => a.localeCompare(b, 'zh-CN'));
+
+  // 按组织名称排序，保证战区/子团队顺序稳定
+  const getOrgName = (id) => (orgUnits.has(id) ? orgUnits.get(id).name : id);
+  roots.sort((a, b) => getOrgName(a).localeCompare(getOrgName(b), 'zh-CN'));
+  orgUnits.forEach((unit) => {
+    unit.children.sort((a, b) => getOrgName(a).localeCompare(getOrgName(b), 'zh-CN'));
+  });
 
   return {
     orgUnits: Object.fromEntries(orgUnits),
@@ -376,6 +396,7 @@ export function hasEmployeeData() {
 export function saveEmployeeDirectory(employees, meta = {}) {
   try {
     const now = Date.now();
+    const oldEmployees = employeesRepo.getRaw();
     ensureLastModified(employees);
     const { orgUnits } = buildOrgHierarchy(employees);
     const wrappedOrgUnits = { lastModified: now, data: orgUnits };
@@ -388,8 +409,9 @@ export function saveEmployeeDirectory(employees, meta = {}) {
     }
     Storage.set(IMPORT_META_STORAGE_KEY, wrappedMeta);
 
-    // 云端同步（本地优先，失败可重试）
-    _apiSaveEmployees(employees);
+    // 云端同步：employees 按 per-record 单条同步，orgUnits/importMeta 保持批量
+    const { created, updated, deleted } = computeEntityDiff(oldEmployees, employees);
+    enqueuePerRecordSync('employees', { created, updated, deleted }, perItemExecutor, syncQueue);
     _apiSaveOrgUnits(wrappedOrgUnits);
     _apiSaveImportMeta(wrappedMeta);
 
@@ -403,11 +425,22 @@ export function saveEmployeeDirectory(employees, meta = {}) {
  * 清空目录
  */
 export function clearEmployeeDirectory() {
+  const oldEmployees = employeesRepo.getRaw();
   employeesRepo.set([]);
   orgUnitsRepo.set({ lastModified: Date.now(), data: {} });
   Storage.remove(IMPORT_META_STORAGE_KEY);
 
-  _apiSaveEmployees([]);
+  // employees 逐条删除，先清 pending 再发 DELETE
+  for (const emp of oldEmployees) {
+    syncQueue.removePendingForResource(`employees/${encodeURIComponent(emp.id)}`);
+    syncQueue.enqueue({
+      endpoint: `/api/employees/${encodeURIComponent(emp.id)}`,
+      method: 'DELETE',
+      executor: perItemExecutor,
+    }, { autoProcess: false });
+  }
+  syncQueue.processQueue(perItemExecutor);
+
   _apiSaveOrgUnits({ lastModified: Date.now(), data: {} });
   _apiSaveImportMeta(null);
 }
@@ -417,14 +450,11 @@ export function clearEmployeeDirectory() {
  * @returns {Promise<{success: boolean, merged: boolean, error?: string}>}
  */
 export async function loadRemoteEmployeeDirectory() {
-  const loadResults = await Promise.all([
-    _apiLoad('/api/employees'),
+  const [employeesResult, orgUnitsResult, metaResult] = await Promise.all([
+    apiLoadArray('/api/employees').then(data => ({ ok: data !== null, data })),
     _apiLoad('/api/org-units'),
     _apiLoad('/api/employee-import-meta'),
   ]);
-  const employeesResult = loadResults[0];
-  const orgUnitsResult = loadResults[1];
-  const metaResult = loadResults[2];
 
   // 如果所有请求都失败，视为离线
   if (!employeesResult.ok && !orgUnitsResult.ok && !metaResult.ok) {
@@ -444,18 +474,11 @@ export async function loadRemoteEmployeeDirectory() {
   let mergedMetaWrapper = localMetaWrapper;
   let merged = false;
 
-  // 员工数组：按 lastModified 逐条合并
+  // 员工数组：按 version + lastModified 逐条合并
   if (Array.isArray(remoteEmployees) && remoteEmployees.length > 0) {
-    if (localEmployees.length === 0) {
-      mergedEmployees = remoteEmployees;
-    } else {
-      mergedEmployees = resolveArrayConflict(
-        ensureLastModified(localEmployees),
-        ensureLastModified(remoteEmployees),
-        'merge',
-        e => e.id
-      );
-    }
+    mergedEmployees = localEmployees.length === 0
+      ? remoteEmployees
+      : mergeEntities(ensureLastModified(localEmployees), ensureLastModified(remoteEmployees));
     merged = true;
   }
 
@@ -490,7 +513,8 @@ export async function loadRemoteEmployeeDirectory() {
 
   // 若远程为空但本地有数据，尝试把本地推上去（首次从旧设备切换过来的情况）
   if (!remoteEmployees && localEmployees.length > 0) {
-    _apiSaveEmployees(localEmployees);
+    const { created } = computeEntityDiff([], localEmployees);
+    enqueuePerRecordSync('employees', { created, updated: [], deleted: [] }, perItemExecutor, syncQueue);
     _apiSaveOrgUnits(localOrgUnitsWrapper);
     if (localMetaWrapper) _apiSaveImportMeta(localMetaWrapper);
   }

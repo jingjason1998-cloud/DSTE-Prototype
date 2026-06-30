@@ -1,6 +1,53 @@
 {
   "versions": [
     {
+      "version": "v0.6.1",
+      "date": "2026-06-30",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**AI 助手接入真实 Kimi 模型**：`src/lib/ai-client.js` 统一封装聊天、流式输出、工具调用、会话管理与降级策略；`src/meetings/components/MeetingAiAssistant.js` 侧滑面板接入真实 Kimi `k2.6` 模型，支持自然语言对话、快捷提问、工具调用可视化。"
+        },
+        {
+          "type": "Added",
+          "desc": "**AI 工具调用（最小 Agent 闭环）**：会议 AI 助手支持「总结议程/生成纪要/列出未闭环行动项/查看决议」等工具调用，自动解析并执行后返回结果。"
+        },
+        {
+          "type": "Added",
+          "desc": "**AI 创建行动项草案**：AI 助手可根据会议内容生成行动项草案，支持人在回路确认后保存。"
+        },
+        {
+          "type": "Added",
+          "desc": "**AI 议程推荐增强**：`src/meetings/utils/agenda-recommender.js` 接入统一 `AIClient`，后端迁移至 Kimi `k2.6`，支持指数退避重试与 JSON 格式强制输出。"
+        },
+        {
+          "type": "Added",
+          "desc": "**Knip 死代码检测**：新增 `knip.json` 配置，集成 `npm run check:deadcode` 与 `npm run check:deadcode:ci`（`--max-issues 0` 门禁）。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**RFC-008 更新**：AI 战略伙伴架构更新为 1+N+统一工具层设计文档。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**AI 助手跟随会议切换**：侧滑面板内容随左侧会议列表切换自动更新上下文。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "详情页采纳 AI 议程后自动打开编辑器。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "API Worker 强制议程推荐输出 JSON 格式，避免解析失败。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "API Worker Kimi 请求增加指数退避重试，提升稳定性。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.0",
       "date": "2026-06-29",
       "status": "released",

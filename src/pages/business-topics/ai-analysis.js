@@ -1,9 +1,20 @@
 import { showToast, Storage } from '../../lib/utils.js';
+import { Repository } from '../../lib/repository.js';
 import { loadIssues, loadAllIssues } from './issue-import.js';
 
 let _currentReportType = null;
 let _aiMatchTopicId = null;
 let _aiMatchResults = [];
+
+function getAiReportRepo(reportType) {
+    return new Repository(`businessTopics/aiReport/${reportType}`, {
+        storageKey: `dste_ai_reports_v1_${reportType}`,
+        schema: 'object',
+        version: 1,
+        defaultValue: null,
+        backupNamespace: 'businessTopics',
+    });
+}
 
 function simpleHash(str) {
     let hash = 0;
@@ -760,11 +771,10 @@ export function generateGlobalReport(issues, reportType) {
 
 export function loadCachedReport(reportType, checksum) {
     try {
-        const raw = Storage.getString('dste_ai_reports_v1_' + reportType);
-        if (!raw) return null;
-        const cache = JSON.parse(raw);
+        const cache = getAiReportRepo(reportType).getRaw();
+        if (!cache || !cache.report) return null;
         // schemaVersion check: invalidate old cache when report structure changes
-        if (!cache.report || cache.report.schemaVersion !== 2) return null;
+        if (cache.report.schemaVersion !== 2) return null;
         return cache.checksum === checksum ? cache.report : null;
     } catch { return null; }
 }
@@ -772,7 +782,7 @@ export function loadCachedReport(reportType, checksum) {
 export function saveCachedReport(reportType, checksum, report) {
     try {
         report.schemaVersion = 2;
-        Storage.set('dste_ai_reports_v1_' + reportType, { checksum, report, cachedAt: new Date().toISOString() });
+        getAiReportRepo(reportType).set({ checksum, report, cachedAt: new Date().toISOString() });
     } catch (e) { console.warn('[ReportCache] 缓存保存失败:', e.message); }
 }
 
@@ -912,7 +922,9 @@ export function openAiReportModal(reportType) {
 
 export function regenerateAiReport() {
     if (!_currentReportType) return;
-    Storage.remove('dste_ai_reports_v1_' + _currentReportType + '_GLOBAL');
+    const repo = getAiReportRepo(_currentReportType + '_GLOBAL');
+    Storage.remove(repo.storageKey);
+    Storage.remove(repo.versionKey);
     document.getElementById('aiReportContent').innerHTML = '<div style="text-align:center; padding:60px;"><div style="font-size:32px; margin-bottom:12px;">🔄</div><div style="color:var(--text-secondary);">正在重新分析...</div></div>';
     setTimeout(() => {
         openAiReportModal(_currentReportType);

@@ -256,7 +256,7 @@ test.describe('OMP 重点工作管理', () => {
       });
     }
 
-    test('人员配置台显示组织架构树与嵌套人员', async ({ page }) => {
+    test('人员配置矩阵显示组织架构与选中部门人员', async ({ page }) => {
       const errors = [];
       page.on('pageerror', err => errors.push(err.message));
 
@@ -264,59 +264,27 @@ test.describe('OMP 重点工作管理', () => {
       await page.goto(OMP_URL);
       await page.waitForTimeout(1500);
 
-      // 切换到人员配置视图
-      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      // 切换到人员配置矩阵视图
+      await page.locator('[data-action="omp-switch-task-view"][data-view="matrix"]').click();
       await page.waitForTimeout(500);
 
-      const orgTree = page.locator('#omp-staffing-org-tree');
+      const orgTree = page.locator('#omp-matrix-org-tree');
+      const personList = page.locator('#omp-matrix-person-list');
       await expect(orgTree).toBeVisible();
-      // 默认只展示一级部门，人员需要逐层展开才可见
       await expect(orgTree).toContainText('销售部');
       await expect(orgTree).toContainText('技术部');
 
-      // 展开 销售部 → 华东区 查看张三
+      // 选中 销售部 查看张三
       await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '销售部' }).first().click();
-      await page.waitForTimeout(200);
-      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '华东区' }).first().click();
-      await page.waitForTimeout(200);
-      await expect(orgTree).toContainText('张三');
+      await page.waitForTimeout(300);
+      await expect(personList).toContainText('张三');
+      await expect(personList).not.toContainText('王五');
 
-      // 展开 技术部 → 平台组 查看王五
+      // 选中 技术部 查看王五
       await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '技术部' }).first().click();
-      await page.waitForTimeout(200);
-      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '平台组' }).first().click();
-      await page.waitForTimeout(200);
-      await expect(orgTree).toContainText('王五');
-
-      expect(errors).toEqual([]);
-    });
-
-    test('点击组织节点展开/折叠人员', async ({ page }) => {
-      const errors = [];
-      page.on('pageerror', err => errors.push(err.message));
-
-      await setupEmployeeDirectory(page);
-      await page.goto(OMP_URL);
-      await page.waitForTimeout(1500);
-
-      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
-      await page.waitForTimeout(500);
-
-      const orgTree = page.locator('#omp-staffing-org-tree');
-      // 默认折叠，王五不可见
-      await expect(orgTree).not.toContainText('王五');
-
-      // 展开 技术部 → 平台组
-      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '技术部' }).first().click();
-      await page.waitForTimeout(200);
-      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '平台组' }).first().click();
-      await page.waitForTimeout(200);
-      await expect(orgTree).toContainText('王五');
-
-      // 折叠技术部，王五不可见
-      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '技术部' }).first().click();
-      await page.waitForTimeout(200);
-      await expect(orgTree).not.toContainText('王五');
+      await page.waitForTimeout(300);
+      await expect(personList).toContainText('王五');
+      await expect(personList).not.toContainText('张三');
 
       expect(errors).toEqual([]);
     });
@@ -329,22 +297,48 @@ test.describe('OMP 重点工作管理', () => {
       await page.goto(OMP_URL);
       await page.waitForTimeout(1500);
 
-      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.locator('[data-action="omp-switch-task-view"][data-view="matrix"]').click();
       await page.waitForTimeout(500);
 
-      await page.locator('#omp-staffing-dir-search').fill('E001');
+      await page.locator('#omp-matrix-dir-search').fill('E001');
       await page.waitForTimeout(400);
 
-      // 搜索结果直接展示在通讯录面板中
-      const orgTree = page.locator('#omp-staffing-org-tree');
-      await expect(orgTree).toContainText('张三');
-      await expect(orgTree).not.toContainText('李四');
-      await expect(orgTree).not.toContainText('王五');
+      // 搜索结果直接展示在通讯录人员列表中
+      const personList = page.locator('#omp-matrix-person-list');
+      await expect(personList).toContainText('张三');
+      await expect(personList).not.toContainText('李四');
+      await expect(personList).not.toContainText('王五');
 
       expect(errors).toEqual([]);
     });
 
-    test('拖拽人员到任务卡片分配成员', async ({ page }) => {
+    test('通讯录搜索框在防抖重绘后保持焦点', async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+
+      await setupEmployeeDirectory(page);
+      await page.goto(OMP_URL);
+      await page.waitForTimeout(1500);
+
+      await page.locator('[data-action="omp-switch-task-view"][data-view="matrix"]').click();
+      await page.waitForTimeout(500);
+
+      const input = page.locator('#omp-matrix-dir-search');
+      await input.click();
+
+      for (const char of 'chen') {
+        await input.press(char);
+        // 超过防抖间隔，确保已触发重绘
+        await page.waitForTimeout(400);
+        const activeId = await page.evaluate(() => document.activeElement && document.activeElement.id);
+        expect(activeId).toBe('omp-matrix-dir-search');
+      }
+
+      await expect(input).toHaveValue('chen');
+      expect(errors).toEqual([]);
+    });
+
+    test('拖拽人员到矩阵成员单元格分配成员', async ({ page }) => {
       const errors = [];
       page.on('pageerror', err => errors.push(err.message));
 
@@ -374,21 +368,19 @@ test.describe('OMP 重点工作管理', () => {
       await page.goto(OMP_URL);
       await page.waitForTimeout(1500);
 
-      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.locator('[data-action="omp-switch-task-view"][data-view="matrix"]').click();
       await page.waitForTimeout(500);
 
-      // 展开 销售部 → 华东区 找到张三
+      // 选中 销售部 找到张三
       await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '销售部' }).first().click();
-      await page.waitForTimeout(200);
-      await page.locator('[data-action="omp-staffing-select-org"]').filter({ hasText: '华东区' }).first().click();
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(300);
 
-      // 将张三从通讯录拖到测试任务卡片
+      // 将张三从通讯录拖到矩阵成员单元格
       const personCard = page.locator('[data-drag="person"][data-person-ref="E001"]');
-      const taskCard = page.locator('[data-drop="task"][data-task-id="omp_drag_test_task"]');
+      const memberCell = page.locator('[data-drop="matrix-member"][data-task-id="omp_drag_test_task"]').first();
       await expect(personCard).toBeVisible();
-      await expect(taskCard).toBeVisible();
-      await personCard.dragTo(taskCard);
+      await expect(memberCell).toBeVisible();
+      await personCard.dragTo(memberCell);
       await page.waitForTimeout(500);
 
       // 验证测试任务成员已更新
@@ -432,11 +424,11 @@ test.describe('OMP 重点工作管理', () => {
       await page.goto(OMP_URL);
       await page.waitForTimeout(1500);
 
-      await page.locator('[data-action="omp-switch-task-view"][data-view="staffing"]').click();
+      await page.locator('[data-action="omp-switch-task-view"][data-view="matrix"]').click();
       await page.waitForTimeout(500);
 
       // 点击成员 chip 上的 ×
-      const removeBtn = page.locator('[data-drop="task"][data-task-id="omp_remove_test_task"] [data-action="omp-staffing-remove-member"]');
+      const removeBtn = page.locator('[data-drop="matrix-member"][data-task-id="omp_remove_test_task"] [data-action="omp-staffing-remove-member"]');
       await expect(removeBtn).toBeVisible();
       await removeBtn.click();
       await page.waitForTimeout(500);

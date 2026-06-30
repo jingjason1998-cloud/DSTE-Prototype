@@ -411,10 +411,11 @@ export class AIClient {
       return { content: first.content || '', toolResults: [] };
     }
 
-    // 执行已知工具
+    // 执行已知工具（除 navigateTo 外均在 Worker 执行）
+    const toolContext = options.toolContext || {};
     const toolResults = [];
     for (const call of first.toolCalls) {
-      const result = await this._executeTool(call);
+      const result = await this._executeTool(call, toolContext);
       toolResults.push({
         call,
         result,
@@ -432,7 +433,14 @@ export class AIClient {
 
   // ========== 工具执行 ==========
 
-  async _executeTool(toolCall) {
+  /**
+   * 执行 AI 工具调用。
+   * - navigateTo 在浏览器本地执行（Worker 无法操作 window.location）。
+   * - 其余工具统一 POST 到 Worker 的 /api/ai/tools/execute，由后端 ToolExecutor 处理。
+   * @param {Object} toolCall Kimi 返回的 tool_call 对象
+   * @param {Object} toolContext 工具执行上下文（如 { meeting }）
+   */
+  async _executeTool(toolCall, toolContext = {}) {
     const name = toolCall.function?.name;
     let args = {};
     try {
@@ -441,6 +449,7 @@ export class AIClient {
       args = {};
     }
 
+    // navigateTo 必须在浏览器端执行
     if (name === 'navigateTo') {
       const pageId = args.pageId;
       if (typeof window !== 'undefined' && pageId) {
@@ -449,60 +458,31 @@ export class AIClient {
       return { success: true, action: 'navigateTo', pageId };
     }
 
-    if (name === 'searchKms') {
-      try {
-        const resp = await fetch(`${this.baseUrl}/api/ai/kms-search`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: args.query || '', limit: args.limit || 3 }),
-        });
-        const data = await resp.json();
-        return { success: true, snippets: data.snippets || [] };
-      } catch (err) {
-        return { success: false, error: err.message };
-      }
-    }
+    // 其他工具统一走 Worker ToolExecutor
+    try {
+      const resp = await fetch(`${this.baseUrl}/api/ai/tools/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          name,
+          arguments: args,
+          context: toolContext,
+        }),
+      });
 
-    if (['queryMeetingAgenda', 'queryMeetingActions', 'queryMeetingResolutions'].includes(name)) {
-      const meetingId = args.meetingId;
-      const meeting = typeof window !== 'undefined' && window.findMeetingById
-        ? window.findMeetingById(meetingId)
-        : null;
-      if (!meeting) {
-        return { success: false, error: 'Meeting not found' };
+      if (!resp.ok) {
+        const errText = await resp.text();
+        return { success: false, error: `Worker tool execution failed: ${resp.status} ${errText}` };
       }
-      if (name === 'queryMeetingAgenda') {
-        return { success: true, agendaItems: meeting.agenda_items || [] };
-      }
-      if (name === 'queryMeetingActions') {
-        return { success: true, actions: meeting.actions || [] };
-      }
-      if (name === 'queryMeetingResolutions') {
-        return { success: true, resolutions: meeting.decisions || meeting.resolutions || [] };
-      }
-    }
 
-    if (name === 'createActionItem') {
-      const today = new Date().toISOString().split('T')[0];
-      const actionItem = {
-        id: 'A' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-        content: String(args.content || '').trim(),
-        owner: String(args.owner || '').trim(),
-        deadline: args.deadline || today,
-        status: 'pending',
-        sourceAgendaId: '',
-        sourceDecisionId: '',
-      };
-      return {
-        draft: true,
-        type: 'actionItem',
-        meetingId: args.meetingId,
-        actionItem,
-        message: '已草拟行动项，等待用户确认',
-      };
+      const data = await resp.json();
+      return data.result || { success: false, error: 'Invalid response from Worker' };
+    } catch (err) {
+      return { success: false, error: err.message };
     }
-
-    return { success: false, error: `Unknown tool: ${name}` };
   }
 
   // ========== 通用请求 ==========

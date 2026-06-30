@@ -90,12 +90,55 @@ describe('SyncQueue', () => {
     expect(queue.loadQueue()[0].payload).toEqual([2]);
   });
 
+  it('merges consecutive pending operations to same single-item endpoint', () => {
+    const queue = new SyncQueue();
+    queue.enqueue({ endpoint: '/api/meetings/m1', method: 'PATCH', payload: { title: 'a' } });
+    queue.enqueue({ endpoint: '/api/meetings/m1', method: 'PATCH', payload: { title: 'b' } });
+    expect(queue.getStatus().total).toBe(1);
+    expect(queue.loadQueue()[0].payload).toEqual({ title: 'b' });
+  });
+
+  it('does not merge pending operations for different single-item ids', () => {
+    const queue = new SyncQueue();
+    queue.enqueue({ endpoint: '/api/meetings/m1', method: 'PATCH', payload: { title: 'a' } });
+    queue.enqueue({ endpoint: '/api/meetings/m2', method: 'PATCH', payload: { title: 'b' } });
+    expect(queue.getStatus().total).toBe(2);
+  });
+
+  it('does not merge single-item and collection endpoints', () => {
+    const queue = new SyncQueue();
+    queue.enqueue({ endpoint: '/api/meetings/m1', method: 'PATCH', payload: { title: 'a' } });
+    queue.enqueue({ endpoint: '/api/meetings', method: 'POST', payload: [] });
+    expect(queue.getStatus().total).toBe(2);
+  });
+
   it('caps queue size', () => {
     const queue = new SyncQueue({ maxSize: 2 });
     queue.enqueue({ endpoint: '/api/a', payload: [] });
     queue.enqueue({ endpoint: '/api/b', payload: [] });
     const result = queue.enqueue({ endpoint: '/api/c', payload: [] });
     expect(result.success).toBe(false);
+  });
+
+  it('removes pending operations for a resource', () => {
+    const queue = new SyncQueue();
+    queue.enqueue({ endpoint: '/api/meetings/m1', method: 'PUT', payload: { title: 'a' } });
+    queue.enqueue({ endpoint: '/api/meetings/m2', method: 'PUT', payload: { title: 'b' } });
+    const removed = queue.removePendingForResource('meetings/m1');
+    expect(removed).toBe(1);
+    const remaining = queue.loadQueue();
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].endpoint).toBe('/api/meetings/m2');
+  });
+
+  it('does not remove non-pending or unrelated operations', () => {
+    const queue = new SyncQueue();
+    queue.enqueue({ endpoint: '/api/meetings/m1', method: 'PUT', payload: { title: 'a' } });
+    const stored = queue.loadQueue();
+    stored[0].status = 'failed';
+    queue.saveQueue(stored);
+    const removed = queue.removePendingForResource('meetings/m1');
+    expect(removed).toBe(0);
   });
 
   it('returns default singleton instance', () => {

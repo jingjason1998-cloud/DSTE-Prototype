@@ -18,6 +18,15 @@ function generateId() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function getResourceKey(endpoint) {
+  // /api/{entity}/{id} -> {entity}/{id}；其它保持原 endpoint
+  const parts = (endpoint || '').split('/').filter(Boolean);
+  if (parts.length === 3 && parts[0] === 'api') {
+    return `${parts[1]}/${parts[2]}`;
+  }
+  return endpoint;
+}
+
 export class SyncQueue {
   constructor(options = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
@@ -41,7 +50,8 @@ export class SyncQueue {
    * @param {*} operation.payload
    * @returns {{success:boolean, id?:string, error?:string}}
    */
-  enqueue(operation) {
+  enqueue(operation, options = {}) {
+    const { autoProcess = true } = options;
     const queue = this.loadQueue();
     if (queue.length >= this.options.maxSize) {
       showToast('同步队列已满，部分变更可能无法同步到服务端', 'error');
@@ -63,11 +73,13 @@ export class SyncQueue {
       error: null,
     };
 
-    // 同一 endpoint + POST 可合并最近一条未开始处理的操作，减少重复推送
+    // 同一资源 + 方法可合并最近一条未开始处理的操作，减少重复推送
+    // 资源键：单条端点 /api/{entity}/{id} 取 entity/id，集合端点取完整 endpoint
+    const resourceKey = getResourceKey(item.endpoint);
     const lastIdx = queue.length - 1;
     if (
       lastIdx >= 0 &&
-      queue[lastIdx].endpoint === item.endpoint &&
+      getResourceKey(queue[lastIdx].endpoint) === resourceKey &&
       queue[lastIdx].method === item.method &&
       queue[lastIdx].status === 'pending' &&
       !queue[lastIdx].nextRetry
@@ -79,7 +91,9 @@ export class SyncQueue {
 
     this.saveQueue(queue);
     // 尝试立即处理
-    this.processQueue(operation.executor);
+    if (autoProcess) {
+      this.processQueue(operation.executor);
+    }
     return { success: true, id: item.id };
   }
 
@@ -162,6 +176,26 @@ export class SyncQueue {
       pending: queue.filter(op => op.status === 'pending').length,
       failed: queue.filter(op => op.status === 'failed').length,
     };
+  }
+
+  /**
+   * 清除某个资源的所有 pending 操作（例如删除前清理该记录的待更新）
+   * @param {string} resourceKey 例如 'meetings/20260520_42'
+   * @returns {number} 清除的数量
+   */
+  removePendingForResource(resourceKey) {
+    const queue = this.loadQueue();
+    const remaining = [];
+    let removed = 0;
+    for (const op of queue) {
+      if (op.status === 'pending' && getResourceKey(op.endpoint) === resourceKey) {
+        removed++;
+      } else {
+        remaining.push(op);
+      }
+    }
+    this.saveQueue(remaining);
+    return removed;
   }
 
   /**

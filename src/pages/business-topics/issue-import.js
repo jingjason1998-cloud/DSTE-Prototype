@@ -1,7 +1,22 @@
 import { showToast, Storage } from '../../lib/utils.js';
+import { Repository } from '../../lib/repository.js';
 
 // 被 main.js 导入，请勿删除 export
 export const ISSUE_STORAGE_KEY = 'dste_issues_v1';
+
+export const issuesStRepo = new Repository('businessTopics/issuesST', {
+  storageKey: 'dste_issues_v1_ST',
+  schema: 'array',
+  version: 1,
+  backupNamespace: 'businessTopics',
+});
+
+export const issuesAtRepo = new Repository('businessTopics/issuesAT', {
+  storageKey: 'dste_issues_v1_AT',
+  schema: 'array',
+  version: 1,
+  backupNamespace: 'businessTopics',
+});
 
 // 局部工具函数（避免跨模块依赖）
 function escapeHtml(str) {
@@ -34,23 +49,15 @@ function closeModal(id) {
 let _importRows = null;
 let _importFileName = null;
 export function loadIssues(sourceSystem) {
-    const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
-    const raw = Storage.getString(key);
-    if (!raw) return [];
-    try {
-        const data = JSON.parse(raw);
-        if (!Array.isArray(data)) return [];
-        return data;
-    } catch {
-        return [];
-    }
+    const repo = sourceSystem === 'ST' ? issuesStRepo : issuesAtRepo;
+    return repo.get();
 }
 
 export function saveIssues(issues, sourceSystem) {
-    const key = ISSUE_STORAGE_KEY + '_' + (sourceSystem || 'ALL');
-    Storage.set(key, issues || []);
+    const repo = sourceSystem === 'ST' ? issuesStRepo : issuesAtRepo;
+    repo.set(issues || []);
     // 同步到云端（合并 ST + AT）
-    const allIssues = [...loadIssues('ST'), ...loadIssues('AT')];
+    const allIssues = [...issuesStRepo.get(), ...issuesAtRepo.get()];
     apiSave('/api/issues', allIssues);
 }
 

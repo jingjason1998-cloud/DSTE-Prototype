@@ -462,12 +462,12 @@
             if (!data.success) throw new Error(data.error || '保存失败');
             // 同步最高分到 本地存储，供 cockpit 议程展示使用
             try {
-                const map = DSTE.Storage.get('dste_review_scores', {});
+                const map = DSTE.reviewScoresRepo.get();
                 const url = record.url;
                 const current = map[url];
                 if (!current || (record.total_score || 0) > current.maxScore) {
                     map[url] = { maxScore: record.total_score || 0, lastReviewAt: record.timestamp };
-                    DSTE.Storage.set('dste_review_scores', map);
+                    DSTE.reviewScoresRepo.set(map);
                 }
             } catch (e) { /* ignore 本地存储 errors */ }
             return data;

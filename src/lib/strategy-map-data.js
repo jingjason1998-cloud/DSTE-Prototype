@@ -1,6 +1,15 @@
 import { Storage } from './utils.js';
 import { createStrategyMapRepository, Repository } from './repository.js';
 import { normalizePersonField } from './employee-directory.js';
+import { getDefaultSyncQueue } from './sync-queue.js';
+import {
+  computeEntityDiff,
+  mergeEntities,
+  enqueuePerRecordSync,
+  createPerItemExecutor,
+  apiLoadArray,
+  ensureLastModified,
+} from './per-record-sync.js';
 
 /**
  * 战略地图数据层
@@ -8,10 +17,16 @@ import { normalizePersonField } from './employee-directory.js';
  */
 
 // ========== 常量 ==========
-export const STORAGE_VERSION = '4';
+export const STORAGE_VERSION = 5;
+
+const syncQueue = getDefaultSyncQueue();
+const perItemExecutor = createPerItemExecutor();
+
+if (typeof window !== 'undefined') {
+  syncQueue.bindAutoProcess(perItemExecutor);
+}
 
 const STORAGE_KEYS = {
-  version: 'dste_strategy_data_version',
   maps: 'dste_sm_maps_v3',
   currentMapId: 'dste_sm_current_v3',
   objectives: (mapId) => `dste_sm_obj_${mapId}_v3`,
@@ -20,11 +35,27 @@ const STORAGE_KEYS = {
   legacyMaps: 'dste_strategy_maps_v1',
   legacyObjectives: 'dste_strategy_objectives_v1',
   legacyLinks: 'dste_strategy_links_v1',
-  legacyVersion: 'dste_strategy_data_version',
+};
+
+const lastModifiedMigrator = {
+  5: (data) => {
+    if (Array.isArray(data)) {
+      data.forEach(item => {
+        if (item && typeof item === 'object') {
+          if (!item.lastModified) item.lastModified = Date.now();
+          // 因果链老数据补 id，用于 per-record 同步
+          if (item.from && item.to && !item.id) {
+            item.id = `${item.from}__${item.to}`;
+          }
+        }
+      });
+    }
+    return data;
+  },
 };
 
 // ===== Repository 实例 =====
-const mapsRepo = createStrategyMapRepository('strategyMap/maps', STORAGE_KEYS.maps, 'array');
+const mapsRepo = createStrategyMapRepository('strategyMap/maps', STORAGE_KEYS.maps, 'array', STORAGE_VERSION, lastModifiedMigrator);
 const currentMapIdRepo = new Repository('strategyMap/currentMapId', {
   storageKey: STORAGE_KEYS.currentMapId,
   schema: 'object',
@@ -34,11 +65,11 @@ const currentMapIdRepo = new Repository('strategyMap/currentMapId', {
 });
 
 function objectivesRepo(mapId) {
-  return createStrategyMapRepository('strategyMap/objectives', STORAGE_KEYS.objectives(mapId), 'array');
+  return createStrategyMapRepository('strategyMap/objectives', STORAGE_KEYS.objectives(mapId), 'array', STORAGE_VERSION, lastModifiedMigrator);
 }
 
 function linksRepo(mapId) {
-  return createStrategyMapRepository('strategyMap/links', STORAGE_KEYS.links(mapId), 'array');
+  return createStrategyMapRepository('strategyMap/links', STORAGE_KEYS.links(mapId), 'array', STORAGE_VERSION, lastModifiedMigrator);
 }
 
 export const DIM_CONFIG = {
@@ -140,20 +171,24 @@ const DEFAULT_OBJECTIVES = [
     milestones: { 2025: { target: '数字人才服务启动', actual: null, status: 'not_started', focusLevel: 'secondary' }, 2026: { target: '业务场景渗透', actual: null, status: 'not_started', focusLevel: 'secondary' }, 2027: { target: '数据伙伴定位', actual: null, status: 'not_started', focusLevel: 'secondary' } }, owner: '数字人才部', kpiRef: null, taskRef: null },
 ];
 
+function generateLinkId(from, to) {
+  return `${from}__${to}`;
+}
+
 const DEFAULT_LINKS = [
-  { from: 'so_lea_001', to: 'so_int_001', type: 'drives' },
-  { from: 'so_lea_002', to: 'so_int_002', type: 'drives' },
-  { from: 'so_lea_003', to: 'so_int_003', type: 'drives' },
-  { from: 'so_int_001', to: 'so_cus_001', type: 'drives' },
-  { from: 'so_int_002', to: 'so_cus_001', type: 'drives' },
-  { from: 'so_int_003', to: 'so_cus_002', type: 'drives' },
-  { from: 'so_int_004', to: 'so_cus_003', type: 'supports' },
-  { from: 'so_cus_001', to: 'so_fin_001', type: 'drives' },
-  { from: 'so_cus_002', to: 'so_fin_001', type: 'influences' },
-  { from: 'so_cus_003', to: 'so_fin_002', type: 'drives' },
-  { from: 'so_int_001', to: 'so_fin_003', type: 'drives' },
-  { from: 'so_fin_003', to: 'so_fin_001', type: 'supports' },
-  { from: 'so_fin_002', to: 'so_fin_001', type: 'supports' },
+  { id: generateLinkId('so_lea_001', 'so_int_001'), from: 'so_lea_001', to: 'so_int_001', type: 'drives' },
+  { id: generateLinkId('so_lea_002', 'so_int_002'), from: 'so_lea_002', to: 'so_int_002', type: 'drives' },
+  { id: generateLinkId('so_lea_003', 'so_int_003'), from: 'so_lea_003', to: 'so_int_003', type: 'drives' },
+  { id: generateLinkId('so_int_001', 'so_cus_001'), from: 'so_int_001', to: 'so_cus_001', type: 'drives' },
+  { id: generateLinkId('so_int_002', 'so_cus_001'), from: 'so_int_002', to: 'so_cus_001', type: 'drives' },
+  { id: generateLinkId('so_int_003', 'so_cus_002'), from: 'so_int_003', to: 'so_cus_002', type: 'drives' },
+  { id: generateLinkId('so_int_004', 'so_cus_003'), from: 'so_int_004', to: 'so_cus_003', type: 'supports' },
+  { id: generateLinkId('so_cus_001', 'so_fin_001'), from: 'so_cus_001', to: 'so_fin_001', type: 'drives' },
+  { id: generateLinkId('so_cus_002', 'so_fin_001'), from: 'so_cus_002', to: 'so_fin_001', type: 'influences' },
+  { id: generateLinkId('so_cus_003', 'so_fin_002'), from: 'so_cus_003', to: 'so_fin_002', type: 'drives' },
+  { id: generateLinkId('so_int_001', 'so_fin_003'), from: 'so_int_001', to: 'so_fin_003', type: 'drives' },
+  { id: generateLinkId('so_fin_003', 'so_fin_001'), from: 'so_fin_003', to: 'so_fin_001', type: 'supports' },
+  { id: generateLinkId('so_fin_002', 'so_fin_001'), from: 'so_fin_002', to: 'so_fin_001', type: 'supports' },
 ];
 
 // ========== 工具函数 ==========
@@ -221,28 +256,15 @@ function migrateFromLegacy() {
 }
 
 function ensureVersion() {
-  const storedVersion = Storage.getString(STORAGE_KEYS.version);
-  if (storedVersion === STORAGE_VERSION) {
-    // 即使版本号一致，也要保证默认数据存在
-    seedDefaultsIfNeeded();
-    return;
-  }
-
-  // 备份当前数据
-  mapsRepo.backup(storedVersion || 'unknown');
-  const currentMapId = currentMapIdRepo.getRaw();
-  if (currentMapId && currentMapId !== DEFAULT_MAP_ID) {
-    objectivesRepo(currentMapId).backup(storedVersion || 'unknown');
-    linksRepo(currentMapId).backup(storedVersion || 'unknown');
-  }
-  mapsRepo.pruneBackups(5);
+  // 触发各 repo 的版本检测与自动迁移/备份
+  mapsRepo.get();
+  currentMapIdRepo.get();
 
   // 尝试迁移旧版本数据
   const migrated = migrateFromLegacy();
   if (!migrated) {
     seedDefaultsIfNeeded();
   }
-  Storage.setString(STORAGE_KEYS.version, STORAGE_VERSION);
 
   // 将 owner 字段规范化为 PersonRef
   normalizeObjectiveOwners();
@@ -253,7 +275,7 @@ function normalizeObjectiveOwners() {
   if (!Array.isArray(maps)) return;
   maps.forEach(map => {
     if (!map || !map.id) return;
-    const objectives = objectivesRepo(map.id).getRaw();
+    const objectives = objectivesRepo(map.id).get();
     if (!Array.isArray(objectives)) return;
     let changed = false;
     objectives.forEach(o => {
@@ -266,7 +288,8 @@ function normalizeObjectiveOwners() {
 }
 
 function seedDefaultsIfNeeded() {
-  if (!Storage.getString(STORAGE_KEYS.maps)) {
+  const maps = mapsRepo.getRaw();
+  if (!Array.isArray(maps) || maps.length === 0) {
     resetToDefaults();
   }
 }
@@ -287,6 +310,14 @@ export const MapConfigStore = {
 
   get(id) {
     return this.getAll().find(m => m.id === id) || null;
+  },
+
+  _persistMaps(maps) {
+    const oldMaps = mapsRepo.getRaw();
+    ensureLastModified(maps);
+    mapsRepo.set(maps);
+    const { created, updated, deleted } = computeEntityDiff(oldMaps, maps);
+    enqueuePerRecordSync('strategy-maps', { created, updated, deleted }, perItemExecutor, syncQueue);
   },
 
   create(config) {
@@ -322,12 +353,13 @@ export const MapConfigStore = {
       updatedBy: currentUser,
       createdAt: now,
       updatedAt: now,
+      lastModified: Date.now(),
       source: config.source || '',
       presentation: normalizePresentation(config.presentation)
     };
 
     maps.push(payload);
-    mapsRepo.set(maps);
+    this._persistMaps(maps);
     // 初始化空目标与链接
     objectivesRepo(id).set([]);
     linksRepo(id).set([]);
@@ -362,6 +394,7 @@ export const MapConfigStore = {
       description: (config.description || '').trim(),
       updatedBy: currentUser,
       updatedAt: now,
+      lastModified: Date.now(),
     };
     if (isPublishing) {
       payload.approvedBy = currentUser;
@@ -375,18 +408,33 @@ export const MapConfigStore = {
       payload.createdBy = payload.createdBy || currentUser;
       maps.push(payload);
     }
-    mapsRepo.set(maps);
+    this._persistMaps(maps);
     return maps[idx >= 0 ? idx : maps.length - 1];
   },
 
   delete(id) {
     if (id === DEFAULT_MAP_ID) return false; // 保护默认地图
-    let maps = this.getAll().filter(m => m.id !== id);
-    if (maps.length === this.getAll().length) return false; // 未找到
+    const oldMaps = this.getAll();
+    const maps = oldMaps.filter(m => m.id !== id);
+    if (maps.length === oldMaps.length) return false; // 未找到
 
+    // 清理该地图所有 pending 的同步操作
+    syncQueue.removePendingForResource(`strategy-maps/${encodeURIComponent(id)}`);
+    syncQueue.removePendingForResource(`strategy-maps/${encodeURIComponent(id)}/objectives`);
+    syncQueue.removePendingForResource(`strategy-maps/${encodeURIComponent(id)}/links`);
+
+    // 本地删除
     mapsRepo.set(maps);
     Storage.remove(STORAGE_KEYS.objectives(id));
     Storage.remove(STORAGE_KEYS.links(id));
+
+    // 单条删除同步
+    syncQueue.enqueue({
+      endpoint: `/api/strategy-maps/${encodeURIComponent(id)}`,
+      method: 'DELETE',
+      executor: perItemExecutor,
+    }, { autoProcess: false });
+    syncQueue.processQueue(perItemExecutor);
 
     // 若删除的是当前选中地图，切换到剩余地图的第一个或默认地图
     const currentId = this.getCurrentId();
@@ -423,7 +471,16 @@ export const ObjectiveStore = {
   },
 
   save(mapId, objectives) {
+    const old = objectivesRepo(mapId).getRaw();
+    ensureLastModified(objectives);
     objectivesRepo(mapId).set(objectives);
+    const { created, updated, deleted } = computeEntityDiff(old, objectives);
+    enqueuePerRecordSync(
+      `strategy-maps/${encodeURIComponent(mapId)}/objectives`,
+      { created, updated, deleted },
+      perItemExecutor,
+      syncQueue
+    );
   },
 
   getDefaults() {
@@ -432,6 +489,7 @@ export const ObjectiveStore = {
 
   create(mapId, objective) {
     const objectives = this.load(mapId);
+    objective.lastModified = Date.now();
     objectives.push(objective);
     this.save(mapId, objectives);
     return objectives;
@@ -441,7 +499,7 @@ export const ObjectiveStore = {
     const objectives = this.load(mapId);
     const idx = objectives.findIndex(o => o.id === id);
     if (idx >= 0) {
-      objectives[idx] = { ...objectives[idx], ...updates, id };
+      objectives[idx] = { ...objectives[idx], ...updates, id, lastModified: Date.now() };
       this.save(mapId, objectives);
     }
     return objectives;
@@ -493,7 +551,16 @@ export const LinkStore = {
   },
 
   save(mapId, links) {
+    const old = linksRepo(mapId).getRaw();
+    ensureLastModified(links);
     linksRepo(mapId).set(links);
+    const { created, updated, deleted } = computeEntityDiff(old, links);
+    enqueuePerRecordSync(
+      `strategy-maps/${encodeURIComponent(mapId)}/links`,
+      { created, updated, deleted },
+      perItemExecutor,
+      syncQueue
+    );
   },
 
   getDefaults() {
@@ -509,7 +576,7 @@ export const LinkStore = {
     const links = this.load(mapId);
     if (links.some(l => l.from === from && l.to === to)) throw new Error('因果链已存在');
     if (hasCycle(links, { from, to, type: type || 'drives' })) throw new Error('不能创建循环依赖');
-    links.push({ from, to, type: type || 'drives' });
+    links.push({ id: generateLinkId(from, to), from, to, type: type || 'drives', lastModified: Date.now() });
     this.save(mapId, links);
     return links;
   },
@@ -528,6 +595,8 @@ export const LinkStore = {
     // 端点或类型变化后重新检查成环
     const others = links.filter((_, i) => i !== idx);
     if (hasCycle(others, newLink)) throw new Error('修改后会产生循环依赖');
+    newLink.id = generateLinkId(newFrom, newTo);
+    newLink.lastModified = Date.now();
     links[idx] = newLink;
     this.save(mapId, links);
     return links;
@@ -545,6 +614,42 @@ export const LinkStore = {
     return links;
   }
 };
+
+// ========== 远程加载 ==========
+export async function loadRemoteStrategyMaps() {
+  const remoteMaps = await apiLoadArray('/api/strategy-maps');
+  if (!remoteMaps || remoteMaps.length === 0) return false;
+
+  const localMaps = mapsRepo.getRaw();
+  const mergedMaps = localMaps && localMaps.length > 0
+    ? mergeEntities(ensureLastModified(localMaps), ensureLastModified(remoteMaps))
+    : remoteMaps;
+
+  for (const map of mergedMaps) {
+    if (!map || !map.id) continue;
+    const [remoteObjectives, remoteLinks] = await Promise.all([
+      apiLoadArray(`/api/strategy-maps/${encodeURIComponent(map.id)}/objectives`),
+      apiLoadArray(`/api/strategy-maps/${encodeURIComponent(map.id)}/links`),
+    ]);
+    if (remoteObjectives) {
+      const localObj = objectivesRepo(map.id).getRaw();
+      const mergedObj = localObj && localObj.length > 0
+        ? mergeEntities(ensureLastModified(localObj), ensureLastModified(remoteObjectives))
+        : remoteObjectives;
+      objectivesRepo(map.id).set(mergedObj);
+    }
+    if (remoteLinks) {
+      const localLinks = linksRepo(map.id).getRaw();
+      const mergedLinks = localLinks && localLinks.length > 0
+        ? mergeEntities(ensureLastModified(localLinks), ensureLastModified(remoteLinks))
+        : remoteLinks;
+      linksRepo(map.id).set(mergedLinks);
+    }
+  }
+
+  mapsRepo.set(mergedMaps);
+  return true;
+}
 
 // ========== 导出/聚合 ==========
 export function exportMapData(mapId, objectives, links) {

@@ -481,9 +481,14 @@ def test_reviewer_syncs_score_to_localStorage():
     """reviewer 保存审核结果时应同步最高分到 localStorage"""
     js_content = (SRC / "pages" / "reviewer" / "main.js").read_text(encoding="utf-8")
     save_section = js_content.split("async function saveReviewRecord(")[1] if "async function saveReviewRecord(" in js_content else ""
-    assert "dste_review_scores" in save_section, "saveReviewRecord 未同步到 dste_review_scores"
-    # 项目已统一使用 DSTE.Storage 封装 localStorage
-    assert "DSTE.Storage.set('dste_review_scores'" in save_section or "localStorage.setItem" in save_section, "saveReviewRecord 未写入 localStorage"
+    assert "dste_review_scores" in save_section or "reviewScoresRepo" in save_section, "saveReviewRecord 未同步到 dste_review_scores"
+    # 项目已统一使用 DSTE.Storage / Repository 封装 localStorage
+    assert (
+        "DSTE.Storage.set('dste_review_scores'" in save_section
+        or "localStorage.setItem" in save_section
+        or "DSTE.reviewScoresRepo.set" in save_section
+        or "reviewScoresRepo.set" in save_section
+    ), "saveReviewRecord 未写入 localStorage"
     assert "total_score" in save_section, "saveReviewRecord 未读取 total_score"
 
 

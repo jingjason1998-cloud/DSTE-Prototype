@@ -105,6 +105,23 @@ describe('employee-directory', () => {
       expect(orgUnits['org:线/大区/组1'].employeeCount).toBe(1);
       expect(orgUnits['org:线/大区/组2'].employeeCount).toBe(1);
     });
+
+    it('sorts roots and children by org name', () => {
+      const employees = [
+        {
+          id: '1', name: 'A', orgPath: 'B线 > 组2', orgChain: ['2', '1'],
+          ldap: '2,1', l1Org: 'B线', l1Team: '组2', l2Team: '', l3Team: '',
+        },
+        {
+          id: '2', name: 'B', orgPath: 'A线 > 组1', orgChain: ['3', '4'],
+          ldap: '3,4', l1Org: 'A线', l1Team: '组1', l2Team: '', l3Team: '',
+        },
+      ];
+      const { orgUnits, roots } = buildOrgHierarchy(employees);
+      expect(roots).toEqual(['org:A线', 'org:B线']);
+      expect(orgUnits['org:A线'].children).toEqual(['org:A线/组1']);
+      expect(orgUnits['org:B线'].children).toEqual(['org:B线/组2']);
+    });
   });
 
   describe('searchEmployees', () => {
@@ -433,7 +450,7 @@ describe('employee-directory', () => {
       expect(queueRaw).toBeDefined();
       const queue = JSON.parse(queueRaw);
       const endpoints = queue.map(q => q.endpoint);
-      expect(endpoints).toContain('/api/employees');
+      expect(endpoints).toContain('/api/employees/1');
       expect(endpoints).toContain('/api/org-units');
       expect(endpoints).toContain('/api/employee-import-meta');
     });
@@ -500,8 +517,8 @@ describe('employee-directory', () => {
 
       clearEmployeeDirectory();
       const queue = JSON.parse(storageMap.get('dste_sync_queue'));
-      const employeesOp = queue.find(q => q.endpoint === '/api/employees');
-      expect(employeesOp.payload).toEqual([]);
+      const employeesOp = queue.find(q => q.endpoint === '/api/employees/1');
+      expect(employeesOp.method).toBe('DELETE');
     });
 
     it('reads legacy orgUnits without wrapper', () => {

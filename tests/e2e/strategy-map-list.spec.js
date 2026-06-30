@@ -4,7 +4,6 @@ const BASE_URL = '/src/strategy-map-list.html';
 
 function getTestStorageState() {
   return {
-    'dste_strategy_data_version': '3',
     'dste_sm_maps_v3': JSON.stringify([
       {
         id: 'yx_2025_2027',

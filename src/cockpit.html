@@ -417,10 +417,27 @@
     import { createBackup, restoreFromBackup, cleanupOldBackups, getBackupKeys } from './lib/migration-utils.js';
     import { createOmpRepository } from './lib/repository.js';
     import { enhancePersonInput, getPersonInputValue } from './components/person-input.js';
-    import { renderPerson, normalizePerson, getEmployees, getOrgTree, buildOrgHierarchy, searchEmployees } from './lib/employee-directory.js';
+    import { renderPerson, normalizePerson, getEmployees, getEmployeeById, getOrgTree, buildOrgHierarchy, searchEmployees } from './lib/employee-directory.js';
     import { createOrgSelector } from './components/org-selector.js';
     import { AIClient, AITools } from './lib/ai-client.js';
     import { buildSystemPrompt, gatherBusinessContext, getContextSummary } from './lib/ai-context.js';
+    import {
+      isSubtask,
+      getSubtasks,
+      hasSubtasks,
+      generateSubtaskId,
+      recalculateParentProgress,
+      collectCascadeDeleteIds,
+    } from './lib/subtask-utils.js';
+    import {
+      computeEntityDiff,
+      mergeEntities,
+      enqueuePerRecordSync,
+      createPerItemExecutor,
+      apiLoadArray,
+      ensureLastModified,
+    } from './lib/per-record-sync.js';
+    import { getDefaultSyncQueue } from './lib/sync-queue.js';
 
     (function() {
       'use strict';
@@ -639,6 +656,8 @@
           selectedOrgId: null,
           expandedOrgIds: new Set(),
         },
+        taskExpandedIds: new Set(),
+        taskEditActiveTab: 'basic',
         selectedPeriod: `${new Date().getFullYear()}-Q1`,
         editingKpiId: null,
         editingTaskId: null,
@@ -968,7 +987,7 @@
 
       function omp_initData() {
         // 版本号检测：代码更新时尝试非破坏性迁移与备份
-        const DATA_VERSION = 'canvas-v14'; // 重点工作：新增 task.members 人员配置
+        const DATA_VERSION = 'canvas-v15'; // per-record 单条同步：补齐 lastModified
         const storedVersion = DSTE.Storage.getString('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
           // 1) 备份整个 OMP 数据快照（保留最近 5 份）
@@ -1000,7 +1019,26 @@
           DSTE.Storage.setString('dste_omp_data_version', DATA_VERSION);
           console.log('[OMP] OMP data version migrated to:', DATA_VERSION);
 
-          // 4) 将 owner 字符串规范化为 PersonRef
+          // 4) 补齐 lastModified（per-record 同步依赖）
+          entitiesToBackup.forEach(key => {
+            const items = omp_load(key);
+            if (Array.isArray(items) && items.length > 0) {
+              let changed = false;
+              items.forEach(item => {
+                if (item && typeof item === 'object' && !item.lastModified) {
+                  item.lastModified = Date.now();
+                  changed = true;
+                }
+              });
+              if (changed) {
+                const repo = omp_getRepo(key);
+                if (repo) repo.set(items);
+                window._ompApiCache[key] = items;
+              }
+            }
+          });
+
+          // 5) 将 owner 字符串规范化为 PersonRef
           if (window.normalizePerson) {
             const kpis = omp_load('kpiInstances');
             let kpisChanged = false;
@@ -1014,7 +1052,7 @@
             tasks.forEach(t => {
               const normalized = window.normalizePerson(t.owner);
               if (normalized && normalized !== t.owner) { t.owner = normalized; tasksChanged = true; }
-              // 5) 为老任务补齐 members 字段
+              // 6) 为老任务补齐 members 字段
               if (!Array.isArray(t.members)) { t.members = []; tasksChanged = true; }
             });
             if (tasksChanged) omp_save('tasks', tasks);
@@ -1131,31 +1169,44 @@
         };
       }
 
-      // ===== OMP 数据层：本地存储 + 后端 API 双写 =====
+      // ===== OMP 数据层：本地存储 + 后端 API 双写（per-record）=====
       window._ompApiCache = {};
 
+      const ompSyncQueue = getDefaultSyncQueue();
+      const ompPerItemExecutor = createPerItemExecutor();
+      if (typeof window !== 'undefined') {
+        ompSyncQueue.bindAutoProcess(ompPerItemExecutor);
+      }
+
+      const OMP_API_ENTITY_NAMES = {
+        indicators: 'omp/indicators',
+        kpiInstances: 'omp/kpiInstances',
+        tasks: 'omp/tasks',
+        milestones: 'omp/milestones',
+        progressRecords: 'omp/progressRecords',
+      };
+
+      function omp_getApiEntityName(key) {
+        return OMP_API_ENTITY_NAMES[key] || key;
+      }
+
       async function apiLoadOmp(entity) {
-        if (!API_BASE) return null;
-        try {
-          const token = DSTE.Storage.getString('dste-token');
-          const resp = await fetch(API_BASE + '/api/omp/' + entity, {
-            headers: token ? { 'Authorization': 'Bearer ' + token } : {},
-          });
-          if (!resp.ok) return null;
-          const result = await resp.json();
-          if (result.success) {
-            window._ompApiCache[entity] = result.data;
-            return result.data;
-          }
-        } catch (err) { console.warn('[OMP] API load failed:', err); }
-        return null;
+        return apiLoadArray('/api/omp/' + entity);
       }
 
       async function apiSaveOmp(entity, data) {
-        if (!API_BASE) return false;
+        // 保留给 cycles 等仍走批量 POST 的实体使用
+        const apiBase = (() => {
+          const host = window.location.hostname;
+          if (host === 'localhost' || host === '127.0.0.1') {
+            return DSTE.Storage.getString('dste_api_base') || '';
+          }
+          return 'https://dste-api.jasonxspace.workers.dev';
+        })();
+        if (!apiBase) return false;
         try {
           const token = DSTE.Storage.getString('dste-token');
-          const resp = await fetch(API_BASE + '/api/omp/' + entity, {
+          const resp = await fetch(apiBase + '/api/omp/' + entity, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1182,10 +1233,15 @@
         console.log('[OMP] Syncing from API...');
         const entities = ['indicators', 'kpiInstances', 'tasks', 'milestones', 'progressRecords'];
         for (const entity of entities) {
-          const data = await apiLoadOmp(entity);
-          if (data !== null) {
+          const remote = await apiLoadOmp(entity);
+          if (remote !== null) {
             const repo = omp_getRepo(entity);
-            if (repo) repo.set(data);
+            const local = repo ? repo.getRaw() : [];
+            const merged = local && local.length > 0
+              ? mergeEntities(ensureLastModified(local), ensureLastModified(remote))
+              : remote;
+            if (repo) repo.set(merged);
+            window._ompApiCache[entity] = merged;
           }
         }
         const cycles = await apiLoadOmp('cycles');
@@ -1210,13 +1266,24 @@
         // 2. 保存到 Repository（本地存储 fallback，保证离线可用）
         const repo = omp_getRepo(key);
         if (repo) {
+          const oldData = repo.getRaw();
+          ensureLastModified(data);
           const ok = repo.set(data);
           if (!ok) console.warn('[OMP] local save failed');
+
+          // 3. per-record 单条同步（非 cycles）
+          const entityName = omp_getApiEntityName(key);
+          if (entityName.startsWith('omp/')) {
+            const { created, updated, deleted } = computeEntityDiff(oldData, data);
+            enqueuePerRecordSync(entityName, { created, updated, deleted }, ompPerItemExecutor, ompSyncQueue);
+          } else {
+            // cycles 等仍走批量
+            apiSaveOmp(key, data);
+          }
         } else {
           try { DSTE.Storage.set(OMP_STORAGE[key], data); } catch(e) { console.warn('[OMP] local save failed:', e); }
+          apiSaveOmp(key, data);
         }
-        // 3. 异步保存到后端 API（不阻塞 UI）
-        apiSaveOmp(key, data);
       }
       // 暴露给外部模块（如战略指标库）
       window.omp_load = omp_load;
@@ -1227,11 +1294,45 @@
         const ind = omp_load('indicators').find(i => i.id === indicatorId);
         return ind ? ind.name : '未知指标';
       }
-      function omp_getKpiStatus(achievementRate) {
-        if (achievementRate >= 95) return 'achieved';
+      function omp_getKpiStatus(achievementRate, actualValue) {
+        if (actualValue === null || actualValue === undefined || actualValue === '') return 'unset';
+        if (achievementRate >= 100) return 'achieved';
         if (achievementRate >= 80) return 'warning';
         return 'lagging';
       }
+
+      // ===== 子任务辅助函数 =====
+      function omp_isSubtask(task) { return isSubtask(task); }
+      function omp_getSubtasks(parentId) { return getSubtasks(omp_load('tasks') || [], parentId); }
+      function omp_hasSubtasks(parentId) { return hasSubtasks(omp_load('tasks') || [], parentId); }
+      function omp_generateSubtaskId() { return generateSubtaskId(); }
+
+      // ===== 子任务进度聚合 =====
+      function omp_recalculateParentProgress(parentId) {
+        const tasks = omp_load('tasks') || [];
+        if (recalculateParentProgress(tasks, parentId)) {
+          omp_save('tasks', tasks);
+        }
+      }
+
+      window.omp_restoreAutoProgress = function(taskId) {
+        const tasks = omp_load('tasks');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        task.progressOverridden = false;
+        omp_save('tasks', tasks);
+        omp_recalculateParentProgress(taskId);
+        showToast('已恢复自动计算', 'success');
+        document.getElementById('omp-active-modal')?.remove();
+        navigate('exe/tasks');
+      };
+
+      window.omp_switchTaskEditTab = omp_switchTaskEditTab;
+      window.omp_switchTaskViewTab = omp_switchTaskViewTab;
+      window.omp_deleteSubtask = omp_deleteSubtask;
+      window.omp_addSubtaskRow = omp_addSubtaskRow;
+      window.omp_removeSubtaskRow = omp_removeSubtaskRow;
+      window.omp_moveSubtaskRow = omp_moveSubtaskRow;
 
       // ===== 战略指标库页面状态 =====
       window._indicatorState = window._indicatorState || {
@@ -2678,6 +2779,14 @@
 
         // 更新内容
         const contentEl = document.getElementById('page-content');
+
+        // 保存当前焦点，避免 innerHTML 重建 DOM 后输入框失焦
+        const activeEl = document.activeElement;
+        const focusRestore = (activeEl && activeEl.id && contentEl.contains(activeEl) &&
+          (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT'))
+          ? { id: activeEl.id, start: activeEl.selectionStart, end: activeEl.selectionEnd, dir: activeEl.selectionDirection }
+          : null;
+
         contentEl.style.animation = 'none';
         contentEl.offsetHeight; // trigger reflow
         contentEl.innerHTML = PAGES[pageId]();
@@ -2701,6 +2810,20 @@
 
         // 绑定事件委托（替代内联 onclick）
         bindPageEvents(contentEl);
+
+        // 恢复焦点与光标位置
+        if (focusRestore) {
+          const el = document.getElementById(focusRestore.id);
+          if (el) {
+            el.focus();
+            if (typeof el.setSelectionRange === 'function' && focusRestore.start !== null) {
+              const len = (el.value || '').length;
+              const start = Math.min(focusRestore.start, len);
+              const end = Math.min(focusRestore.end, len);
+              el.setSelectionRange(start, end, focusRestore.dir || 'forward');
+            }
+          }
+        }
 
         // AI 页面初始化
         if (pageId === 'ai') {
@@ -2774,6 +2897,16 @@
                 case 'omp-new-task': window.omp_newTask(); break;
                 case 'omp-delete-kpi': window.omp_deleteKpi(id); break;
                 case 'omp-delete-task': window.omp_deleteTask(id); break;
+                case 'omp-task-edit-tab': window.omp_switchTaskEditTab(actionBtn.dataset.tab); break;
+                case 'omp-task-view-tab': window.omp_switchTaskViewTab(actionBtn.dataset.tab); break;
+                case 'omp-add-subtask': window.omp_addSubtaskRow(actionBtn.dataset.parentId); break;
+                case 'omp-remove-subtask': window.omp_removeSubtaskRow(actionBtn); break;
+                case 'omp-move-subtask-up': window.omp_moveSubtaskRow(actionBtn, 'up'); break;
+                case 'omp-move-subtask-down': window.omp_moveSubtaskRow(actionBtn, 'down'); break;
+                case 'omp-delete-subtask': window.omp_deleteSubtask(actionBtn.dataset.id); break;
+                case 'omp-edit-subtask': window.omp_editTask(actionBtn.dataset.id); break;
+                case 'omp-restore-auto-progress': window.omp_restoreAutoProgress(actionBtn.dataset.id); break;
+                case 'omp-toggle-task-expand': window.omp_toggleTaskExpand(actionBtn.dataset.id); break;
                 case 'omp-export': window.omp_exportData(); break;
                 case 'omp-toggle-view':
                   window._ompState.kpiViewMode = actionBtn.dataset.view;
@@ -2922,44 +3055,44 @@
           e.dataTransfer.setData('text/plain', JSON.stringify({ personRef }));
           e.dataTransfer.effectAllowed = 'copy';
           personCard.classList.add('dragging');
-          document.querySelectorAll('[data-drop="task"]').forEach(el => el.classList.add('drop-ready'));
+          document.querySelectorAll('[data-drop="task"], [data-drop="matrix-member"]').forEach(el => el.classList.add('drop-ready'));
         });
         container.addEventListener('dragend', (e) => {
           const personCard = e.target.closest('[data-drag="person"]');
           if (personCard) personCard.classList.remove('dragging');
-          document.querySelectorAll('[data-drop="task"]').forEach(el => el.classList.remove('drop-active', 'drop-ready'));
+          document.querySelectorAll('[data-drop="task"], [data-drop="matrix-member"]').forEach(el => el.classList.remove('drop-active', 'drop-ready'));
         });
         container.addEventListener('dragover', (e) => {
-          const taskCard = e.target.closest('[data-drop="task"]');
-          if (!taskCard) return;
+          const dropTarget = e.target.closest('[data-drop="task"], [data-drop="matrix-member"]');
+          if (!dropTarget) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = 'copy';
         });
         container.addEventListener('dragenter', (e) => {
-          const taskCard = e.target.closest('[data-drop="task"]');
-          if (!taskCard) return;
+          const dropTarget = e.target.closest('[data-drop="task"], [data-drop="matrix-member"]');
+          if (!dropTarget) return;
           e.preventDefault();
-          taskCard.classList.add('drop-active');
+          dropTarget.classList.add('drop-active');
         });
         container.addEventListener('dragleave', (e) => {
-          const taskCard = e.target.closest('[data-drop="task"]');
-          if (!taskCard) return;
+          const dropTarget = e.target.closest('[data-drop="task"], [data-drop="matrix-member"]');
+          if (!dropTarget) return;
           const related = e.relatedTarget;
-          if (taskCard.contains(related)) return;
-          taskCard.classList.remove('drop-active');
+          if (dropTarget.contains(related)) return;
+          dropTarget.classList.remove('drop-active');
         });
         container.addEventListener('drop', (e) => {
-          const taskCard = e.target.closest('[data-drop="task"]');
-          if (!taskCard) return;
+          const dropTarget = e.target.closest('[data-drop="task"], [data-drop="matrix-member"]');
+          if (!dropTarget) return;
           e.preventDefault();
-          taskCard.classList.remove('drop-active');
-          document.querySelectorAll('[data-drop="task"]').forEach(el => el.classList.remove('drop-ready'));
+          dropTarget.classList.remove('drop-active');
+          document.querySelectorAll('[data-drop="task"], [data-drop="matrix-member"]').forEach(el => el.classList.remove('drop-ready'));
           const raw = e.dataTransfer.getData('text/plain');
           if (!raw) return;
           try {
             const payload = JSON.parse(raw);
             if (payload.personRef) {
-              window.omp_staffingAssignDrag([taskCard.dataset.taskId], payload.personRef, 'member');
+              window.omp_staffingAssignDrag([dropTarget.dataset.taskId], payload.personRef, 'member');
             }
           } catch (err) {}
         });
@@ -2989,13 +3122,24 @@
             }, 300);
           });
         }
+        const matrixSearchInput = container.querySelector('#omp-matrix-search');
+        if (matrixSearchInput) {
+          let matrixDebounceTimer;
+          matrixSearchInput.addEventListener('input', (e) => {
+            clearTimeout(matrixDebounceTimer);
+            matrixDebounceTimer = setTimeout(() => {
+              window._ompState.staffingState.searchQuery = e.target.value.trim();
+              navigate('exe/tasks');
+            }, 300);
+          });
+        }
       }
 
       // 全局 input 委托：人员配置通讯录搜索框（DOM 会重新渲染，用委托保证始终有效）
       document.addEventListener('input', (e) => {
         const target = e.target;
         if (!target.dataset) return;
-        if (target.dataset.action === 'omp-staffing-dir-search') {
+        if (target.dataset.action === 'omp-staffing-dir-search' || target.dataset.action === 'omp-matrix-dir-search') {
           clearTimeout(window._ompStaffingDirSearchDebounce);
           window._ompStaffingDirSearchDebounce = setTimeout(() => {
             window._ompState.staffingState.dirSearchQuery = target.value.trim();
@@ -3355,10 +3499,20 @@
           // 若新增 OMP 任务，立即把里程碑/进度记录关联过来
           omp_syncMilestonesAndRecordsToOmpTasks();
         }
-        const viewMode = window._ompState.taskViewMode || 'list';
+        // 自动聚合存在子任务的父任务进度
+        const tasks = omp_load('tasks') || [];
+        let progressChanged = false;
+        tasks.forEach(t => {
+          if (!t.parentId && hasSubtasks(tasks, t.id) && !t.progressOverridden) {
+            if (recalculateParentProgress(tasks, t.id)) progressChanged = true;
+          }
+        });
+        if (progressChanged) omp_save('tasks', tasks);
+        const rawViewMode = window._ompState.taskViewMode || 'list';
+        const viewMode = rawViewMode === 'staffing' ? 'matrix' : rawViewMode;
         let tabContent = '';
-        if (viewMode === 'staffing') {
-          tabContent = omp_renderTaskStaffingTab();
+        if (viewMode === 'matrix') {
+          tabContent = omp_renderMatrixTab();
         } else {
           tabContent = viewMode === 'gantt' ? omp_renderGanttTab() : omp_renderTaskTab();
         }
@@ -3378,7 +3532,7 @@
               <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">周期: ${getCurrentCycle().year} — ${getCurrentCycle().organization}</span>
               <button class="btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="list" style="margin-right:8px;">📋 列表</button>
               <button class="btn ${viewMode === 'gantt' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="gantt" style="margin-right:8px;">📅 甘特图</button>
-              <button class="btn ${viewMode === 'staffing' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="staffing" style="margin-right:8px;">👥 人员配置</button>
+              <button class="btn ${viewMode === 'matrix' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="matrix" style="margin-right:8px;">👥 人员配置</button>
               <button class="btn btn-secondary" data-action="omp-export">📤 导出</button>
             </div>
           </div>
@@ -3560,6 +3714,7 @@
           { value: 'achieved', label: '✅ 达成' },
           { value: 'warning', label: '🟡 预警' },
           { value: 'lagging', label: '🔴 落后' },
+          { value: 'unset', label: '⚪ 未录入' },
         ];
         const categories = [
           { value: 'all', label: '全部维度' },
@@ -3578,9 +3733,11 @@
           achieved: { cls: 'status-success', text: '达成' },
           warning: { cls: 'status-warning', text: '预警' },
           lagging: { cls: 'status-danger', text: '落后' },
+          unset: { cls: 'status-default', text: '未录入' },
         };
         const miniTrend = (kpiId) => {
           const kpi = kpis.find(k => k.id === kpiId);
+          if (kpi?.status === 'unset') return '<span style="font-size:12px;color:var(--text-tertiary);">—</span>';
           let data = kpi?.history;
           if (!data || data.length === 0) {
             // Generate a plausible trend based on current achievementRate
@@ -3598,7 +3755,7 @@
           return `<div style="display:flex;align-items:flex-end;gap:2px;height:28px;width:40px;">
             ${data.map(v => {
               const h = ((v - min) / range) * 20 + 4;
-              const color = v >= 95 ? 'var(--success)' : v >= 80 ? 'var(--warning)' : 'var(--danger)';
+              const color = v >= 100 ? 'var(--success)' : v >= 80 ? 'var(--warning)' : 'var(--danger)';
               return `<div style="width:6px;height:${h}px;background:${color};border-radius:1px;" title="${v}%"></div>`;
             }).join('')}
           </div>`;
@@ -3640,19 +3797,21 @@
                     const sb = statusBadge[k.status] || statusBadge.warning;
                     const levelCfg = ASSESSMENT_LEVELS[k.assessmentLevel || 'marketing-line'];
                     const levelClass = 'ap-level-' + (k.assessmentLevel || 'marketing-line');
+                    const isUnset = k.status === 'unset';
+                    const rateColor = isUnset ? 'var(--text-tertiary)' : (k.achievementRate >= 100 ? 'var(--success)' : k.achievementRate >= 80 ? 'var(--warning)' : 'var(--danger)');
                     return `
                       <tr>
                         <td><strong>${ind ? ind.name : '未知'}</strong>${k.annualPlanKpiId ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--success-bg);color:var(--success);margin-left:8px;">年度计划</span>` : ''}<br><span style="font-size:11px;color:var(--text-tertiary);">${ind ? ind.category + ' · ' + ind.subCategory : ''}</span></td>
                         <td><span class="ap-level-badge ${levelClass}" style="background:color-mix(in srgb, ${levelCfg.color} 15%, transparent);color:${levelCfg.color};">${levelCfg.label}</span></td>
                         <td>${k.dept}</td>
                         <td style="text-align:right;font-weight:500;">${k.targetValue}${ind ? ind.unit : ''}</td>
-                        <td style="text-align:right;font-weight:500;">${k.actualValue}${ind ? ind.unit : ''}</td>
+                        <td style="text-align:right;font-weight:500;">${isUnset ? '—' : k.actualValue + (ind ? ind.unit : '')}</td>
                         <td style="text-align:center;">
                           <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
                             <div style="width:40px;height:4px;background:var(--bg-page);border-radius:2px;overflow:hidden;">
-                              <div style="width:${Math.min(k.achievementRate, 100)}%;height:100%;background:${k.achievementRate >= 95 ? 'var(--success)' : k.achievementRate >= 80 ? 'var(--warning)' : 'var(--danger)'};border-radius:2px;"></div>
+                              <div style="width:${isUnset ? 0 : Math.min(k.achievementRate, 100)}%;height:100%;background:${rateColor};border-radius:2px;"></div>
                             </div>
-                            <span style="font-size:13px;font-weight:600;">${k.achievementRate}%</span>
+                            <span style="font-size:13px;font-weight:600;">${isUnset ? '—' : k.achievementRate + '%'}</span>
                           </div>
                         </td>
                         <td style="text-align:center;"><span class="status-badge ${sb.cls}">${sb.text}</span></td>
@@ -3881,7 +4040,7 @@
         const tasks = omp_load('tasks');
         const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
         const filter = window._ompState.taskFilter;
-        let filtered = tasks.filter(t => t.cycleId === cycleId && t.source !== 'annual_plan');
+        let filtered = tasks.filter(t => t.cycleId === cycleId && t.source !== 'annual_plan' && !t.parentId);
         if (filter.priority !== 'all') filtered = filtered.filter(t => t.priority === filter.priority);
         const priorityColors = { P0: 'var(--danger)', P1: 'var(--warning)', P2: 'var(--success)' };
         const renderMemberName = (m) => {
@@ -3954,7 +4113,7 @@
       // ===== Tab 4: 甘特图 =====
       function omp_renderGanttTab() {
         const cycleId = window._dsteState.currentCycleId;
-        const tasks = omp_load('tasks').filter(t => t.cycleId === cycleId && t.source !== 'annual_plan');
+        const tasks = omp_load('tasks').filter(t => t.cycleId === cycleId && t.source !== 'annual_plan' && !t.parentId);
         const months = ['4月', '5月', '6月', '7月', '8月', '9月'];
         const statusColors = { planning: 'var(--text-tertiary)', active: 'var(--primary)', at_risk: 'var(--warning)', delayed: 'var(--danger)', done: 'var(--success)', closed: 'var(--text-tertiary)' };
         const ganttRows = tasks.map(t => {
@@ -3999,6 +4158,372 @@
           </div>`;
       }
 
+      // ===== Tab 4.5: 资源配置矩阵（MVP：负责人 + 成员） =====
+      function resolvePersonDisplayName(personRef) {
+        if (!personRef) return '';
+        const emp = typeof getEmployeeById === 'function' ? getEmployeeById(personRef) : null;
+        if (emp) return emp.name || emp.displayName || personRef;
+        return window.renderPerson ? window.renderPerson(personRef) : personRef;
+      }
+
+      function omp_renderMatrixTab() {
+        const cycleId = window._dsteState.currentCycleId;
+        const allTasks = omp_load('tasks') || [];
+        const tasks = allTasks.filter(t => t && t.cycleId === cycleId && t.source !== 'annual_plan' && !t.parentId);
+        const filter = window._ompState.taskFilter || { dept: 'all', type: 'all' };
+        const state = window._ompState.staffingState || { searchQuery: '', dirSearchQuery: '' };
+        const depts = ['all', ...new Set(tasks.map(t => t.dept).filter(Boolean))];
+
+        let filtered = tasks.filter(t => {
+          if (filter.dept !== 'all' && t.dept !== filter.dept) return false;
+          if (filter.type !== 'all' && t.type !== filter.type) return false;
+          if (state.searchQuery) {
+            const q = state.searchQuery.toLowerCase();
+            return (t.name || '').toLowerCase().includes(q) || resolvePersonDisplayName(t.owner).toLowerCase().includes(q) || (t.members || []).some(m => resolvePersonDisplayName(m).toLowerCase().includes(q));
+          }
+          return true;
+        });
+
+        const rawEmployees = (typeof getEmployees === 'function' ? getEmployees() : []) || [];
+        const employees = Array.isArray(rawEmployees) ? rawEmployees.filter(e => e && e.id) : [];
+        const dirSearchQuery = (state.dirSearchQuery || '').trim();
+        const selectedOrgId = state.selectedOrgId || null;
+
+        // 构建组织架构树（与旧人员配置视图一致的多级树）
+        const hasEmployeeData = employees.length > 0;
+        const orgTree = hasEmployeeData ? buildOrgHierarchy(employees) : { orgUnits: {}, roots: [] };
+
+        // 矩阵视图默认展开「一级组织」，下级团队由用户手动展开，避免战区类子团队默认暴露且排序混乱
+        if (hasEmployeeData && (!state.expandedOrgIds || state.expandedOrgIds.size === 0)) {
+          state.expandedOrgIds = new Set(orgTree.roots);
+        }
+
+        // 通讯录筛选：搜索优先于组织树
+        const displayedPeopleBase = employees.slice().sort((a, b) => getDisplayNameLocal(a).localeCompare(getDisplayNameLocal(b), 'zh-CN'));
+        let displayedPeople = [];
+        if (dirSearchQuery) {
+          const searchResults = searchEmployees(dirSearchQuery, 100);
+          const matchedIds = new Set(searchResults.map(e => e.id));
+          displayedPeople = displayedPeopleBase.filter(emp => matchedIds.has(emp.id));
+        } else {
+          displayedPeople = displayedPeopleBase;
+        }
+
+        // 将人员按组织路径挂到对应组织节点下（取最长匹配路径；匹配不上时按末级名称兜底）
+        const peopleByOrgId = {};
+        const orgIdByEmployeeId = {};
+        let unassignedPeople = [];
+        function normalizeOrgPath(path) {
+          if (Array.isArray(path)) path = path.filter(Boolean).join(' > ');
+          return String(path || '')
+            .replace(/[\\／]/g, ' > ')
+            .replace(/\s*->\s*/g, ' > ')
+            .replace(/\s*—\s*/g, ' > ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+        function findBestOrgUnit(empPath, orgUnits) {
+          let bestUnit = null;
+          let bestLen = 0;
+          Object.values(orgUnits).forEach(unit => {
+            const unitPath = String(unit.path || '');
+            if (unitPath && (empPath === unitPath || empPath.startsWith(unitPath + ' > '))) {
+              if (unitPath.length > bestLen) {
+                bestUnit = unit;
+                bestLen = unitPath.length;
+              }
+            }
+          });
+          return bestUnit;
+        }
+        displayedPeopleBase.forEach(emp => {
+          const orgPathFromFields = [emp.l1Org, emp.l1Team, emp.l2Team, emp.l3Team].filter(Boolean).join(' > ');
+          const rawOrgPath = emp.orgPath || orgPathFromFields;
+          const empPath = normalizeOrgPath(rawOrgPath);
+          let bestUnit = findBestOrgUnit(empPath, orgTree.orgUnits);
+          if (!bestUnit && emp.orgPath && orgPathFromFields) {
+            bestUnit = findBestOrgUnit(normalizeOrgPath(orgPathFromFields), orgTree.orgUnits);
+          }
+          if (!bestUnit) {
+            const segments = empPath.split(' > ').filter(Boolean);
+            for (let i = segments.length - 1; i >= 0; i--) {
+              const candidate = segments[i];
+              const matches = Object.values(orgTree.orgUnits).filter(unit => unit.name === candidate);
+              if (matches.length >= 1) {
+                bestUnit = matches.reduce((best, unit) => {
+                  if (!best) return unit;
+                  const bestCommon = Math.min(best.path?.length || 0, empPath.length);
+                  const unitCommon = Math.min(unit.path?.length || 0, empPath.length);
+                  return unitCommon > bestCommon ? unit : best;
+                }, null);
+                break;
+              }
+            }
+          }
+          if (bestUnit) {
+            if (!peopleByOrgId[bestUnit.id]) peopleByOrgId[bestUnit.id] = [];
+            peopleByOrgId[bestUnit.id].push(emp);
+            orgIdByEmployeeId[emp.id] = bestUnit.id;
+          } else {
+            unassignedPeople.push(emp);
+          }
+        });
+
+        function renderAvatarLocal(personRef, size = 32, displayName) {
+          const refStr = typeof personRef === 'string' ? personRef : String(personRef || '');
+          const rawName = displayName || (window.renderPerson ? window.renderPerson(personRef) : refStr);
+          const name = typeof rawName === 'string' ? rawName : String(rawName || '');
+          const firstChar = name ? name.charAt(0) : '?';
+          const hue = refStr ? (refStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360) : 200;
+          return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:hsl(${hue},65%,45%);color:#fff;display:flex;align-items:center;justify-content:center;font-size:${size * 0.4}px;font-weight:600;flex-shrink:0;" title="${escapeHtml(name)}">${escapeHtml(firstChar)}</div>`;
+        }
+
+        function renderMemberChipLocal(personRef, taskId) {
+          const displayName = resolvePersonDisplayName(personRef);
+          return `
+            <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px 2px 2px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);margin:2px;" title="${escapeHtml(displayName)}">
+              ${renderAvatarLocal(personRef, 16, displayName)}
+              <span style="max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(displayName)}</span>
+              <span style="cursor:pointer;color:var(--danger);font-weight:700;margin-left:2px;" data-action="omp-staffing-remove-member" data-person-ref="${escapeHtml(personRef)}" data-task-id="${escapeHtml(taskId)}">×</span>
+            </span>`;
+        }
+
+        function getDisplayNameLocal(emp) {
+          if (!emp) return '未知';
+          if (typeof emp.name === 'string' && emp.name.trim()) return emp.name.trim();
+          if (window.renderPerson) return window.renderPerson(emp.id);
+          return String(emp.id || '未知');
+        }
+
+        function renderPersonListRowLocal(emp) {
+          const personRef = emp.id;
+          const displayName = getDisplayNameLocal(emp);
+          const orgPath = emp.orgPath || '未指定部门';
+          return `
+            <div class="omp-staffing-person-row" data-person-ref="${escapeHtml(personRef)}" data-drag="person" draggable="true" title="${escapeHtml(orgPath)}"
+              style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:grab;transition:background 0.15s;"
+            >
+              ${renderAvatarLocal(personRef, 24, displayName)}
+              <span style="flex:1;min-width:0;font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+              <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;" title="${escapeHtml(orgPath)}">${escapeHtml(orgPath.split(' > ').slice(-2).join(' / ') || '未指定部门')}</span>
+            </div>`;
+        }
+
+        function renderPersonListLocal(people, title, limit = 80) {
+          if (people.length === 0) {
+            return `<div style="padding:24px 12px;text-align:center;color:var(--text-tertiary);font-size:12px;">
+              <div style="font-size:24px;margin-bottom:6px;">👤</div>
+              <div>暂无人员</div>
+            </div>`;
+          }
+          const displayPeople = people.slice(0, limit);
+          const more = people.length > limit ? `<div style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-muted);">还有 ${people.length - limit} 人，请使用搜索</div>` : '';
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0 10px 6px;">
+              <span style="font-size:12px;font-weight:600;color:var(--text-primary);">${escapeHtml(title)}</span>
+              <span style="font-size:11px;color:var(--text-muted);">${people.length} 人</span>
+            </div>
+            <div style="display:flex;flex-direction:column;">${displayPeople.map(emp => renderPersonListRowLocal(emp)).join('')}</div>
+            ${more}
+          `;
+        }
+
+        function renderSearchResultsCompactLocal(people) {
+          if (people.length === 0) return `<div style="text-align:center;padding:40px 20px;color:var(--text-tertiary);"><div style="font-size:28px;margin-bottom:8px;">🔍</div><div style="font-size:13px;">无匹配人员</div></div>`;
+          return renderPersonListLocal(people, `搜索结果 (${people.length})`, 100);
+        }
+
+        function renderOrgTreeLocal(orgId, orgUnits, depth) {
+          const unit = orgUnits[orgId];
+          if (!unit) return '';
+          const hasChildren = Array.isArray(unit.children) && unit.children.length > 0;
+          const isExpanded = state.expandedOrgIds ? state.expandedOrgIds.has(orgId) : false;
+          const isSelected = state.selectedOrgId === orgId;
+          const indent = depth * 14;
+          const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '·';
+          const rowClass = 'omp-staffing-org-row' + (isSelected ? ' selected' : '');
+          const nameColor = isSelected ? 'var(--primary)' : 'var(--text-primary)';
+          const fontWeight = isSelected ? '600' : '400';
+          const childrenHtml = hasChildren && isExpanded
+            ? `<div style="margin-left:10px;border-left:1px dashed var(--border-color);">${unit.children.map(childId => renderOrgTreeLocal(childId, orgUnits, depth + 1)).join('')}</div>`
+            : '';
+          return `
+            <div class="omp-staffing-org-node" data-org-id="${escapeHtml(orgId)}">
+              <div class="${rowClass}" style="display:flex;align-items:center;gap:4px;padding:5px 8px 5px ${8 + indent}px;cursor:pointer;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">
+                <span class="omp-staffing-org-toggle" style="${hasChildren ? '' : 'visibility:hidden;'}" data-action="omp-staffing-toggle-org" data-org-id="${escapeHtml(orgId)}">${toggleIcon}</span>
+                <span class="omp-staffing-org-name" style="flex:1;font-size:12px;color:${nameColor};font-weight:${fontWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">${escapeHtml(unit.name)}</span>
+                <span class="omp-staffing-org-count" style="font-size:10px;color:var(--text-muted);flex-shrink:0;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">${unit.employeeCount || 0}</span>
+              </div>
+              ${childrenHtml}
+            </div>`;
+        }
+
+        function getDescendantOrgIdsLocal(orgId, orgUnits) {
+          const ids = new Set();
+          const unit = orgUnits[orgId];
+          if (!unit) return ids;
+          ids.add(orgId);
+          if (Array.isArray(unit.children)) {
+            unit.children.forEach(childId => {
+              getDescendantOrgIdsLocal(childId, orgUnits).forEach(id => ids.add(id));
+            });
+          }
+          return ids;
+        }
+
+        // 选中部门下的人员（包含子部门）
+        let selectedOrgPeople = [];
+        let listTitle = '全部人员';
+        if (dirSearchQuery) {
+          selectedOrgPeople = displayedPeople;
+          listTitle = '搜索结果';
+        } else if (state.selectedOrgId && orgTree.orgUnits[state.selectedOrgId]) {
+          const targetIds = getDescendantOrgIdsLocal(state.selectedOrgId, orgTree.orgUnits);
+          selectedOrgPeople = displayedPeopleBase.filter(emp => targetIds.has(orgIdByEmployeeId[emp.id]));
+          listTitle = orgTree.orgUnits[state.selectedOrgId].name + ' 人员';
+        } else {
+          selectedOrgPeople = displayedPeopleBase.slice();
+        }
+        selectedOrgPeople.sort((a, b) => getDisplayNameLocal(a).localeCompare(getDisplayNameLocal(b), 'zh-CN'));
+
+        const unassignedHtml = !dirSearchQuery && unassignedPeople.length > 0
+          ? `
+            <div style="margin-top:8px;border-top:1px solid var(--border-light);padding-top:8px;">
+              <div style="font-size:12px;font-weight:600;color:var(--text-secondary);padding:0 10px 6px;">未分配部门 (${unassignedPeople.length})</div>
+              ${renderPersonListLocal(unassignedPeople, '未分配部门', 50)}
+            </div>`
+          : '';
+
+        const orgTreeHtml = hasEmployeeData
+          ? `<div style="flex:1;overflow-y:auto;padding-right:2px;">
+              ${orgTree.roots.map(id => renderOrgTreeLocal(id, orgTree.orgUnits, 0)).join('')}
+              ${unassignedHtml}
+            </div>`
+          : `<div style="padding:16px 12px;text-align:center;color:var(--text-muted);font-size:12px;line-height:1.6;">
+              暂无组织数据<br>请先前往「系统管理 → 人员与组织管理」导入
+            </div>`;
+
+        const personListHtml = dirSearchQuery
+          ? renderSearchResultsCompactLocal(selectedOrgPeople)
+          : renderPersonListLocal(selectedOrgPeople, listTitle);
+
+        function renderMatrixTaskRow(t, { isSubtask = false } = {}) {
+          const memberList = (t.members || []).filter(Boolean);
+          const ownerReadOnly = !isSubtask && t.annualPlanTaskId ? '<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(只读)</span>' : '';
+          const ownerCell = t.owner
+            ? `<div style="display:flex;align-items:center;gap:4px;">${renderAvatarLocal(t.owner, 20, resolvePersonDisplayName(t.owner))}<span style="font-size:12px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(resolvePersonDisplayName(t.owner))}</span>${ownerReadOnly}</div>`
+            : '<span style="font-size:12px;color:var(--text-tertiary);">未分配</span>';
+          const membersCell = memberList.length > 0
+            ? `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">${memberList.map(m => renderMemberChipLocal(m, t.id)).join('')}</div>`
+            : '<span style="font-size:12px;color:var(--text-tertiary);">—</span>';
+          const nameCell = isSubtask
+            ? `<td style="padding:8px 10px 8px 32px;font-size:12px;color:var(--text-secondary);min-width:160px;max-width:260px;">
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</span>
+              </td>`
+            : `<td style="padding:8px 10px;font-size:13px;color:var(--text-primary);font-weight:500;min-width:160px;max-width:260px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  ${omp_hasSubtasks(t.id) ? `<button type="button" data-action="omp-toggle-task-expand" data-id="${t.id}" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:10px;padding:2px;flex-shrink:0;" title="展开/折叠子任务">${window._ompState.taskExpandedIds.has(t.id) ? '▼' : '▶'}</button>` : '<span style="width:16px;flex-shrink:0;"></span>'}
+                  <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</span>
+                </div>
+              </td>`;
+          const rowBg = isSubtask ? 'background:var(--bg-page);' : '';
+          return `
+            <tr style="border-bottom:1px solid var(--border-light);${rowBg}">
+              ${nameCell}
+              <td style="padding:8px 10px;min-width:120px;max-width:180px;">${ownerCell}</td>
+              <td class="omp-matrix-members-cell" data-drop="matrix-member" data-task-id="${t.id}" style="padding:8px 10px;min-width:160px;max-width:320px;vertical-align:top;">${membersCell}</td>
+              <td style="padding:8px 10px;min-width:120px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">${t.progress}%</span>
+                  <div style="flex:1;min-width:60px;height:4px;background:var(--bg-page);border-radius:2px;overflow:hidden;">
+                    <div style="width:${t.progress}%;height:100%;background:var(--primary);border-radius:2px;"></div>
+                  </div>
+                </div>
+              </td>
+            </tr>`;
+        }
+
+        const matrixRows = filtered.map(t => {
+          const rows = [renderMatrixTaskRow(t)];
+          if (window._ompState.taskExpandedIds.has(t.id)) {
+            rows.push(...omp_getSubtasks(t.id).map(s => renderMatrixTaskRow(s, { isSubtask: true })));
+          }
+          return rows.join('');
+        }).join('');
+
+        return `
+          <div style="display:flex;flex-direction:column;height:100%;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <select data-action="omp-filter-task" data-filter="dept" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+                  ${depts.map(d => `<option value="${d}" ${filter.dept === d ? 'selected' : ''}>${d === 'all' ? '全部部门' : d}</option>`).join('')}
+                </select>
+                <select data-action="omp-filter-task" data-filter="type" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+                  <option value="all" ${filter.type === 'all' ? 'selected' : ''}>全部类型</option>
+                  <option value="improvement" ${filter.type === 'improvement' ? 'selected' : ''}>🔧 业务改进</option>
+                  <option value="capability" ${filter.type === 'capability' ? 'selected' : ''}>📚 能力建设</option>
+                  <option value="risk_response" ${filter.type === 'risk_response' ? 'selected' : ''}>⚠️ 风险应对</option>
+                  <option value="meeting_resolution" ${filter.type === 'meeting_resolution' ? 'selected' : ''}>📝 会议决议</option>
+                </select>
+                <input type="text" id="omp-matrix-search" placeholder="搜索任务或负责人..." value="${escapeHtml(state.searchQuery || '')}" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-width:180px;" data-action="omp-staffing-search">
+              </div>
+              <span style="font-size:13px;color:var(--text-secondary);">仅配置成员，负责人在年度规划中设定</span>
+            </div>
+            <div style="display:flex;gap:16px;flex:1;min-height:0;">
+              <div style="width:320px;min-width:320px;display:flex;flex-direction:column;gap:10px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;padding:12px;"
+                   id="omp-matrix-address-book">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <h3 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">📋 资源人选</h3>
+                </div>
+                <div style="height:280px;flex:none;min-height:0;display:flex;flex-direction:column;gap:8px;background:var(--bg-page);border:1px solid var(--border-light);border-radius:8px;padding:8px 0;" id="omp-matrix-org-tree">
+                  <div style="font-size:12px;font-weight:600;color:var(--text-primary);padding:0 10px 6px;border-bottom:1px solid var(--border-light);margin-bottom:4px;">组织架构</div>
+                  ${orgTreeHtml}
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="text" id="omp-matrix-dir-search" placeholder="搜索姓名、工号、部门..." value="${escapeHtml(dirSearchQuery)}" style="flex:1;min-width:0;padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;" data-action="omp-staffing-dir-search">
+                  <button class="btn btn-sm btn-secondary" style="font-size:12px;${dirSearchQuery ? '' : 'visibility:hidden;'}" data-action="omp-staffing-clear-search">清除</button>
+                </div>
+                <div style="flex:1;min-height:120px;overflow-y:auto;padding:8px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;" id="omp-matrix-person-list">
+                  ${personListHtml}
+                </div>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;padding:12px;overflow:hidden;">
+                <h3 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">👥 人员配置矩阵 (${filtered.length})</h3>
+                <div style="flex:1;overflow:auto;">
+                  <table style="width:100%;border-collapse:collapse;min-width:600px;">
+                    <thead style="position:sticky;top:0;background:var(--bg-card);z-index:1;">
+                      <tr style="border-bottom:2px solid var(--border-color);">
+                        <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">工作名称</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">负责人</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">成员（可拖拽分配）</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;">进度</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${matrixRows}
+                      ${filtered.length === 0 ? '<tr><td colspan="4" style="padding:40px;text-align:center;color:var(--text-tertiary);">暂无匹配任务</td></tr>' : ''}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <style>
+              .omp-matrix-members-cell { transition: all 0.15s; }
+              .omp-matrix-members-cell.drop-active { background: var(--primary-bg) !important; border: 1px dashed var(--primary) !important; border-radius: 4px; }
+              .omp-matrix-members-cell.drop-ready { background: var(--bg-page); }
+              .omp-staffing-org-row { border-radius: 6px; transition: background 0.15s; }
+              .omp-staffing-org-row:hover { background: var(--bg-hover); }
+              .omp-staffing-org-row.selected { background: var(--primary-bg); }
+              .omp-staffing-org-row.selected .omp-staffing-org-name { color: var(--primary); font-weight: 600; }
+              .omp-staffing-org-toggle { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px; color: var(--text-tertiary); transition: background 0.15s; flex-shrink: 0; }
+              .omp-staffing-org-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+              .omp-staffing-person-row { transition: background 0.15s; }
+              .omp-staffing-person-row:hover { background: var(--bg-hover); }
+              .omp-staffing-person-row.dragging { opacity: 0.5; }
+            </style>
+          </div>`;
+      }
+
       // ===== Tab 5: 重点工作人员配置台 =====
       function omp_renderTaskStaffingTab() {
         try {
@@ -4021,7 +4546,6 @@
           const state = window._ompState.staffingState || { searchQuery: '', dirSearchQuery: '', selectedOrgId: null, expandedOrgIds: new Set() };
           const filter = window._ompState.taskFilter || { dept: 'all', type: 'all' };
 
-          const typeLabels = { improvement: '业务改进', capability: '能力建设', risk_response: '风险应对', meeting_resolution: '会议决议' };
           const depts = ['all', ...new Set(tasks.map(t => t.dept).filter(Boolean))];
 
           let filtered = tasks.filter(t => {
@@ -4030,8 +4554,9 @@
             if (state.searchQuery) {
               const q = state.searchQuery.toLowerCase();
               const nameMatch = (t.name || '').toLowerCase().includes(q);
-              const ownerMatch = (window.renderPerson ? window.renderPerson(t.owner) : (t.owner || '')).toLowerCase().includes(q);
-              return nameMatch || ownerMatch;
+              const ownerMatch = resolvePersonDisplayName(t.owner).toLowerCase().includes(q);
+              const memberMatch = (t.members || []).some(m => resolvePersonDisplayName(m).toLowerCase().includes(q));
+              return nameMatch || ownerMatch || memberMatch;
             }
             return true;
           });
@@ -4056,13 +4581,21 @@
 
           // 将人员按组织路径挂到对应组织节点下（取最长匹配路径；匹配不上时按末级名称兜底）
           const peopleByOrgId = {};
+          const orgIdByEmployeeId = {};
           let unassignedPeople = [];
-          displayedPeopleBase.forEach(emp => {
-            const empPath = String(emp.orgPath || '');
+          function normalizeOrgPath(path) {
+            if (Array.isArray(path)) path = path.filter(Boolean).join(' > ');
+            return String(path || '')
+              .replace(/[\\/／]/g, ' > ')
+              .replace(/\s*->\s*/g, ' > ')
+              .replace(/\s*—\s*/g, ' > ')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+          function findBestOrgUnit(empPath, orgUnits) {
             let bestUnit = null;
             let bestLen = 0;
-            // 1) 精确前缀匹配
-            Object.values(orgTree.orgUnits).forEach(unit => {
+            Object.values(orgUnits).forEach(unit => {
               const unitPath = String(unit.path || '');
               if (unitPath && (empPath === unitPath || empPath.startsWith(unitPath + ' > '))) {
                 if (unitPath.length > bestLen) {
@@ -4071,35 +4604,57 @@
                 }
               }
             });
-            // 2) 前缀未匹配时，按组织路径末级名称兜底
+            return bestUnit;
+          }
+          displayedPeopleBase.forEach(emp => {
+            // 优先使用 orgPath；若为空或无法匹配，用 l1Org/l1Team/l2Team/l3Team 兜底
+            const orgPathFromFields = [emp.l1Org, emp.l1Team, emp.l2Team, emp.l3Team].filter(Boolean).join(' > ');
+            const rawOrgPath = emp.orgPath || orgPathFromFields;
+            const empPath = normalizeOrgPath(rawOrgPath);
+            let bestUnit = findBestOrgUnit(empPath, orgTree.orgUnits);
+            // 若 orgPath 未匹配，尝试用字段拼接路径再次匹配
+            if (!bestUnit && emp.orgPath && orgPathFromFields) {
+              bestUnit = findBestOrgUnit(normalizeOrgPath(orgPathFromFields), orgTree.orgUnits);
+            }
+            // 兜底：按组织路径末级名称匹配；若末级有重复，按各级名称逐级向上匹配
             if (!bestUnit) {
-              const lastSegment = empPath.split(' > ').filter(Boolean).pop() || '';
-              if (lastSegment) {
-                Object.values(orgTree.orgUnits).forEach(unit => {
-                  if (unit.name === lastSegment) {
-                    bestUnit = unit;
-                  }
-                });
+              const segments = empPath.split(' > ').filter(Boolean);
+              for (let i = segments.length - 1; i >= 0; i--) {
+                const candidate = segments[i];
+                const matches = Object.values(orgTree.orgUnits).filter(unit => unit.name === candidate);
+                if (matches.length >= 1) {
+                  // 同名节点过多时，优先选择路径前缀与 empPath 重合度最高的
+                  bestUnit = matches.reduce((best, unit) => {
+                    if (!best) return unit;
+                    const bestCommon = Math.min(best.path?.length || 0, empPath.length);
+                    const unitCommon = Math.min(unit.path?.length || 0, empPath.length);
+                    return unitCommon > bestCommon ? unit : best;
+                  }, null);
+                  break;
+                }
               }
             }
             if (bestUnit) {
               if (!peopleByOrgId[bestUnit.id]) peopleByOrgId[bestUnit.id] = [];
               peopleByOrgId[bestUnit.id].push(emp);
+              orgIdByEmployeeId[emp.id] = bestUnit.id;
             } else {
               unassignedPeople.push(emp);
             }
           });
+          // 调试日志：帮助排查真实数据下人员未显示的问题
+          console.log('[OMP Staffing] employees:', employees.length, 'orgUnits:', Object.keys(orgTree.orgUnits).length, 'unassigned:', unassignedPeople.length, 'mapped total:', Object.values(peopleByOrgId).reduce((a, b) => a + b.length, 0));
 
-          function renderAvatar(personRef, size = 32) {
+          function renderAvatar(personRef, size = 32, displayName) {
             const refStr = typeof personRef === 'string' ? personRef : (personRef && typeof personRef.toString === 'function' ? personRef.toString() : String(personRef || ''));
-            const rawName = window.renderPerson ? window.renderPerson(personRef) : refStr;
+            const rawName = displayName || (window.renderPerson ? window.renderPerson(personRef) : refStr);
             const name = typeof rawName === 'string' ? rawName : String(rawName || '');
             const firstChar = name ? name.charAt(0) : '?';
             const hue = refStr ? (refStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360) : 200;
             return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:hsl(${hue},65%,45%);color:#fff;display:flex;align-items:center;justify-content:center;font-size:${size * 0.4}px;font-weight:600;flex-shrink:0;" title="${escapeHtml(name)}">${escapeHtml(firstChar)}</div>`;
           }
 
-          function renderOrgTree(orgId, orgUnits, peopleMap, depth) {
+          function renderOrgTree(orgId, orgUnits, depth) {
             const unit = orgUnits[orgId];
             if (!unit) return '';
             const hasChildren = Array.isArray(unit.children) && unit.children.length > 0;
@@ -4107,26 +4662,20 @@
             const isSelected = state.selectedOrgId === orgId;
             const indent = depth * 14;
             const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '·';
-            const rowBg = isSelected ? 'background:var(--primary-bg);' : '';
+            const rowClass = 'omp-staffing-org-row' + (isSelected ? ' selected' : '');
             const nameColor = isSelected ? 'var(--primary)' : 'var(--text-primary)';
             const fontWeight = isSelected ? '600' : '400';
-            const unitPeople = (peopleMap[orgId] || []).slice().sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b), 'zh-CN'));
-            const isLeaf = !hasChildren;
-            const peopleHtml = (isExpanded || isLeaf) && unitPeople.length > 0
-              ? `<div style="margin-left:10px;border-left:1px dashed var(--border-color);padding-left:4px;">${unitPeople.map(emp => renderCompactPersonCard(emp, depth + 1)).join('')}</div>`
-              : '';
             const childrenHtml = hasChildren && isExpanded
-              ? `<div style="margin-left:10px;border-left:1px dashed var(--border-color);">${unit.children.map(childId => renderOrgTree(childId, orgUnits, peopleMap, depth + 1)).join('')}</div>`
+              ? `<div style="margin-left:10px;border-left:1px dashed var(--border-color);">${unit.children.map(childId => renderOrgTree(childId, orgUnits, depth + 1)).join('')}</div>`
               : '';
             return `
               <div class="omp-staffing-org-node" data-org-id="${escapeHtml(orgId)}">
-                <div class="omp-staffing-org-row" style="display:flex;align-items:center;gap:4px;padding:5px 8px 5px ${8 + indent}px;cursor:pointer;${rowBg}" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">
-                  <span class="omp-staffing-org-toggle" style="font-size:10px;color:var(--text-tertiary);width:14px;text-align:center;${hasChildren || unitPeople.length > 0 ? '' : 'visibility:hidden;'}" data-action="omp-staffing-toggle-org" data-org-id="${escapeHtml(orgId)}">${toggleIcon}</span>
+                <div class="${rowClass}" style="display:flex;align-items:center;gap:4px;padding:5px 8px 5px ${8 + indent}px;cursor:pointer;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">
+                  <span class="omp-staffing-org-toggle" style="${hasChildren ? '' : 'visibility:hidden;'}" data-action="omp-staffing-toggle-org" data-org-id="${escapeHtml(orgId)}">${toggleIcon}</span>
                   <span class="omp-staffing-org-name" style="flex:1;font-size:12px;color:${nameColor};font-weight:${fontWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">${escapeHtml(unit.name)}</span>
                   <span class="omp-staffing-org-count" style="font-size:10px;color:var(--text-muted);flex-shrink:0;" data-action="omp-staffing-select-org" data-org-id="${escapeHtml(orgId)}">${unit.employeeCount || 0}</span>
                 </div>
                 ${childrenHtml}
-                ${peopleHtml}
               </div>`;
           }
 
@@ -4138,83 +4687,115 @@
           }
 
           function renderCompactPersonCard(emp, depth = 0) {
-            const personRef = emp.id;
-            const displayName = getDisplayName(emp);
-            const deptName = emp.l1Team || emp.l1Org || (emp.orgPath ? emp.orgPath.split(' > ').pop() : '') || '未指定部门';
-            const indent = depth * 14;
-            return `
-              <div class="omp-staffing-person-card" data-person-ref="${escapeHtml(personRef)}" data-drag="person" draggable="true" style="padding:8px 10px;border-radius:6px;cursor:grab;transition:all 0.15s;margin:2px 0;${depth > 0 ? 'margin-left:' + indent + 'px;' : ''}">
-                <div style="display:flex;align-items:center;gap:8px;pointer-events:none;">
-                  ${renderAvatar(personRef, 28)}
-                  <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                      <span style="font-weight:600;color:var(--text-primary);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
-                      <span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;" title="${escapeHtml(emp.orgPath || deptName)}">${escapeHtml(deptName)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>`;
+            return renderPersonCard(emp, { depth, variant: 'tree' });
           }
 
           function renderSearchResultCard(emp) {
+            return renderPersonCard(emp, { variant: 'search' });
+          }
+
+          function renderPersonListRow(emp) {
             const personRef = emp.id;
             const displayName = getDisplayName(emp);
             const orgPath = emp.orgPath || '未指定部门';
             return `
-              <div class="omp-staffing-person-card" data-person-ref="${escapeHtml(personRef)}" data-drag="person" draggable="true" style="padding:10px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-card);cursor:grab;transition:all 0.15s;">
+              <div class="omp-staffing-person-row" data-person-ref="${escapeHtml(personRef)}" data-drag="person" draggable="true" title="${escapeHtml(orgPath)}"
+                style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:grab;transition:background 0.15s;"
+              >
+                ${renderAvatar(personRef, 24, displayName)}
+                <span style="flex:1;min-width:0;font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                  title="${escapeHtml(displayName)}"
+                >${escapeHtml(displayName)}</span>
+                <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;"
+                  title="${escapeHtml(orgPath)}"
+                >${escapeHtml(orgPath.split(' > ').slice(-2).join(' / ') || '未指定部门')}</span>
+              </div>`;
+          }
+
+          function renderPersonCard(emp, { depth = 0, variant = 'tree' } = {}) {
+            const personRef = emp.id;
+            const displayName = getDisplayName(emp);
+            const orgPath = emp.orgPath || '未指定部门';
+            const deptBadge = orgPath.split(' > ').filter(Boolean).slice(-2).join(' / ') || '未指定部门';
+            const indent = depth * 14;
+            const isSearch = variant === 'search';
+            const avatarSize = isSearch ? 32 : 28;
+            const padding = isSearch ? '10px' : '8px 10px';
+            const badgeHtml = !isSearch
+              ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;" title="${escapeHtml(orgPath)}">${escapeHtml(deptBadge)}</span>`
+              : '';
+            const pathHtml = isSearch
+              ? `<div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(orgPath)}">${escapeHtml(orgPath)}</div>`
+              : '';
+            return `
+              <div class="omp-staffing-person-card" data-person-ref="${escapeHtml(personRef)}" data-drag="person" draggable="true" style="padding:${padding};border:1px solid var(--border-light);border-radius:8px;background:var(--bg-card);cursor:grab;transition:all 0.15s;margin:2px 0;${depth > 0 ? 'margin-left:' + indent + 'px;' : ''}">
                 <div style="display:flex;align-items:center;gap:8px;pointer-events:none;">
-                  ${renderAvatar(personRef, 32)}
+                  ${renderAvatar(personRef, avatarSize)}
                   <div style="flex:1;min-width:0;">
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                       <span style="font-weight:600;color:var(--text-primary);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+                      ${badgeHtml}
                     </div>
-                    <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(orgPath)}">${escapeHtml(orgPath)}</div>
+                    ${pathHtml}
                   </div>
                 </div>
               </div>`;
           }
 
           function renderMemberChip(personRef) {
-            const name = window.renderPerson ? window.renderPerson(personRef) : personRef;
+            const displayName = resolvePersonDisplayName(personRef);
             return `
-              <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px 2px 2px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);margin:2px;" title="${escapeHtml(name)}">
-                ${renderAvatar(personRef, 16)}
-                <span style="max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</span>
+              <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px 2px 2px;border-radius:10px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);margin:2px;" title="${escapeHtml(displayName)}">
+                ${renderAvatar(personRef, 16, displayName)}
+                <span style="max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(displayName)}</span>
                 <span style="cursor:pointer;color:var(--danger);font-weight:700;margin-left:2px;" data-action="omp-staffing-remove-member" data-person-ref="${escapeHtml(personRef)}">×</span>
               </span>`;
           }
 
-          const taskCards = filtered.map(t => {
+          function renderTaskCard(t, { isSubtask = false, parentExpanded = false } = {}) {
             const memberList = (t.members || []).filter(Boolean);
-            const ownerAvatar = t.owner ? renderAvatar(t.owner, 22) : '';
+            const ownerAvatar = t.owner ? renderAvatar(t.owner, 20, resolvePersonDisplayName(t.owner)) : '';
             const memberChips = memberList.map(m => renderMemberChip(m)).join('');
             const extraMembers = memberList.length > 3 ? `<span style="font-size:11px;color:var(--text-tertiary);margin-left:2px;">+${memberList.length - 3}</span>` : '';
             const ownerReadOnly = t.annualPlanTaskId ? '<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(只读)</span>' : '';
+            const hasSubtasks = omp_hasSubtasks(t.id);
+            const expandIcon = window._ompState.taskExpandedIds.has(t.id) ? '▼' : '▶';
+            const progressHint = (!isSubtask && hasSubtasks) ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(按子任务聚合)</span>` : '';
             return `
-              <div class="omp-staffing-task-card" data-drop="task" data-task-id="${t.id}" style="padding:12px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-card);transition:all 0.15s;">
-                <div style="display:flex;align-items:flex-start;gap:10px;">
+              <div class="omp-staffing-task-card ${isSubtask ? 'omp-staffing-subtask-card' : ''}" data-drop="task" data-task-id="${t.id}" style="padding:8px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-card);transition:all 0.15s;${isSubtask ? 'margin-left:24px;border-color:var(--border-color);background:var(--bg-page);' : ''}">
+                <div style="display:flex;align-items:flex-start;gap:8px;">
+                  ${!isSubtask && hasSubtasks ? `<button type="button" data-action="omp-toggle-task-expand" data-id="${t.id}" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:12px;padding:4px;margin-top:2px;flex-shrink:0;" title="展开/折叠子任务">${expandIcon}</button>` : ''}
+                  ${isSubtask ? '<span style="width:18px;flex-shrink:0;"></span>' : ''}
                   <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
-                      <span style="font-weight:600;color:var(--text-primary);font-size:13px;">${escapeHtml(t.name)}</span>
-                      <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:var(--bg-page);color:var(--text-secondary);border:1px solid var(--border-light);">${typeLabels[t.type] || t.type}</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
-                      <span>${t.dept || '未指定部门'}</span>
-                      <span>·</span>
-                      <span>截止 ${t.endDate}</span>
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+                      <span style="font-weight:600;color:var(--text-primary);font-size:${isSubtask ? '12px' : '13px'};line-height:1.4;">${escapeHtml(t.name)}</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                       <span style="font-size:11px;color:var(--text-tertiary);">负责人:</span>
-                      ${t.owner ? `<div style="display:flex;align-items:center;gap:4px;">${ownerAvatar}<span style="font-size:12px;color:var(--text-primary);">${escapeHtml(window.renderPerson ? window.renderPerson(t.owner) : t.owner)}</span>${ownerReadOnly}</div>` : '<span style="font-size:12px;color:var(--text-tertiary);">未分配</span>'}
+                      ${t.owner ? `<div style="display:flex;align-items:center;gap:4px;">${ownerAvatar}<span style="font-size:12px;color:var(--text-primary);">${escapeHtml(resolvePersonDisplayName(t.owner))}</span>${ownerReadOnly}</div>` : '<span style="font-size:12px;color:var(--text-tertiary);">未分配</span>'}
                     </div>
                     ${memberList.length > 0 ? `
-                    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:6px;">
+                    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:4px;">
                       <span style="font-size:11px;color:var(--text-tertiary);">成员:</span>
                       <div style="display:flex;align-items:center;gap:2px;flex-wrap:wrap;">${memberChips}${extraMembers}</div>
                     </div>` : ''}
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                      <span style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;">进度 ${t.progress}%${progressHint}</span>
+                      <div style="flex:1;min-width:60px;height:4px;background:var(--bg-page);border-radius:2px;overflow:hidden;">
+                        <div style="width:${t.progress}%;height:100%;background:var(--primary);border-radius:2px;"></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>`;
+          }
+
+          const parentTasks = filtered.filter(t => !t.parentId);
+          const taskCards = parentTasks.map(t => {
+            const card = renderTaskCard(t);
+            const expanded = window._ompState.taskExpandedIds.has(t.id);
+            const subCards = expanded ? omp_getSubtasks(t.id).map(s => renderTaskCard(s, { isSubtask: true })).join('') : '';
+            return card + subCards;
           }).join('');
 
           const unassignedHtml = !dirSearchQuery && unassignedPeople.length > 0
@@ -4227,21 +4808,73 @@
 
           const orgTreeHtml = hasEmployeeData
             ? `<div style="flex:1;overflow-y:auto;padding-right:2px;">
-                ${orgTree.roots.map(id => renderOrgTree(id, orgTree.orgUnits, peopleByOrgId, 0)).join('')}
+                ${orgTree.roots.map(id => renderOrgTree(id, orgTree.orgUnits, 0)).join('')}
                 ${unassignedHtml}
               </div>`
             : `<div style="padding:16px 12px;text-align:center;color:var(--text-muted);font-size:12px;line-height:1.6;">
                 暂无组织数据<br>请先前往「系统管理 → 人员与组织管理」导入
               </div>`;
 
-          const searchResultsHtml = dirSearchQuery
-            ? (displayedPeople.length > 0
-                ? `<div style="display:flex;flex-direction:column;gap:8px;">${displayedPeople.map(emp => renderSearchResultCard(emp)).join('')}</div>`
-                : `<div style="text-align:center;padding:40px 20px;color:var(--text-tertiary);">
-                    <div style="font-size:28px;margin-bottom:8px;">🔍</div>
-                    <div style="font-size:13px;">无匹配人员</div>
-                  </div>`)
-            : '';
+          function getDescendantOrgIds(orgId, orgUnits) {
+            const ids = new Set();
+            const unit = orgUnits[orgId];
+            if (!unit) return ids;
+            ids.add(orgId);
+            if (Array.isArray(unit.children)) {
+              unit.children.forEach(childId => {
+                getDescendantOrgIds(childId, orgUnits).forEach(id => ids.add(id));
+              });
+            }
+            return ids;
+          }
+
+          function renderPersonList(people, title, limit = 80) {
+            if (people.length === 0) {
+              return `<div style="padding:24px 12px;text-align:center;color:var(--text-tertiary);font-size:12px;">
+                <div style="font-size:24px;margin-bottom:6px;">👤</div>
+                <div>暂无人员</div>
+              </div>`;
+            }
+            const displayPeople = people.slice(0, limit);
+            const more = people.length > limit ? `<div style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-muted);">还有 ${people.length - limit} 人，请使用搜索</div>` : '';
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:0 10px 6px;">
+                <span style="font-size:12px;font-weight:600;color:var(--text-primary);">${escapeHtml(title)}</span>
+                <span style="font-size:11px;color:var(--text-muted);">${people.length} 人</span>
+              </div>
+              <div style="display:flex;flex-direction:column;">${displayPeople.map(emp => renderPersonListRow(emp)).join('')}</div>
+              ${more}
+            `;
+          }
+
+          function renderSearchResultsCompact(people) {
+            if (people.length === 0) return `<div style="text-align:center;padding:40px 20px;color:var(--text-tertiary);"><div style="font-size:28px;margin-bottom:8px;">🔍</div><div style="font-size:13px;">无匹配人员</div></div>`;
+            return renderPersonList(people, `搜索结果 (${people.length})`, 100);
+          }
+
+          // 选中部门下的人员（包含子部门）
+          let selectedOrgPeople = [];
+          let listTitle = '全部人员';
+          if (dirSearchQuery) {
+            selectedOrgPeople = displayedPeople;
+            listTitle = '搜索结果';
+          } else if (state.selectedOrgId && orgTree.orgUnits[state.selectedOrgId]) {
+            const targetIds = getDescendantOrgIds(state.selectedOrgId, orgTree.orgUnits);
+            selectedOrgPeople = displayedPeopleBase.filter(emp => targetIds.has(orgIdByEmployeeId[emp.id]));
+            listTitle = orgTree.orgUnits[state.selectedOrgId].name + ' 人员';
+          } else {
+            selectedOrgPeople = displayedPeopleBase.slice();
+          }
+          selectedOrgPeople.sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b), 'zh-CN'));
+
+          const personListHtml = dirSearchQuery
+            ? renderSearchResultsCompact(selectedOrgPeople)
+            : (state.selectedOrgId
+                ? renderPersonList(selectedOrgPeople, listTitle)
+                : `<div style="padding:24px 12px;text-align:center;color:var(--text-tertiary);font-size:12px;">
+                    <div style="font-size:24px;margin-bottom:6px;">🏢</div>
+                    <div>点击上方部门查看人员</div>
+                  </div>`);
 
           return `
             <div style="display:flex;flex-direction:column;gap:12px;height:calc(100vh - 200px);min-height:500px;">
@@ -4266,10 +4899,10 @@
               <div style="display:flex;gap:16px;flex:1;min-height:0;">
                 <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
                   <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">任务池 (${filtered.length})</h3>
+                    <h3 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">任务池 (${parentTasks.length})</h3>
                   </div>
                   <div style="flex:1;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:8px;" id="omp-staffing-task-list">
-                    ${filtered.length > 0 ? taskCards : '<div style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无匹配任务</div>'}
+                    ${parentTasks.length > 0 ? taskCards : '<div style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无匹配任务</div>'}
                   </div>
                 </div>
                 <div style="width:380px;min-width:380px;display:flex;flex-direction:column;gap:10px;" id="omp-staffing-address-book">
@@ -4281,12 +4914,19 @@
                     <input type="text" id="omp-staffing-dir-search" placeholder="搜索姓名、工号、部门..." value="${escapeHtml(dirSearchQuery)}" style="flex:1;min-width:0;padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;" data-action="omp-staffing-dir-search">
                     <button class="btn btn-sm btn-secondary" style="font-size:12px;${dirSearchQuery ? '' : 'visibility:hidden;'}" data-action="omp-staffing-clear-search">清除</button>
                   </div>
-                  <div style="flex:1;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:8px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;padding:8px 0;" id="omp-staffing-org-tree">
-                    ${dirSearchQuery ? searchResultsHtml : `
-                      <div style="font-size:12px;font-weight:600;color:var(--text-primary);padding:0 10px 6px;border-bottom:1px solid var(--border-light);margin-bottom:4px;">组织架构</div>
-                      ${orgTreeHtml}
-                    `}
+                  ${dirSearchQuery ? `
+                  <div style="flex:1;overflow-y:auto;padding:8px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;" id="omp-staffing-person-list">
+                    ${personListHtml}
                   </div>
+                  ` : `
+                  <div style="flex:0 0 45%;min-height:180px;display:flex;flex-direction:column;gap:8px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;padding:8px 0;" id="omp-staffing-org-tree">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-primary);padding:0 10px 6px;border-bottom:1px solid var(--border-light);margin-bottom:4px;">组织架构</div>
+                    ${orgTreeHtml}
+                  </div>
+                  <div style="flex:1;min-height:180px;overflow-y:auto;padding:8px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;" id="omp-staffing-person-list">
+                    ${personListHtml}
+                  </div>
+                  `}
                 </div>
               </div>
             </div>
@@ -4294,10 +4934,30 @@
               .omp-staffing-task-card { cursor: default; }
               .omp-staffing-task-card:hover { border-color: var(--primary) !important; }
               .omp-staffing-task-card.drop-active { border-color: var(--primary) !important; border-style: dashed !important; background: var(--primary-bg) !important; }
-              .omp-staffing-org-row { border-radius: 4px; transition: background 0.15s; }
+              .omp-staffing-subtask-card { border-left: 3px solid var(--primary) !important; }
+              .omp-staffing-subtask-card:hover { border-color: var(--primary) !important; }
+              .omp-staffing-org-row { border-radius: 6px; transition: background 0.15s; }
               .omp-staffing-org-row:hover { background: var(--bg-hover); }
+              .omp-staffing-org-row.selected { background: var(--primary-bg); }
+              .omp-staffing-org-row.selected .omp-staffing-org-name { color: var(--primary); font-weight: 600; }
+              .omp-staffing-org-toggle {
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 4px;
+                font-size: 12px;
+                color: var(--text-tertiary);
+                transition: background 0.15s;
+                flex-shrink: 0;
+              }
+              .omp-staffing-org-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+              .omp-staffing-person-row { transition: background 0.15s; }
+              .omp-staffing-person-row:hover { background: var(--bg-hover); }
+              .omp-staffing-person-row.dragging { opacity: 0.5; }
               .omp-staffing-person-card { border-radius: 8px; }
-              .omp-staffing-person-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); background: var(--bg-hover); }
+              .omp-staffing-person-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); background: var(--bg-hover); border-color: var(--primary) !important; }
               .omp-staffing-person-card.dragging { opacity: 0.5; }
               @media (max-width: 768px) {
                 #omp-staffing-address-book { width: 100% !important; min-width: 0 !important; }
@@ -5479,25 +6139,101 @@
         const tasks = omp_load('tasks');
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
+        window._ompState.viewingTaskId = taskId;
+        window._ompState.taskViewActiveTab = window._ompState.taskViewActiveTab || 'basic';
+        const tabContent = omp_renderTaskViewTabContent(task);
+        const tabs = [
+          { id: 'basic', label: '基本信息' },
+          { id: 'milestones', label: '里程碑' },
+          { id: 'subtasks', label: `子任务 (${omp_getSubtasks(taskId).length})` },
+          { id: 'resources', label: '资源' },
+        ];
+        const tabHtml = `
+          <div style="display:flex;gap:0;border-bottom:1px solid var(--border-color);margin-bottom:20px;">
+            ${tabs.map(t => `
+              <button type="button" class="omp-task-view-tab ${window._ompState.taskViewActiveTab === t.id ? 'active' : ''}" onclick="window.omp_switchTaskViewTab('${t.id}')" style="padding:10px 16px;font-size:13px;background:transparent;border:none;border-bottom:2px solid ${window._ompState.taskViewActiveTab === t.id ? 'var(--primary)' : 'transparent'};color:${window._ompState.taskViewActiveTab === t.id ? 'var(--primary)' : 'var(--text-secondary)'};cursor:pointer;">${t.label}</button>
+            `).join('')}
+          </div>`;
+        omp_openModal('工作详情', `
+          ${tabHtml}
+          <div id="omp-task-view-tab-content">${tabContent}</div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <button class="btn btn-secondary" data-modal-action="modal-close">关闭</button>
+            <button class="btn btn-primary" onclick="document.getElementById('omp-active-modal').remove(); window.omp_editTask('${task.id}')">编辑</button>
+          </div>`, true);
+      }
+
+      function omp_renderTaskViewTabContent(task) {
+        const taskId = task.id;
         const milestones = omp_load('milestones').filter(m => m.taskId === taskId);
         const records = omp_load('progressRecords').filter(r => r.taskId === taskId);
         const kpis = omp_load('kpiInstances');
         const typeLabels = { strategic: '战略举措', improvement: '业务改进', capability: '能力建设', risk_response: '风险应对', meeting_resolution: '会议决议' };
         const statusColors = { planning: 'var(--text-tertiary)', active: 'var(--success)', at_risk: 'var(--warning)', delayed: 'var(--danger)', done: 'var(--primary)', closed: 'var(--text-tertiary)' };
         const statusLabels = { planning: '规划中', active: '进行中', at_risk: '有风险', delayed: '已延期', done: '已完成', closed: '已关闭' };
+        const activeTab = window._ompState.taskViewActiveTab || 'basic';
+
+        if (activeTab === 'milestones') {
+          const msHtml = milestones.map(m => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light);">
+              <span style="font-size:16px;">${m.status === 'completed' ? '✅' : m.status === 'delayed' ? '⚠️' : '○'}</span>
+              <div style="flex:1;"><div style="font-size:13px;font-weight:500;">${m.name}</div><div style="font-size:12px;color:var(--text-tertiary);">计划: ${m.planDate}${m.actualDate ? ' · 实际: ' + m.actualDate : ''}</div></div>
+              <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:${m.status === 'completed' ? 'var(--success-bg)' : 'var(--bg-page)'};color:${m.status === 'completed' ? 'var(--success)' : m.status === 'delayed' ? 'var(--danger)' : 'var(--text-secondary)'}">${m.status === 'completed' ? '已完成' : m.status === 'delayed' ? '已延期' : '待办'}</span>
+            </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text-tertiary);">暂无里程碑</div>';
+          const recHtml = records.map(r => `
+            <div style="padding:12px;background:var(--bg-page);border-radius:8px;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:13px;font-weight:600;">进度 ${r.progress}%</span><span style="font-size:12px;color:var(--text-tertiary);">${r.date} · ${r.reporter}</span></div>
+              <div style="font-size:13px;color:var(--text-secondary);">${r.content}</div>${r.problems ? `<div style="margin-top:6px;font-size:12px;color:var(--danger);">⚠️ ${r.problems}</div>` : ''}
+            </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text-tertiary);">暂无进度记录</div>';
+          return `
+            <div style="margin-bottom:20px;"><div style="font-size:14px;font-weight:600;margin-bottom:10px;">📌 里程碑</div><div style="border:1px solid var(--border-light);border-radius:8px;padding:0 12px;">${msHtml}</div></div>
+            <div style="margin-bottom:20px;"><div style="font-size:14px;font-weight:600;margin-bottom:10px;">📝 进度记录</div><div>${recHtml}</div></div>`;
+        }
+
+        if (activeTab === 'subtasks') {
+          const subtasks = omp_getSubtasks(taskId);
+          const subRows = subtasks.map(s => {
+            const ownerName = escapeHtml(window.renderPerson ? window.renderPerson(s.owner) : (s.owner || ''));
+            const memberCount = (s.members || []).filter(Boolean).length;
+            return `
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border-light);border-radius:8px;margin-bottom:8px;background:var(--bg-card);">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${escapeHtml(s.name)}</div>
+                  <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">负责人: ${ownerName} · 成员 ${memberCount} 人 · 权重 ${s.weight || 1}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;width:120px;">
+                  <div style="flex:1;height:6px;background:var(--bg-page);border-radius:3px;overflow:hidden;"><div style="width:${s.progress || 0}%;height:100%;background:var(--primary);border-radius:3px;"></div></div>
+                  <span style="font-size:12px;font-weight:500;">${s.progress || 0}%</span>
+                </div>
+                <button class="btn btn-sm btn-secondary" data-action="omp-edit-subtask" data-id="${s.id}" style="font-size:12px;padding:3px 8px;">编辑</button>
+              </div>`;
+          }).join('');
+          return `
+            <div style="margin-bottom:16px;">
+              <div style="font-size:14px;font-weight:600;margin-bottom:10px;">子任务 (${subtasks.length})</div>
+              ${subtasks.length > 0 ? subRows : '<div style="padding:30px;text-align:center;color:var(--text-tertiary);">暂无子任务</div>'}
+            </div>`;
+        }
+
+        if (activeTab === 'resources') {
+          const ms = (task.members || []).filter(Boolean);
+          return `
+            <div style="margin-bottom:16px;">
+              <div style="font-size:14px;font-weight:600;margin-bottom:10px;">资源成员</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                ${ms.length > 0 ? ms.map(m => `
+                  <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border-light);border-radius:20px;background:var(--bg-page);">
+                    ${renderAvatar(m, 22, resolvePersonDisplayName(m))}
+                    <span style="font-size:13px;color:var(--text-primary);">${escapeHtml(resolvePersonDisplayName(m))}</span>
+                  </div>`).join('') : '<div style="color:var(--text-tertiary);">暂无成员，请在「人员配置」视图中拖拽分配</div>'}
+              </div>
+            </div>`;
+        }
+
+        // basic tab
         const relatedKpiNames = task.relatedKpiIds.map(id => { const kpi = kpis.find(k => k.id === id); return kpi ? omp_getIndicatorName(id) : ''; }).filter(Boolean).join(', ');
-        const msHtml = milestones.map(m => `
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light);">
-            <span style="font-size:16px;">${m.status === 'completed' ? '✅' : m.status === 'delayed' ? '⚠️' : '○'}</span>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:500;">${m.name}</div><div style="font-size:12px;color:var(--text-tertiary);">计划: ${m.planDate}${m.actualDate ? ' · 实际: ' + m.actualDate : ''}</div></div>
-            <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:${m.status === 'completed' ? 'var(--success-bg)' : 'var(--bg-page)'};color:${m.status === 'completed' ? 'var(--success)' : m.status === 'delayed' ? 'var(--danger)' : 'var(--text-secondary)'}">${m.status === 'completed' ? '已完成' : m.status === 'delayed' ? '已延期' : '待办'}</span>
-          </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text-tertiary);">暂无里程碑</div>';
-        const recHtml = records.map(r => `
-          <div style="padding:12px;background:var(--bg-page);border-radius:8px;margin-bottom:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:13px;font-weight:600;">进度 ${r.progress}%</span><span style="font-size:12px;color:var(--text-tertiary);">${r.date} · ${r.reporter}</span></div>
-            <div style="font-size:13px;color:var(--text-secondary);">${r.content}</div>${r.problems ? `<div style="margin-top:6px;font-size:12px;color:var(--danger);">⚠️ ${r.problems}</div>` : ''}
-          </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text-tertiary);">暂无进度记录</div>';
-        omp_openModal('工作详情', `
+        const overrideTag = task.progressOverridden ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--warning-bg);color:var(--warning);margin-left:8px;">已手动覆盖</span>` : '';
+        return `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
             <div style="grid-column:1 / -1;"><div style="font-size:20px;font-weight:700;">${task.name}</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${task.description}</div></div>
             ${task.annualPlanTaskId ? `<div style="grid-column:1 / -1;"><div style="font-size:12px;color:var(--text-tertiary);">来源</div><div>📋 年度经营计划 <span style="font-size:12px;color:var(--text-tertiary);">(${escapeHtml(task.annualPlanTaskId)})</span> — <a href="#bp/annual-plan" data-navigate="bp/annual-plan" style="color:var(--primary);">查看源头</a></div></div>` : ''}
@@ -5512,24 +6248,81 @@
             <div><div style="font-size:12px;color:var(--text-tertiary);">实际成本</div><div>${task.actualCost}万</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">关联KPI</div><div>${relatedKpiNames || '无'}</div></div>
             <div><div style="font-size:12px;color:var(--text-tertiary);">状态</div><div style="font-weight:600;color:${statusColors[task.status]}">${statusLabels[task.status]}</div></div>
-            <div style="grid-column:1 / -1;"><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度 ${task.progress}%</div><div style="width:100%;height:8px;background:var(--bg-page);border-radius:4px;overflow:hidden;"><div style="width:${task.progress}%;height:100%;background:${statusColors[task.status]};border-radius:4px;"></div></div></div>
-          </div>
-          <div style="margin-bottom:20px;"><div style="font-size:14px;font-weight:600;margin-bottom:10px;">📌 里程碑</div><div style="border:1px solid var(--border-light);border-radius:8px;padding:0 12px;">${msHtml}</div></div>
-          <div style="margin-bottom:20px;"><div style="font-size:14px;font-weight:600;margin-bottom:10px;">📝 进度记录</div><div>${recHtml}</div></div>
-          <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid var(--border-color);">
-            <button class="btn btn-secondary" data-modal-action="modal-close">关闭</button>
-            <button class="btn btn-primary" onclick="document.getElementById('omp-active-modal').remove(); window.omp_editTask('${task.id}')">编辑</button>
-          </div>`, true);
+            <div style="grid-column:1 / -1;"><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度 ${task.progress}%${overrideTag}</div><div style="width:100%;height:8px;background:var(--bg-page);border-radius:4px;overflow:hidden;"><div style="width:${task.progress}%;height:100%;background:${statusColors[task.status]};border-radius:4px;"></div></div></div>
+          </div>`;
       }
 
       function omp_editTaskModal(taskId) {
         const tasks = omp_load('tasks');
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
+        window._ompState.editingTaskId = taskId;
+        window._ompState.taskEditActiveTab = 'basic';
+        const isSubtask = omp_isSubtask(task);
+        const tabs = [
+          { id: 'basic', label: '基本信息' },
+          { id: 'milestones', label: '里程碑' },
+          { id: 'subtasks', label: `子任务 (${omp_getSubtasks(taskId).length})` },
+          { id: 'resources', label: '资源' },
+        ].filter(t => !isSubtask || t.id !== 'subtasks');
+        const activeTab = window._ompState.taskEditActiveTab || 'basic';
+        const tabHtml = `
+          <div style="display:flex;gap:0;border-bottom:1px solid var(--border-color);margin-bottom:20px;">
+            ${tabs.map(t => `
+              <button type="button" class="omp-task-edit-tab ${activeTab === t.id ? 'active' : ''}" onclick="window.omp_switchTaskEditTab('${t.id}')" style="padding:10px 16px;font-size:13px;background:transparent;border:none;border-bottom:2px solid ${activeTab === t.id ? 'var(--primary)' : 'transparent'};color:${activeTab === t.id ? 'var(--primary)' : 'var(--text-secondary)'};cursor:pointer;">${t.label}</button>
+            `).join('')}
+          </div>`;
+        const contentHtml = omp_renderTaskEditTabContent(task);
         const kpis = omp_load('kpiInstances');
         const kpiOptions = kpis.map(k => { const name = omp_getIndicatorName(k.indicatorId); return `<option value="${k.id}" ${task.relatedKpiIds.includes(k.id) ? 'selected' : ''}>${name} (${k.dept})</option>`; }).join('');
-        window._ompState.editingTaskId = taskId;
-        omp_openModal('编辑重点工作', `
+        omp_openModal(isSubtask ? '编辑子任务' : '编辑重点工作', `
+          ${tabHtml}
+          <div id="omp-task-edit-tab-content">${contentHtml}</div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal').remove(); window._ompState.editingTaskId = null;">取消</button>
+            <button class="btn btn-primary" onclick="window.omp_saveTask()">保存</button>
+          </div>`, true);
+        if (window.ensurePersonInput) {
+          window.ensurePersonInput('omp-task-owner', task.owner || '');
+          if (activeTab === 'subtasks') {
+            omp_getSubtasks(taskId).forEach(s => {
+              window.ensurePersonInput('omp-subtask-owner-' + s.id, s.owner || '');
+            });
+          }
+        }
+      }
+
+      function omp_renderTaskEditTabContent(task) {
+        const activeTab = window._ompState.taskEditActiveTab || 'basic';
+        if (activeTab === 'milestones') {
+          const milestones = omp_load('milestones').filter(m => m.taskId === task.id);
+          const msHtml = milestones.map(m => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light);">
+              <span style="font-size:16px;">${m.status === 'completed' ? '✅' : m.status === 'delayed' ? '⚠️' : '○'}</span>
+              <div style="flex:1;"><div style="font-size:13px;font-weight:500;">${m.name}</div><div style="font-size:12px;color:var(--text-tertiary);">计划: ${m.planDate}${m.actualDate ? ' · 实际: ' + m.actualDate : ''}</div></div>
+              <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:${m.status === 'completed' ? 'var(--success-bg)' : 'var(--bg-page)'};color:${m.status === 'completed' ? 'var(--success)' : m.status === 'delayed' ? 'var(--danger)' : 'var(--text-secondary)'}">${m.status === 'completed' ? '已完成' : m.status === 'delayed' ? '已延期' : '待办'}</span>
+            </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text-tertiary);">暂无里程碑</div>';
+          return `<div style="margin-bottom:16px;"><div style="font-size:14px;font-weight:600;margin-bottom:10px;">📌 里程碑</div><div style="border:1px solid var(--border-light);border-radius:8px;padding:0 12px;">${msHtml}</div></div>`;
+        }
+        if (activeTab === 'subtasks') {
+          return omp_renderSubtaskTab(task.id);
+        }
+        if (activeTab === 'resources') {
+          const ms = (task.members || []).filter(Boolean);
+          return `
+            <div style="margin-bottom:16px;">
+              <div style="font-size:14px;font-weight:600;margin-bottom:10px;">资源成员</div>
+              <div style="padding:12px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-page);">
+                ${ms.length > 0 ? ms.map(m => `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border-light);border-radius:20px;background:var(--bg-card);margin:4px;">${renderAvatar(m, 22, resolvePersonDisplayName(m))}<span style="font-size:13px;">${escapeHtml(resolvePersonDisplayName(m))}</span></div>`).join('') : '<div style="color:var(--text-tertiary);">暂无成员</div>'}
+              </div>
+              <div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">提示：请前往「人员配置」视图拖拽分配或移除成员。</div>
+            </div>`;
+        }
+        // basic
+        const overrideTag = task.progressOverridden ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--warning-bg);color:var(--warning);margin-left:8px;">已手动覆盖</span>` : '';
+        const restoreBtn = (!omp_isSubtask(task) && omp_hasSubtasks(task.id) && task.progressOverridden) ? `<button type="button" class="btn btn-sm btn-secondary" onclick="window.omp_restoreAutoProgress('${task.id}')" style="margin-left:8px;font-size:11px;">恢复自动计算</button>` : '';
+        const kpis = omp_load('kpiInstances');
+        return `
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
             <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">工作名称 *</label><input type="text" id="omp-task-name" value="${task.name}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">描述</label><textarea id="omp-task-desc" rows="2" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${task.description}</textarea></div>
@@ -5540,16 +6333,230 @@
             ${task.annualPlanTaskId ? `<div style="grid-column:1 / -1;font-size:12px;color:var(--text-tertiary);padding:8px 12px;background:var(--bg-page);border-radius:6px;">ℹ️ 负责人由年度经营计划同步，如需修改请前往「年度经营计划」页面</div>` : ''}
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label><input type="date" id="omp-task-start" value="${task.startDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">截止日期 *</label><input type="date" id="omp-task-end" value="${task.endDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度 (%) ${overrideTag}${restoreBtn}</label><input type="number" id="omp-task-progress" value="${task.progress}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">状态</label><select id="omp-task-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="planning" ${task.status === 'planning' ? 'selected' : ''}>规划中</option><option value="active" ${task.status === 'active' ? 'selected' : ''}>进行中</option><option value="at_risk" ${task.status === 'at_risk' ? 'selected' : ''}>有风险</option><option value="delayed" ${task.status === 'delayed' ? 'selected' : ''}>已延期</option><option value="done" ${task.status === 'done' ? 'selected' : ''}>已完成</option><option value="closed" ${task.status === 'closed' ? 'selected' : ''}>已关闭</option></select></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">预算 (万)</label><input type="number" id="omp-task-budget" value="${task.budget}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">实际成本 (万)</label><input type="number" id="omp-task-cost" value="${task.actualCost}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
-            <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">成员（请在「人员配置」视图中管理）</label><div style="padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-page);color:var(--text-secondary);font-size:13px;min-height:36px;">${(() => { const ms = (task.members || []).filter(Boolean); return ms.length > 0 ? ms.map(m => escapeHtml(window.renderPerson ? window.renderPerson(m) : m)).join('、') : '暂无成员'; })()}</div></div>
-            <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">关联 KPI (多选)</label><select id="omp-task-kpis" multiple style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-height:80px;">${kpiOptions}</select></div>
-          </div>
-          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
-            <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal').remove(); window._ompState.editingTaskId = null;">取消</button>
-            <button class="btn btn-primary" onclick="window.omp_saveTask()">保存</button>
-          </div>`, true);
-        if (window.ensurePersonInput) window.ensurePersonInput('omp-task-owner', task.owner || '');
+            <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">关联 KPI (多选)</label><select id="omp-task-kpis" multiple style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-height:80px;">${task.relatedKpiIds.map(id => { const k = kpis.find(x => x.id === id); return `<option value="${id}" selected>${k ? omp_getIndicatorName(k.indicatorId) + ' (' + k.dept + ')' : id}</option>`; }).join('')}${kpis.filter(k => !task.relatedKpiIds.includes(k.id)).map(k => `<option value="${k.id}">${omp_getIndicatorName(k.indicatorId)} (${k.dept})</option>`).join('')}</select></div>
+          </div>`;
+      }
+
+      function omp_renderSubtaskTab(parentTaskId) {
+        const subtasks = omp_getSubtasks(parentTaskId);
+        const rowHtml = subtasks.map((s, idx) => {
+          const ownerInputId = 'omp-subtask-owner-' + s.id;
+          return `
+          <div class="omp-subtask-row" data-subtask-id="${s.id}" style="display:flex;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border-light);border-radius:8px;margin-bottom:8px;background:var(--bg-card);">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <button type="button" onclick="window.omp_moveSubtaskRow(this, 'up')" ${idx === 0 ? 'disabled style="visibility:hidden;"' : ''} style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:10px;line-height:1;" title="上移">▲</button>
+              <button type="button" onclick="window.omp_moveSubtaskRow(this, 'down')" ${idx === subtasks.length - 1 ? 'disabled style="visibility:hidden;"' : ''} style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:10px;line-height:1;" title="下移">▼</button>
+            </div>
+            <input type="text" class="omp-subtask-name" value="${escapeHtml(s.name)}" placeholder="子任务名称 *" style="flex:1;min-width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <input type="text" id="${ownerInputId}" class="omp-subtask-owner" value="${typeof s.owner === 'object' ? (s.owner.displayName || s.owner.name || '') : (s.owner || '')}" placeholder="负责人 *" style="width:90px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <input type="date" class="omp-subtask-start" value="${s.startDate || ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <input type="date" class="omp-subtask-end" value="${s.endDate || ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <input type="number" class="omp-subtask-progress" value="${s.progress || 0}" min="0" max="100" placeholder="进度" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <input type="number" class="omp-subtask-weight" value="${s.weight || 1}" min="1" placeholder="权重" style="width:55px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <input type="number" class="omp-subtask-budget" value="${s.budget || ''}" placeholder="预算" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <button type="button" onclick="window.omp_removeSubtaskRow(this)" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;width:24px;" title="删除">✕</button>
+          </div>`;
+        }).join('');
+        return `
+          <div style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:14px;font-weight:600;">子任务 (${subtasks.length})</div>
+              <button type="button" class="btn btn-sm btn-primary" onclick="window.omp_addSubtaskRow('${parentTaskId}')" style="font-size:12px;">+ 添加子任务</button>
+            </div>
+            <div id="omp-subtask-list">${subtasks.length > 0 ? rowHtml : '<div style="padding:24px;text-align:center;color:var(--text-tertiary);">暂无子任务，点击上方按钮添加</div>'}</div>
+          </div>`;
+      }
+
+      function omp_switchTaskEditTab(tab) {
+        window._ompState.taskEditActiveTab = tab;
+        const modal = document.getElementById('omp-active-modal');
+        if (!modal) return;
+        const taskId = window._ompState.editingTaskId;
+        const tasks = omp_load('tasks');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        // Re-render tabs and content
+        const isSubtask = omp_isSubtask(task);
+        const tabs = [
+          { id: 'basic', label: '基本信息' },
+          { id: 'milestones', label: '里程碑' },
+          { id: 'subtasks', label: `子任务 (${omp_getSubtasks(taskId).length})` },
+          { id: 'resources', label: '资源' },
+        ].filter(t => !isSubtask || t.id !== 'subtasks');
+        const tabContainer = modal.querySelector('.omp-task-edit-tab')?.parentElement;
+        if (tabContainer) {
+          tabContainer.innerHTML = tabs.map(t => `
+            <button type="button" class="omp-task-edit-tab ${tab === t.id ? 'active' : ''}" onclick="window.omp_switchTaskEditTab('${t.id}')" style="padding:10px 16px;font-size:13px;background:transparent;border:none;border-bottom:2px solid ${tab === t.id ? 'var(--primary)' : 'transparent'};color:${tab === t.id ? 'var(--primary)' : 'var(--text-secondary)'};cursor:pointer;">${t.label}</button>
+          `).join('');
+        }
+        const contentContainer = modal.querySelector('#omp-task-edit-tab-content');
+        if (contentContainer) {
+          contentContainer.innerHTML = omp_renderTaskEditTabContent(task);
+        }
+        if (tab === 'basic' && window.ensurePersonInput) {
+          window.ensurePersonInput('omp-task-owner', task.owner || '');
+        }
+        if (tab === 'subtasks' && window.ensurePersonInput) {
+          omp_getSubtasks(taskId).forEach(s => {
+            window.ensurePersonInput('omp-subtask-owner-' + s.id, s.owner || '');
+          });
+        }
+      }
+
+      function omp_switchTaskViewTab(tab) {
+        window._ompState.taskViewActiveTab = tab;
+        const modal = document.getElementById('omp-active-modal');
+        if (!modal) return;
+        const taskId = window._ompState.viewingTaskId;
+        const tasks = omp_load('tasks');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        const tabs = [
+          { id: 'basic', label: '基本信息' },
+          { id: 'milestones', label: '里程碑' },
+          { id: 'subtasks', label: `子任务 (${omp_getSubtasks(taskId).length})` },
+          { id: 'resources', label: '资源' },
+        ];
+        const tabContainer = modal.querySelector('.omp-task-view-tab')?.parentElement;
+        if (tabContainer) {
+          tabContainer.innerHTML = tabs.map(t => `
+            <button type="button" class="omp-task-view-tab ${tab === t.id ? 'active' : ''}" onclick="window.omp_switchTaskViewTab('${t.id}')" style="padding:10px 16px;font-size:13px;background:transparent;border:none;border-bottom:2px solid ${tab === t.id ? 'var(--primary)' : 'transparent'};color:${tab === t.id ? 'var(--primary)' : 'var(--text-secondary)'};cursor:pointer;">${t.label}</button>
+          `).join('');
+        }
+        const contentContainer = modal.querySelector('#omp-task-view-tab-content');
+        if (contentContainer) {
+          contentContainer.innerHTML = omp_renderTaskViewTabContent(task);
+        }
+      }
+
+      function omp_addSubtaskRow(parentId) {
+        const container = document.getElementById('omp-subtask-list');
+        if (!container) return;
+        const placeholder = container.querySelector(':scope > div[style*="暂无子任务"]');
+        if (placeholder) placeholder.remove();
+        const tasks = omp_load('tasks');
+        const parent = tasks.find(t => t.id === parentId);
+        const row = document.createElement('div');
+        row.className = 'omp-subtask-row';
+        row.dataset.subtaskId = 'new_' + Date.now();
+        row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border-light);border-radius:8px;margin-bottom:8px;background:var(--bg-card);';
+        const ownerInputId = 'omp-subtask-owner-' + Date.now();
+        row.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:2px;"><span style="width:18px;"></span></div>
+          <input type="text" class="omp-subtask-name" placeholder="子任务名称 *" style="flex:1;min-width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <input type="text" id="${ownerInputId}" class="omp-subtask-owner" placeholder="负责人 *" style="width:90px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <input type="date" class="omp-subtask-start" value="${parent ? parent.startDate : ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <input type="date" class="omp-subtask-end" value="${parent ? parent.endDate : ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <input type="number" class="omp-subtask-progress" value="0" min="0" max="100" placeholder="进度" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <input type="number" class="omp-subtask-weight" value="1" min="1" placeholder="权重" style="width:55px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <input type="number" class="omp-subtask-budget" placeholder="预算" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <button type="button" onclick="window.omp_removeSubtaskRow(this)" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;width:24px;" title="删除">✕</button>
+        `;
+        container.appendChild(row);
+        if (window.ensurePersonInput) window.ensurePersonInput(ownerInputId, '');
+      }
+
+      function omp_removeSubtaskRow(btn) {
+        const row = btn.closest('.omp-subtask-row');
+        if (!row) return;
+        const subtaskId = row.dataset.subtaskId;
+        row.remove();
+        const container = document.getElementById('omp-subtask-list');
+        if (container && !container.querySelector('.omp-subtask-row')) {
+          container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-tertiary);">暂无子任务，点击上方按钮添加</div>';
+        }
+        // If editing existing subtask, delete from storage immediately
+        if (subtaskId && !subtaskId.startsWith('new_')) {
+          window.omp_deleteSubtask(subtaskId);
+        }
+      }
+
+      function omp_moveSubtaskRow(btn, direction) {
+        const row = btn.closest('.omp-subtask-row');
+        if (!row) return;
+        const container = document.getElementById('omp-subtask-list');
+        const rows = Array.from(container.querySelectorAll('.omp-subtask-row'));
+        const idx = rows.indexOf(row);
+        if (direction === 'up' && idx > 0) {
+          container.insertBefore(row, rows[idx - 1]);
+        } else if (direction === 'down' && idx < rows.length - 1) {
+          container.insertBefore(row, rows[idx + 1].nextSibling);
+        }
+      }
+
+      function omp_collectSubtasks(parentId) {
+        const container = document.getElementById('omp-subtask-list');
+        if (!container) return [];
+        const tasks = omp_load('tasks');
+        const parent = tasks.find(t => t.id === parentId);
+        const rows = Array.from(container.querySelectorAll('.omp-subtask-row'));
+        const existingSubtasks = omp_getSubtasks(parentId);
+        const result = [];
+        rows.forEach((row, idx) => {
+          const rawId = row.dataset.subtaskId;
+          const isNew = rawId && rawId.startsWith('new_');
+          const name = row.querySelector('.omp-subtask-name')?.value?.trim();
+          const ownerInput = row.querySelector('.omp-subtask-owner');
+          const ownerRaw = ownerInput?.value?.trim();
+          const owner = (ownerInput?.id && window.getPersonValue) ? window.getPersonValue(ownerInput.id) : ownerRaw;
+          const startDate = row.querySelector('.omp-subtask-start')?.value || '';
+          const endDate = row.querySelector('.omp-subtask-end')?.value || '';
+          const progress = parseInt(row.querySelector('.omp-subtask-progress')?.value, 10) || 0;
+          const weight = parseInt(row.querySelector('.omp-subtask-weight')?.value, 10) || 1;
+          const budget = parseFloat(row.querySelector('.omp-subtask-budget')?.value) || 0;
+          if (!name || !owner) return;
+          if (isNew) {
+            result.push({
+              id: omp_generateSubtaskId(),
+              cycleId: parent ? parent.cycleId : window._dsteState.currentCycleId,
+              source: 'omp',
+              parentId,
+              seq: idx,
+              name,
+              description: '',
+              type: parent ? parent.type : 'improvement',
+              priority: 'P1',
+              status: 'planning',
+              progress,
+              owner,
+              dept: parent ? parent.dept : '',
+              startDate,
+              endDate,
+              budget,
+              actualCost: 0,
+              relatedKpiIds: [],
+              members: [],
+              weight,
+            });
+          } else {
+            const existing = existingSubtasks.find(s => s.id === rawId);
+            if (existing) {
+              result.push({ ...existing, name, owner, startDate, endDate, progress, budget, weight, seq: idx });
+            }
+          }
+        });
+        return result;
+      }
+
+      function omp_deleteSubtask(subtaskId) {
+        if (!subtaskId) return;
+        const tasks = omp_load('tasks');
+        const subtask = tasks.find(t => t.id === subtaskId);
+        if (!subtask) return;
+        const parentId = subtask.parentId;
+        const filtered = tasks.filter(t => t.id !== subtaskId);
+        omp_save('tasks', filtered);
+        // Delete associated milestones and progress records
+        const milestones = omp_load('milestones');
+        omp_save('milestones', milestones.filter(m => m.taskId !== subtaskId));
+        const records = omp_load('progressRecords');
+        omp_save('progressRecords', records.filter(r => r.taskId !== subtaskId));
+        if (parentId) omp_recalculateParentProgress(parentId);
+        showToast('子任务已删除', 'success');
       }
 
       function omp_openDecomposeModal(kpiId) {
@@ -5625,7 +6632,7 @@
           if (!indicatorId) { showToast('请选择指标', 'warning'); return; }
           if (isNaN(target)) { showToast('请输入目标值', 'warning'); return; }
           const achievementRate = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
-          kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate), parentId: null, level: 0, assessmentLevel, source: 'omp', annualPlanKpiId: null });
+          kpis.push({ id: 'kpi_' + Date.now(), indicatorId, period, targetValue: target, challengeValue: challenge, actualValue: actual, achievementRate, weight, owner, dept, status: omp_getKpiStatus(achievementRate, actual), parentId: null, level: 0, assessmentLevel, source: 'omp', annualPlanKpiId: null });
         } else {
           const idx = kpis.findIndex(k => k.id === editId);
           if (idx > -1) {
@@ -5642,7 +6649,7 @@
               if (history.length > 6) history = history.slice(-6);
             }
             const isDerived = !!oldKpi.annualPlanKpiId;
-            const updates = { dept, owner, period, actualValue: actual, achievementRate, status: omp_getKpiStatus(achievementRate), history };
+            const updates = { dept, owner, period, actualValue: actual, achievementRate, status: omp_getKpiStatus(achievementRate, actual), history };
             if (!isDerived) updates.assessmentLevel = assessmentLevel;
             kpis[idx] = { ...oldKpi, ...updates };
           }
@@ -5654,34 +6661,84 @@
       };
 
       window.omp_saveTask = function() {
-        const name = document.getElementById('omp-task-name')?.value?.trim();
-        const description = document.getElementById('omp-task-desc')?.value?.trim();
-        const type = document.getElementById('omp-task-type')?.value;
-        const priority = document.getElementById('omp-task-priority')?.value;
-        const owner = window.getPersonValue ? window.getPersonValue('omp-task-owner') : (document.getElementById('omp-task-owner')?.value?.trim() || '');
-        const dept = document.getElementById('omp-task-dept')?.value?.trim();
-        const startDate = document.getElementById('omp-task-start')?.value || '';
-        const endDate = document.getElementById('omp-task-end')?.value || '';
-        const budget = parseFloat(document.getElementById('omp-task-budget')?.value) || 0;
-        const actualCost = parseFloat(document.getElementById('omp-task-cost')?.value) || 0;
-        const kpiSelect = document.getElementById('omp-task-kpis');
-        const relatedKpiIds = kpiSelect ? Array.from(kpiSelect.selectedOptions).map(o => o.value) : [];
-        if (!name || !owner || !dept || !endDate) { showToast('请填写必填项（名称、负责人、部门、截止日期）', 'warning'); return; }
         const tasks = omp_load('tasks');
         const editId = window._ompState.editingTaskId;
-        if (editId === 'new') {
-          tasks.push({ id: 'task_' + Date.now(), cycleId: window._dsteState.currentCycleId, source: 'omp', name, description, type, priority, status: 'planning', progress: 0, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost, members: [] });
+        const activeTab = window._ompState.taskEditActiveTab || 'basic';
+        const isNewTask = editId === 'new';
+
+        if (isNewTask) {
+          // 新建任务必须从基本信息页读取全部字段
+          const name = document.getElementById('omp-task-name')?.value?.trim();
+          const description = document.getElementById('omp-task-desc')?.value?.trim();
+          const type = document.getElementById('omp-task-type')?.value;
+          const priority = document.getElementById('omp-task-priority')?.value;
+          const owner = window.getPersonValue ? window.getPersonValue('omp-task-owner') : (document.getElementById('omp-task-owner')?.value?.trim() || '');
+          const dept = document.getElementById('omp-task-dept')?.value?.trim();
+          const startDate = document.getElementById('omp-task-start')?.value || '';
+          const endDate = document.getElementById('omp-task-end')?.value || '';
+          const progress = parseInt(document.getElementById('omp-task-progress')?.value, 10) || 0;
+          const status = document.getElementById('omp-task-status')?.value || 'planning';
+          const budget = parseFloat(document.getElementById('omp-task-budget')?.value) || 0;
+          const actualCost = parseFloat(document.getElementById('omp-task-cost')?.value) || 0;
+          const kpiSelect = document.getElementById('omp-task-kpis');
+          const relatedKpiIds = kpiSelect ? Array.from(kpiSelect.selectedOptions).map(o => o.value) : [];
+          if (!name || !owner || !dept || !endDate) { showToast('请填写必填项（名称、负责人、部门、截止日期）', 'warning'); return; }
+          tasks.push({ id: 'task_' + Date.now(), cycleId: window._dsteState.currentCycleId, source: 'omp', name, description, type, priority, status, progress, owner, dept, startDate, endDate, relatedKpiIds, budget, actualCost, members: [] });
         } else {
           const idx = tasks.findIndex(t => t.id === editId);
           if (idx > -1) {
-            const existingMembers = Array.isArray(tasks[idx].members) ? tasks[idx].members : [];
-            const isDerived = tasks[idx].annualPlanTaskId;
-            const finalOwner = isDerived ? tasks[idx].owner : owner;
-            tasks[idx] = { ...tasks[idx], name, description, type, priority, owner: finalOwner, dept, startDate, endDate, relatedKpiIds, budget, actualCost, members: existingMembers };
+            const existing = tasks[idx];
+            const existingMembers = Array.isArray(existing.members) ? existing.members : [];
+            const isDerived = existing.annualPlanTaskId;
+            const isParentTask = !omp_isSubtask(existing);
+
+            if (activeTab === 'basic') {
+              // 基本信息页：读取并校验表单字段
+              const name = document.getElementById('omp-task-name')?.value?.trim();
+              const description = document.getElementById('omp-task-desc')?.value?.trim();
+              const type = document.getElementById('omp-task-type')?.value;
+              const priority = document.getElementById('omp-task-priority')?.value;
+              const owner = window.getPersonValue ? window.getPersonValue('omp-task-owner') : (document.getElementById('omp-task-owner')?.value?.trim() || '');
+              const dept = document.getElementById('omp-task-dept')?.value?.trim();
+              const startDate = document.getElementById('omp-task-start')?.value || '';
+              const endDate = document.getElementById('omp-task-end')?.value || '';
+              const progress = parseInt(document.getElementById('omp-task-progress')?.value, 10) || 0;
+              const status = document.getElementById('omp-task-status')?.value || 'planning';
+              const budget = parseFloat(document.getElementById('omp-task-budget')?.value) || 0;
+              const actualCost = parseFloat(document.getElementById('omp-task-cost')?.value) || 0;
+              const kpiSelect = document.getElementById('omp-task-kpis');
+              const relatedKpiIds = kpiSelect ? Array.from(kpiSelect.selectedOptions).map(o => o.value) : [];
+              if (!name || !owner || !dept || !endDate) { showToast('请填写必填项（名称、负责人、部门、截止日期）', 'warning'); return; }
+              const finalOwner = isDerived ? existing.owner : owner;
+              let progressOverridden = existing.progressOverridden;
+              if (isParentTask && progress !== existing.progress) {
+                progressOverridden = true;
+              }
+              tasks[idx] = { ...existing, name, description, type, priority, owner: finalOwner, dept, startDate, endDate, status, progress, relatedKpiIds, budget, actualCost, members: existingMembers, progressOverridden };
+            }
+
+            // 父任务统一处理子任务增删改（子任务标签页保存时不应因基本信息字段缺失而失败）
+            if (isParentTask) {
+              const collected = omp_collectSubtasks(editId);
+              const existingSubIds = new Set(collected.map(s => s.id));
+              const filtered = tasks.filter(t => t.parentId !== editId || existingSubIds.has(t.id));
+              const parentIdx = filtered.findIndex(t => t.id === editId);
+              if (parentIdx > -1) filtered[parentIdx] = tasks[idx];
+              const filteredIds = new Set(filtered.map(t => t.id));
+              collected.forEach(s => {
+                if (!filteredIds.has(s.id)) filtered.push(s);
+              });
+              tasks.length = 0;
+              tasks.push(...filtered);
+            }
           }
         }
         omp_save('tasks', tasks);
+        if (editId !== 'new' && !omp_isSubtask(tasks.find(t => t.id === editId))) {
+          omp_recalculateParentProgress(editId);
+        }
         window._ompState.editingTaskId = null;
+        window._ompState.taskEditActiveTab = 'basic';
         document.getElementById('omp-active-modal')?.remove();
         navigate('exe/tasks');
       };
@@ -5697,6 +6754,16 @@
       };
 
       // ===== 重点工作人员配置台交互（PRD v1.8） =====
+      window.omp_toggleTaskExpand = function(taskId) {
+        if (!window._ompState.taskExpandedIds) window._ompState.taskExpandedIds = new Set();
+        if (window._ompState.taskExpandedIds.has(taskId)) {
+          window._ompState.taskExpandedIds.delete(taskId);
+        } else {
+          window._ompState.taskExpandedIds.add(taskId);
+        }
+        navigate('exe/tasks');
+      };
+
       function omp_getApiBase() {
         const host = window.location.hostname;
         if (host === 'localhost' || host === '127.0.0.1') {
@@ -5789,13 +6856,10 @@
         const state = window._ompState.staffingState;
         state.selectedOrgId = orgId || null;
         state.dirSearchQuery = '';
-        // PRD v1.8 企业微信风格：点击部门行展开/折叠该部门
+        // PRD v1.8 企业微信风格：点击部门行选中高亮，并自动展开该部门以便查看其下人员
         if (orgId) {
-          if (state.expandedOrgIds.has(orgId)) {
-            state.expandedOrgIds.delete(orgId);
-          } else {
-            state.expandedOrgIds.add(orgId);
-          }
+          if (!state.expandedOrgIds) state.expandedOrgIds = new Set();
+          state.expandedOrgIds.add(orgId);
         }
         navigate('exe/tasks');
       };
@@ -6159,15 +7223,21 @@
       };
 
       window.omp_deleteTask = function(id) {
-        if (!confirm('确定要删除这个重点工作吗？关联的里程碑和进度记录也将被删除。此操作不可恢复。')) return;
         const tasks = omp_load('tasks');
-        const filteredTasks = tasks.filter(t => t.id !== id);
+        const task = tasks.find(t => t.id === id);
+        const hasChildren = task && omp_hasSubtasks(id);
+        const confirmMsg = hasChildren
+          ? '确定要删除这个重点工作吗？其下所有子任务也将被删除。关联的里程碑和进度记录也将被删除。此操作不可恢复。'
+          : '确定要删除这个重点工作吗？关联的里程碑和进度记录也将被删除。此操作不可恢复。';
+        if (!confirm(confirmMsg)) return;
+        const idsToDelete = collectCascadeDeleteIds(tasks, id);
+        const filteredTasks = tasks.filter(t => !idsToDelete.has(t.id));
         omp_save('tasks', filteredTasks);
         const milestones = omp_load('milestones');
-        const filteredMs = milestones.filter(m => m.taskId !== id);
+        const filteredMs = milestones.filter(m => !idsToDelete.has(m.taskId));
         omp_save('milestones', filteredMs);
         const records = omp_load('progressRecords');
-        const filteredRecs = records.filter(r => r.taskId !== id);
+        const filteredRecs = records.filter(r => !idsToDelete.has(r.taskId));
         omp_save('progressRecords', filteredRecs);
         navigate('exe/tasks');
       };

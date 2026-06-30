@@ -63,10 +63,10 @@ async function openAiAgendaPanel(page) {
   // 新版 UI：议程推荐在会议 AI 助手抽屉的「议程推荐」标签页内
   // openMeetingAiAssistantFromEditor 默认打开 agenda 标签
   await page.evaluate(() => {
-    if (typeof openMeetingAiAssistantFromEditor === 'function') {
-      openMeetingAiAssistantFromEditor();
+    if (typeof window.openMeetingAiAssistantFromEditor === 'function') {
+      window.openMeetingAiAssistantFromEditor();
     } else {
-      throw new Error('openMeetingAiAssistantFromEditor is not defined');
+      throw new Error('window.openMeetingAiAssistantFromEditor is not defined');
     }
   });
   await page.waitForTimeout(200);

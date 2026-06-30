@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { hasCycle, LinkStore } from '../../src/lib/strategy-map-data.js';
+import { hasCycle, LinkStore, MapConfigStore } from '../../src/lib/strategy-map-data.js';
 
 // Mock localStorage
 const storage = {};
@@ -55,7 +55,11 @@ describe('LinkStore', () => {
   it('creates a new link', () => {
     const links = LinkStore.create(mapId, { from: 'a', to: 'b', type: 'drives' });
     expect(links).toHaveLength(1);
-    expect(links[0]).toEqual({ from: 'a', to: 'b', type: 'drives' });
+    expect(links[0].from).toBe('a');
+    expect(links[0].to).toBe('b');
+    expect(links[0].type).toBe('drives');
+    expect(links[0].id).toBe('a__b');
+    expect(typeof links[0].lastModified).toBe('number');
   });
 
   it('rejects self-link', () => {
@@ -100,5 +104,40 @@ describe('LinkStore', () => {
     LinkStore.create(mapId, { from: 'a', to: 'b', type: 'drives' });
     expect(LinkStore.hasLink(mapId, 'a', 'b')).toBe(true);
     expect(LinkStore.hasLink(mapId, 'b', 'a')).toBe(false);
+  });
+});
+
+describe('MapConfigStore', () => {
+  beforeEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it('seeds default maps on first access', () => {
+    const maps = MapConfigStore.getAll();
+    expect(maps.length).toBeGreaterThan(0);
+    expect(maps[0].id).toBe('yx_2025_2027');
+    expect(storage['dste_sm_maps_v3_version']).toBeDefined();
+  });
+
+  it('does not re-seed if data already exists', () => {
+    MapConfigStore.getAll(); // seed
+    const maps = MapConfigStore.getAll();
+    expect(maps.length).toBe(1);
+  });
+
+  it('persists a created map', () => {
+    MapConfigStore.getAll(); // seed
+    const created = MapConfigStore.create({
+      name: '测试地图',
+      dept: 'test',
+      deptName: '测试部门',
+      cycle: { startYear: 2027, endYear: 2029 },
+      status: 'draft',
+    });
+    expect(created.id).toBeDefined();
+
+    const loaded = MapConfigStore.get(created.id);
+    expect(loaded).not.toBeNull();
+    expect(loaded.name).toBe('测试地图');
   });
 });

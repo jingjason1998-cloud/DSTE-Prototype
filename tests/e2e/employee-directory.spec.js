@@ -128,7 +128,9 @@ test.describe('Employee Directory Cloud Sync', () => {
       localStorage.setItem('dste_api_base', 'http://localhost:8787');
     });
 
-    await page.route('http://localhost:8787/api/employees', async (route) => {
+    const requests = [];
+    await page.route('http://localhost:8787/api/employees/*', async (route) => {
+      requests.push(route.request());
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
     });
     await page.route('http://localhost:8787/api/org-units', async (route) => {
@@ -141,22 +143,21 @@ test.describe('Employee Directory Cloud Sync', () => {
     await page.goto('/src/employee-directory.html');
     await page.waitForLoadState('networkidle');
 
-    const postPromise = page.waitForRequest(
-      (req) => req.url() === 'http://localhost:8787/api/employees' && req.method() === 'POST',
-      { timeout: 10000 }
-    );
-
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
       page.click('#import-drop-zone'),
     ]);
     await fileChooser.setFiles('tests/fixtures/test-employees.xlsx');
 
-    const request = await postPromise;
-    const postedEmployees = request.postDataJSON();
-    expect(Array.isArray(postedEmployees)).toBe(true);
-    expect(postedEmployees.length).toBe(3);
+    // 等待导入完成并触发同步
+    await page.waitForTimeout(2000);
+
+    const putRequests = requests.filter(req => req.method() === 'PUT');
+    expect(putRequests.length).toBeGreaterThanOrEqual(3);
+    const postedEmployees = putRequests.map(req => req.postDataJSON());
     expect(postedEmployees.every(e => e.lastModified)).toBe(true);
+    const ids = [...new Set(postedEmployees.map(e => e.id))].sort();
+    expect(ids).toEqual(['10001', '10002', '10003']);
   });
 
   test('pushes empty state to API on clear', async ({ page }) => {
@@ -164,7 +165,7 @@ test.describe('Employee Directory Cloud Sync', () => {
       localStorage.setItem('dste_api_base', 'http://localhost:8787');
     });
 
-    await page.route('http://localhost:8787/api/employees', async (route) => {
+    await page.route('http://localhost:8787/api/employees/*', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
     });
     await page.route('http://localhost:8787/api/org-units', async (route) => {
@@ -190,12 +191,14 @@ test.describe('Employee Directory Cloud Sync', () => {
       clearEmployeeDirectory();
     });
 
-    // 验证同步队列中包含清空后的 POST payload
+    // 验证同步队列中包含逐条 DELETE
     const queue = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_sync_queue') || '[]'));
-    const employeesOp = queue.find(q => q.endpoint === '/api/employees' && q.method === 'POST');
+    const deleteOps = queue.filter(q => q.endpoint.startsWith('/api/employees/') && q.method === 'DELETE');
+    expect(deleteOps).toHaveLength(TEST_EMPLOYEES.length);
+    const deletedIds = deleteOps.map(q => q.endpoint.split('/').pop()).sort();
+    expect(deletedIds).toEqual(TEST_EMPLOYEES.map(e => e.id).sort());
+
     const orgUnitsOp = queue.find(q => q.endpoint === '/api/org-units' && q.method === 'POST');
-    expect(employeesOp).toBeDefined();
-    expect(employeesOp.payload).toEqual([]);
     expect(orgUnitsOp).toBeDefined();
     expect(orgUnitsOp.payload).toMatchObject({ data: {} });
   });

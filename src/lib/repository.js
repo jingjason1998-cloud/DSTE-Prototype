@@ -232,11 +232,18 @@ export function createOmpRepository(entity, storageKey) {
 /**
  * 便捷工厂：战略地图 Repository
  */
-export function createStrategyMapRepository(namespace, storageKey, schema = 'array') {
+export function createStrategyMapRepository(
+  namespace,
+  storageKey,
+  schema = 'array',
+  version = 3,
+  migrators = {}
+) {
   return new Repository(namespace, {
     storageKey,
     schema,
-    version: 3,
+    version,
     backupNamespace: 'strategyMap',
+    migrators,
   });
 }

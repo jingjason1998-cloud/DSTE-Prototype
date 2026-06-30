@@ -1,4 +1,5 @@
 import { Storage } from '../../lib/utils.js';
+import { Repository } from '../../lib/repository.js';
 
 /**
  * 会议材料评审 API 封装
@@ -7,6 +8,20 @@ import { Storage } from '../../lib/utils.js';
  * 纯函数：封装对 reviewer 后端（localhost:8766 或反向代理）的 API 调用
  * 不涉及 DOM 操作
  */
+
+export const reviewScoresRepo = new Repository('reviewer/scores', {
+  storageKey: 'dste_review_scores',
+  schema: 'object',
+  version: 1,
+  defaultValue: {},
+  backupNamespace: 'reviewer',
+});
+
+// 供 reviewer.html 内联脚本使用（该页面非 ES module）
+if (typeof window !== 'undefined') {
+  window.DSTE = window.DSTE || {};
+  window.DSTE.reviewScoresRepo = reviewScoresRepo;
+}
 
 /** 会议场景 → 评审场景映射 */
 export const REVIEWER_SCENE_MAP = {
@@ -52,7 +67,7 @@ export async function reviewMaterial(url, sceneId) {
     const data = await resp.json();
     if (data.success) {
       // 同步更新 dste_review_scores，与 reviewer 前端保持一致
-      const map = Storage.get('dste_review_scores', {});
+      const map = reviewScoresRepo.get();
       const current = map[url];
       if (!current || (data.total_score || 0) > current.maxScore) {
         map[url] = {
@@ -62,7 +77,7 @@ export async function reviewMaterial(url, sceneId) {
           issues: (data.issues || []).slice(0, 5),
           report: data.report || '',
         };
-        Storage.set('dste_review_scores', map);
+        reviewScoresRepo.set(map);
       }
       return { success: true, score: data.total_score, data };
     }
@@ -131,7 +146,7 @@ export async function getBatchReviewResults(taskId) {
     const data = await resp.json();
     if (data.success) {
       // 同步更新 dste_review_scores
-      const map = Storage.get('dste_review_scores', {});
+      const map = reviewScoresRepo.get();
       for (const r of data.results || []) {
         if (r.status === 'completed' && r.total_score != null) {
           const current = map[r.url];
@@ -140,7 +155,7 @@ export async function getBatchReviewResults(taskId) {
           }
         }
       }
-      Storage.set('dste_review_scores', map);
+      reviewScoresRepo.set(map);
       return { success: true, results: data.results };
     }
     return { success: false, error: data.error || '获取结果失败' };
@@ -157,7 +172,7 @@ export async function getBatchReviewResults(taskId) {
 export function getMaterialReviewInfo(url) {
   if (!url) return null;
   try {
-    const map = Storage.get('dste_review_scores', {});
+    const map = reviewScoresRepo.get();
     const entry = map[url];
     if (!entry) return null;
     return {

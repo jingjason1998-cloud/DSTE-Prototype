@@ -145,14 +145,16 @@ test.describe('Strategy Map', () => {
 
     await page.locator('button:has-text("保存")').last().click();
     await expect(page.locator('.toast.success')).toContainText('目标已创建');
+    await page.locator('.toast.success.show').waitFor({ state: 'hidden', timeout: 5000 });
     await expect(page.locator('.obj-card:has-text("测试战略目标")')).toBeVisible();
 
     // 删除（通过 JS dispatchEvent 触发卡片点击，避免 SVG 连线遮挡）
     const testCard = page.locator('.obj-card:has-text("测试战略目标")');
     await testCard.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     await expect(page.locator('#detailPanel')).toHaveClass(/open/);
-    await page.locator('[data-action="edit-obj"]').click();
-    await page.locator('button:has-text("删除")').click();
+    await page.locator('[data-action="edit-obj"]').dispatchEvent('click');
+    await expect(page.locator('#objModal')).toHaveClass(/open/);
+    await page.locator('#objModal.open #modalDeleteBtn').dispatchEvent('click');
     await expect(page.locator('.toast.success')).toContainText('目标已删除');
     await expect(page.locator('.obj-card:has-text("测试战略目标")')).not.toBeVisible();
   });

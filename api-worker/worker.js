@@ -41,6 +41,8 @@ const KEYS = {
   topics: 'dste_topics_v2',
   issues: 'dste_issues_v1',
   meetings: 'dste_meetings_v1',
+  // 需求池
+  requirements: 'dste_requirements_v1',
   // 人员/组织目录（按用户隔离，前缀 user:{userId}:
   employees: 'dste_employees_v1',
   orgUnits: 'dste_org_units_v1',
@@ -52,6 +54,8 @@ const KEYS = {
   milestones: 'dste_omp_milestones_v1',
   progressRecords: 'dste_omp_progress_v1',
   cycles: 'dste_cycles_v1',
+  // 战略地图
+  strategyMaps: 'dste_strategy_maps_v1',
   // 版本审计
   versionAudit: 'dste_version_audit_v1',
 };
@@ -241,14 +245,19 @@ async function handleEntityItem(request, env, options = {}) {
       return jsonResponse({ success: false, error: 'Conflict', data: item, currentVersion: match.current }, 409, request);
     }
 
-    // 软删除
-    item.deleted = true;
-    item.version = (Number(item.version) || 0) + 1;
-    item.lastModified = Date.now();
-    if (user) item.updatedBy = user.id;
-
-    const newData = setItem(data, id, item, lookupMode);
-    await env.DSTE_KV.put(key, JSON.stringify(newData));
+    // 硬删除：从数组/object/map 中移除该记录
+    let newData;
+    if (lookupMode === 'map') {
+      newData = { ...data };
+      delete newData[id];
+      await env.DSTE_KV.put(key, JSON.stringify(newData));
+    } else if (lookupMode === 'object') {
+      await env.DSTE_KV.delete(key);
+      return jsonResponse({ success: true, data: item }, 200, request);
+    } else {
+      newData = data.filter(i => i && String(i.id) !== String(id));
+      await env.DSTE_KV.put(key, JSON.stringify(newData));
+    }
     return jsonResponse({ success: true, data: item }, 200, request);
   }
 
@@ -307,6 +316,7 @@ const DEFAULTS = {
   topics: '[]',
   issues: '[]',
   meetings: '[]',
+  requirements: '[]',
   employees: '[]',
   orgUnits: '{}',
   employeeImportMeta: 'null',
@@ -316,6 +326,7 @@ const DEFAULTS = {
   milestones: '[]',
   progressRecords: '[]',
   cycles: '[]',
+  strategyMaps: '[]',
 };
 
 // --- AI 议程推荐 ---
@@ -571,6 +582,121 @@ async function handleChat(request, env) {
   }
 }
 
+// ========== AI 工具执行层 ==========
+
+async function searchKms(query, limit = 3, env) {
+  const token = env.KMS_PAT_TOKEN;
+  if (!token) {
+    return { success: false, error: 'KMS not configured' };
+  }
+
+  try {
+    const cql = `text ~ "${query.replace(/"/g, '\\"')}"`;
+    const url = `${env.KMS_BASE_URL || 'https://kms.fineres.com'}/rest/api/content/search?cql=${encodeURIComponent(cql)}&limit=${limit}&expand=space`;
+    const resp = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!resp.ok) {
+      console.error('KMS search failed:', resp.status);
+      return { success: false, error: `KMS search failed: ${resp.status}` };
+    }
+
+    const data = await resp.json();
+    const snippets = (data.results || []).map((r) => ({
+      id: String(r.id || ''),
+      title: String(r.title || ''),
+      url: `${env.KMS_BASE_URL || 'https://kms.fineres.com'}/pages/viewpage.action?pageId=${r.id}`,
+      space: r.space?.name || r.space?.key || '',
+    }));
+    return { success: true, snippets };
+  } catch (err) {
+    console.error('KMS search error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+async function executeTool(name, args, context, env) {
+  // 查询类工具：依赖前端传入的 context.meeting
+  if (name === 'queryMeetingAgenda') {
+    const meeting = context?.meeting || {};
+    return { success: true, agendaItems: meeting.agenda_items || [] };
+  }
+
+  if (name === 'queryMeetingActions') {
+    const meeting = context?.meeting || {};
+    return { success: true, actions: meeting.actions || [] };
+  }
+
+  if (name === 'queryMeetingResolutions') {
+    const meeting = context?.meeting || {};
+    return { success: true, resolutions: meeting.decisions || meeting.resolutions || [] };
+  }
+
+  // 写入类工具：只生成草案，不直接持久化
+  if (name === 'createActionItem') {
+    const today = new Date().toISOString().split('T')[0];
+    const actionItem = {
+      id: 'A' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      content: String(args.content || '').trim(),
+      owner: String(args.owner || '').trim(),
+      deadline: args.deadline || today,
+      status: 'pending',
+      sourceAgendaId: '',
+      sourceDecisionId: '',
+    };
+    return {
+      draft: true,
+      type: 'actionItem',
+      meetingId: args.meetingId,
+      actionItem,
+      message: '已草拟行动项，等待用户确认',
+    };
+  }
+
+  if (name === 'searchKms') {
+    return searchKms(args.query || '', args.limit || 3, env);
+  }
+
+  if (name === 'navigateTo') {
+    return { success: true, action: 'navigateTo', pageId: args.pageId };
+  }
+
+  return { success: false, error: `Unknown tool: ${name}` };
+}
+
+async function handleToolsExecute(request, env) {
+  if (request.method !== 'POST') {
+    return errorResponse('Method not allowed', 405, request);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return errorResponse('Invalid JSON body', 400, request);
+  }
+
+  const name = body.name;
+  const args = body.arguments || {};
+  const context = body.context || {};
+
+  if (!name) {
+    return errorResponse('Missing tool name', 400, request);
+  }
+
+  try {
+    const result = await executeTool(name, args, context, env);
+    return jsonResponse({ success: true, result }, 200, request);
+  } catch (err) {
+    console.error('Tool execution error:', err);
+    return errorResponse(err.message || 'Tool execution failed', 502, request);
+  }
+}
+
 export default {
   async fetch(request, env, _ctx) {
     const url = new URL(request.url);
@@ -654,7 +780,7 @@ export default {
       }
 
       // --- 单条 CRUD 端点（新增）---
-      const itemMatch = path.match(/^\/api\/(topics|issues|meetings|employees|org-units)\/([^\/]+)$/);
+      const itemMatch = path.match(/^\/api\/(topics|issues|meetings|employees|org-units|requirements)\/([^\/]+)$/);
       if (itemMatch) {
         const entity = itemMatch[1];
         const id = decodeURIComponent(itemMatch[2]);
@@ -670,6 +796,79 @@ export default {
           id,
           user,
           lookupMode: entity === 'org-units' ? 'map' : 'array',
+        });
+      }
+
+      // --- OMP 单条 CRUD 端点 ---
+      const ompItemMatch = path.match(/^\/api\/omp\/([^\/]+)\/([^\/]+)$/);
+      if (ompItemMatch) {
+        const entity = ompItemMatch[1];
+        const id = decodeURIComponent(ompItemMatch[2]);
+        const key = KEYS[entity];
+        if (!key) {
+          return errorResponse('Unknown OMP entity: ' + entity, 400, request);
+        }
+        const auth = await requireAuth(request, env);
+        const user = auth.valid ? auth.user : null;
+        if (request.method !== 'GET' && !user) {
+          return errorResponse('Unauthorized', 401, request);
+        }
+        return handleEntityItem(request, env, {
+          key,
+          id,
+          user,
+          lookupMode: 'array',
+        });
+      }
+
+      // --- 战略地图单条 CRUD 端点 ---
+      const smMapMatch = path.match(/^\/api\/strategy-maps\/([^\/]+)$/);
+      if (smMapMatch) {
+        const id = decodeURIComponent(smMapMatch[1]);
+        const auth = await requireAuth(request, env);
+        const user = auth.valid ? auth.user : null;
+        if (request.method !== 'GET' && !user) {
+          return errorResponse('Unauthorized', 401, request);
+        }
+        return handleEntityItem(request, env, {
+          key: KEYS.strategyMaps,
+          id,
+          user,
+          lookupMode: 'array',
+        });
+      }
+
+      const smObjMatch = path.match(/^\/api\/strategy-maps\/([^\/]+)\/objectives\/([^\/]+)$/);
+      if (smObjMatch) {
+        const mapId = decodeURIComponent(smObjMatch[1]);
+        const id = decodeURIComponent(smObjMatch[2]);
+        const auth = await requireAuth(request, env);
+        const user = auth.valid ? auth.user : null;
+        if (request.method !== 'GET' && !user) {
+          return errorResponse('Unauthorized', 401, request);
+        }
+        return handleEntityItem(request, env, {
+          key: `dste_sm_obj_${mapId}_v3`,
+          id,
+          user,
+          lookupMode: 'array',
+        });
+      }
+
+      const smLinkMatch = path.match(/^\/api\/strategy-maps\/([^\/]+)\/links\/([^\/]+)$/);
+      if (smLinkMatch) {
+        const mapId = decodeURIComponent(smLinkMatch[1]);
+        const id = decodeURIComponent(smLinkMatch[2]);
+        const auth = await requireAuth(request, env);
+        const user = auth.valid ? auth.user : null;
+        if (request.method !== 'GET' && !user) {
+          return errorResponse('Unauthorized', 401, request);
+        }
+        return handleEntityItem(request, env, {
+          key: `dste_sm_links_${mapId}_v3`,
+          id,
+          user,
+          lookupMode: 'array',
         });
       }
 
@@ -724,6 +923,78 @@ export default {
           const normalized = normalizeArrayItems(body, auth.user);
           await env.DSTE_KV.put(KEYS.meetings, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'meetings saved' }, 200, request);
+        }
+      }
+
+      // --- 需求池 API ---
+      if (path === '/api/requirements') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.requirements) || '[]';
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.requirements, JSON.stringify(normalized));
+          return jsonResponse({ success: true, message: 'requirements saved' }, 200, request);
+        }
+      }
+
+      // --- 战略地图 API ---
+      if (path === '/api/strategy-maps') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.strategyMaps) || '[]';
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.strategyMaps, JSON.stringify(normalized));
+          return jsonResponse({ success: true, message: 'strategy maps saved' }, 200, request);
+        }
+      }
+
+      const smObjectivesListMatch = path.match(/^\/api\/strategy-maps\/([^\/]+)\/objectives$/);
+      if (smObjectivesListMatch) {
+        const mapId = decodeURIComponent(smObjectivesListMatch[1]);
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(`dste_sm_obj_${mapId}_v3`) || '[]';
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          await env.DSTE_KV.put(`dste_sm_obj_${mapId}_v3`, JSON.stringify(body));
+          return jsonResponse({ success: true, message: 'objectives saved' }, 200, request);
+        }
+      }
+
+      const smLinksListMatch = path.match(/^\/api\/strategy-maps\/([^\/]+)\/links$/);
+      if (smLinksListMatch) {
+        const mapId = decodeURIComponent(smLinksListMatch[1]);
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(`dste_sm_links_${mapId}_v3`) || '[]';
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          await env.DSTE_KV.put(`dste_sm_links_${mapId}_v3`, JSON.stringify(body));
+          return jsonResponse({ success: true, message: 'links saved' }, 200, request);
         }
       }
 
@@ -806,6 +1077,32 @@ export default {
           task.members = members;
           await env.DSTE_KV.put(kvKey, JSON.stringify(tasks));
           return jsonResponse({ success: true, message: 'members updated', taskId }, 200, request);
+        }
+      }
+
+      // --- OMP 子任务排序 API ---
+      const ompTaskReorderMatch = path.match(/^\/api\/omp\/tasks\/reorder$/);
+      if (ompTaskReorderMatch) {
+        if (method === 'PATCH') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const orders = Array.isArray(body) ? body : (body.orders || []);
+          if (!Array.isArray(orders) || orders.length === 0) {
+            return errorResponse('Invalid request body', 400, request);
+          }
+          const kvKey = getUserKey(auth, KEYS.tasks);
+          const raw = await env.DSTE_KV.get(kvKey) || DEFAULTS.tasks || '[]';
+          let tasks;
+          try { tasks = JSON.parse(raw); } catch (e) { tasks = []; }
+          orders.forEach(({ taskId, seq }) => {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) task.seq = seq;
+          });
+          await env.DSTE_KV.put(kvKey, JSON.stringify(tasks));
+          return jsonResponse({ success: true, message: 'reordered' }, 200, request);
         }
       }
 
@@ -905,6 +1202,11 @@ export default {
       // --- AI 通用对话 ---
       if (path === '/api/ai/chat') {
         return handleChat(request, env);
+      }
+
+      // --- AI 工具执行 ---
+      if (path === '/api/ai/tools/execute') {
+        return handleToolsExecute(request, env);
       }
 
       // --- 健康检查 ---

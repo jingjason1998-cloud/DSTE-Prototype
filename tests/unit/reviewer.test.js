@@ -3,7 +3,9 @@ import {
   getReviewerScene,
   getReviewerProxyUrl,
   getMaterialReviewInfo,
-  REVIEWER_SCENE_MAP,
+  reviewMaterial,
+  getBatchReviewResults,
+  reviewScoresRepo,
 } from '../../src/meetings/utils/reviewer.js';
 
 // mock localStorage for Node test environment
@@ -13,6 +15,7 @@ Object.defineProperty(globalThis, 'localStorage', {
     getItem: (key) => mockStorage[key] ?? null,
     setItem: (key, val) => { mockStorage[key] = val; },
     removeItem: (key) => { delete mockStorage[key]; },
+    clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]); },
   },
   writable: true,
   configurable: true,
@@ -48,9 +51,9 @@ describe('getReviewerProxyUrl', () => {
 
 describe('getMaterialReviewInfo', () => {
   beforeEach(() => {
-    localStorage.setItem('dste_review_scores', JSON.stringify({
+    reviewScoresRepo.set({
       'https://kms.example.com/page1': { maxScore: 82, lastReviewAt: 1718000000000 },
-    }));
+    });
   });
 
   it('returns score info for reviewed material', () => {
@@ -67,5 +70,87 @@ describe('getMaterialReviewInfo', () => {
 
   it('returns null for empty url', () => {
     expect(getMaterialReviewInfo('')).toBeNull();
+  });
+});
+
+describe('reviewMaterial', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('stores review score via Repository on success', async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve({
+        json: () =>
+          Promise.resolve({
+            success: true,
+            total_score: 85,
+            dimension_scores: { 完整性: 30 },
+            issues: ['issue1'],
+            report: 'test report',
+          }),
+      })
+    );
+
+    const result = await reviewMaterial('https://kms.example.com/page1', 'general-topic-review');
+    expect(result.success).toBe(true);
+    expect(result.score).toBe(85);
+
+    const info = getMaterialReviewInfo('https://kms.example.com/page1');
+    expect(info.score).toBe(85);
+    expect(info.dimensionScores).toEqual({ 完整性: 30 });
+    expect(info.issues).toEqual(['issue1']);
+    expect(info.report).toBe('test report');
+  });
+
+  it('does not lower existing max score', async () => {
+    reviewScoresRepo.set({
+      'https://kms.example.com/page1': { maxScore: 90, lastReviewAt: 1000 },
+    });
+
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve({
+        json: () =>
+          Promise.resolve({
+            success: true,
+            total_score: 80,
+          }),
+      })
+    );
+
+    await reviewMaterial('https://kms.example.com/page1', 'general-topic-review');
+    const info = getMaterialReviewInfo('https://kms.example.com/page1');
+    expect(info.score).toBe(90);
+  });
+});
+
+describe('getBatchReviewResults', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('updates review scores from batch results', async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve({
+        json: () =>
+          Promise.resolve({
+            success: true,
+            results: [
+              { url: 'https://kms.example.com/a', status: 'completed', total_score: 70 },
+              { url: 'https://kms.example.com/b', status: 'completed', total_score: 88 },
+              { url: 'https://kms.example.com/c', status: 'failed' },
+            ],
+          }),
+      })
+    );
+
+    const result = await getBatchReviewResults(123);
+    expect(result.success).toBe(true);
+
+    expect(getMaterialReviewInfo('https://kms.example.com/a').score).toBe(70);
+    expect(getMaterialReviewInfo('https://kms.example.com/b').score).toBe(88);
+    expect(getMaterialReviewInfo('https://kms.example.com/c')).toBeNull();
   });
 });

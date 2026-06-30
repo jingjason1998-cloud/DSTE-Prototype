@@ -37,7 +37,9 @@ export const ModalManager = {
       if (!obj) return;
       document.getElementById('modalObjName').value = obj.name || '';
       document.getElementById('modalObjDesc').value = obj.desc || '';
-      document.getElementById('modalObjOwner').value = typeof obj.owner === 'object' ? (obj.owner.displayName || obj.owner.name || '') : (obj.owner || '');
+      document.getElementById('modalObjOwner').value = (typeof obj.owner === 'object' && obj.owner)
+        ? (obj.owner.displayName || obj.owner.name || '')
+        : (obj.owner || '');
       document.querySelectorAll('input[name="modalDim"]').forEach(r => { r.checked = r.value === obj.dim; });
       document.getElementById('ms2025Target').value = obj.milestones?.[2025]?.target || '';
       document.getElementById('ms2025Focus').value = obj.milestones?.[2025]?.focusLevel || 'primary';

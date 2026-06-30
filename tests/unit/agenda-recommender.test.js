@@ -223,7 +223,7 @@ describe('agenda-recommender', () => {
           theme: '',
           context: expect.any(Object),
         }),
-        { timeout: 25000 }
+        { timeout: 29000 }
       );
     });
 
@@ -237,7 +237,7 @@ describe('agenda-recommender', () => {
       const result = await recommendAgenda({ title: 'Test Meeting', scenario: 'hq_routine', agenda_items: [] });
       expect(result.success).toBe(true);
       expect(result.candidates).toHaveLength(1);
-      expect(mockRequest).toHaveBeenCalledWith('/api/ai/agenda', expect.any(Object), { timeout: 25000 });
+      expect(mockRequest).toHaveBeenCalledWith('/api/ai/agenda', expect.any(Object), { timeout: 29000 });
     });
 
     it('returns error on request failure', async () => {

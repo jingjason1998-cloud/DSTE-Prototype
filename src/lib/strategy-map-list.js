@@ -5,7 +5,8 @@ import {
   MAP_STATUS_CONFIG,
   mapStatusText,
   DIM_CONFIG,
-  DEFAULT_MAP_ID
+  DEFAULT_MAP_ID,
+  loadRemoteStrategyMaps
 } from './strategy-map-data.js';
 
 /**
@@ -60,7 +61,8 @@ const els = {
 };
 
 // ========== 初始化 ==========
-function init() {
+async function init() {
+  await loadRemoteStrategyMaps();
   loadMaps();
   bindEvents();
   render();

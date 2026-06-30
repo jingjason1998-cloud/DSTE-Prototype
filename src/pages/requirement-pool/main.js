@@ -5,6 +5,7 @@
 import { showToast } from '../../lib/utils.js';
 import {
   loadRequirements,
+  loadRemoteRequirements,
   saveRequirements,
   createRequirement,
   updateRequirement,
@@ -55,7 +56,8 @@ const state = {
 
 let allRequirements = [];
 
-function init() {
+async function init() {
+  await loadRemoteRequirements();
   allRequirements = loadRequirements();
   bindEvents();
   render();

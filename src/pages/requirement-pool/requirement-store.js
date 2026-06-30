@@ -3,8 +3,16 @@
  * 使用 Repository 封装 localStorage，提供 CRUD、mock 数据、编号生成
  */
 
-import { Storage } from '../../lib/utils.js';
 import { Repository } from '../../lib/repository.js';
+import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
+import {
+  computeEntityDiff,
+  mergeEntities,
+  enqueuePerRecordSync,
+  createPerItemExecutor,
+  apiLoadArray,
+  ensureLastModified,
+} from '../../lib/per-record-sync.js';
 
 export const STORAGE_KEY = 'dste_requirements_v1';
 
@@ -67,8 +75,23 @@ export const STATUS_TRANSITIONS = {
 const repo = new Repository('requirements', {
   storageKey: STORAGE_KEY,
   schema: 'array',
-  version: 1
+  version: 2,
+  migrators: {
+    2: (data) => {
+      data.forEach(r => {
+        if (!r.lastModified) r.lastModified = Date.now();
+      });
+      return data;
+    },
+  },
 });
+
+const syncQueue = getDefaultSyncQueue();
+const perItemExecutor = createPerItemExecutor();
+
+if (typeof window !== 'undefined') {
+  syncQueue.bindAutoProcess(perItemExecutor);
+}
 
 let _cache = null;
 
@@ -78,16 +101,39 @@ export function loadRequirements() {
   if (!_cache.length) {
     _cache = getMockRequirements();
     repo.set(_cache);
+    // 首次 seed mock 数据时同步到服务端
+    const { created } = computeEntityDiff([], _cache);
+    enqueuePerRecordSync('requirements', { created, updated: [], deleted: [] }, perItemExecutor, syncQueue);
   }
   return [..._cache];
 }
 
 export function saveRequirements(data) {
-  _cache = data;
-  const ok = repo.set(data);
+  persistRequirements(data);
+}
+
+function persistRequirements(requirements) {
+  const old = repo.getRaw();
+  ensureLastModified(requirements);
+  _cache = requirements;
+  const ok = repo.set(requirements);
   if (!ok) {
     throw new Error('保存需求数据失败，可能是存储空间不足');
   }
+  const { created, updated, deleted } = computeEntityDiff(old, requirements);
+  enqueuePerRecordSync('requirements', { created, updated, deleted }, perItemExecutor, syncQueue);
+}
+
+export async function loadRemoteRequirements() {
+  const remote = await apiLoadArray('/api/requirements');
+  if (!remote || remote.length === 0) return false;
+  const local = repo.getRaw();
+  const merged = local && local.length > 0
+    ? mergeEntities(ensureLastModified(local), ensureLastModified(remote))
+    : remote;
+  _cache = merged;
+  repo.set(merged);
+  return true;
 }
 
 export function getRequirementById(id) {
@@ -129,7 +175,8 @@ export function createRequirement(data) {
     createdBy: getCurrentUser(),
     createdAt: now,
     updatedAt: now,
-    closedAt: null
+    closedAt: null,
+    lastModified: Date.now(),
   };
   requirements.unshift(requirement);
   saveRequirements(requirements);
@@ -147,7 +194,8 @@ export function updateRequirement(id, data) {
     affectedModules: Array.isArray(data.affectedModules)
       ? data.affectedModules
       : requirements[idx].affectedModules,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    lastModified: Date.now(),
   };
   saveRequirements(requirements);
   return requirements[idx];
@@ -174,6 +222,7 @@ export function addReview(id, action, comment, reviewer = getCurrentUser()) {
     createdAt: new Date().toISOString()
   });
   req.updatedAt = new Date().toISOString();
+  req.lastModified = Date.now();
   saveRequirements(requirements);
   return req;
 }
@@ -188,7 +237,7 @@ export function transitionStatus(id, newStatus, comment = '') {
   }
 
   const now = new Date().toISOString();
-  const updates = { status: newStatus, updatedAt: now };
+  const updates = { status: newStatus, updatedAt: now, lastModified: Date.now() };
   if (newStatus === 'CLOSED') {
     updates.closedAt = now;
   }

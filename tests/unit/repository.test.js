@@ -123,5 +123,13 @@ describe('Repository', () => {
     const sm = createStrategyMapRepository('maps', 'dste_sm_maps_v3');
     expect(sm.storageKey).toBe('dste_sm_maps_v3');
     expect(sm.options.backupNamespace).toBe('strategyMap');
+    expect(sm.options.version).toBe(3);
+  });
+
+  it('createStrategyMapRepository accepts custom version and migrators', () => {
+    const migrators = { 4: (data) => data };
+    const sm = createStrategyMapRepository('maps', 'dste_sm_maps_v3', 'array', 4, migrators);
+    expect(sm.options.version).toBe(4);
+    expect(sm.options.migrators).toBe(migrators);
   });
 });

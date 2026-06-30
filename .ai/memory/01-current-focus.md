@@ -1,6 +1,6 @@
 # 当前开发焦点
 
-> 更新时间: 2026-06-24 11:51
+> 更新时间: 2026-06-29 18:11
 
 ## 状态
 **新增高优先级开发线：人员与组织目录（第一阶段已完成）**。已建立员工/组织架构数据层、Excel 导入能力、管理页入口，支持在系统内统一维护真实人员名单与组织架构。后续阶段将逐步把人员选择器接入会议、OMP、业务专题、战略地图等模块。
@@ -70,6 +70,26 @@
 - 断点/恢复见 `08-checkpoint.md`，任务配方见 `.ai/tasks/active/T030-resolution-center.md`
 
 ## 刚完成
+
+### 5 模块 per-record 单条同步迁移（Claude 会话，2026-06-29）
+- 目标：把会议模块已落地的 per-record 单条同步模式推广到业务专题、需求池、OMP、战略地图、人员/组织目录
+- 实施：
+  - 提取公共库 `src/lib/per-record-sync.js`（`computeEntityDiff` / `mergeEntities` / `enqueuePerRecordSync` / `createPerItemExecutor` / `apiLoadArray`）
+  - 后端 `api-worker/worker.js` 新增单条端点：`/api/requirements/:id`、OMP `/api/omp/:entity/:id`、战略地图 3 类单条端点；`DELETE` 改为硬删除
+  - 业务专题 `src/pages/business-topics/main.js`：version 4，`saveTopics` 单条同步
+  - 需求池 `src/pages/requirement-pool/requirement-store.js`：version 2，CRUD 收口到 `persistRequirements`
+  - OMP `src/cockpit.html`：`DATA_VERSION` canvas-v15，`omp_save` 按实体单条同步
+  - 战略地图 `src/lib/strategy-map-data.js`：version 5，map/objective/link 单条同步，link 新增 `id` 字段
+  - 人员目录 `src/lib/employee-directory.js`：employees version 2，导入/清空 per-record，orgUnits/importMeta 保持批量
+- 验证：
+  - `npm run build` / `npm run check:scope` 通过
+  - `npm run test:unit` → 23 files, 372 passed
+  - `python3 -m pytest tests/` → 177 passed, 1 failed（reviewer pre-existing）
+  - E2E：business-topics 29 passed、requirement-pool + strategy-map-list 26 passed、employee-directory 7 passed
+- 已修复：OMP E2E 全部 21 个用例（串行/并行）均通过。根因并非测试隔离/数据污染，而是本次改动引入的 3 类失效：
+  1. `omp-migration-safety.spec.js` 期望版本号仍为 canvas-v14，但 per-record 同步已将 OMP `DATA_VERSION` 升级到 canvas-v15 → 更新断言
+  2. `omp-tasks.spec.js` 人员配置台 3 个用例仍按旧 UI 断言人员嵌套在组织架构树内，但同一次提交已把人员拆到独立 `#omp-staffing-person-list` 面板 → 改用右侧人员列表断言
+  3. `omp-subtasks.spec.js` 保存子任务后断言前固定等待 500ms，在 per-record 同步路径下偶发不够，导致点击详情时被未关闭的编辑弹窗拦截 → 改为等待弹窗消失后再继续
 
 ### 统一子页面切换效果 Phase 2：统一 Shell 渲染（Claude 会话，2026-06-17）
 - 目标：消除各独立页面顶部导航/侧边栏的硬编码复制，让 cockpit 与独立页面共享同一套 `shell.js`/`config.js`

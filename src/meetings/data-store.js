@@ -11,7 +11,7 @@
 import { Storage } from '../lib/utils.js';
 import { createMeetingsRepository } from '../lib/repository.js';
 import { getDefaultSyncQueue } from '../lib/sync-queue.js';
-import { detectArrayConflicts, resolveArrayConflict, ensureLastModified } from '../lib/conflict-resolver.js';
+import { ensureLastModified } from '../lib/conflict-resolver.js';
 import { normalizePersonField } from '../lib/employee-directory.js';
 import { normalizeResolution, syncResolutionsToStore } from './utils/resolution-helpers.js';
 
@@ -62,17 +62,20 @@ function getApiBase() {
 // ===================== Sync Queue =====================
 const syncQueue = getDefaultSyncQueue();
 
-function createExecutor(endpoint) {
+function createPerItemExecutor() {
   return async (operation) => {
     const apiBase = getApiBase();
     if (!apiBase) return;
     const token = Storage.getString('dste-token');
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch(apiBase + endpoint, {
+    if (operation.version != null) {
+      headers['If-Match'] = String(operation.version);
+    }
+    const resp = await fetch(apiBase + operation.endpoint, {
       method: operation.method || 'POST',
       headers,
-      body: JSON.stringify(operation.payload),
+      body: operation.payload ? JSON.stringify(operation.payload) : undefined,
     });
     if (resp.status === 401) {
       console.warn('API save returned 401');
@@ -85,7 +88,7 @@ function createExecutor(endpoint) {
 }
 
 if (typeof window !== 'undefined') {
-  syncQueue.bindAutoProcess(createExecutor('/api/meetings'));
+  syncQueue.bindAutoProcess(createPerItemExecutor());
 }
 
 // ===================== Mock Data =====================
@@ -238,14 +241,42 @@ export function getMockMeetings() {
 
 // ===================== Internal API helpers =====================
 
-async function _apiSave(endpoint, data) {
-  if (endpoint !== '/api/meetings') return;
-  syncQueue.enqueue({
-    endpoint,
-    method: 'POST',
-    payload: data,
-    executor: createExecutor(endpoint),
-  });
+function computeMeetingDiff(oldArr, newArr) {
+  const oldMap = new Map((oldArr || []).map(m => [String(m.id), m]));
+  const newMap = new Map((newArr || []).map(m => [String(m.id), m]));
+  const created = [];
+  const updated = [];
+  const deleted = [];
+
+  for (const [id, m] of newMap) {
+    if (!oldMap.has(id)) {
+      created.push(m);
+    } else if (JSON.stringify(oldMap.get(id)) !== JSON.stringify(m)) {
+      updated.push(m);
+    }
+  }
+  for (const id of oldMap.keys()) {
+    if (!newMap.has(id)) {
+      deleted.push(oldMap.get(id));
+    }
+  }
+  return { created, updated, deleted };
+}
+
+function mergeMeetings(local, remote) {
+  const map = new Map((local || []).map(m => [String(m.id), m]));
+  for (const r of remote || []) {
+    const id = String(r.id);
+    const l = map.get(id);
+    if (!l) {
+      map.set(id, r);
+    } else if ((r.version || 0) > (l.version || 0)) {
+      map.set(id, r);
+    } else if ((r.version || 0) === (l.version || 0) && r.lastModified > l.lastModified) {
+      map.set(id, r);
+    }
+  }
+  return Array.from(map.values());
 }
 
 async function _apiLoad(endpoint) {
@@ -270,12 +301,7 @@ async function _apiLoad(endpoint) {
   if (endpoint === '/api/meetings') {
     const local = meetingsRepo.getRaw();
     if (apiData && apiData.length > 0) {
-      // 自动合并：远程较新项覆盖本地，其余保留本地
-      return resolveArrayConflict(
-        ensureLastModified(local),
-        ensureLastModified(apiData),
-        'merge'
-      );
+      return mergeMeetings(local, apiData);
     }
     if (local && local.length > 0) return local;
   } else if (apiData && apiData.length > 0) {
@@ -384,15 +410,55 @@ export function deleteMeetingByIndex(index) {
 /**
  * 持久化当前会议数据到 localStorage 和 API，并同步决议中心。
  * 所有数据变更后都应调用此方法。
+ *
+ * 同步策略（当前阶段无权限/无冲突弹窗）：
+ * - 比较本地 repo 旧数据与当前内存数据，只把变更的单条会议 PUT 到服务器。
+ * - 删除的会议单独 DELETE。
+ * - 同一会议并发写入暂时 last-write-wins（不传 If-Match）。
  */
 export function persistMeetings() {
+  const oldMeetings = meetingsRepo.getRaw();
   const meetings = ensureLastModified(getMeetings());
-  window._meetingsData = meetings; // 同步回运行时
+  window._meetingsData = meetings;
+
+  // 按会议单条同步到服务器
+  const { created, updated, deleted } = computeMeetingDiff(oldMeetings, meetings);
+  const executor = createPerItemExecutor();
+  for (const m of created) {
+    syncQueue.enqueue({
+      endpoint: `/api/meetings/${encodeURIComponent(m.id)}`,
+      method: 'PUT',
+      payload: m,
+      executor,
+    }, { autoProcess: false });
+  }
+  for (const m of updated) {
+    syncQueue.enqueue({
+      endpoint: `/api/meetings/${encodeURIComponent(m.id)}`,
+      method: 'PUT',
+      payload: m,
+      version: m.version,
+      executor,
+    }, { autoProcess: false });
+  }
+  for (const m of deleted) {
+    const resourceKey = `meetings/${encodeURIComponent(m.id)}`;
+    syncQueue.removePendingForResource(resourceKey);
+    syncQueue.enqueue({
+      endpoint: `/api/meetings/${encodeURIComponent(m.id)}`,
+      method: 'DELETE',
+      version: m.version,
+      executor,
+    }, { autoProcess: false });
+  }
+
+  // 批量入队后统一触发一次处理
+  syncQueue.processQueue(executor);
+
   const saveOk = meetingsRepo.set(meetings);
   if (!saveOk) {
     console.error('[meetings] Failed to persist meetings data');
   }
-  _apiSave('/api/meetings', meetings);
   syncResolutionsToStore(meetings);
 }
 
