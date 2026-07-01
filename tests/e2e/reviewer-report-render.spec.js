@@ -42,6 +42,25 @@ const MOCK_BACKEND_REPORT = {
 
 test.describe('审核报告渲染 — 通用议题场景', () => {
   test.beforeEach(async ({ page }) => {
+    // 拦截后端健康检查与场景接口，避免本地无代理服务时测试失败
+    await page.route('**/api/health', route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) });
+    });
+    await page.route('**/api/scenes', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          scenes: [
+            { id: 'vertical-segment-review', short_name: '垂直客群-落后述职' },
+            { id: 'lagging-region-review', short_name: '落后战区业绩承诺会' },
+            { id: 'annual-leader-review', short_name: '负责人年度述职' },
+            { id: 'general-topic-review', short_name: '通用议题材料审核（以本部会为例）' }
+          ]
+        })
+      });
+    });
     // 拦截 /api/review 请求，返回 mock 报告
     await page.route('**/api/review', route => {
       route.fulfill({
@@ -172,6 +191,23 @@ test.describe('审核报告渲染 — 述职场景', () => {
   };
 
   test('述职场景4个维度全部解析正确', async ({ page }) => {
+    // 该测试单独导航，需重新 mock 健康检查与场景接口
+    await page.route('**/api/health', route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) });
+    });
+    await page.route('**/api/scenes', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          scenes: [
+            { id: 'vertical-segment-review', short_name: '垂直客群-落后述职' },
+            { id: 'general-topic-review', short_name: '通用议题材料审核（以本部会为例）' }
+          ]
+        })
+      });
+    });
     await page.route('**/api/review', route => {
       route.fulfill({
         status: 200,

@@ -185,10 +185,9 @@ test.describe('Employee Directory Cloud Sync', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    // 页面没有清空按钮，通过模块 API 触发清空并同步
-    await page.evaluate(async () => {
-      const { clearEmployeeDirectory } = await import('./lib/employee-directory.js');
-      clearEmployeeDirectory();
+    // 页面没有清空按钮，通过暴露的 window API 触发清空并同步
+    await page.evaluate(() => {
+      window.clearEmployeeDirectory();
     });
 
     // 验证同步队列中包含逐条 DELETE

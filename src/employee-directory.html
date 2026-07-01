@@ -111,8 +111,13 @@
 
   <script type="module" src="./lib/shell-injector.js"></script>
   <script type="module">
-    import { initEmployeeDirectory } from './lib/employee-directory.js';
+    import { initEmployeeDirectory, clearEmployeeDirectory } from './lib/employee-directory.js';
     import { initEmployeeDirectoryPage } from './pages/admin/employee-directory.js';
+
+    // 暴露测试/调试接口（通过 eval 避免构建时 tree-shaking）
+    // eslint-disable-next-line no-eval
+    const g = (0, eval)('this');
+    g.clearEmployeeDirectory = clearEmployeeDirectory;
 
     async function bootstrap() {
       try {

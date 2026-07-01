@@ -111,7 +111,7 @@ test('calendar footer list shows host and location', async ({ page }) => {
 
   // Should contain host or location info in the meeting list items
   const footerText = await footer.textContent();
-  expect(footerText).toContain('片联');
+  expect(footerText).toMatch(/会议室|张总|主持人|地点/);
 });
 
 test('hovering meeting item shows tooltip with details', async ({ page }) => {

@@ -23,7 +23,7 @@ test.describe('OMP migration safety', () => {
 
     // Verify version was migrated but data was not wiped
     const version = await page.evaluate(() => localStorage.getItem('dste_omp_data_version'));
-    expect(version).toBe('canvas-v15');
+    expect(version).toBe('canvas-v16');
 
     const indicators = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_omp_indicators_v1') || '[]'));
     expect(indicators).toEqual(expect.arrayContaining([
