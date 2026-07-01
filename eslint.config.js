@@ -121,7 +121,7 @@ export default [
   },
   // Node/配置文件
   {
-    files: ['*.config.js', '*.config.cjs', 'scripts/**/*.cjs', 'scripts/**/*.js', 'scripts/**/*.mjs', 'api-worker/**/*.js'],
+    files: ['*.config.js', '*.config.cjs', 'scripts/**/*.cjs', 'scripts/**/*.js', 'scripts/**/*.mjs', 'api-worker/**/*.js', 'verify-create-meeting.mjs'],
     languageOptions: {
       globals: {
         ...globals.node,

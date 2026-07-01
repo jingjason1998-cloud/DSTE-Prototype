@@ -16,10 +16,12 @@
 
 import { renderAiAgendaInto } from './AiAgendaDrawer.js';
 import { AIClient, AITools } from '../../lib/ai-client.js';
+import { gatherBusinessContext, formatContextForAI } from '../../lib/ai-context.js';
 
 let _aiMessages = [];
 let _aiLoading = false;
 let _currentMeetingForAi = null;
+let _globalMeetingsContext = null;
 let _activeAiTab = 'chat'; // 'chat' | 'agenda'
 let _aiClient = null;
 let _aiSession = null;
@@ -44,6 +46,13 @@ const SUGGESTIONS = [
   '生成会议纪要要点',
   '列出未闭环行动项',
   '本次会议有哪些决议？',
+];
+
+const GLOBAL_SUGGESTIONS = [
+  '本月还有哪些会议没开？',
+  '汇总所有待闭环行动项',
+  '最近会议决议执行情况如何？',
+  '生成经营分析会周报草稿',
 ];
 
 function getSafeFindMeeting() {
@@ -98,9 +107,26 @@ function getMeetingContext(meeting) {
 }
 
 function renderWelcomeMessage() {
-  const chips = SUGGESTIONS.map(
+  const isGlobal = !_currentMeetingForAi;
+  const suggestions = isGlobal ? GLOBAL_SUGGESTIONS : SUGGESTIONS;
+  const chips = suggestions.map(
     (s) => `<span class="meeting-ai-suggestion" onclick="askMeetingAi('${escapeHtmlLocal(s)}')">${escapeHtmlLocal(s)}</span>`
   ).join('');
+
+  if (isGlobal) {
+    return `
+      <div class="ai-message assistant">
+        <div>👋 你好！我是你的经营分析会 AI 助手。当前为全局视图，我可以帮你：</div>
+        <ul style="margin: 8px 0; padding-left: 18px; line-height: 1.7;">
+          <li>了解会议整体情况与待办分布</li>
+          <li>汇总决议执行与行动项闭环</li>
+          <li>按场景/月份筛选会议并生成摘要</li>
+          <li>起草经营分析会周报或汇报材料</li>
+        </ul>
+        <div class="ai-suggestions">${chips}</div>
+      </div>
+    `;
+  }
 
   return `
     <div class="ai-message assistant">
@@ -200,6 +226,10 @@ function renderContextChip() {
   if (_currentMeetingForAi) {
     chip.innerHTML = `📌 当前会议：${escapeHtmlLocal(_currentMeetingForAi.title)}`;
     chip.style.display = 'block';
+  } else if (_globalMeetingsContext) {
+    const { summary } = _globalMeetingsContext;
+    chip.innerHTML = `📌 当前视图：经营分析会全局（${summary.meetingCount || 0} 场会议）`;
+    chip.style.display = 'block';
   } else {
     chip.style.display = 'none';
   }
@@ -214,6 +244,9 @@ function initMeetingAiState() {
   const meetingId = getCurrentMeetingId();
   const meeting = meetingId ? getSafeFindMeeting()(meetingId) : null;
   _currentMeetingForAi = meeting ? getMeetingContext(meeting) : null;
+  _globalMeetingsContext = _currentMeetingForAi
+    ? null
+    : gatherBusinessContext({ maxMeetings: 10, maxTasks: 5, maxKpis: 5, maxTopics: 3, maxResolutions: 5 });
 }
 
 function openMeetingAiAssistant(options = {}) {
@@ -257,7 +290,7 @@ function closeMeetingAiAssistant() {
 function buildResponse(text) {
   const ctx = _currentMeetingForAi;
   if (!ctx) {
-    return '💡 我暂时无法获取当前会议信息，请确认你已经打开了一个会议详情。';
+    return '💡 当前为经营分析会全局视图。我已收到你的问题，但网络请求失败，无法调用 AI。请稍后重试，或尝试打开具体会议详情后再提问。';
   }
 
   const t = text.toLowerCase();
@@ -312,11 +345,23 @@ function buildResponse(text) {
 }
 
 function buildMeetingSystemPrompt() {
-  const ctx = _currentMeetingForAi;
-  if (!ctx) {
-    return '你是 DSTE 战略管理平台的会议 AI 助手。当前没有打开任何会议，请提示用户先打开一个会议详情。';
+  if (!_currentMeetingForAi) {
+    const ctxText = _globalMeetingsContext ? formatContextForAI(_globalMeetingsContext) : '暂无业务数据。';
+    return `你是 DSTE 战略管理平台的会议 AI 助手。当前为经营分析会全局视图，未选中具体会议。
+
+请基于以下经营分析会全局上下文，用中文简洁、专业地回答用户问题。
+
+${ctxText}
+
+注意事项：
+- 如果用户问题涉及某场具体会议的议程、行动项或决议，请建议用户打开该会议详情，或询问用户想查询哪场会议。
+- 当用户想要创建行动项时，提示用户先进入目标会议详情页或编辑器。
+- 当用户想要创建新会议时，使用 createMeeting(title, date?, scenario?, level?, host?, location?) 草拟会议，不会直接写入系统，只会生成草案等待用户确认。
+- 所有结论尽量给出数据来源。
+- 涉及写入操作时只生成草案并提示用户确认。`;
   }
 
+  const ctx = _currentMeetingForAi;
   return `你是 DSTE 战略管理平台的会议 AI 助手。当前会议信息如下：
 
 会议名称：${ctx.title}
@@ -346,6 +391,7 @@ async function streamAiResponse(text) {
       AITools.queryMeetingActions,
       AITools.queryMeetingResolutions,
       AITools.createActionItem,
+      AITools.createMeeting,
     ];
     const result = await client.callWithTools(text, tools, {
       session,
@@ -364,7 +410,7 @@ async function streamAiResponse(text) {
         id: generateDraftId(),
         type: tr.result.type,
         meetingId: tr.result.meetingId || meetingId,
-        data: tr.result.actionItem || tr.result.data,
+        data: tr.result.actionItem || tr.result.meeting || tr.result.data,
         raw: tr.result,
       }));
     if (drafts.length > 0) {
@@ -399,6 +445,10 @@ function confirmAiDraft(draftId) {
 
   if (draft.type === 'actionItem' && draft.data) {
     applyAiActionItem(draft.meetingId, draft.data);
+  }
+
+  if (draft.type === 'meeting' && draft.data) {
+    applyAiMeeting(draft.data);
   }
 
   _pendingAiDrafts.splice(idx, 1);
@@ -436,8 +486,40 @@ function applyAiActionItem(meetingId, actionItem) {
   }
 }
 
+function applyAiMeeting(meeting) {
+  if (!meeting || !meeting.id) return;
+
+  if (typeof window === 'undefined') return;
+
+  window._meetingEditData = JSON.parse(JSON.stringify(meeting));
+  const ov = document.getElementById('meeting-editor-overlay');
+  if (ov) {
+    ov.style.display = 'flex';
+    ov.dataset.isNew = 'true';
+  }
+
+  if (typeof window.renderEditorForm === 'function') {
+    window.renderEditorForm();
+  }
+
+  // 关闭 AI 抽屉，避免遮挡编辑器
+  closeMeetingAiAssistant();
+  getSafeShowToast()('已打开会议编辑器，请检查并保存', 'success');
+}
+
 function renderDraftCards() {
   if (_pendingAiDrafts.length === 0) return '';
+
+  const scenarioLabel = (key) => {
+    const map = {
+      union_quarterly: '片联季度会议',
+      hq_routine: '营销本部月/双周会',
+      region_routine: '战区月度经营分析会',
+      lagging_region: '落后战区业绩承诺会',
+      lagging_vertical: '落后垂直客群经分会',
+    };
+    return map[key] || key;
+  };
 
   return _pendingAiDrafts.map(draft => {
     if (draft.type === 'actionItem' && draft.data) {
@@ -457,6 +539,28 @@ function renderDraftCards() {
         </div>
       `;
     }
+
+    if (draft.type === 'meeting' && draft.data) {
+      const m = draft.data;
+      return `
+        <div class="ai-draft-card" style="margin: 10px 0; padding: 12px; border: 1px dashed var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 6%, transparent);">
+          <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">📝 AI 草拟会议（待确认）</div>
+          <div style="font-size: 12px; color: var(--text-primary); line-height: 1.6;">
+            <div><strong>标题：</strong>${escapeHtmlLocal(m.title)}</div>
+            <div><strong>日期：</strong>${escapeHtmlLocal(m.date)}</div>
+            <div><strong>场景：</strong>${scenarioLabel(m.scenario) || '<span style="color:var(--text-tertiary)">未指定</span>'}</div>
+            <div><strong>层级：</strong>${escapeHtmlLocal(m.level) || '<span style="color:var(--text-tertiary)">未指定</span>'}</div>
+            <div><strong>主持人：</strong>${escapeHtmlLocal(m.host) || '<span style="color:var(--text-tertiary)">未指定</span>'}</div>
+            <div><strong>地点：</strong>${escapeHtmlLocal(m.location) || '<span style="color:var(--text-tertiary)">未指定</span>'}</div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button type="button" onclick="confirmAiDraft('${draft.id}')" style="padding: 5px 12px; font-size: 11px; border: none; border-radius: 4px; background: var(--primary); color: #fff; cursor: pointer;">确认创建</button>
+            <button type="button" onclick="cancelAiDraft('${draft.id}')" style="padding: 5px 12px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer;">取消</button>
+          </div>
+        </div>
+      `;
+    }
+
     return '';
   }).join('');
 }
@@ -509,6 +613,7 @@ window.switchAiTab = switchAiTab;
 window.refreshMeetingAiAssistant = refreshMeetingAiAssistant;
 window.confirmAiDraft = confirmAiDraft;
 window.cancelAiDraft = cancelAiDraft;
+window.applyAiMeeting = applyAiMeeting;
 
 export {
   openMeetingAiAssistant,

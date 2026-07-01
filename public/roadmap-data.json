@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "v0.6.4",
+      "date": "2026-06-30",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "进一步加强年度计划与 OMP 数据的隔离："
+        }
+      ]
+    },
+    {
       "version": "v0.6.3",
       "date": "2026-06-30",
       "status": "released",

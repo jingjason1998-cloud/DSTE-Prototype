@@ -143,6 +143,43 @@ export const AITools = {
       },
     },
   },
+  createMeeting: {
+    type: 'function',
+    function: {
+      name: 'createMeeting',
+      description: '为用户草拟一场新会议。此工具不会直接写入系统，只会生成会议草案等待用户确认',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: {
+            type: 'string',
+            description: '会议标题',
+          },
+          date: {
+            type: 'string',
+            description: '会议日期，格式 YYYY-MM-DD，可选，默认今天',
+          },
+          scenario: {
+            type: 'string',
+            description: '会议场景，可选值：union_quarterly/hq_routine/region_routine/lagging_region/lagging_vertical，可选',
+          },
+          level: {
+            type: 'string',
+            description: '会议层级，可选值：L1/L2/L3，可选',
+          },
+          host: {
+            type: 'string',
+            description: '主持人姓名，可选',
+          },
+          location: {
+            type: 'string',
+            description: '会议地点，可选',
+          },
+        },
+        required: ['title'],
+      },
+    },
+  },
 };
 
 function generateId(prefix = 'id') {

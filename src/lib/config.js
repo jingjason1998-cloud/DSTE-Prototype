@@ -53,8 +53,10 @@ export const SIDEBAR_CONFIG = {
       { id: 'exe/tasks', icon: '✅', label: '重点工作管理' }
     ]},
     { type: 'group', title: '经营分析会', items: [
+      { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' },
       { id: 'exe/business-topics', icon: '📂', label: '业务专题管理' },
-      { id: 'exe/meetings', icon: '🎯', label: '经营分析会 ⭐' }
+      { id: 'exe/st-issue-tracking', icon: '🏛️', label: '片联ST议题跟踪表' },
+      { id: 'exe/at-issue-tracking', icon: '🏢', label: '片联AT议题跟踪表' }
     ]},
     { type: 'group', title: '经营分析报表中心', icon: '📊', items: [
       { id: 'exe/report-center', icon: '📊', label: '报表首页' },
@@ -83,6 +85,8 @@ export const EXTERNAL_PAGES = {
   'admin/requirement-pool': 'requirement-pool.html',
   'exe/business-topics': 'business-topics.html',
   'exe/meetings': 'meetings.html',
+  'exe/st-issue-tracking': 'st-issue-tracking.html',
+  'exe/at-issue-tracking': 'at-issue-tracking.html',
   'sp/strategy-map': 'strategy-map-list.html',
   'sp/strategy-map-detail': 'strategy-map.html'
 };
@@ -98,6 +102,8 @@ export const PAGE_NAMES = {
   'exe/kpi': 'KPI管理',
   'exe/tasks': '重点工作管理',
   'exe/business-topics': '业务专题管理',
+  'exe/st-issue-tracking': '片联ST议题跟踪表',
+  'exe/at-issue-tracking': '片联AT议题跟踪表',
   'exe/meetings': '经营分析会',
   'exe/meeting-review': '会议材料审核',
   'exe/report-center': '经营分析报表中心',

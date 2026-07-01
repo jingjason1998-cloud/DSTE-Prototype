@@ -144,12 +144,17 @@
     }
     /* squeeze 版本：面板进入时，主内容区域保持可见并收窄 */
     #meeting-detail-overlay,
-    #meeting-editor-overlay {
-      overflow: hidden;
+    #meeting-editor-overlay,
+    .content-area {
       transition: padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
+    #meeting-detail-overlay,
+    #meeting-editor-overlay {
+      overflow: hidden;
+    }
     .meeting-ai-open #meeting-detail-overlay,
-    .meeting-ai-open #meeting-editor-overlay {
+    .meeting-ai-open #meeting-editor-overlay,
+    .meeting-ai-open .content-area {
       padding-right: 420px;
     }
     .meeting-ai-drawer-header {
@@ -305,7 +310,8 @@
       .meeting-ai-open .meeting-ai-drawer {
         width: 100vw;
       }
-      .meeting-ai-open #meeting-detail-overlay {
+      .meeting-ai-open #meeting-detail-overlay,
+      .meeting-ai-open .content-area {
         padding-right: 100vw;
       }
       .meeting-ai-drawer-inner {
@@ -1223,6 +1229,9 @@
           const ov = document.getElementById('meeting-detail-overlay');
           if (ov) ov.style.display = 'none';
           window._currentDetailMeetingId = null;
+          if (typeof window.refreshMeetingAiAssistant === 'function') {
+            window.refreshMeetingAiAssistant();
+          }
         };
         window.toggleDetailSection = function(id) {
           const el = document.getElementById(id);
@@ -1432,6 +1441,7 @@
             <h1 class="page-title">经营分析会</h1>
             <div class="page-actions">
               <button class="btn btn-secondary" id="btn-toggle-view" onclick="toggleMeetingsView()">📅 日历视图</button>
+              <button type="button" class="btn btn-secondary" onclick="openMeetingAiAssistant()">🤖 AI 助手</button>
               <button class="btn btn-primary" onclick="openNewMeeting()">+ 新建会议</button>
             </div>
           </div>

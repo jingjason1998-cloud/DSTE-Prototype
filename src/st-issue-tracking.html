@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>片联ST议题跟踪表 - DSTE战略管理平台</title>
+  <link rel="stylesheet" href="../assets/css/main.css?v=2">
+  <link rel="stylesheet" href="./styles/shell.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="../assets/js/main.js"></script>
+  <script>
+    (function() {
+      const theme = DSTE.Storage.getString('dste-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <style>
+    .placeholder-page { padding: 48px 24px; max-width: 720px; margin: 0 auto; text-align: center; }
+    .placeholder-icon { font-size: 64px; margin-bottom: 24px; }
+    .placeholder-title { font-size: 24px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
+    .placeholder-desc { font-size: 15px; color: var(--text-muted); line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="top-nav">
+      <div style="display: flex; align-items: center;">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单">☰</button>
+        <div class="top-nav-brand">
+          <div class="top-nav-logo">D</div>
+          <span class="top-nav-title">DSTE 战略管理平台</span>
+        </div>
+      </div>
+      <ul class="top-nav-links" id="top-nav-links"></ul>
+      <div class="top-nav-actions">
+        <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
+        <button class="icon-btn" title="通知">🔔</button>
+        <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;position:relative;cursor:pointer;">张</div>
+        <div class="user-dropdown" id="user-dropdown">
+          <div class="user-dropdown-name" id="user-dropdown-name">张总</div>
+          <div class="user-dropdown-divider"></div>
+          <button class="user-dropdown-item" id="user-logout">🚪 退出登录</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="app-body">
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="content-area">
+        <div class="placeholder-page">
+          <div class="placeholder-icon">🏛️</div>
+          <h1 class="placeholder-title">片联ST议题跟踪表</h1>
+          <p class="placeholder-desc">页面建设中，内容稍后补充。</p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="./lib/shell-injector.js"></script>
+</body>
+</html>

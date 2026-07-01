@@ -5,6 +5,8 @@
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3456',
+  'http://localhost:3457',
+  'http://localhost:3458',
   'http://localhost:8080',
   'http://localhost:5173',
   'https://dste.fineres.com',
@@ -654,6 +656,66 @@ async function executeTool(name, args, context, env) {
       meetingId: args.meetingId,
       actionItem,
       message: '已草拟行动项，等待用户确认',
+    };
+  }
+
+  if (name === 'createMeeting') {
+    const today = new Date().toISOString().split('T')[0];
+    const dateVal = args.date || today;
+    const meeting = {
+      id: 'new_' + Date.now(),
+      title: String(args.title || '').trim(),
+      date: dateVal,
+      month: dateVal.slice(0, 7),
+      startTime: '09:00',
+      scenario: args.scenario || 'union_quarterly',
+      level: args.level || 'L1',
+      status: 'planned',
+      location: String(args.location || '').trim() || '待确认',
+      host: String(args.host || '').trim() || '待定',
+      recorder: '待定',
+      meeting_link: '',
+      pre_report_id: '',
+      minutes_report_id: '',
+      minutes_content: '',
+      hasMinutes: false,
+      minutesStatus: null,
+      pipeline: {
+        reportGenerated: false,
+        preReviewDone: false,
+        meetingHeld: false,
+        minutesDrafted: false,
+        minutesApproved: false,
+        actionsTracked: false,
+      },
+      upstreamMeeting: null,
+      downstreamMeeting: null,
+      agenda_items: [{
+        id: 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        type: 'goal_management',
+        title: '',
+        duration: 30,
+        owner: '',
+        material_link: '',
+        data_views: [],
+        pre_report_section: '',
+        status: 'planned',
+        originalAgendaId: '',
+        postponedCount: 0,
+        carriedFromAgendaId: null,
+        carriedFromMeetingId: null,
+        postponedHistory: [],
+      }],
+      actions: [],
+      decisions: [],
+      metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
+      effectiveness: null,
+    };
+    return {
+      draft: true,
+      type: 'meeting',
+      meeting,
+      message: '已草拟会议，等待用户确认',
     };
   }
 
