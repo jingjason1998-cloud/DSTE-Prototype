@@ -1,6 +1,57 @@
 {
   "versions": [
     {
+      "version": "v0.6.5",
+      "date": "2026-07-01",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**片联议题跟踪表入口**：新增 `src/st-issue-tracking.html`（片联 ST 议题跟踪表）与 `src/at-issue-tracking.html`（片联 AT 议题跟踪表）占位页面，侧边栏与驾驶舱路由同步增加入口。"
+        },
+        {
+          "type": "Added",
+          "desc": "**战略洞察与专题历史数据**：驾驶舱「战略洞察与专题」页追加 2025-2027 SP 历史专题 mock 数据（大客户拓展、ARR 三年规划、财务域/数字人才/烟草/汽车制造行业规划、上海/华南战区 SP 等），本地已有数据时自动合并缺失项。"
+        },
+        {
+          "type": "Added",
+          "desc": "**知识沉淀区**：重写「知识沉淀」面板，按年份分组展示已闭环专题，展示累计闭环数、有总结报告数、覆盖年份等统计卡片。"
+        },
+        {
+          "type": "Added",
+          "desc": "**OMP 重点工作扩展字段**：任务表单新增 `annualTarget`（年度目标）、`spLink`（SP 链接）、`biDashboard`（BI 看板）字段。"
+        },
+        {
+          "type": "Added",
+          "desc": "**E2E 测试**：新增 `tests/e2e/cockpit-insights-topics.spec.js`，覆盖战略洞察与专题页基本结构。"
+        },
+        {
+          "type": "Changed",
+          "desc": "战略洞察与专题年份筛选支持「全部年份」，切换后同时影响列表统计与分组展示。"
+        },
+        {
+          "type": "Changed",
+          "desc": "`public/roadmap-data.json` 与 `src/data/roadmap-data.json` 更新开发路线图数据。"
+        },
+        {
+          "type": "Changed",
+          "desc": "AI 助手迭代：`src/lib/ai-client.js`、`src/meetings/components/MeetingAiAssistant.js`、`api-worker/worker.js` 同步更新。"
+        },
+        {
+          "type": "Changed",
+          "desc": "设计文档 `docs/01-Product产品/战略洞察与专题-完整设计方案.md` 更新。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "清理 OMP 历史上因后端无 per-record 接口而失败的 `omp/tasks` 同步队列残留项，避免页面加载时继续弹出「已达最大重试次数」红条。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "明确 OMP `tasks` 继续走批量同步，其他 OMP 实体走 per-record 单条同步。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.4",
       "date": "2026-06-30",
       "status": "released",
