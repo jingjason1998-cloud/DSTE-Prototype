@@ -187,7 +187,7 @@ describe('renderNotificationMessage', () => {
         location: '3F 大会议室',
         agendaItems: [
           { title: '目标管理复盘', type: '目标管理', duration: 30, owner: '张三' },
-          { title: 'Q1 财务整体复盘', type: '预算与财经', duration: 45, owner: '李四' },
+          { title: 'Q1 财务整体复盘', type: '预算与财经', duration: 45, owner: { id: 'e001', name: '李四', displayName: '李四' } },
         ],
         totalDuration: 75,
       });

@@ -6,6 +6,8 @@
  * 不涉及 DOM 操作、网络请求或状态管理
  */
 
+import { renderPerson } from '../../lib/employee-directory.js';
+
 /**
  * 根据通知类型和数据渲染企业微信 markdown 消息
  * @param {string} type - 通知类型：'resolution' | 'todo' | 'alert-meeting' | 'alert-action' | 'agenda' | 'agenda-meeting'
@@ -31,7 +33,7 @@ export function renderNotificationMessage(type, data) {
         `## 📋 决议推送\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**内容：**${data.content}\n` +
-        `**负责人：**${data.owner || '待定'}\n` +
+        `**负责人：**${renderPerson(data.owner)}\n` +
         `**截止日期：**${data.deadline || '未定'}\n` +
         `**状态：**<font color="${statusColor}">${statusText}</font>` +
         (data.kmsUrl ? `\n**KMS：**[查看文档](${data.kmsUrl})` : '')
@@ -57,7 +59,7 @@ export function renderNotificationMessage(type, data) {
         `## ⏰ 待办提醒\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**内容：**${data.content}\n` +
-        `**负责人：**${data.owner || '待定'}\n` +
+        `**负责人：**${renderPerson(data.owner)}\n` +
         `**截止日期：**${data.deadline || '未定'}\n` +
         `<font color="${daysColor}">⏳ ${daysText}</font>`
       );
@@ -78,7 +80,7 @@ export function renderNotificationMessage(type, data) {
         `## ⚠️ 行动项预警\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**行动项：**${data.content}\n` +
-        `**负责人：**${data.owner || '待定'}\n` +
+        `**负责人：**${renderPerson(data.owner)}\n` +
         `**截止日期：**${data.deadline}\n` +
         `<font color="warning">距截止仅剩 ${data.daysLeft} 天，请尽快闭环！</font>`
       );
@@ -91,7 +93,7 @@ export function renderNotificationMessage(type, data) {
         `**议程：**${data.agendaTitle}\n` +
         `**类型：**${data.agendaType || '其他'}\n` +
         `**时长：**${data.duration || 0} 分钟\n` +
-        `**负责人：**${data.owner || '待定'}\n` +
+        `**负责人：**${renderPerson(data.owner)}\n` +
         (data.speaker ? `**演讲人：**${data.speaker}\n` : '') +
         (data.materialLink ? `**材料：**[查看材料](${data.materialLink})\n` : '') +
         `> 💡 ${modeTip}`
@@ -100,7 +102,7 @@ export function renderNotificationMessage(type, data) {
 
     case 'agenda-meeting': {
       const items = (data.agendaItems || []).map((a, i) =>
-        `${i + 1}. 【${a.type || '其他'}】${a.title}（${a.duration || 0}min）— 负责人：${a.owner || '待定'}`
+        `${i + 1}. 【${a.type || '其他'}】${a.title}（${a.duration || 0}min）— 负责人：${renderPerson(a.owner)}`
       ).join('\n');
       return (
         `## 📋 会议议程总览\n` +
