@@ -933,8 +933,35 @@
       // 自动聚焦
       setTimeout(() => usernameInput.focus(), 800);
 
+      const CAS_REDIRECT_HISTORY_KEY = 'dste-cas-redirect-history';
+      const CAS_LOGIN_AT_KEY = 'dste-cas-login-at';
+
+      // 检测是否在短时间内被 CAS 重定向多次，防止无限循环
+      function isCasRedirectLoop() {
+        try {
+          const now = Date.now();
+          const raw = sessionStorage.getItem(CAS_REDIRECT_HISTORY_KEY);
+          const history = raw ? JSON.parse(raw) : [];
+          const recent = history.filter(t => now - t < 10000);
+          recent.push(now);
+          sessionStorage.setItem(CAS_REDIRECT_HISTORY_KEY, JSON.stringify(recent));
+          return recent.length > 2;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      function showAuthError(message) {
+        console.error('[Auth]', message);
+        showError(message);
+      }
+
       // CAS 登录跳转
       function redirectToCasLogin() {
+        if (isCasRedirectLoop()) {
+          showAuthError('登录验证出现循环，请关闭页面后重新打开，或联系管理员。');
+          return;
+        }
         const service = encodeURIComponent(window.location.origin + '/src/cockpit.html');
         window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
       }
@@ -957,6 +984,16 @@
           }
           return 'https://dste-api.jasonxspace.workers.dev';
         })();
+
+        // 刚完成 CAS 登录的 30 秒内，信任本地 token，避免 KV 跨节点一致性导致误删 token 并触发循环
+        try {
+          const loginAt = parseInt(sessionStorage.getItem(CAS_LOGIN_AT_KEY) || '0', 10);
+          if (Date.now() - loginAt < 30000) {
+            window.location.href = 'src/cockpit.html';
+            return true;
+          }
+        } catch (e) {}
+
         try {
           const resp = await fetch(`${API_BASE}/api/auth/me`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -971,6 +1008,7 @@
         } catch (e) {}
         DSTE.Storage.remove('dste-token');
         DSTE.Storage.remove('dste-user');
+        sessionStorage.removeItem(CAS_LOGIN_AT_KEY);
         return false;
       }
 

@@ -11,6 +11,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'https://dste.fineres.com',
   'https://www.dste.fineres.com',
+  'https://dste.jasonxspace.cc',
 ];
 
 function getCorsHeaders(request) {

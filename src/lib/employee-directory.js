@@ -60,7 +60,7 @@ const orgUnitsRepo = createOrgUnitsRepository();
 
 function getApiBase() {
   const host = (typeof window !== 'undefined' && window.location.hostname) || '';
-  if (host === 'localhost' || host === '127.0.0.1') {
+  if (host === 'localhost' || host === '127.0.0.1' || host === 'dste.jasonxspace.cc') {
     return Storage.getString('dste_api_base') || '';
   }
   return 'https://dste-api.jasonxspace.workers.dev';

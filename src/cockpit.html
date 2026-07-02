@@ -504,10 +504,87 @@
         }
       }
 
+      // CAS 统一着陆页（所有页面共用此 service URL，避免 CAS 服务注册不一致导致循环）
+      const CAS_LANDING_PAGE = '/src/cockpit.html';
+      const CAS_REDIRECT_HISTORY_KEY = 'dste-cas-redirect-history';
+      const CAS_LOGIN_AT_KEY = 'dste-cas-login-at';
+      const CAS_RETURN_TO_KEY = 'dste-cas-return-to';
+
+      function getCasServiceUrl() {
+        return window.location.origin + CAS_LANDING_PAGE;
+      }
+
+      // 检测是否在短时间内被 CAS 重定向多次，防止无限循环
+      function isCasRedirectLoop() {
+        try {
+          const now = Date.now();
+          const raw = sessionStorage.getItem(CAS_REDIRECT_HISTORY_KEY);
+          const history = raw ? JSON.parse(raw) : [];
+          const recent = history.filter(t => now - t < 10000);
+          recent.push(now);
+          sessionStorage.setItem(CAS_REDIRECT_HISTORY_KEY, JSON.stringify(recent));
+          return recent.length > 2;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      function clearCasRedirectHistory() {
+        try { sessionStorage.removeItem(CAS_REDIRECT_HISTORY_KEY); } catch (e) {}
+      }
+
+      function saveAuthReturnUrl() {
+        try {
+          const path = window.location.pathname;
+          const search = window.location.search;
+          const hash = window.location.hash;
+          if (!path.includes(CAS_LANDING_PAGE)) {
+            sessionStorage.setItem(CAS_RETURN_TO_KEY, path + search + hash);
+          }
+        } catch (e) {}
+      }
+
+      function restoreAuthReturnUrl() {
+        try {
+          const returnTo = sessionStorage.getItem(CAS_RETURN_TO_KEY);
+          if (returnTo) {
+            sessionStorage.removeItem(CAS_RETURN_TO_KEY);
+            const current = window.location.pathname + window.location.search + window.location.hash;
+            if (returnTo !== current) {
+              window.location.replace(returnTo);
+              return true;
+            }
+          }
+        } catch (e) {}
+        return false;
+      }
+
+      function showAuthError(message) {
+        console.error('[Auth]', message);
+        const banner = document.createElement('div');
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#991b1b;padding:12px 16px;text-align:center;font-size:14px;border-bottom:1px solid #fecaca;';
+        banner.textContent = message;
+        document.body.appendChild(banner);
+      }
+
       // CAS 登录跳转
       function redirectToCasLogin() {
-        const service = encodeURIComponent(window.location.origin + window.location.pathname);
+        if (isCasRedirectLoop()) {
+          showAuthError('登录验证出现循环，请关闭页面后重新打开，或联系管理员。');
+          return;
+        }
+        saveAuthReturnUrl();
+        const service = encodeURIComponent(getCasServiceUrl());
         window.location.href = `https://passport.fanruan.com/cas/login?service=${service}`;
+      }
+
+      function setAuthToken(token, user) {
+        DSTE.Storage.setString('dste-token', token);
+        DSTE.Storage.setString('dste-user', user?.name || user?.username || '');
+        sessionStorage.setItem('dste-user', user?.name || user?.username || '');
+        sessionStorage.setItem(CAS_LOGIN_AT_KEY, String(Date.now()));
+        clearCasRedirectHistory();
+        updateUserUI();
       }
 
       // CAS 回调处理：从 URL 提取 ticket，调用后端换取 token
@@ -520,14 +597,15 @@
         history.replaceState(null, '', cleanUrl);
 
         try {
-          const service = encodeURIComponent(window.location.origin + window.location.pathname);
+          const service = encodeURIComponent(getCasServiceUrl());
           const resp = await fetch(`${API_BASE}/api/auth/cas/login?ticket=${encodeURIComponent(ticket)}&service=${service}`);
           const json = await resp.json();
           if (json.success && json.token) {
-            DSTE.Storage.setString('dste-token', json.token);
-            DSTE.Storage.setString('dste-user', json.user?.name || json.user?.username || '');
-            sessionStorage.setItem('dste-user', json.user?.name || json.user?.username || '');
-            updateUserUI();
+            setAuthToken(json.token, json.user);
+            // 登录成功后，若存在保存的返回地址，跳转回去
+            if (restoreAuthReturnUrl()) {
+              return true;
+            }
             return true;
           }
         } catch (e) {
@@ -540,6 +618,15 @@
       async function checkLoginStatus() {
         const token = DSTE.Storage.getString('dste-token');
         if (!token) return false;
+
+        // 刚完成 CAS 登录的 30 秒内，信任本地 token，避免 KV 跨节点一致性导致误删 token 并触发循环
+        try {
+          const loginAt = parseInt(sessionStorage.getItem(CAS_LOGIN_AT_KEY) || '0', 10);
+          if (Date.now() - loginAt < 30000) {
+            updateUserUI();
+            return true;
+          }
+        } catch (e) {}
 
         try {
           const resp = await fetch(`${API_BASE}/api/auth/me`, {
@@ -561,6 +648,7 @@
         DSTE.Storage.remove('dste-token');
         DSTE.Storage.remove('dste-user');
         sessionStorage.removeItem('dste-user');
+        sessionStorage.removeItem(CAS_LOGIN_AT_KEY);
         return false;
       }
 
