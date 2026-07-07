@@ -7,7 +7,7 @@
 
 import { Storage } from './utils.js';
 
-const DEFAULT_API_BASE = 'https://dste-api.jasonxspace.workers.dev';
+const DEFAULT_API_BASE = ''; // 生产环境走同域 /api/ 代理
 const SESSIONS_KEY = 'dste_ai_sessions_v1';
 const CURRENT_SESSION_KEY = 'dste_ai_current_session_v1';
 const MAX_HISTORY_ROUNDS = 10;

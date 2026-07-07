@@ -31,7 +31,7 @@ export function getAiAgendaApiUrl(endpoint = AI_AGENDA_ENDPOINT) {
   const customBase = Storage.getString('dste_api_base');
   if (customBase) return customBase.replace(/\/$/, '') + endpoint;
 
-  return 'https://dste-api.jasonxspace.workers.dev' + endpoint;
+  return endpoint; // 生产环境走同域 /api/ 代理
 }
 
 /**

@@ -982,7 +982,7 @@
           if (host === 'localhost' || host === '127.0.0.1') {
             return DSTE.Storage.getString('dste_api_base') || '';
           }
-          return 'https://dste-api.jasonxspace.workers.dev';
+          return ''; // 生产环境走同域 /api/ 代理
         })();
 
         // 刚完成 CAS 登录的 30 秒内，信任本地 token，避免 KV 跨节点一致性导致误删 token 并触发循环

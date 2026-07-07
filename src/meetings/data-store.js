@@ -56,7 +56,7 @@ function getApiBase() {
   if (host === 'localhost' || host === '127.0.0.1' || host === 'dste.jasonxspace.cc') {
     return Storage.getString('dste_api_base') || '';
   }
-  return 'https://dste-api.jasonxspace.workers.dev';
+  return ''; // 生产环境走同域 /api/ 代理
 }
 
 // ===================== Sync Queue =====================

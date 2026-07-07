@@ -2,6 +2,55 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-07
+- **主题**：修复生产环境 CAS 登录循环 + OMP 子任务相关 bug + 准备 v0.6.6 发布
+- **操作**：
+  - 修复 OMP 重点工作编辑子任务时，添加第二个子任务会导致对已有子任务的修改丢失
+  - 修复 OMP 父任务在「基本信息」等标签页保存时误删所有子任务的严重 bug
+  - 准备 v0.6.6 版本升级：更新 package.json 版本号与 CHANGELOG
+  - 排查生产环境 `dste.fineres.com` 登录循环：根因为服务器 8766 端口运行 meeting-reviewer 代理，无 DSTE 认证接口
+  - 尝试部署 `api-worker/worker.js` 到 Cloudflare Workers，因部分电脑/服务器无法访问 `workers.dev` 而放弃
+  - 在服务器 `/opt/meeting-reviewer/src/proxy_server.py` 增加 DSTE 认证 shim（`/api/auth/cas/login`、`/api/auth/me`、`/api/auth/logout`），前端恢复同域 `/api/` 代理
+  - 登录问题解决后，协助用户排查 OMP 子任务丢失，提供 localStorage 恢复脚本；确认当前仅存 2 个子任务，无自动备份可恢复
+  - 新增回归测试覆盖子任务保存场景
+- **修改文件**：
+  - `src/cockpit.html`
+  - `src/meetings.html`
+  - `src/business-topics.html`
+  - `src/requirement-pool.html`
+  - `src/lib/per-record-sync.js`
+  - `src/lib/employee-directory.js`
+  - `src/meetings/data-store.js`
+  - `src/lib/ai-client.js`
+  - `src/meetings/utils/agenda-recommender.js`
+  - `index.html`
+  - `package.json`
+  - `CHANGELOG.md`
+  - `tests/e2e/omp-subtasks.spec.js`
+  - `api-worker/wrangler.toml`
+- **验证**：
+  - `npm run build` 通过
+  - `npm run check:scope` 通过
+  - `tests/e2e/omp-subtasks.spec.js` → 7 passed
+  - 生产 `/api/auth/cas/login` 与 `/api/auth/me` 可访问
+- **状态**：complete（登录问题解决；子任务丢失 bug 修复；丢失数据需用户重新录入）
+- **下一步**：
+  - 用户重新录入丢失的 OMP 子任务
+  - 继续完成 v0.6.6 其他功能后发布
+
+## 2026-07-02
+- **主题**：尝试自动化读取 report-center 利润表数据 + 修复 cockpit 初始化 bug
+- **操作**：
+  - 启动本地 dev server，用 Playwright 访问 `cockpit.html#exe/report-center`
+  - 发现 `cockpit.html` 初始化报错：`renderInsightsPage` 未定义、`renderStrategyTopicsPage` 未定义，导致页面白屏
+  - 修复：`PAGES['sp/insights']` → `PAGES['sp/insights-topics']: renderInsightsTopics`，并新增 `renderStrategyTopicsPage` 占位函数
+  - 多次尝试自动化点击 FineReport「查询」按钮、直接带参数访问 FineReport URL、调用 FR 内部 API，均无法触发报表数据渲染
+  - 临时脚本与截图已清理
+- **修改文件**：
+  - `src/cockpit.html`
+- **状态**：blocked（FineReport 在 headless 浏览器中不渲染数据）
+- **下一步**：如需继续，可尝试 Cloudflare Tunnel 公网访问，或用户在浏览器控制台运行提取脚本
+
 ## 2026-06-29
 - **主题**：接手排查并修复 OMP E2E 失败
 - **操作**：

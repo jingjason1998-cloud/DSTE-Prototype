@@ -38,6 +38,13 @@ jobs:
           fi
           echo "✅ dist/index.html 存在"
 
+      - name: Update nginx /api/ proxy to Worker
+        run: bash scripts/update-nginx-api-proxy.sh
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+
       - name: Deploy dist to server via rsync
         run: |
           mkdir -p ~/.ssh

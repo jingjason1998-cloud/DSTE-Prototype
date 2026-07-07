@@ -473,7 +473,7 @@
         if (host === 'localhost' || host === '127.0.0.1' || host === 'dste.jasonxspace.cc') {
           return DSTE.Storage.getString('dste_api_base') || '';
         }
-        return 'https://dste-api.jasonxspace.workers.dev';
+        return ''; // 生产环境走同域 /api/ 代理
       })();
 
       async function apiSave(endpoint, data) {
@@ -1345,7 +1345,7 @@
           if (host === 'localhost' || host === '127.0.0.1') {
             return DSTE.Storage.getString('dste_api_base') || '';
           }
-          return 'https://dste-api.jasonxspace.workers.dev';
+          return ''; // 生产环境走同域 /api/ 代理
         })();
         if (!apiBase) return false;
         try {
