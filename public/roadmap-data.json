@@ -1,6 +1,61 @@
 {
   "versions": [
     {
+      "version": "v0.6.6",
+      "date": "2026-07-08",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**设计系统 Phase 1**：引入 Phosphor 图标体系替换 emoji 图标，新增 `assets/css/tokens.css`、`assets/css/components.css`、`assets/js/icons.js`、`assets/js/icon-mapping.js`、`assets/js/phosphor-icons.js`、图标构建脚本 `scripts/build-icon-sprite.js` / `scripts/gen-icon-map.mjs`，以及 `docs/07-DesignSystem/` 设计系统文档；`package.json` 新增 `@phosphor-icons/core` 依赖与 `build:icons` 脚本。"
+        },
+        {
+          "type": "Added",
+          "desc": "**战略洞察与战略专题管理拆分**：将原「战略洞察与专题」页拆分为「战略洞察」(`sp/insights`) 与「战略专题管理」(`sp/strategy-topics`) 两个独立页面，更新 `src/lib/config.js` 路由配置与驾驶舱渲染逻辑，新增 `tests/e2e/strategy-topics.spec.js` 覆盖新页面。"
+        },
+        {
+          "type": "Added",
+          "desc": "**OMP 子任务回归测试**：新增 `tests/e2e/omp-subtasks.spec.js` 覆盖编辑子任务、添加多个子任务、非子任务标签页保存等场景。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**统一图标语义键**：`src/lib/config.js` 中顶部导航、侧边栏、快捷入口的图标从 emoji 改为设计系统图标键（如 `dashboard`、`sp`、`bp`、`chart-line-up` 等），驾驶舱与各独立页面同步适配。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**Shell 与导航一致性**：`src/lib/shell.js`、`src/lib/shell-injector.js`、`src/styles/shell.css` 适配设计系统 token 与图标；独立页面顶部导航、侧边栏、外部页面链接统一渲染。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**OMP 重点工作交互**：子任务编辑/保存体验与样式随设计系统迁移同步调整；非「子任务」标签页保存时严格保留已有子任务。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**SonarQube 版本号**：`sonar-project.properties` 的 `sonar.projectVersion` 从 `0.3.2` 更新为 `0.6.6`。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复 OMP 重点工作编辑子任务时，添加第二个子任务会导致对已有子任务的修改丢失的问题：保存父任务时用收集到的最新子任务对象替换任务数组中的旧对象，避免旧对象覆盖编辑。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复 OMP 父任务在「基本信息」等标签页保存时误删所有子任务的严重 bug：子任务增删改逻辑只在「子任务」标签页保存时执行，其他标签页保存时保留已有子任务。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复生产环境 CAS 登录循环：在服务器 `/opt/meeting-reviewer/src/proxy_server.py` 增加 DSTE 认证 shim（`/api/auth/cas/login`、`/api/auth/me`、`/api/auth/logout`），处理 CAS ticket 校验与 token 签发；前端生产环境 API_BASE 统一恢复为同域 `/api/` 代理，绕开部分电脑无法访问 `workers.dev` 的问题。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复 `src/meetings.html` 生产环境 API_BASE 仍指向 `workers.dev` 的问题，与 `index.html`、`cockpit.html` 等其他页面对齐，统一走同域 `/api/`。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "修复 `scripts/update-nginx-api-proxy.sh` 在 CI 中把 `/api/` 指向 `workers.dev` 的问题，改为指向服务器本地 DSTE shim (`http://127.0.0.1:8766/api/`)，避免覆盖生产认证代理。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.5",
       "date": "2026-07-01",
       "status": "released",

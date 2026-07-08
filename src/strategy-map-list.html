@@ -60,8 +60,12 @@
     }
     .sm-list-toolbar .search-box input:focus { border-color: var(--primary); }
     .sm-list-toolbar .search-box::before {
-      content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-      font-size: 12px; opacity: 0.5;
+      content: ''; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      width: 14px; height: 14px;
+      background: var(--sm-text-secondary);
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M229.7,218.3l-44.5-44.5a88,88,0,1,0-11.3,11.3l44.5,44.5a8,8,0,0,0,11.3-11.3ZM48,112a64,64,0,1,1,64,64A64.1,64.1,0,0,1,48,112Z'/%3E%3C/svg%3E") no-repeat center;
+      mask-size: contain;
+      opacity: 0.5;
     }
     .sm-list-toolbar select {
       padding: 7px 28px 7px 12px; border: 1px solid var(--sm-border);
@@ -213,7 +217,7 @@
     <!-- 顶部导航 (与 cockpit.html / business-topics.html 一致) -->
     <nav class="top-nav">
       <div style="display: flex; align-items: center;">
-        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单">☰</button>
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单"><span class="icon" data-icon="menu" data-icon-size="18"></span></button>
         <div class="top-nav-brand">
           <div class="top-nav-logo">D</div>
           <span class="top-nav-title">DSTE 战略管理平台</span>
@@ -221,8 +225,8 @@
       </div>
       <ul class="top-nav-links" id="top-nav-links"></ul>
       <div class="top-nav-actions">
-        <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
-        <button class="icon-btn" title="通知">🔔</button>
+        <button class="icon-btn" id="theme-toggle" title="切换主题"><span class="icon" data-icon="moon" data-icon-size="18"></span></button>
+        <button class="icon-btn" title="通知"><span class="icon" data-icon="notification" data-icon-size="18"></span></button>
         <div class="user-avatar" id="user-avatar">张</div>
       </div>
     </nav>
@@ -271,7 +275,7 @@
                 <option value="">全部周期</option>
               </select>
               <div class="toolbar-actions">
-                <button class="btn btn-ghost" data-action="refresh">🔄 刷新</button>
+                <button class="btn btn-ghost" data-action="refresh"><span class="icon" data-icon="refresh" data-icon-size="14"></span> 刷新</button>
               </div>
             </div>
 
@@ -283,7 +287,7 @@
 
             <div class="sm-list-grid" id="mapListGrid"></div>
             <div class="sm-list-empty" id="emptyState" style="display: none;">
-              <div class="icon">🗺️</div>
+              <div class="icon"><span class="icon" data-icon="sp/strategy-map" data-icon-size="48"></span></div>
               <div class="title">暂无战略地图</div>
               <div class="desc">点击右上角「新建战略地图」创建第一张地图</div>
               <button class="btn btn-primary" data-action="new-map">新建战略地图</button>
@@ -349,7 +353,7 @@
           <input type="url" class="form-input" id="mapModalPresentationUrl" placeholder="如：飞书/腾讯文档/OneDrive 链接">
           <div class="file-upload" id="mapModalPresentationUpload" style="margin-top:8px;">
             <input type="file" id="mapModalPresentationFile" accept=".ppt,.pptx,.pdf" style="display:none;">
-            <button type="button" class="btn btn-default" id="mapModalPresentationBtn" style="width:100%;">📎 上传 PPT/PDF</button>
+            <button type="button" class="btn btn-default" id="mapModalPresentationBtn" style="width:100%;"><span class="icon" data-icon="paperclip" data-icon-size="14"></span> 上传 PPT/PDF</button>
             <div class="file-upload-name" id="mapModalPresentationName" style="margin-top:6px;font-size:12px;color:var(--sm-text-secondary);"></div>
           </div>
         </div>

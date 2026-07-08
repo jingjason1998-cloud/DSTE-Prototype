@@ -421,6 +421,22 @@ describe('meetings data-store', () => {
       expect(cleaned).toBe(true);
     });
 
+    it('initializes reminder fields on actions', () => {
+      window._meetingsData = [{
+        id: 'm1',
+        agenda_items: [],
+        decisions: [],
+        actions: [{ content: 'A1', owner: 'O1' }],
+      }];
+
+      migrateMeetingsData();
+
+      const a = getMeetings()[0].actions[0];
+      expect(a.reminderCount).toBe(0);
+      expect(a.lastRemindedAt).toBeNull();
+      expect(a.riskLevel).toBe('normal');
+    });
+
     it('normalizes empty placeholder actions and returns true', () => {
       window._meetingsData = [{
         id: 'm1',

@@ -62,7 +62,7 @@ test.describe('Meetings Page Smoke Test', () => {
 
     const drawer = page.locator('#decisions-list');
     await expect(drawer).toBeVisible();
-    await expect(page.locator('text=📋 决议中心').first()).toBeVisible();
+    await expect(page.locator('text=决议中心').first()).toBeVisible();
     await expect(drawer.filter({ hasText: /共 \d+ 项/ })).toBeVisible();
   });
 

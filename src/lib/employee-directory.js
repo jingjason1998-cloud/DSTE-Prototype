@@ -72,7 +72,6 @@ const perItemExecutor = createPerItemExecutor();
 function createBulkExecutor(endpoint) {
   return async (operation) => {
     const apiBase = getApiBase();
-    if (!apiBase) return;
     const token = Storage.getString('dste-token');
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -116,7 +115,6 @@ function _apiSaveImportMeta(meta) {
 
 async function _apiLoad(endpoint) {
   const apiBase = getApiBase();
-  if (!apiBase) return { ok: false, data: null };
   const token = Storage.getString('dste-token');
   const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
   try {

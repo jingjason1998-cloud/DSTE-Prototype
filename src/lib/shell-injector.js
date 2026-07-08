@@ -11,6 +11,7 @@
 
 import { renderTopNav, renderSidebar, getPageName, getPhaseFromPage } from './shell.js';
 import { EXTERNAL_PAGES, PAGE_NAMES } from './config.js';
+import { hydrateIcons } from '../../assets/js/icons.js';
 
 (function initShell() {
   'use strict';
@@ -52,32 +53,33 @@ import { EXTERNAL_PAGES, PAGE_NAMES } from './config.js';
   // eslint-disable-next-line security/detect-object-injection
   document.title = (PAGE_NAMES[pageId] || getPageName(pageId)) + ' - DSTE 战略管理平台';
 
-  // 移动端汉堡菜单与侧边栏遮罩绑定
-  function bindMobileMenu() {
+  // 移动端汉堡菜单与侧边栏遮罩绑定 + 静态图标 hydration
+  function bindShell() {
     const menuToggle = document.getElementById('mobile-menu-toggle');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-    if (!menuToggle || !sidebar || !overlay) return;
-
-    menuToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('open');
-      overlay.classList.toggle('open');
-    });
-    overlay.addEventListener('click', () => {
-      sidebar.classList.remove('open');
-      overlay.classList.remove('open');
-    });
-    sidebar.addEventListener('click', (e) => {
-      if (e.target.closest('.sidebar-item')) {
+    if (menuToggle && sidebar && overlay) {
+      menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('open');
+      });
+      overlay.addEventListener('click', () => {
         sidebar.classList.remove('open');
         overlay.classList.remove('open');
-      }
-    });
+      });
+      sidebar.addEventListener('click', (e) => {
+        if (e.target.closest('.sidebar-item')) {
+          sidebar.classList.remove('open');
+          overlay.classList.remove('open');
+        }
+      });
+    }
+    hydrateIcons();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindMobileMenu);
+    document.addEventListener('DOMContentLoaded', bindShell);
   } else {
-    bindMobileMenu();
+    bindShell();
   }
 })();

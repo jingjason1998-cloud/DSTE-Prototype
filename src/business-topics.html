@@ -261,7 +261,7 @@
         <!-- 顶部导航 (与 cockpit.html 一致) -->
         <nav class="top-nav">
             <div style="display: flex; align-items: center;">
-                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单">☰</button>
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单"><span class="icon" data-icon="menu" data-icon-size="18"></span></button>
                 <div class="top-nav-brand">
                     <div class="top-nav-logo">D</div>
                     <span class="top-nav-title">DSTE 战略管理平台</span>
@@ -269,13 +269,13 @@
             </div>
             <ul class="top-nav-links" id="top-nav-links"></ul>
             <div class="top-nav-actions">
-                <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
-                <button class="icon-btn" title="通知">🔔</button>
+                <button class="icon-btn" id="theme-toggle" title="切换主题"><span class="icon" data-icon="moon" data-icon-size="18"></span></button>
+                <button class="icon-btn" title="通知"><span class="icon" data-icon="notification" data-icon-size="18"></span></button>
                 <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;position:relative;cursor:pointer;">张</div>
                 <div class="user-dropdown" id="user-dropdown">
                     <div class="user-dropdown-name" id="user-dropdown-name">张总</div>
                     <div class="user-dropdown-divider"></div>
-                    <button class="user-dropdown-item" id="user-logout">🚪 退出登录</button>
+                    <button class="user-dropdown-item" id="user-logout"><span class="icon" data-icon="logout" data-icon-size="14"></span> 退出登录</button>
                 </div>
             </div>
         </nav>
@@ -299,10 +299,10 @@
                 <div class="page-subtitle" id="pageSubtitle">战略执行层业务攻坚 · 季度-年度业务议题聚合</div>
             </div>
             <div class="nav-actions">
-                <button class="btn btn-ghost" data-action="export-topics">📤 导出备份</button>
-                <button class="btn btn-ghost" data-action="trigger-import">📥 导入备份</button>
+                <button class="btn btn-ghost" data-action="export-topics"><span class="icon" data-icon="upload" data-icon-size="14"></span> 导出备份</button>
+                <button class="btn btn-ghost" data-action="trigger-import"><span class="icon" data-icon="download" data-icon-size="14"></span> 导入备份</button>
                 <input type="file" id="backupFileInput" style="display:none" accept=".json" data-action="import-file">
-                <button class="btn btn-ghost" data-action="open-import">📋 导入议题</button>
+                <button class="btn btn-ghost" data-action="open-import"><span class="icon" data-icon="clipboard-text" data-icon-size="14"></span> 导入议题</button>
                 <button class="btn btn-primary" data-action="new-topic">+ 新建业务专题</button>
             </div>
         </div>
@@ -313,7 +313,7 @@
             <div style="display: flex; gap: 16px; margin-bottom: 20px; align-items: stretch;">
                 <!-- 左侧：统计指标卡 -->
                 <div style="flex: 1; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: center;">
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">📊 业务专题统计</div>
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;"><span class="icon" data-icon="chart-bar" data-icon-size="14"></span> 业务专题统计</div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
                         <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
                             <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="statInProgress">0</div>
@@ -337,12 +337,12 @@
                 <!-- 右侧：ST / AT 报告卡片 -->
                 <div style="width: 240px; display: flex; flex-direction: column; gap: 12px;">
                     <div class="report-card report-card-st" data-action="ai-report" data-report-type="ST" style="flex: 1;">
-                        <div class="report-card-label">🏛️ ST 议题全局分析</div>
+                        <div class="report-card-label"><span class="icon" data-icon="building" data-icon-size="14"></span> ST 议题全局分析</div>
                         <div class="report-card-status" id="stReportStatus">点击生成</div>
                         <div class="report-card-meta" id="stReportMeta">—</div>
                     </div>
                     <div class="report-card report-card-at" data-action="ai-report" data-report-type="AT" style="flex: 1;">
-                        <div class="report-card-label">🏢 AT 议题全局分析</div>
+                        <div class="report-card-label"><span class="icon" data-icon="buildings" data-icon-size="14"></span> AT 议题全局分析</div>
                         <div class="report-card-status" id="atReportStatus">点击生成</div>
                         <div class="report-card-meta" id="atReportMeta">—</div>
                     </div>
@@ -362,7 +362,7 @@
                     <select id="filterYear" class="form-select" style="min-width: 100px;" data-filter>
                         <option value="">全部年度</option>
                     </select>
-                    <button type="button" class="btn btn-ghost btn-sm" data-action="manage-years" title="管理年度">⚙️</button>
+                    <button type="button" class="btn btn-ghost btn-sm" data-action="manage-years" title="管理年度"><span class="icon" data-icon="settings" data-icon-size="14"></span></button>
                 </div>
                 <div id="filterDeptContainer" style="min-width: 180px;"></div>
                 <select id="filterPriority" class="form-select" style="min-width: 120px;" data-filter>
@@ -371,7 +371,7 @@
                     <option value="P1">P1</option>
                     <option value="P2">P2</option>
                 </select>
-                <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜索专题名称、负责人..." data-search>
+                <input type="text" id="searchInput" class="search-input" placeholder="搜索专题名称、负责人..." data-search>
             </div>
 
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); padding: 24px;">
@@ -396,7 +396,7 @@
                 </table>
                 </div>
                 <div id="emptyState" class="empty-state" style="display: none;">
-                    <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
+                    <div style="font-size: 32px; margin-bottom: 12px;"><span class="icon" data-icon="tray" data-icon-size="32"></span></div>
                     <div style="font-size: 14px; margin-bottom: 8px;">暂无业务专题</div>
                     <div style="font-size: 12px;">点击右上角「新建业务专题」开始创建</div>
                 </div>
@@ -477,15 +477,15 @@
                         <input type="text" id="fTags" class="form-input" placeholder="大客户, 营收, Q3">
                     </div>
                     <div class="form-group full">
-                        <label class="form-label">🔗 KMS 链接</label>
+                        <label class="form-label"><span class="icon" data-icon="link" data-icon-size="14"></span> KMS 链接</label>
                         <input type="url" id="fKmsLink" class="form-input" placeholder="https://kms.fineres.com/...">
                     </div>
                     <div class="form-group full">
-                        <label class="form-label">📝 结项总结</label>
+                        <label class="form-label"><span class="icon" data-icon="file-text" data-icon-size="14"></span> 结项总结</label>
                         <textarea id="fSummary" class="form-textarea" placeholder="专题结束后填写复盘总结、经验教训、后续建议..."></textarea>
                     </div>
                     <div class="form-group full">
-                        <label class="form-label">📍 里程碑</label>
+                        <label class="form-label"><span class="icon" data-icon="map-pin" data-icon-size="14"></span> 里程碑</label>
                         <div class="milestone-list" id="formMilestones">
                             <!-- JS rendered -->
                         </div>
@@ -520,7 +520,7 @@
         <div class="modal-content">
             <button class="modal-close" onclick="window._dste.closeModal('bizTopicModal')">×</button>
             <div class="modal-header">
-                <div class="modal-title" id="detailTitle">🎯 专题详情</div>
+                <div class="modal-title" id="detailTitle"><span class="icon" data-icon="target" data-icon-size="18"></span> 专题详情</div>
                 <div class="modal-subtitle" id="detailSubtitle">加载中...</div>
             </div>
             <div id="detailContent">
@@ -538,15 +538,15 @@
         <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
             <button class="modal-close" onclick="window._dste.closeModal('importModal')">×</button>
             <div class="modal-header">
-                <div class="modal-title">📋 导入 ST/AT 议题</div>
+                <div class="modal-title"><span class="icon" data-icon="clipboard-text" data-icon-size="18"></span> 导入 ST/AT 议题</div>
                 <div class="modal-subtitle">粘贴表格数据、拖拽 Excel/CSV 文件或点击上传</div>
             </div>
             <div style="margin-bottom: 16px;">
                 <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 12px;">
-                    <input type="radio" name="importSource" value="ST" checked data-import-source> 🏛️ ST 会议系统
+                    <input type="radio" name="importSource" value="ST" checked data-import-source> <span class="icon" data-icon="building" data-icon-size="14"></span> ST 会议系统
                 </label>
                 <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 12px;">
-                    <input type="radio" name="importSource" value="AT" data-import-source> 🏢 AT 会议系统
+                    <input type="radio" name="importSource" value="AT" data-import-source> <span class="icon" data-icon="buildings" data-icon-size="14"></span> AT 会议系统
                 </label>
             </div>
 
@@ -554,7 +554,7 @@
             <div id="importDropZone" style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 32px 24px; text-align: center; margin-bottom: 16px; transition: all 0.2s; cursor: pointer;"
                  data-drop-zone
                  data-trigger-file-input="importFileInput">
-                <div style="font-size: 36px; margin-bottom: 8px;">📁</div>
+                <div style="font-size: 36px; margin-bottom: 8px;"><span class="icon" data-icon="folder" data-icon-size="36"></span></div>
                 <div style="font-weight: 500; color: var(--text-secondary); margin-bottom: 4px;">拖拽 Excel / CSV 文件到此处</div>
                 <div style="font-size: 13px; color: var(--text-muted);">或点击选择文件 · 支持 .xlsx .xls .csv</div>
                 <input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" data-action="import-file-select">
@@ -587,7 +587,7 @@
         <div class="modal-content" style="max-width: 640px;">
             <button class="modal-close" onclick="window._dste.closeModal('issueDetailModal')">×</button>
             <div class="modal-header">
-                <div class="modal-title" id="issueDetailTitle">📋 议题详情</div>
+                <div class="modal-title" id="issueDetailTitle"><span class="icon" data-icon="clipboard-text" data-icon-size="18"></span> 议题详情</div>
                 <div class="modal-subtitle" id="issueDetailSubtitle"></div>
             </div>
             <div id="issueDetailContent">
@@ -604,17 +604,17 @@
         <div class="modal-content" style="max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;">
             <button class="modal-close" onclick="window._dste.closeModal('linkIssuesModal')">×</button>
             <div class="modal-header">
-                <div class="modal-title">🔗 关联议题</div>
+                <div class="modal-title"><span class="icon" data-icon="link" data-icon-size="18"></span> 关联议题</div>
                 <div class="modal-subtitle" id="linkIssuesSubtitle">选择要关联的议题</div>
             </div>
             <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
                 <button class="btn btn-ghost" style="flex:1;" data-link-filter="all" id="linkFilterAll">全部</button>
-                <button class="btn btn-ghost" style="flex:1;" data-link-filter="ST">🏛️ ST</button>
-                <button class="btn btn-ghost" style="flex:1;" data-link-filter="AT">🏢 AT</button>
-                <button class="btn btn-primary" style="flex:1.5; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));" data-action="ai-match">🤖 AI 智能匹配</button>
+                <button class="btn btn-ghost" style="flex:1;" data-link-filter="ST"><span class="icon" data-icon="building" data-icon-size="14"></span> ST</button>
+                <button class="btn btn-ghost" style="flex:1;" data-link-filter="AT"><span class="icon" data-icon="buildings" data-icon-size="14"></span> AT</button>
+                <button class="btn btn-primary" style="flex:1.5; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));" data-action="ai-match"><span class="icon" data-icon="robot" data-icon-size="14"></span> AI 智能匹配</button>
             </div>
             <div style="margin-bottom: 12px;">
-                <input type="text" id="linkIssuesSearch" class="form-input" placeholder="🔍 搜索议题编号、标题、部门..." data-link-search style="width: 100%;">
+                <input type="text" id="linkIssuesSearch" class="form-input" placeholder="搜索议题编号、标题、部门..." data-link-search style="width: 100%;">
             </div>
             <div id="linkIssuesList" style="flex: 1; overflow-y: auto; min-height: 200px;">
                 <!-- JS rendered -->
@@ -631,11 +631,11 @@
         <div class="modal-content" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
             <button class="modal-close" onclick="window._dste.closeModal('aiMatchModal')">×</button>
             <div class="modal-header">
-                <div class="modal-title">🤖 AI 智能关联建议</div>
+                <div class="modal-title"><span class="icon" data-icon="robot" data-icon-size="18"></span> AI 智能关联建议</div>
                 <div class="modal-subtitle" id="aiMatchSubtitle">基于部门、关键词、KPI、时间窗口等维度分析</div>
             </div>
             <div id="aiMatchLoading" style="text-align:center; padding: 40px;">
-                <div style="font-size: 32px; margin-bottom: 12px;">🧠</div>
+                <div style="font-size: 32px; margin-bottom: 12px;"><span class="icon" data-icon="brain" data-icon-size="32"></span></div>
                 <div style="font-size: 14px; color: var(--text-secondary);">AI 正在分析专题与议题的关联度...</div>
                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">匹配维度：部门一致性 · 关键词重叠 · KPI关联 · 时间窗口 · 优先级</div>
             </div>
@@ -646,13 +646,13 @@
                 </div>
             </div>
             <div id="aiMatchEmpty" style="display: none; text-align: center; padding: 40px; color: var(--text-muted);">
-                <div style="font-size: 32px; margin-bottom: 12px;">🔍</div>
+                <div style="font-size: 32px; margin-bottom: 12px;"><span class="icon" data-icon="magnifying-glass" data-icon-size="32"></span></div>
                 <div style="font-size: 14px;">未发现高关联度议题</div>
                 <div style="font-size: 12px; margin-top: 8px;">建议导入更多议题数据，或检查专题信息是否完整</div>
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
                 <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('aiMatchModal')">关闭</button>
-                <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" onclick="window._dste.applyAiMatches()" style="display:none;">✅ 关联选中建议</button>
+                <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" onclick="window._dste.applyAiMatches()" style="display:none;"><span class="icon" data-icon="check" data-icon-size="14"></span> 关联选中建议</button>
             </div>
         </div>
     </div>
@@ -662,7 +662,7 @@
         <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
             <button class="modal-close" onclick="window._dste.closeModal('aiReportModal')">×</button>
             <div class="modal-header">
-                <div class="modal-title" id="aiReportTitle">🤖 AI 全局分析报告</div>
+                <div class="modal-title" id="aiReportTitle"><span class="icon" data-icon="robot" data-icon-size="18"></span> AI 全局分析报告</div>
                 <div class="modal-subtitle" id="aiReportSubtitle"></div>
             </div>
             <div id="aiReportContent">
@@ -670,7 +670,7 @@
             </div>
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
                 <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('aiReportModal')">关闭</button>
-                <button type="button" class="btn btn-primary" data-action="regenerate-report">🔄 重新生成</button>
+                <button type="button" class="btn btn-primary" data-action="regenerate-report"><span class="icon" data-icon="arrows-clockwise" data-icon-size="14"></span> 重新生成</button>
             </div>
         </div>
     </div>
@@ -680,7 +680,7 @@
         <div class="modal-content" style="max-width: min(520px, calc(100vw - 32px)); width: 100%;">
             <button class="modal-close" onclick="window._dste.closeModal('yearManageModal')">×</button>
             <div class="modal-header">
-                <div class="modal-title">📅 年度管理</div>
+                <div class="modal-title"><span class="icon" data-icon="calendar" data-icon-size="18"></span> 年度管理</div>
                 <div class="modal-subtitle">增删年度选项，管理专题分类</div>
             </div>
             <div id="yearManageList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 320px; overflow-y: auto;">
@@ -698,15 +698,15 @@
     </div>
 
     <!-- AI助手浮窗 -->
-    <button class="ai-fab" data-action="toggle-ai" title="AI战略助手">🤖</button>
+    <button class="ai-fab" data-action="toggle-ai" title="AI战略助手"><span class="icon" data-icon="robot" data-icon-size="20"></span></button>
     <div class="ai-panel" id="aiPanel">
         <div class="ai-panel-header">
-            <div class="ai-panel-title"><span>🤖</span><span>AI战略助手</span></div>
+            <div class="ai-panel-title"><span class="icon" data-icon="robot" data-icon-size="18"></span><span>AI战略助手</span></div>
             <button data-action="toggle-ai" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:18px;">×</button>
         </div>
         <div class="ai-panel-body" id="aiMessages">
             <div class="ai-message assistant">
-                👋 你好！我是你的AI战略助手。我可以帮你：
+                <span class="icon" data-icon="hand-waving" data-icon-size="16"></span> 你好！我是你的AI战略助手。我可以帮你：
                 <br>• 分析KPI达成情况
                 <br>• 生成经营分析报告
                 <br>• 模拟战略调整影响

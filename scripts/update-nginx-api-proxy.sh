@@ -35,12 +35,11 @@ with open("""$CONFIG_FILE""", "r") as f:
     content = f.read()
 
 api_block = """    location /api/ {
-        proxy_pass https://dste-api.jasonxspace.workers.dev/api/;
-        proxy_set_header Host dste-api.jasonxspace.workers.dev;
+        proxy_pass http://127.0.0.1:8766/api/;
+        proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_ssl_server_name on;
     }
 """
 

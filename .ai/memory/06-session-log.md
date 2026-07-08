@@ -2,6 +2,29 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-08
+- **主题**：继续 UI/UX 设计系统升级（承接前序会话已创建的 Phase 0 基线）
+- **操作**：
+  - 完成 Phase 1 Shell 统一收尾：修复 `src/lib/config.js` 中「经营分析会 ⭐」残留 emoji；补齐 `icon-mapping.js` 中 sidebar group icon key 映射（`chart-line-up`、`users-three`、`chart-pie-slice`）
+  - 完成 Phase 2 全部独立 HTML 页面 emoji 替换为 Phosphor 图标：
+    - `src/business-topics.html`、`src/meetings.html`、`src/reviewer.html`、`src/requirement-pool.html`、`src/employee-directory.html`
+    - `src/st-issue-tracking.html`、`src/at-issue-tracking.html`、`src/strategy-map-list.html`、`src/strategy-map.html`
+  - 为 `src/meetings.html`、`src/strategy-map.html` 模块脚本补充 `import { icon } from '../assets/js/icons.js'`
+  - 扩展 `assets/js/icon-mapping.js`：新增 `mapTrifold`、`siren`、`handshake`、`tray` 等图标 key 及常用 camelCase 别名
+  - 修复批量替换引入的嵌套模板字符串语法问题（`tabLabels`、状态图标 ternary、上下游箭头空状态）
+- **修改文件**：
+  - `assets/js/icon-mapping.js`
+  - `src/lib/config.js`
+  - `src/business-topics.html`、`src/meetings.html`、`src/reviewer.html`、`src/requirement-pool.html`、`src/employee-directory.html`
+  - `src/st-issue-tracking.html`、`src/at-issue-tracking.html`、`src/strategy-map-list.html`、`src/strategy-map.html`
+- **验证**：
+  - `npm run build` 通过
+  - `npm run check:scope` 通过
+  - `npm run test:unit` → 396 passed
+  - E2E：navigation + business-topics + meetings-smoke + strategy-map-list + strategy-map + reviewer-embed → 86 passed
+- **状态**：Phase 0~2 HTML 页面完成，待继续清理 JS 模块中的残留 emoji
+- **下一步**：继续 Task #5，替换 `src/lib/*`、`src/meetings/**/*`、`src/pages/**/*`、`assets/js/main.js` 中的 emoji
+
 ## 2026-07-07
 - **主题**：修复生产环境 CAS 登录循环 + OMP 子任务相关 bug + 准备 v0.6.6 发布
 - **操作**：

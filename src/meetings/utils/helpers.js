@@ -152,6 +152,21 @@ export function getActionStatusConfig(status) {
   return ACTION_STATUS_CONFIG[status] || ACTION_STATUS_CONFIG.pending;
 }
 
+/**
+ * 计算截止日期距离今天的天数
+ * @param {string} deadline - YYYY-MM-DD 格式日期
+ * @returns {number|null} 正数表示剩余天数，0 表示今天到期，负数表示已逾期，null 表示无截止日期或无效日期
+ */
+export function getDaysLeft(deadline) {
+  if (!deadline) return null;
+  try {
+    const daysLeft = Math.ceil((new Date(deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
+    return Number.isNaN(daysLeft) ? null : daysLeft;
+  } catch (e) {
+    return null;
+  }
+}
+
 export function computeMeetingReadiness(meeting, reportAssets = {}, reviewScores = {}) {
   const checks = [];
 

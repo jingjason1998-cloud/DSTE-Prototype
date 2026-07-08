@@ -1,15 +1,25 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-07 17:02
+> 更新时间: 2026-07-08 12:15
 
 ## 状态
-**新增高优先级开发线：人员与组织目录（第一阶段已完成）**。已建立员工/组织架构数据层、Excel 导入能力、管理页入口，支持在系统内统一维护真实人员名单与组织架构。后续阶段将逐步把人员选择器接入会议、OMP、业务专题、战略地图等模块。
+**新增高优先级开发线：UI/UX 设计系统升级（Phase 0~2 进行中）**。已建立设计 token、组件基线、Phosphor 图标体系，完成 Shell 统一与全部独立 HTML 页面的 emoji 清除，下一步清理 JS 模块中的残留 emoji。
 现有并行开发线仍保留：
+- **人员与组织目录**：第一阶段已完成，待接入人员选择器。
 - **经分会-决议中心**：核心状态机与单测已完成，UI 抽屉与旧组件状态体系已统一，剩余可选优化。
 - **DSTE 完整功能框架搭建**：方案已完成，待用户确认是否开始第一阶段实施。
 - **会议材料审核功能**：状态需与本次框架方案对齐。
 
 ## 进行中的开发线
+
+### UI/UX 设计系统升级（新增 / Phase 0~2 进行中）
+- 建立设计系统基线：`assets/css/tokens.css`、`assets/css/components.css`、`assets/css/main.css` 兼容层
+- 建立 Phosphor 图标体系：`assets/js/icon-mapping.js`、`assets/js/icons.js`、`assets/js/phosphor-icons.js`、`scripts/build-icon-sprite.js`
+- 完成设计文档：`docs/07-DesignSystem/` 全套 token / 组件 / 图标 / shell / a11y / 迁移 / 视觉回归规范
+- 完成 Phase 1 Shell 统一收尾：修复 `config.js` 残留 emoji、补齐 sidebar group icon key 映射，`shell.js`/`shell-injector.js` 全部渲染 SVG 图标
+- 完成 Phase 2 独立页面 emoji 替换：`src/business-topics.html`、`src/meetings.html`、`src/reviewer.html`、`src/requirement-pool.html`、`src/employee-directory.html`、`src/st-issue-tracking.html`、`src/at-issue-tracking.html`、`src/strategy-map-list.html`、`src/strategy-map.html` 全部清除 emoji
+- 验证：`npm run build` 通过，`npm run check:scope` 通过，`npm run test:unit` 396 passed；核心 E2E（navigation + business-topics + meetings-smoke + strategy-map-list + strategy-map + reviewer-embed）86 passed
+- 下一步：继续清理 JS 模块（`src/lib/*`、`src/meetings/**/*`、`src/pages/**/*`、`assets/js/main.js`）中的残留 emoji
 
 ### 经分会-督办中心（新增 / 阶段 1 完成）
 - 行动项 3 状态配置：`pending` / `in_progress` / `completed`

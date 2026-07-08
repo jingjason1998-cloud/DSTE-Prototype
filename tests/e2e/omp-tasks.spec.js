@@ -32,7 +32,6 @@ test.describe('OMP 重点工作管理', () => {
         name: 'OMP本地任务',
         description: '',
         type: 'strategic',
-        priority: 'P0',
         status: 'active',
         progress: 50,
         owner: '测试人',

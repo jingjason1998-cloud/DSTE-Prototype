@@ -7,6 +7,17 @@
  */
 
 import { TOP_NAV, SIDEBAR_CONFIG, PAGE_NAMES, EXTERNAL_PAGES } from './config.js';
+import { icon } from '../../assets/js/icons.js';
+
+/**
+ * 渲染图标到元素中
+ * @param {HTMLElement} el
+ * @param {string} key - icon-mapping.js 中的 key
+ * @param {number} size
+ */
+function renderIcon(el, key, size = 18) {
+  el.innerHTML = icon(key, { size, ariaLabel: '' });
+}
 
 /**
  * 获取顶部导航链接地址
@@ -52,7 +63,8 @@ export function renderTopNav(activePhase, onNavigate, options = {}) {
     a.className = 'top-nav-item';
 
     const iconSpan = document.createElement('span');
-    iconSpan.textContent = item.icon;
+    iconSpan.className = 'top-nav-icon';
+    renderIcon(iconSpan, item.icon, 18);
     const labelSpan = document.createElement('span');
     labelSpan.textContent = item.label;
     const fullSpan = document.createElement('span');
@@ -128,7 +140,7 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
       }
       const iconSpan = document.createElement('span');
       iconSpan.className = 'icon';
-      iconSpan.textContent = item.icon;
+      renderIcon(iconSpan, item.icon, 18);
       const labelSpan = document.createElement('span');
       labelSpan.textContent = item.label;
       a.appendChild(iconSpan);
@@ -152,7 +164,7 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
       const groupKey = `sidebar_group_${phase}_${item.title}`;
       const isCollapsed = localStorage.getItem(groupKey) === 'collapsed';
       if (isCollapsed) group.classList.add('collapsed');
-      const groupIcon = item.icon ? `<span style="margin-right:6px;">${item.icon}</span>` : '';
+      const groupIcon = item.icon ? `<span class="icon sidebar-group-icon">${icon(item.icon, { size: 14 })}</span>` : '';
       title.innerHTML = `<span style="display:flex;align-items:center;">${groupIcon}<span>${item.title}</span></span><span class="sidebar-group-toggle">${isCollapsed ? '▶' : '▼'}</span>`;
       title.addEventListener('click', () => {
         group.classList.toggle('collapsed');
@@ -173,7 +185,7 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
         }
         const iconSpan = document.createElement('span');
         iconSpan.className = 'icon';
-        iconSpan.textContent = sub.icon;
+        renderIcon(iconSpan, sub.icon, 18);
         const labelSpan = document.createElement('span');
         labelSpan.textContent = sub.label;
         a.appendChild(iconSpan);

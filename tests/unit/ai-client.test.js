@@ -46,8 +46,8 @@ describe('ai-client', () => {
       expect(getAIGatewayUrl()).toBe('http://localhost:8787');
     });
 
-    it('returns default worker by default', () => {
-      expect(getAIGatewayUrl()).toBe('https://dste-api.jasonxspace.workers.dev');
+    it('returns empty string by default to use same-domain /api/ proxy', () => {
+      expect(getAIGatewayUrl()).toBe('');
     });
   });
 

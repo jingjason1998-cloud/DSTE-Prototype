@@ -1,90 +1,93 @@
 /**
- * DSTE 战略管理平台 - 主样式
- * 设计系统：FanRuan BI + Linear 简洁风格
- * 支持 Light/Dark 主题切换
+ * DSTE 战略管理平台 - 主样式（兼容层）
+ * 新设计系统见 assets/css/tokens.css 与 assets/css/components.css
+ * 此文件保留旧变量名作为别名，并维持现有组件样式以保证兼容性
  */
 
-/* ===== CSS 变量定义 ===== */
+@import url('./tokens.css');
+@import url('./components.css');
+
+/* ===== 旧变量别名（兼容已有页面） ===== */
 :root {
   /* 主色调 */
-  --primary: #1677FF;
-  --primary-light: #E6F4FF;
-  --primary-dark: #0958D9;
-  
+  --primary: var(--color-primary);
+  --primary-light: var(--color-primary-subtle);
+  --primary-dark: var(--color-primary-active);
+
   /* 状态色 */
-  --success: #52C41A;
-  --warning: #FAAD14;
-  --danger: #F5222D;
-  --info: #1677FF;
-  
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --info: var(--color-info);
+
   /* 背景色 - Light */
-  --bg-page: #F0F2F5;
-  --bg-card: #FFFFFF;
-  --bg-sidebar: #FFFFFF;
-  --bg-hover: #F5F5F5;
-  --bg-active: #E6F4FF;
-  
+  --bg-page: var(--color-bg-page);
+  --bg-card: var(--color-bg-surface);
+  --bg-sidebar: var(--color-bg-surface);
+  --bg-hover: var(--color-bg-hover);
+  --bg-active: var(--color-bg-active);
+
   /* 文字色 - Light */
-  --text-primary: #000000;
-  --text-secondary: #333333;
-  --text-tertiary: #666666;
-  --text-disabled: #BFBFBF;
-  --text-inverse: #FFFFFF;
-  
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-disabled: var(--color-text-disabled);
+  --text-inverse: var(--color-text-inverse);
+
   /* 边框 */
-  --border-color: #E8E8E8;
-  --border-light: #F0F0F0;
-  
+  --border-color: var(--color-border-default);
+  --border-light: var(--color-border-subtle);
+
   /* 阴影 */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
-  
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
+
   /* 间距 */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  
+  --spacing-xs: var(--space-1);
+  --spacing-sm: var(--space-2);
+  --spacing-md: var(--space-4);
+  --spacing-lg: var(--space-6);
+  --spacing-xl: var(--space-7);
+
   /* 尺寸 */
-  --topbar-height: 64px;
-  --sidebar-width: 240px;
-  --sidebar-collapsed: 64px;
-  
+  --topbar-height: var(--shell-topbar-height);
+  --sidebar-width: var(--shell-sidebar-width);
+  --sidebar-collapsed: var(--shell-sidebar-collapsed);
+
   /* 字体 */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-  
+  --font-family: var(--font-sans);
+  --font-mono: var(--font-mono);
+
   /* 圆角 */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
   /* 过渡 */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s ease;
+  --transition-fast: var(--duration-fast) var(--ease-productive);
+  --transition-normal: var(--duration-normal) var(--ease-productive);
 }
 
-/* ===== Dark 主题 ===== */
+/* ===== Dark 主题（旧变量别名） ===== */
 [data-theme="dark"] {
-  --bg-page: #141414;
-  --bg-card: #1F1F1F;
-  --bg-sidebar: #1F1F1F;
-  --bg-hover: #2A2A2A;
-  --bg-active: #111B26;
-  
-  --text-primary: #FFFFFF;
-  --text-secondary: #D9D9D9;
-  --text-tertiary: #8C8C8C;
-  --text-disabled: #595959;
-  
-  --border-color: #333333;
-  --border-light: #2A2A2A;
-  
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+  --bg-page: var(--color-bg-page);
+  --bg-card: var(--color-bg-surface);
+  --bg-sidebar: var(--color-bg-surface);
+  --bg-hover: var(--color-bg-hover);
+  --bg-active: var(--color-bg-active);
+
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-disabled: var(--color-text-disabled);
+
+  --border-color: var(--color-border-default);
+  --border-light: var(--color-border-subtle);
+
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
 }
 
 /* ===== 基础重置 ===== */

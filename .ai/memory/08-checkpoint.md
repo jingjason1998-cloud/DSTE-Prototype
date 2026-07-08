@@ -2,6 +2,23 @@
 
 > 记录复杂任务的中间状态，方便中断后恢复。
 
+## UI/UX 设计系统升级 — Phase 0~2 HTML 页面完成
+
+- **当前步骤**：全部 `src/*.html` 页面 emoji 已替换为 Phosphor 图标，待继续清理 JS 模块（`src/lib/*`、`src/meetings/**/*`、`src/pages/**/*`、`assets/js/main.js`）
+- **代码位置**：
+  - 设计系统：`assets/css/tokens.css`、`assets/css/components.css`、`assets/css/main.css`
+  - 图标体系：`assets/js/icon-mapping.js`、`assets/js/icons.js`、`assets/js/phosphor-icons.js`、`scripts/build-icon-sprite.js`
+  - 设计文档：`docs/07-DesignSystem/`
+  - Shell：`src/styles/shell.css`、`src/lib/config.js`、`src/lib/shell.js`、`src/lib/shell-injector.js`
+  - 已清理 emoji 的页面：`src/business-topics.html`、`src/meetings.html`、`src/reviewer.html`、`src/requirement-pool.html`、`src/employee-directory.html`、`src/st-issue-tracking.html`、`src/at-issue-tracking.html`、`src/strategy-map-list.html`、`src/strategy-map.html`、`src/cockpit.html`
+- **关键决策**：
+  - 独立 HTML 静态内容使用 `<span class="icon" data-icon="key" data-icon-size="14"></span>`，由 `shell-injector.js` 或 `cockpit.html` 调用 `hydrateIcons()` 渲染
+  - `meetings.html`、`strategy-map.html` 等内联模块脚本使用 `import { icon } from '../assets/js/icons.js'` 并在模板字符串中直接调用 `${icon('key', {size: 14})}`
+  - `icon-mapping.js` 同时保留业务语义 key（如 `sp/strategy-map`）和 camelCase 别名（如 `mapTrifold`），方便不同模块按需使用
+- **验证**：`npm run build` 通过；`npm run check:scope` 通过；`npm run test:unit` 396 passed；核心 E2E 86 passed
+- **注意**：批量替换后需检查嵌套模板字符串/单引号字符串中的 icon 调用是否被错误地字符串化；已修复 `tabLabels`、决策/行动状态 ternary、上下游箭头空状态等 case
+- **任务文件**：暂无（通过 Task 工具跟踪：#1~#5）
+
 ## 经分会-督办中心 — 阶段 1 完成
 
 - **当前步骤**：行动项状态切换与 progressNote 行内编辑已完成，待阶段 2（逾期催办/独立督办工作台）

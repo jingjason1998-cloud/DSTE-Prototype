@@ -90,14 +90,14 @@ describe('agenda-recommender', () => {
       expect(getAiAgendaApiUrl()).toBe('http://localhost:8787/api/ai/agenda');
     });
 
-    it('returns production worker by default', () => {
+    it('returns same-domain /api/ proxy path by default on localhost', () => {
       window.location.hostname = 'localhost';
-      expect(getAiAgendaApiUrl()).toBe('https://dste-api.jasonxspace.workers.dev/api/ai/agenda');
+      expect(getAiAgendaApiUrl()).toBe('/api/ai/agenda');
     });
 
-    it('returns production worker on non-localhost', () => {
+    it('returns same-domain /api/ proxy path by default on non-localhost', () => {
       window.location.hostname = 'dste.fineres.com';
-      expect(getAiAgendaApiUrl()).toBe('https://dste-api.jasonxspace.workers.dev/api/ai/agenda');
+      expect(getAiAgendaApiUrl()).toBe('/api/ai/agenda');
     });
   });
 

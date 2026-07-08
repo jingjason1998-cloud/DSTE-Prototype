@@ -132,7 +132,6 @@ test.describe('年度经营计划', () => {
     await page.locator('[data-action="ap-add-keytask"]').click();
     await page.waitForTimeout(300);
     await page.locator('#ap-kt-name').fill('E2E测试重点工作');
-    await page.locator('#ap-kt-seq').fill('99');
     await page.locator('#ap-kt-annual-target').fill('E2E年度目标');
     await page.locator('#ap-kt-sp-link').fill('https://sp.example.com');
     await page.locator('#ap-kt-bi-dashboard').fill('https://bi.example.com');
@@ -140,6 +139,9 @@ test.describe('年度经营计划', () => {
     await page.waitForTimeout(500);
 
     await expect(page.locator('#ap-tab-content')).toContainText('E2E测试重点工作');
+    // 自动编号：默认数据已有 6 条，新增应为 7
+    const newTaskRow = page.locator('#ap-tab-content table').nth(1).locator('tbody tr').last();
+    await expect(newTaskRow.locator('td').nth(1)).toHaveText('7');
 
     // 编辑并校验三个新字段已保存
     const editBtn = page.locator('[data-action="ap-edit-keytask"]').last();
@@ -159,6 +161,137 @@ test.describe('年度经营计划', () => {
     await page.locator('[data-modal-action="modal-delete-keytask"]').click();
     await page.waitForTimeout(500);
     await expect(page.locator('#ap-tab-content')).not.toContainText('E2E测试重点工作-已改');
+  });
+
+  test('重点工作清单按序号排序且支持上移下移', async ({ page }) => {
+    await acceptConfirms(page);
+
+    // 添加两个重点工作，默认编号为 7、8
+    for (let i = 0; i < 2; i++) {
+      await page.locator('[data-action="ap-add-keytask"]').click();
+      await page.waitForTimeout(300);
+      await page.locator('#ap-kt-name').fill(`排序测试-${String.fromCharCode(65 + i)}`);
+      await page.locator('#ap-kt-owner').fill(`负责人${String.fromCharCode(65 + i)}`);
+      await page.locator('[data-modal-action="modal-save-keytask"]').click();
+      await page.waitForTimeout(500);
+    }
+
+    const keyTaskTable = page.locator('#ap-tab-content table').nth(1);
+
+    // 上移最后一个：最后一个变为倒数第二
+    let rows = keyTaskTable.locator('tbody tr');
+    const count = await rows.count();
+    await rows.last().locator('button[title="上移"]').click();
+    await page.waitForTimeout(500);
+
+    // 重新查询行：验证交换后序号
+    rows = keyTaskTable.locator('tbody tr');
+    await expect(rows.nth(count - 2).locator('td').nth(1)).toHaveText(String(count - 1));
+    await expect(rows.nth(count - 1).locator('td').nth(1)).toHaveText(String(count));
+
+    // 再下移恢复：被移到倒数第二的行（当前 count-2）下移
+    rows = keyTaskTable.locator('tbody tr');
+    await rows.nth(count - 2).locator('button[title="下移"]').click();
+    await page.waitForTimeout(500);
+
+    rows = keyTaskTable.locator('tbody tr');
+    await expect(rows.nth(count - 2).locator('td').nth(1)).toHaveText(String(count - 1));
+    await expect(rows.nth(count - 1).locator('td').nth(1)).toHaveText(String(count));
+  });
+
+  test('删除重点工作后剩余任务自动重新编号', async ({ page }) => {
+    await acceptConfirms(page);
+
+    // 添加一个重点工作
+    await page.locator('[data-action="ap-add-keytask"]').click();
+    await page.waitForTimeout(300);
+    await page.locator('#ap-kt-name').fill('将被删除');
+    await page.locator('[data-modal-action="modal-save-keytask"]').click();
+    await page.waitForTimeout(500);
+
+    const keyTaskTable = page.locator('#ap-tab-content table').nth(1);
+    const rows = keyTaskTable.locator('tbody tr');
+    const totalBefore = await rows.count();
+    const lastSeqBefore = await rows.last().locator('td').nth(1).textContent();
+    expect(lastSeqBefore).toBe(String(totalBefore));
+
+    // 删除最后一个
+    await page.locator('[data-action="ap-edit-keytask"]').last().click();
+    await page.waitForTimeout(300);
+    await page.locator('[data-modal-action="modal-delete-keytask"]').click();
+    await page.waitForTimeout(500);
+
+    // 删除后最后一个序号应连续
+    const totalAfter = await rows.count();
+    const lastSeqAfter = await rows.last().locator('td').nth(1).textContent();
+    expect(totalAfter).toBe(totalBefore - 1);
+    expect(lastSeqAfter).toBe(String(totalAfter));
+  });
+
+  test('重点工作排序后同步更新派生 OMP 任务 seq', async ({ page }) => {
+    await acceptConfirms(page);
+
+    // 重置为 planning 并清理派生任务
+    await page.evaluate(() => {
+      localStorage.setItem('dste_cycles_v1', JSON.stringify([{
+        id: 'cycle_2026_marketing',
+        year: 2026,
+        name: '2026年度营销线组织绩效',
+        phase: 'planning',
+        organization: '营销线',
+        parentCycleId: null
+      }]));
+      const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+      const cleaned = tasks.filter(t => !t.annualPlanTaskId);
+      localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(cleaned));
+    });
+    await page.goto(COCKPIT_URL);
+    await page.waitForTimeout(1500);
+
+    // 发布到执行
+    await page.locator('[data-action="ap-publish"]').click();
+    await page.waitForTimeout(1500);
+
+    // 验证所有年度重点工作都有对应的派生 OMP 任务且 seq 一致
+    const beforeMove = await page.evaluate(() => {
+      const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+      const annuals = tasks.filter(t => t.source === 'annual_plan' && t.cycleId === 'cycle_2026_marketing').sort((a, b) => a.seq - b.seq);
+      return annuals.map(at => {
+        const derived = tasks.find(t => t.annualPlanTaskId === at.id);
+        return { id: at.id, seq: at.seq, derivedId: derived?.id, derivedSeq: derived?.seq };
+      });
+    });
+    expect(beforeMove.length).toBeGreaterThan(0);
+    beforeMove.forEach(item => {
+      expect(item.derivedId).toBeTruthy();
+      expect(item.derivedSeq).toBe(item.seq);
+    });
+
+    // 下移第一个年度重点工作
+    const keyTaskTable = page.locator('#ap-tab-content table').nth(1);
+    await keyTaskTable.locator('tbody tr').first().locator('button[title="下移"]').click();
+    await page.waitForTimeout(500);
+
+    // 验证交换后前两个年度任务与派生任务 seq 仍一致
+    const firstAnnualId = beforeMove[0].id;
+    const secondAnnualId = beforeMove[1].id;
+    const afterMove = await page.evaluate(({ firstAnnualId, secondAnnualId }) => {
+      const tasks = JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]');
+      const getInfo = (id) => {
+        const at = tasks.find(t => t.id === id);
+        const derived = tasks.find(t => t.annualPlanTaskId === id);
+        return { seq: at?.seq, derivedSeq: derived?.seq };
+      };
+      return {
+        first: getInfo(firstAnnualId),
+        second: getInfo(secondAnnualId),
+      };
+    }, { firstAnnualId, secondAnnualId });
+
+    expect(afterMove.first.seq).toBe(2);
+    expect(afterMove.first.derivedSeq).toBe(2);
+    expect(afterMove.second.seq).toBe(1);
+    expect(afterMove.second.derivedSeq).toBe(1);
   });
 
   test('分解视图按实际父级 KPI 动态渲染', async ({ page }) => {

@@ -22,7 +22,6 @@ export function getApiBase() {
 export function createPerItemExecutor() {
   return async (operation) => {
     const apiBase = getApiBase();
-    if (!apiBase) return;
     const token = Storage.getString('dste-token');
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -136,7 +135,6 @@ export function enqueuePerRecordSync(entityName, { created, updated, deleted }, 
  */
 export async function apiLoadArray(endpoint) {
   const apiBase = getApiBase();
-  if (!apiBase) return null;
   try {
     const token = Storage.getString('dste-token');
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};

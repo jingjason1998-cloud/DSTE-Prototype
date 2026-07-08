@@ -19,13 +19,13 @@ test.describe('Meeting Preparation', () => {
     const card = page.locator('.meeting-card').filter({ hasText: /准备中|规划中/ }).first();
     await expect(card).toBeVisible();
     // Card should show preparation badge with percentage
-    await expect(card).toContainText(/📋 \d+%/);
+    await expect(card).toContainText(/\d+%/);
 
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
     // Left panel should show preparation row and button
     await expect(page.locator('#meeting-detail-overlay')).toContainText(/会前准备/);
-    const prepBtn = page.locator('#meeting-detail-overlay button:has-text("📋 会前准备")').first();
+    const prepBtn = page.locator('#meeting-detail-overlay button:has-text("会前准备")').first();
     await expect(prepBtn).toBeVisible();
   });
 
@@ -33,7 +33,7 @@ test.describe('Meeting Preparation', () => {
     const card = page.locator('.meeting-card').filter({ hasText: /准备中|规划中/ }).first();
     await card.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
-    await page.locator('#meeting-detail-overlay button:has-text("📋 会前准备")').first().click();
+    await page.locator('#meeting-detail-overlay button:has-text("会前准备")').first().click();
 
     await expect(page.locator('#meeting-preparation-overlay')).toBeVisible();
     // Should show readiness percentage
@@ -48,7 +48,7 @@ test.describe('Meeting Preparation', () => {
     const card = page.locator('.meeting-card').filter({ hasText: /准备中|规划中/ }).first();
     await card.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
-    await page.locator('#meeting-detail-overlay button:has-text("📋 会前准备")').first().click();
+    await page.locator('#meeting-detail-overlay button:has-text("会前准备")').first().click();
     await page.locator('#meeting-preparation-overlay').waitFor({ state: 'visible' });
 
     // Accept any confirmation dialog
@@ -69,7 +69,7 @@ test.describe('Meeting Preparation', () => {
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
 
     // Read initial readiness percentage
-    await page.locator('#meeting-detail-overlay button:has-text("📋 会前准备")').first().click();
+    await page.locator('#meeting-detail-overlay button:has-text("会前准备")').first().click();
     await page.locator('#meeting-preparation-overlay').waitFor({ state: 'visible' });
     const initialText = await page.locator('#meeting-preparation-content div').first().textContent();
     const initialMatch = initialText?.match(/(\d+)%/);
@@ -79,7 +79,7 @@ test.describe('Meeting Preparation', () => {
     await page.locator('#meeting-preparation-overlay button:has-text("关闭")').click();
     await expect(page.locator('#meeting-preparation-overlay')).toBeHidden();
 
-    await page.locator('#meeting-detail-overlay button:has-text("✏️ 编辑")').first().click();
+    await page.locator('#meeting-detail-overlay button:has-text("编辑")').first().click();
     await page.locator('#edit-pre-report-id').waitFor({ state: 'visible' });
     await page.locator('#edit-pre-report-id').fill('https://kms.example.com/pre-report');
     await page.locator('button[onclick="saveMeeting()"]').click();
@@ -89,7 +89,7 @@ test.describe('Meeting Preparation', () => {
     const updatedCard = page.locator('.meeting-card').filter({ hasText: /准备中|规划中/ }).first();
     await updatedCard.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
-    await page.locator('#meeting-detail-overlay button:has-text("📋 会前准备")').first().click();
+    await page.locator('#meeting-detail-overlay button:has-text("会前准备")').first().click();
     await page.locator('#meeting-preparation-overlay').waitFor({ state: 'visible' });
 
     const updatedText = await page.locator('#meeting-preparation-content div').first().textContent();

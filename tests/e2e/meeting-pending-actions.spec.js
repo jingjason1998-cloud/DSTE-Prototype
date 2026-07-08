@@ -5,12 +5,33 @@ async function createTestAction(page, content) {
   await page.waitForSelector('#edit-title', { state: 'visible' });
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
-  await page.locator('button:has-text("+ 添加行动项")').first().click();
+  await page.locator('button:has-text("添加行动项")').first().click();
   const actionInputs = page.locator('#edit-action-list input[placeholder="行动内容"]');
   await actionInputs.last().fill(content);
 
   await page.locator('button[onclick="saveMeeting()"]').click();
   await page.waitForSelector('.meeting-card', { state: 'visible' });
+}
+
+async function createTestActionWithDeadline(page, content, deadline) {
+  await page.locator('[data-edit-meeting]').first().click();
+  await page.waitForSelector('#edit-title', { state: 'visible' });
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+  await page.locator('button:has-text("添加行动项")').first().click();
+  const actionRows = page.locator('#edit-action-list > div');
+  const lastRow = actionRows.last();
+  await lastRow.locator('input[placeholder="行动内容"]').fill(content);
+  await lastRow.locator('input[type="date"]').fill(deadline);
+
+  await page.locator('button[onclick="saveMeeting()"]').click();
+  await page.waitForSelector('.meeting-card', { state: 'visible' });
+}
+
+function getYesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
 }
 
 test.describe('Pending Actions Drawer', () => {
@@ -89,7 +110,7 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
         const raw = localStorage.getItem('dste_meetings');
         if (!raw) return;
         const meetings = JSON.parse(raw);
-        const prefixes = ['状态切换测试_', '进度说明测试_', '详情页进度测试_', '详情页进度说明_', '标签页已完成测试_', '标签页全部测试_'];
+        const prefixes = ['状态切换测试_', '进度说明测试_', '详情页进度测试_', '详情页进度说明_', '标签页已完成测试_', '标签页全部测试_', '逾期催办测试_'];
         let changed = false;
         meetings.forEach(m => {
           if (!Array.isArray(m.actions)) return;
@@ -182,5 +203,78 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
     await drawer.locator('button:has-text("全部")').click();
     const items = drawer.locator('[data-pending-action]');
     expect(await items.count()).toBeGreaterThan(0);
+  });
+
+  test('overdue action shows urge button in drawer', async ({ page }) => {
+    await page.locator('[data-stat="pending-actions"]').click();
+    const drawer = page.locator('#pending-actions-drawer');
+    await expect(drawer).toBeVisible();
+
+    // 依赖 mock 数据中存在逾期行动项（A001 deadline 2026-04-30）
+    const overdueCard = drawer.locator('[data-pending-action]').filter({ hasText: '已逾期' }).first();
+    await expect(overdueCard).toBeVisible();
+
+    const urgeBtn = overdueCard.locator('button:has-text("催办")');
+    await expect(urgeBtn).toBeVisible();
+  });
+
+  test('clicking urge button opens reminder dialog', async ({ page }) => {
+    await page.locator('[data-stat="pending-actions"]').click();
+    const drawer = page.locator('#pending-actions-drawer');
+    await expect(drawer).toBeVisible();
+
+    const overdueCard = drawer.locator('[data-pending-action]').filter({ hasText: '已逾期' }).first();
+    await overdueCard.locator('button:has-text("催办")').click();
+
+    const dialog = page.locator('#action-reminder-overlay');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('#action-reminder-message')).toContainText('已逾期');
+
+    await dialog.locator('button:has-text("取消")').click();
+    await expect(dialog).toBeHidden();
+  });
+
+  test('confirming reminder increments count and shows badge', async ({ page }) => {
+    const testContent = '逾期催办测试_' + Date.now();
+    await createTestActionWithDeadline(page, testContent, getYesterday());
+
+    await page.locator('[data-stat="pending-actions"]').click();
+    const drawer = page.locator('#pending-actions-drawer');
+    await expect(drawer).toBeVisible();
+
+    const card = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
+    await expect(card).toBeVisible();
+    await expect(card.locator('button:has-text("催办")')).toBeVisible();
+
+    await card.locator('button:has-text("催办")').click();
+    const dialog = page.locator('#action-reminder-overlay');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button:has-text("确认催办")').click();
+
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('text=催办已记录')).toBeVisible();
+
+    // 抽屉刷新后显示已催办徽章
+    const refreshedCard = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
+    await expect(refreshedCard).toContainText('已催办 1 次');
+  });
+
+  test('canceling reminder does not change state', async ({ page }) => {
+    const testContent = '逾期催办测试_取消_' + Date.now();
+    await createTestActionWithDeadline(page, testContent, getYesterday());
+
+    await page.locator('[data-stat="pending-actions"]').click();
+    const drawer = page.locator('#pending-actions-drawer');
+    await expect(drawer).toBeVisible();
+
+    const card = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
+    await card.locator('button:has-text("催办")').click();
+
+    const dialog = page.locator('#action-reminder-overlay');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button:has-text("取消")').click();
+
+    await expect(dialog).toBeHidden();
+    await expect(card.locator('text=已催办')).toHaveCount(0);
   });
 });

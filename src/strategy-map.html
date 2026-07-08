@@ -541,7 +541,7 @@
     </div>
     <ul class="top-nav-links" id="top-nav-links"></ul>
     <div class="top-nav-actions">
-      <span id="current-user" style="font-size:13px;color:var(--text-secondary);">👤 用户</span>
+      <span id="current-user" style="font-size:13px;color:var(--text-secondary);"><span class="icon" data-icon="userPlain" data-icon-size="14"></span> 用户</span>
     </div>
   </nav>
 
@@ -558,7 +558,7 @@
       <div class="toolbar-group">
         <a href="strategy-map-list.html" class="sm-back" style="margin-right: 8px;">← 返回列表</a>
         <div class="map-selector">
-          <label>🗺️ 战略地图</label>
+          <label><span class="icon" data-icon="mapTrifold" data-icon-size="14"></span> 战略地图</label>
           <select id="mapSelect"></select>
           <button class="map-config-btn edit-only" id="mapConfigBtn" title="地图配置">⚙️</button>
         </div>
@@ -566,16 +566,16 @@
       </div>
       <div class="toolbar-sep"></div>
       <div class="toolbar-group mode-toggle">
-        <button class="mode-btn active" data-action="set-mode" data-mode="view" title="查看模式">👁 查看</button>
+        <button class="mode-btn active" data-action="set-mode" data-mode="view" title="查看模式"><span class="icon" data-icon="eye" data-icon-size="14"></span> 查看</button>
         <button class="mode-btn" data-action="set-mode" data-mode="edit" title="编辑模式">✏️ 编辑</button>
       </div>
       <div class="toolbar-sep"></div>
       <div class="toolbar-group">
-        <span style="font-size:12px;color:var(--sm-text-secondary);margin-right:4px;">📅 年度视角</span>
+        <span style="font-size:12px;color:var(--sm-text-secondary);margin-right:4px;"><span class="icon" data-icon="calendar" data-icon-size="14"></span> 年度视角</span>
         <div class="annual-toggle">
           <button class="annual-btn active" data-year="all">全部</button>
           <button class="annual-btn" data-year="2025">2025</button>
-          <button class="annual-btn" data-year="2026">2026<span class="fire">🔥</span></button>
+          <button class="annual-btn" data-year="2026">2026<span class="fire"><span class="icon" data-icon="fire" data-icon-size="14"></span></span></button>
           <button class="annual-btn" data-year="2027">2027</button>
         </div>
       </div>
@@ -587,7 +587,7 @@
       </div>
       <div class="toolbar-sep"></div>
       <div class="toolbar-group">
-        <span style="font-size:12px;color:var(--sm-text-secondary);margin-right:4px;">🔍 维度筛选</span>
+        <span style="font-size:12px;color:var(--sm-text-secondary);margin-right:4px;"><span class="icon" data-icon="search" data-icon-size="14"></span> 维度筛选</span>
         <button class="dim-filter-btn active" data-action="filter-dim" data-dim="fin" title="财务维度">
           <span class="dot" style="background:#1677FF;"></span>财务
         </button>
@@ -604,7 +604,7 @@
       <div class="toolbar-sep"></div>
       <div class="toolbar-group">
         <button class="tool-btn edit-only" data-action="new-obj">➕ 新建目标</button>
-        <button class="tool-btn" data-action="export-map">📥 导出</button>
+        <button class="tool-btn" data-action="export-map"><span class="icon" data-icon="download" data-icon-size="14"></span> 导出</button>
       </div>
     </div>
 
@@ -627,7 +627,7 @@
         <!-- 财务维度 -->
         <div class="dim-section">
           <div class="dim-header fin">
-            <span class="dim-icon">💰</span>
+            <span class="dim-icon"><span class="icon" data-icon="currencyDollar" data-icon-size="14"></span></span>
             <span class="dim-name">财务维度</span>
             <span class="dim-desc">股东价值最大化</span>
           </div>
@@ -637,7 +637,7 @@
         <!-- 客户维度 -->
         <div class="dim-section">
           <div class="dim-header cus">
-            <span class="dim-icon">🤝</span>
+            <span class="dim-icon"><span class="icon" data-icon="handshake" data-icon-size="14"></span></span>
             <span class="dim-name">客户维度</span>
             <span class="dim-desc">客户价值主张</span>
           </div>
@@ -657,7 +657,7 @@
         <!-- 学习与成长维度 -->
         <div class="dim-section">
           <div class="dim-header lea">
-            <span class="dim-icon">📚</span>
+            <span class="dim-icon"><span class="icon" data-icon="books" data-icon-size="14"></span></span>
             <span class="dim-name">学习与成长维度</span>
             <span class="dim-desc">组织能力建设</span>
           </div>
@@ -677,7 +677,7 @@
 <!-- 右侧目标列表面板 -->
 <div class="obj-list-panel collapsed" id="objListPanel">
   <div class="obj-list-header" data-action="toggle-obj-list">
-    <span class="obj-list-title">📋 目标列表</span>
+    <span class="obj-list-title"><span class="icon" data-icon="clipboardText" data-icon-size="14"></span> 目标列表</span>
     <span class="obj-list-count" id="objListCount">0</span>
     <span class="obj-list-toggle" id="objListToggle">◀</span>
   </div>
@@ -685,7 +685,7 @@
     <div id="objList"></div>
   </div>
 </div>
-<div class="obj-list-toggle-fab" id="objListFab" data-action="toggle-obj-list" title="展开目标列表">📋</div>
+<div class="obj-list-toggle-fab" id="objListFab" data-action="toggle-obj-list" title="展开目标列表"><span class="icon" data-icon="clipboardText" data-icon-size="14"></span></div>
 
 <!-- 编辑弹窗 -->
 <div class="modal-overlay" id="objModal">
@@ -702,10 +702,10 @@
       <div class="form-row">
         <label class="form-label">所属维度 <span class="req">*</span></label>
         <div class="form-radio-group">
-          <label class="form-radio"><input type="radio" name="modalDim" value="fin"> 💰 财务</label>
-          <label class="form-radio"><input type="radio" name="modalDim" value="cus"> 🤝 客户</label>
+          <label class="form-radio"><input type="radio" name="modalDim" value="fin"> <span class="icon" data-icon="currencyDollar" data-icon-size="14"></span> 财务</label>
+          <label class="form-radio"><input type="radio" name="modalDim" value="cus"> <span class="icon" data-icon="handshake" data-icon-size="14"></span> 客户</label>
           <label class="form-radio"><input type="radio" name="modalDim" value="int"> ⚙️ 内部流程</label>
-          <label class="form-radio"><input type="radio" name="modalDim" value="lea"> 📚 学习成长</label>
+          <label class="form-radio"><input type="radio" name="modalDim" value="lea"> <span class="icon" data-icon="books" data-icon-size="14"></span> 学习成长</label>
         </div>
       </div>
       <div class="form-row">
@@ -717,7 +717,7 @@
         <input type="text" class="form-input" id="modalObjOwner" placeholder="如：销售总监">
       </div>
       <div class="form-row">
-        <label class="form-label">📅 年度里程碑（2025-2027）</label>
+        <label class="form-label"><span class="icon" data-icon="calendar" data-icon-size="14"></span> 年度里程碑（2025-2027）</label>
         <table class="ms-edit-table">
           <tr><th>年份</th><th>目标值</th><th>重点级别</th></tr>
           <tr>
@@ -725,7 +725,7 @@
             <td><input type="text" id="ms2025Target" placeholder="如：10%"></td>
             <td>
               <select id="ms2025Focus">
-                <option value="primary">🔥 重点</option>
+                <option value="primary"><span class="icon" data-icon="fire" data-icon-size="14"></span> 重点</option>
                 <option value="secondary">○ 次要</option>
                 <option value="none">— 不关注</option>
               </select>
@@ -736,7 +736,7 @@
             <td><input type="text" id="ms2026Target" placeholder="如：20%"></td>
             <td>
               <select id="ms2026Focus">
-                <option value="primary">🔥 重点</option>
+                <option value="primary"><span class="icon" data-icon="fire" data-icon-size="14"></span> 重点</option>
                 <option value="secondary">○ 次要</option>
                 <option value="none">— 不关注</option>
               </select>
@@ -747,7 +747,7 @@
             <td><input type="text" id="ms2027Target" placeholder="如：30%"></td>
             <td>
               <select id="ms2027Focus">
-                <option value="primary">🔥 重点</option>
+                <option value="primary"><span class="icon" data-icon="fire" data-icon-size="14"></span> 重点</option>
                 <option value="secondary">○ 次要</option>
                 <option value="none">— 不关注</option>
               </select>
@@ -768,6 +768,7 @@
 <div class="toast" id="toast"></div>
 
 <script type="module">
+import { icon } from '../assets/js/icons.js';
 import {
   MapConfigStore, ObjectiveStore, LinkStore,
   exportMapData, LINK_TYPES, DEFAULT_MAP_ID,
@@ -949,13 +950,13 @@ function renderMapLinks() {
 
   const links = [];
   if (source) {
-    links.push(`<a class="map-link" href="${escape(source)}" target="_blank" rel="noopener">🔗 KMS</a>`);
+    links.push(`<a class="map-link" href="${escape(source)}" target="_blank" rel="noopener">${icon('link', {size: 14})} KMS</a>`);
   }
   if (presUrl) {
-    links.push(`<a class="map-link" href="${escape(presUrl)}" target="_blank" rel="noopener">📎 PPT</a>`);
+    links.push(`<a class="map-link" href="${escape(presUrl)}" target="_blank" rel="noopener">${icon('paperclip', {size: 14})} PPT</a>`);
   }
   if (presFile) {
-    links.push(`<a class="map-link" href="${escape(presFile.fileData)}" download="${escape(presFile.fileName)}">📎 ${escape(presFile.fileName)}</a>`);
+    links.push(`<a class="map-link" href="${escape(presFile.fileData)}" download="${escape(presFile.fileName)}">${icon('paperclip', {size: 14})} ${escape(presFile.fileName)}</a>`);
   }
 
   container.innerHTML = links.join('');

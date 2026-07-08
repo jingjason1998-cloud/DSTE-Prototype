@@ -1,11 +1,12 @@
 {
   "name": "dste-platform",
   "private": true,
-  "version": "0.6.5",
+  "version": "0.6.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/generate-roadmap.cjs && vite build",
+    "build": "node scripts/build-icon-sprite.js && node scripts/generate-roadmap.cjs && vite build",
+    "build:icons": "node scripts/build-icon-sprite.js",
     "preview": "vite preview",
     "check:scope": "node scripts/check-onclick-scope.js src/cockpit.html && node scripts/check-onclick-scope.js src/business-topics.html && node scripts/check-onclick-scope.js src/meetings.html",
     "health:check": "node scripts/health-check.cjs",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@phosphor-icons/core": "^2.1.1",
     "@playwright/test": "^1.40",
     "esbuild": "^0.28.1",
     "eslint": "^8.57.1",

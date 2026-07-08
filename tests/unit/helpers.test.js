@@ -1,5 +1,28 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { getMaterialScore, getScoreColor, getScoreLabel } from '../../src/meetings/utils/helpers.js';
+import { describe, it, expect } from 'vitest';
+import { getMaterialScore, getScoreColor, getScoreLabel, getDaysLeft } from '../../src/meetings/utils/helpers.js';
+
+describe('getDaysLeft', () => {
+  it('returns null for empty or invalid deadline', () => {
+    expect(getDaysLeft('')).toBeNull();
+    expect(getDaysLeft(null)).toBeNull();
+    expect(getDaysLeft(undefined)).toBeNull();
+  });
+
+  it('returns negative for past deadlines', () => {
+    const result = getDaysLeft('2026-06-01'); // today is 2026-07-02
+    expect(result).toBeLessThan(0);
+  });
+
+  it('returns 0 for today', () => {
+    const today = new Date().toISOString().split('T')[0];
+    expect(getDaysLeft(today)).toBe(0);
+  });
+
+  it('returns positive for future deadlines', () => {
+    const result = getDaysLeft('2026-12-31');
+    expect(result).toBeGreaterThan(0);
+  });
+});
 
 describe('getScoreColor', () => {
   it('returns success for scores >= 80', () => {

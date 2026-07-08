@@ -27,7 +27,8 @@ test.describe('Navigation', () => {
     await page.locator('.top-nav-item[data-phase="sp"]').click();
     await expect(page.locator('#sidebar')).toContainText('战略制定');
     await expect(page.locator('#sidebar')).toContainText('战略地图');
-    await expect(page.locator('#sidebar')).toContainText('战略洞察与专题');
+    await expect(page.locator('#sidebar')).toContainText('战略洞察');
+    await expect(page.locator('#sidebar')).toContainText('战略专题管理');
   });
 
   test('EXE phase sidebar shows 组织绩效管理 group with sub pages', async ({ page }) => {

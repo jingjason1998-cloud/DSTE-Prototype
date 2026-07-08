@@ -40,6 +40,7 @@ export default defineConfig({
     port: 3456,
     open: '/src/cockpit.html',
     hmr: false,
+    allowedHosts: ['dste.jasonxspace.cc'],
   },
   preview: {
     port: 3456,
