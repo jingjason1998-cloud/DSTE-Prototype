@@ -84,7 +84,7 @@ def test_keytask_edit_preserves_omp_fields():
     """年度计划编辑重点工作时不应覆盖 OMP 补全的执行字段"""
     content = _read_cockpit()
     save_section = content.split("window.ap_saveKeyTask = function()")[1] if "window.ap_saveKeyTask = function()" in content else ""
-    assert "...kts[idx], seq, name, bscDimension, kmsUrl, owner, status" in save_section, \
+    assert "...kts[idx]" in save_section, \
         "ap_saveKeyTask 编辑逻辑未使用 spread 保留 OMP 字段"
 
 

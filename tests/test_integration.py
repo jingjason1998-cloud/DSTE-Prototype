@@ -58,10 +58,12 @@ def test_reviewer_html_theme_sync():
     assert "ThemeManager" in combined, "缺少 ThemeManager 统一主题管理"
 
 def test_cockpit_has_strategy_topics_renderer():
-    """驾驶舱包含战略洞察与专题渲染函数"""
+    """驾驶舱包含战略洞察与战略专题管理渲染函数"""
     content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "function renderInsightsTopics()" in content, "缺少 renderInsightsTopics"
-    assert "'sp/insights-topics': renderInsightsTopics" in content, "PAGES未映射战略洞察与专题"
+    assert "function renderInsightsPage()" in content, "缺少 renderInsightsPage"
+    assert "function renderStrategyTopicsPage()" in content, "缺少 renderStrategyTopicsPage"
+    assert "'sp/insights': renderInsightsPage" in content, "PAGES未映射战略洞察"
+    assert "'sp/strategy-topics': renderStrategyTopicsPage" in content, "PAGES未映射战略专题管理"
 
 def test_cockpit_has_business_topics_link():
     """驾驶舱链接到业务专题管理独立页面"""
@@ -102,10 +104,11 @@ def test_no_placeholder_for_topics():
     cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
     config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
     combined = cockpit_content + config_content
-    assert "'sp/insights-topics': renderInsightsTopics," in combined
+    assert "'sp/insights': renderInsightsPage," in combined
+    assert "'sp/strategy-topics': renderStrategyTopicsPage," in combined
     # 业务专题现在是独立页面，通过外部映射跳转（配置在 src/lib/config.js）
     assert "'exe/business-topics': 'business-topics.html'" in combined
-    page_lines = [l for l in combined.splitlines() if "'sp/insights-topics'" in l or "'exe/business-topics'" in l]
+    page_lines = [l for l in combined.splitlines() if "'sp/insights'" in l or "'sp/strategy-topics'" in l or "'exe/business-topics'" in l]
     for line in page_lines:
         assert "renderPlaceholder" not in line, f"专题管理仍是占位页: {line.strip()}"
 
