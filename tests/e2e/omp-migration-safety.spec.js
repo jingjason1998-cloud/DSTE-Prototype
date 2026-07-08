@@ -23,7 +23,7 @@ test.describe('OMP migration safety', () => {
 
     // Verify version was migrated but data was not wiped
     const version = await page.evaluate(() => localStorage.getItem('dste_omp_data_version'));
-    expect(version).toBe('canvas-v16');
+    expect(version).toBe('canvas-v17');
 
     const indicators = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_omp_indicators_v1') || '[]'));
     expect(indicators).toEqual(expect.arrayContaining([
@@ -55,5 +55,26 @@ test.describe('OMP migration safety', () => {
       return keys;
     });
     expect(legacyKeys).toEqual([]);
+  });
+
+  test('relatedKpiIds migrates to kpiAssociations on version bump', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('dste_omp_data_version', 'canvas-v16');
+      localStorage.setItem('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'task_old', name: 'Old Task', status: 'active', relatedKpiIds: ['kpi_1'] },
+      ]));
+      localStorage.setItem('dste_omp_kpi_instances_v1', JSON.stringify([
+        { id: 'kpi_1', indicatorId: 'ind_1', cycleId: 'cycle_2026_marketing', dept: '销售部' },
+      ]));
+    });
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+
+    const task = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]').find(t => t.id === 'task_old'));
+    expect(task.kpiAssociations).toEqual([
+      { kpiInstanceId: 'kpi_1', relationType: 'primary' },
+    ]);
+    expect(task.relatedKpiIds).toBeUndefined();
   });
 });

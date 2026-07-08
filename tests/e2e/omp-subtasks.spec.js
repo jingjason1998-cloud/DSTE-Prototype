@@ -48,7 +48,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       budget: 0,
       actualCost: 0,
       members: [],
@@ -97,7 +97,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       budget: 0,
       actualCost: 0,
       members: [],
@@ -116,7 +116,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       members: [],
     });
     await seedTask(page, {
@@ -133,7 +133,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       members: [],
     });
 
@@ -158,7 +158,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       budget: 0,
       actualCost: 0,
       members: [],
@@ -177,7 +177,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       members: [],
     });
 
@@ -205,7 +205,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       members: [],
     });
     await seedTask(page, {
@@ -222,7 +222,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       members: [],
     });
 
@@ -249,7 +249,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       members: [],
     });
     await seedTask(page, {
@@ -266,7 +266,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       members: [],
     });
 
@@ -302,7 +302,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       budget: 0,
       actualCost: 0,
       members: [],
@@ -360,7 +360,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       budget: 0,
       actualCost: 0,
       members: [],
@@ -417,7 +417,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       budget: 0,
       actualCost: 0,
       members: [],
@@ -478,7 +478,7 @@ test.describe('OMP 重点工作子任务', () => {
       dept: '测试部',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
-      relatedKpiIds: [],
+      kpiAssociations: [],
       budget: 0,
       actualCost: 0,
       members: [],

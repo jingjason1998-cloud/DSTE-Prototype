@@ -1,4 +1,5 @@
 import { showToast } from '../../lib/utils.js';
+import { icon } from '../../../assets/js/icons.js';
 import { Repository } from '../../lib/repository.js';
 import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
 import { ensureLastModified } from '../../lib/conflict-resolver.js';
@@ -741,7 +742,7 @@ function renderTable() {
         const stCount = (t.linkedIssues || []).filter(i => i.sourceSystem === 'ST').length;
         const atCount = (t.linkedIssues || []).filter(i => i.sourceSystem === 'AT').length;
         if (stCount > 0 || atCount > 0) {
-            tdIssues.textContent = '🏛️' + stCount + ' 🏢' + atCount;
+            tdIssues.innerHTML = `${icon('building', {size: 14})}${stCount} ${icon('buildings', {size: 14})}${atCount}`;
         } else {
             const dashSpan = document.createElement('span');
             dashSpan.style.color = 'var(--text-muted)';
@@ -1033,7 +1034,7 @@ function renderFormMilestones(milestones) {
             </div>
             <input type="text" class="ms-name" value="${escapeHtml(m.name)}" placeholder="里程碑名称" required>
             <input type="date" class="ms-date" value="${m.date || ''}">
-            <span class="milestone-status ${m.status}" data-ms-action="toggle" title="点击切换状态">${m.status === 'completed' ? '✓ 已完成' : '○ 未完成'}</span>
+            <span class="milestone-status ${m.status}" data-ms-action="toggle" title="点击切换状态">${m.status === 'completed' ? `${icon('check', {size: 14})} 已完成` : '○ 未完成'}</span>
             <button type="button" class="milestone-remove" data-ms-action="remove">×</button>
         </div>
     `).join('');
@@ -1080,7 +1081,7 @@ function toggleMsStatus(el) {
         el.textContent = '○ 未完成';
     } else {
         el.classList.add('completed');
-        el.textContent = '✓ 已完成';
+        el.innerHTML = `${icon('check', {size: 14})} 已完成`;
     }
 }
 
@@ -1188,7 +1189,7 @@ function openDetailModal(id) {
     const topic = loadTopics().find(t => t.id === id);
     if (!topic) return;
 
-    document.getElementById('detailTitle').textContent = '🎯 ' + topic.name;
+    document.getElementById('detailTitle').innerHTML = `${icon('target', {size: 14})} ${topic.name}`;
     const subtitleParts = [getStatusLabel(topic.status), topic.priority, renderPerson(topic.owner), topic.department].filter(Boolean);
     document.getElementById('detailSubtitle').textContent = subtitleParts.join(' · ');
 
@@ -1215,7 +1216,7 @@ function openDetailModal(id) {
     let linkedIssuesHtml = '';
     if (linkedIssues.length > 0) {
         linkedIssuesHtml = `<div style="display: grid; gap: 10px;">` + linkedIssues.map(li => {
-            const icon = li.sourceSystem === 'ST' ? '🏛️' : '🏢';
+            const issueIcon = li.sourceSystem === 'ST' ? icon('building', {size: 14}) : icon('buildings', {size: 14});
             const iconClass = li.sourceSystem === 'ST' ? 'st' : 'at';
             const relBadgeClass = li.relationType === 'direct' ? 'relation-badge direct' : li.relationType === 'support' ? 'relation-badge support' : 'relation-badge reference';
             const relLabel = li.relationType === 'direct' ? '直接驱动' : li.relationType === 'support' ? '相关支撑' : '参考关联';
@@ -1224,21 +1225,21 @@ function openDetailModal(id) {
             return `<div class="issue-link-card">
                 <span class="${relBadgeClass}">${relLabel}${strengthBar}</span>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="issue-icon ${iconClass}">${icon}</div>
+                    <div class="issue-icon ${iconClass}">${issueIcon}</div>
                     <div style="flex: 1; min-width: 0; padding-right: 8px;">
                         <div class="issue-title">${escapeHtml(li.issueId)} ${escapeHtml(li.issueTitle)}</div>
                         <div class="issue-meta">${escapeHtml(li.issueType || li.department || '未分类')} · ${escapeHtml(li.proposer || '未指定')} · ${escapeHtml(li.status)}${li.currentNode ? ' · ' + escapeHtml(li.currentNode) : ''}</div>
                     </div>
                 </div>
                 <div class="issue-actions">
-                    <button class="op-btn" data-action="issue-detail" data-issue-id="${escapeHtml(li.issueId)}" data-stop-propagation>📋 查看议题</button>
-                    <button class="op-btn" data-action="manage-links" data-topic-id="${topic.id}" data-stop-propagation>🔗 管理关联</button>
-                    <button class="op-btn danger" data-action="unlink-issue" data-topic-id="${topic.id}" data-issue-id="${escapeHtml(li.issueId)}" data-stop-propagation>✕ 解除关联</button>
+                    <button class="op-btn" data-action="issue-detail" data-issue-id="${escapeHtml(li.issueId)}" data-stop-propagation>${icon('clipboardText', {size: 14})} 查看议题</button>
+                    <button class="op-btn" data-action="manage-links" data-topic-id="${topic.id}" data-stop-propagation>${icon('link', {size: 14})} 管理关联</button>
+                    <button class="op-btn danger" data-action="unlink-issue" data-topic-id="${topic.id}" data-issue-id="${escapeHtml(li.issueId)}" data-stop-propagation>${icon('x', {size: 14})} 解除关联</button>
                 </div>
             </div>`;
         }).join('') + `</div>`;
     } else {
-        linkedIssuesHtml = '<div style="font-size:13px; color:var(--text-muted); padding: 16px 0;">暂无关联议题 <button class="op-btn" data-action="close-and-link" data-topic-id="' + topic.id + '">+ 关联议题</button> <button class="op-btn" data-action="close-and-ai-match" data-topic-id="' + topic.id + '">🤖 AI 智能匹配</button></div>';
+        linkedIssuesHtml = `<div style="font-size:13px; color:var(--text-muted); padding: 16px 0;">暂无关联议题 <button class="op-btn" data-action="close-and-link" data-topic-id="${topic.id}">+ 关联议题</button> <button class="op-btn" data-action="close-and-ai-match" data-topic-id="${topic.id}">${icon('robot', {size: 14})} AI 智能匹配</button></div>`;
     }
 
     const linkedKpis = topic.linkedKpis || [];
@@ -1275,7 +1276,7 @@ function openDetailModal(id) {
 
     const summarySection = topic.summary
         ? `<div class="detail-section">
-            <div class="detail-section-title">📝 结项总结</div>
+            <div class="detail-section-title">${icon('fileText', {size: 14})} 结项总结</div>
             <div style="font-size:13px; color:var(--text-tertiary); line-height:1.8; white-space:pre-wrap;">${escapeHtml(topic.summary)}</div>
            </div>`
         : '';
@@ -1292,34 +1293,34 @@ function openDetailModal(id) {
             </div>
         </div>
         <div class="detail-section">
-            <div class="detail-section-title">📌 专题目标</div>
+            <div class="detail-section-title">${icon('pushPin', {size: 14})} 专题目标</div>
             <div style="font-size:13px; color:var(--text-tertiary); line-height:1.8; white-space:pre-wrap;">${escapeHtml(topic.target || '暂无目标描述')}</div>
         </div>
         <div class="detail-section">
-            <div class="detail-section-title">📍 里程碑时间线</div>
+            <div class="detail-section-title">${icon('mapPin', {size: 14})} 里程碑时间线</div>
             ${milestonesHtml}
         </div>
         <div class="detail-section">
-            <div class="detail-section-title">🏷️ 标签</div>
+            <div class="detail-section-title">${icon('tag', {size: 14})} 标签</div>
             ${tagsHtml}
         </div>
         ${topic.kmsLink ? `<div class="detail-section">
-            <div class="detail-section-title">🔗 KMS 链接</div>
+            <div class="detail-section-title">${icon('link', {size: 14})} KMS 链接</div>
             <a href="${escapeHtml(topic.kmsLink)}" target="_blank" rel="noopener noreferrer" style="font-size:13px; color:var(--accent-indigo); word-break:break-all;">${escapeHtml(topic.kmsLink)}</a>
         </div>` : ''}
         <div class="detail-section">
             <div class="detail-section-title" style="display:flex; justify-content:space-between; align-items:center;">
-                <span>🔗 关联议题</span>
+                <span>${icon('link', {size: 14})} 关联议题</span>
                 <button class="op-btn" data-action="close-and-link" data-topic-id="${topic.id}">+ 关联议题</button>
             </div>
             ${linkedIssuesHtml}
         </div>
         <div class="detail-section">
-            <div class="detail-section-title">📈 关联KPI</div>
+            <div class="detail-section-title">${icon('chartLineUp', {size: 14})} 关联KPI</div>
             ${linkedKpisHtml}
         </div>
         ${knowledgeMapHtml ? `<div class="detail-section">
-            <div class="detail-section-title">🗺️ 知识地图</div>
+            <div class="detail-section-title">${icon('mapTrifold', {size: 14})}️ 知识地图</div>
             ${knowledgeMapHtml}
         </div>` : ''}
         ${summarySection}
@@ -1380,7 +1381,7 @@ function importTopicsFromFile(event) {
                 showToast('备份文件中未找到有效的专题数据', 'error');
                 return;
             }
-            const confirmed = confirm(`确认导入备份？\n- 备份时间：${data.exportTime || '未知'}\n- 专题数量：${validTopics.length}\n- 当前专题数量：${loadTopics().length}\n\n⚠️ 导入将覆盖当前所有专题数据！`);
+            const confirmed = confirm(`确认导入备份？\n- 备份时间：${data.exportTime || '未知'}\n- 专题数量：${validTopics.length}\n- 当前专题数量：${loadTopics().length}\n\n${icon('warning', {size: 14})} 导入将覆盖当前所有专题数据！`);
             if (!confirmed) return;
             // Ensure all topics have required v2 fields
             validTopics.forEach(t => {
@@ -1435,9 +1436,9 @@ function sendAI() {
     const messages = document.getElementById('aiMessages');
     messages.innerHTML += `<div class="ai-message user">${escapeHtml(text)}</div>`;
     setTimeout(() => {
-        let response = '💡 收到你的问题。我正在查询相关数据并分析，请稍候...\n\n（这是一个演示回复，实际产品将连接AI模型提供智能分析）';
-        if (text.includes('营收')) response = '📊 Q3营收分析：\n• 目标：¥3.75亿\n• 实际：¥3.46亿（达成率92.3%）\n• 主要原因：华东区增速放缓、新产品推广滞后\n• 建议：加大华东区资源投入';
-        else if (text.includes('报告')) response = '📋 月度经营分析报告已生成！\n\n【执行摘要】\nQ3整体达成率87%，3个KPI预警\n\n【关键发现】\n1. 营收增长12.5%\n2. 客户满意度提升5.2分\n3. 新产品收入占比偏低';
+        let response = `${icon('lightbulb', {size: 14})} 收到你的问题。我正在查询相关数据并分析，请稍候...\n\n（这是一个演示回复，实际产品将连接AI模型提供智能分析）`;
+        if (text.includes('营收')) response = `${icon('chartBar', {size: 14})} Q3营收分析：\n• 目标：¥3.75亿\n• 实际：¥3.46亿（达成率92.3%）\n• 主要原因：华东区增速放缓、新产品推广滞后\n• 建议：加大华东区资源投入`;
+        else if (text.includes('报告')) response = `${icon('clipboardText', {size: 14})} 月度经营分析报告已生成！\n\n【执行摘要】\nQ3整体达成率87%，3个KPI预警\n\n【关键发现】\n1. 营收增长12.5%\n2. 客户满意度提升5.2分\n3. 新产品收入占比偏低`;
         messages.innerHTML += `<div class="ai-message assistant">${response}</div>`;
         messages.scrollTop = messages.scrollHeight;
     }, 800);

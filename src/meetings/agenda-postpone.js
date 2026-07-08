@@ -6,6 +6,7 @@
  */
 
 import { getMeetings, findMeetingById, persistMeetings } from './data-store.js';
+import { icon } from '../../assets/js/icons.js';
 
 // 模块内部状态
 let _postponeState = { meetingId: null, agendaIndex: null, selectedTargetId: null };
@@ -53,7 +54,7 @@ function renderPostponeTargetList() {
           <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${t.title || '未命名会议'}</div>
           <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">${t.date || '日期待定'} · ${SCENARIO_CONFIG[t.scenario]?.label || t.scenario || '未分类'}</div>
         </div>
-        ${isSelected ? '<span style="font-size: 12px; color: var(--warning); font-weight: 600;">✓</span>' : ''}
+        ${isSelected ? `<span style="font-size: 12px; color: var(--warning); font-weight: 600;">${icon('check', {size: 14})}</span>` : ''}
       </div>
     `;
   }).join('');

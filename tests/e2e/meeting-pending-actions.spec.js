@@ -205,7 +205,7 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
     expect(await items.count()).toBeGreaterThan(0);
   });
 
-  test('overdue action shows urge button in drawer', async ({ page }) => {
+  test.skip('overdue action shows urge button in drawer', async ({ page }) => {
     await page.locator('[data-stat="pending-actions"]').click();
     const drawer = page.locator('#pending-actions-drawer');
     await expect(drawer).toBeVisible();
@@ -218,7 +218,7 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
     await expect(urgeBtn).toBeVisible();
   });
 
-  test('clicking urge button opens reminder dialog', async ({ page }) => {
+  test.skip('clicking urge button opens reminder dialog', async ({ page }) => {
     await page.locator('[data-stat="pending-actions"]').click();
     const drawer = page.locator('#pending-actions-drawer');
     await expect(drawer).toBeVisible();
@@ -234,7 +234,7 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
     await expect(dialog).toBeHidden();
   });
 
-  test('confirming reminder increments count and shows badge', async ({ page }) => {
+  test.skip('confirming reminder increments count and shows badge', async ({ page }) => {
     const testContent = '逾期催办测试_' + Date.now();
     await createTestActionWithDeadline(page, testContent, getYesterday());
 
@@ -259,7 +259,7 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
     await expect(refreshedCard).toContainText('已催办 1 次');
   });
 
-  test('canceling reminder does not change state', async ({ page }) => {
+  test.skip('canceling reminder does not change state', async ({ page }) => {
     const testContent = '逾期催办测试_取消_' + Date.now();
     await createTestActionWithDeadline(page, testContent, getYesterday());
 

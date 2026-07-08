@@ -77,8 +77,8 @@ test.describe('Meeting Evaluation', () => {
 
   test('eval tab shows score with progress bars when evaluated', async ({ page }) => {
     // This test depends on a meeting that already has effectiveness in mock data
-    // Find a completed meeting card that shows a score (e.g. ⭐ 92)
-    const card = page.locator('.meeting-card').filter({ hasText: /⭐ 9/ }).first();
+    // Find a completed meeting card that shows a score (e.g. 92)
+    const card = page.locator('.meeting-card').filter({ hasText: /综合评分\s*9/ }).first();
     await card.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
     // Eval section should be visible directly (no tab needed in detail view)

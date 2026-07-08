@@ -7,6 +7,7 @@
  */
 
 import { Storage, escapeHtml } from '../../lib/utils.js';
+import { icon } from '../../../assets/js/icons.js';
 
 /** 决议状态配置（精简为 3 个状态） */
 export const RESOLUTION_STATUS_CONFIG = {
@@ -417,10 +418,10 @@ export function renderResolutionCard(d, actionsMap = {}) {
         ${statusSelector}
       </div>
       <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; margin-bottom: 8px;">
-        <span>📅 ${d.deadline || '未设置'}</span>
-        <span>👤 ${escapeHtml(getPersonName(d.owner) || '待定')}</span>
-        ${d.sourceMeetingId ? `<span style="cursor: pointer; color: var(--primary);" onclick="gotoSourceMeeting('${d.sourceMeetingId}')">📋 ${escapeHtml(d.sourceMeetingTitle || '')}</span>` : ''}
-        ${d.kmsUrl ? `<a href="${escapeHtml(d.kmsUrl)}" target="_blank" style="color: var(--primary); text-decoration: none;">🔗 KMS</a>` : ''}
+        <span>${icon('calendar', {size: 14})} ${d.deadline || '未设置'}</span>
+        <span>${icon('userPlain', {size: 14})} ${escapeHtml(getPersonName(d.owner) || '待定')}</span>
+        ${d.sourceMeetingId ? `<span style="cursor: pointer; color: var(--primary);" onclick="gotoSourceMeeting('${d.sourceMeetingId}')">${icon('clipboardText', {size: 14})} ${escapeHtml(d.sourceMeetingTitle || '')}</span>` : ''}
+        ${d.kmsUrl ? `<a href="${escapeHtml(d.kmsUrl)}" target="_blank" style="color: var(--primary); text-decoration: none;">${icon('link', {size: 14})} KMS</a>` : ''}
       </div>
       ${progress}
       ${logsHtml}
@@ -473,6 +474,6 @@ export function renderResolutionsList(meetings, filter, search) {
         <span style="color: ${stats.overdueCount > 0 ? 'var(--danger)' : 'var(--text-secondary)'}">逾期 ${stats.overdueCount} 项</span>
       </div>
     </div>
-    ${filtered.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🔍 未找到匹配决议</div>' : cards}
+    ${filtered.length === 0 ? `<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">${icon('search', {size: 14})} 未找到匹配决议</div>` : cards}
   `;
 }

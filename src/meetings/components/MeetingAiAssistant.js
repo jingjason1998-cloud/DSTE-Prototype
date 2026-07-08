@@ -15,6 +15,7 @@
  */
 
 import { renderAiAgendaInto } from './AiAgendaDrawer.js';
+import { icon } from '../../../assets/js/icons.js';
 import { AIClient, AITools } from '../../lib/ai-client.js';
 import { gatherBusinessContext, formatContextForAI } from '../../lib/ai-context.js';
 
@@ -116,7 +117,7 @@ function renderWelcomeMessage() {
   if (isGlobal) {
     return `
       <div class="ai-message assistant">
-        <div>👋 你好！我是你的经营分析会 AI 助手。当前为全局视图，我可以帮你：</div>
+        <div>${icon('handWave', {size: 14})} 你好！我是你的经营分析会 AI 助手。当前为全局视图，我可以帮你：</div>
         <ul style="margin: 8px 0; padding-left: 18px; line-height: 1.7;">
           <li>了解会议整体情况与待办分布</li>
           <li>汇总决议执行与行动项闭环</li>
@@ -130,7 +131,7 @@ function renderWelcomeMessage() {
 
   return `
     <div class="ai-message assistant">
-      <div>👋 你好！我是你的会议 AI 助手。我可以帮你：</div>
+      <div>${icon('handWave', {size: 14})} 你好！我是你的会议 AI 助手。我可以帮你：</div>
       <ul style="margin: 8px 0; padding-left: 18px; line-height: 1.7;">
         <li>总结会议议程与重点</li>
         <li>提炼纪要要点</li>
@@ -155,8 +156,8 @@ function renderAiTabBar() {
   const agendaActive = _activeAiTab === 'agenda' ? 'meeting-ai-tab-active' : '';
   return `
     <div class="meeting-ai-tabs">
-      <button type="button" class="meeting-ai-tab ${chatActive}" onclick="switchAiTab('chat')">💬 对话</button>
-      <button type="button" class="meeting-ai-tab ${agendaActive}" onclick="switchAiTab('agenda')">📋 议程推荐</button>
+      <button type="button" class="meeting-ai-tab ${chatActive}" onclick="switchAiTab('chat')">${icon('chat', {size: 14})} 对话</button>
+      <button type="button" class="meeting-ai-tab ${agendaActive}" onclick="switchAiTab('agenda')">${icon('clipboardText', {size: 14})} 议程推荐</button>
     </div>
   `;
 }
@@ -224,11 +225,11 @@ function renderContextChip() {
   const chip = document.getElementById('meeting-ai-context-chip');
   if (!chip) return;
   if (_currentMeetingForAi) {
-    chip.innerHTML = `📌 当前会议：${escapeHtmlLocal(_currentMeetingForAi.title)}`;
+    chip.innerHTML = `${icon('pushPin', {size: 14})} 当前会议：${escapeHtmlLocal(_currentMeetingForAi.title)}`;
     chip.style.display = 'block';
   } else if (_globalMeetingsContext) {
     const { summary } = _globalMeetingsContext;
-    chip.innerHTML = `📌 当前视图：经营分析会全局（${summary.meetingCount || 0} 场会议）`;
+    chip.innerHTML = `${icon('pushPin', {size: 14})} 当前视图：经营分析会全局（${summary.meetingCount || 0} 场会议）`;
     chip.style.display = 'block';
   } else {
     chip.style.display = 'none';
@@ -290,7 +291,7 @@ function closeMeetingAiAssistant() {
 function buildResponse(text) {
   const ctx = _currentMeetingForAi;
   if (!ctx) {
-    return '💡 当前为经营分析会全局视图。我已收到你的问题，但网络请求失败，无法调用 AI。请稍后重试，或尝试打开具体会议详情后再提问。';
+    return `${icon('lightbulb', {size: 14})} 当前为经营分析会全局视图。我已收到你的问题，但网络请求失败，无法调用 AI。请稍后重试，或尝试打开具体会议详情后再提问。`;
   }
 
   const t = text.toLowerCase();
@@ -299,23 +300,23 @@ function buildResponse(text) {
     const meetingId = getCurrentMeetingId();
     const meeting = getSafeFindMeeting()(meetingId);
     const items = Array.isArray(meeting?.agenda_items) ? meeting.agenda_items : [];
-    if (items.length === 0) return `📋 「${ctx.title}」暂未设置议程项。`;
+    if (items.length === 0) return `${icon('clipboardText', {size: 14})} 「${ctx.title}」暂未设置议程项。`;
     const list = items
       .map((a, i) => `${i + 1}. ${a.title || '未命名议题'}（${parseInt(a.duration, 10) || 0} 分钟）`)
       .join('\n');
-    return `📋 「${ctx.title}」共有 ${items.length} 个议程项，总时长 ${ctx.agendaTotalMinutes} 分钟：\n\n${list}`;
+    return `${icon('clipboardText', {size: 14})} 「${ctx.title}」共有 ${items.length} 个议程项，总时长 ${ctx.agendaTotalMinutes} 分钟：\n\n${list}`;
   }
 
   if (t.includes('纪要') || t.includes('总结') || t.includes('要点')) {
-    if (!ctx.minutesContent) return `📝 「${ctx.title}」暂时还没有会议纪要内容。你可以在编辑页面补充纪要后再来问我。`;
+    if (!ctx.minutesContent) return `${icon('fileText', {size: 14})} 「${ctx.title}」暂时还没有会议纪要内容。你可以在编辑页面补充纪要后再来问我。`;
     const lines = ctx.minutesContent
       .split(/\n|。/)
       .map(s => s.trim())
       .filter(Boolean)
       .slice(0, 5);
-    if (lines.length === 0) return `📝 「${ctx.title}」纪要内容较简短，建议补充更多细节。`;
+    if (lines.length === 0) return `${icon('fileText', {size: 14})} 「${ctx.title}」纪要内容较简短，建议补充更多细节。`;
     const summary = lines.map((l, i) => `${i + 1}. ${l}`).join('\n');
-    return `📝 「${ctx.title}」纪要要点提炼如下：\n\n${summary}\n\n（以上为基于纪要文本的简要梳理）`;
+    return `${icon('fileText', {size: 14})} 「${ctx.title}」纪要要点提炼如下：\n\n${summary}\n\n（以上为基于纪要文本的简要梳理）`;
   }
 
   if (t.includes('行动项') || t.includes('todo') || t.includes('待办')) {
@@ -323,25 +324,25 @@ function buildResponse(text) {
     const meeting = getSafeFindMeeting()(meetingId);
     const actions = Array.isArray(meeting?.actions) ? meeting.actions : [];
     const pending = actions.filter(a => a && a.status !== 'completed');
-    if (pending.length === 0) return `✅ 「${ctx.title}」当前没有未闭环的行动项，干得好！`;
+    if (pending.length === 0) return `${icon('check', {size: 14})} 「${ctx.title}」当前没有未闭环的行动项，干得好！`;
     const list = pending
       .map((a, i) => `${i + 1}. ${a.content || '未描述'} — 负责人：${a.owner || '待定'}，截止：${a.deadline || '待定'}`)
       .join('\n');
-    return `🔔 「${ctx.title}」还有 ${pending.length} 项未闭环行动项：\n\n${list}`;
+    return `${icon('notification', {size: 14})} 「${ctx.title}」还有 ${pending.length} 项未闭环行动项：\n\n${list}`;
   }
 
   if (t.includes('决议') || t.includes('决策')) {
     const meetingId = getCurrentMeetingId();
     const meeting = getSafeFindMeeting()(meetingId);
     const decisions = Array.isArray(meeting?.decisions) ? meeting.decisions : [];
-    if (decisions.length === 0) return `📌 「${ctx.title}」暂未记录任何决议。`;
+    if (decisions.length === 0) return `${icon('pushPin', {size: 14})} 「${ctx.title}」暂未记录任何决议。`;
     const list = decisions
       .map((d, i) => `${i + 1}. ${d.content || '未描述'} — 负责人：${d.owner || '待定'}，状态：${d.status || '待定'}`)
       .join('\n');
-    return `📌 「${ctx.title}」共有 ${decisions.length} 项决议：\n\n${list}`;
+    return `${icon('pushPin', {size: 14})} 「${ctx.title}」共有 ${decisions.length} 项决议：\n\n${list}`;
   }
 
-  return `💡 收到你的问题：「${text}」。\n\n你可以尝试问我：\n• 总结本次会议议程\n• 生成会议纪要要点\n• 列出未闭环行动项\n• 本次会议有哪些决议？`;
+  return `${icon('lightbulb', {size: 14})} 收到你的问题：「${text}」。\n\n你可以尝试问我：\n• 总结本次会议议程\n• 生成会议纪要要点\n• 列出未闭环行动项\n• 本次会议有哪些决议？`;
 }
 
 function buildMeetingSystemPrompt() {
@@ -420,7 +421,7 @@ async function streamAiResponse(text) {
     console.error('AI chat error:', err);
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
-      lastMsg.content = `❌ AI 请求失败：${err.message || '网络错误'}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
+      lastMsg.content = `${icon('x', {size: 14})} AI 请求失败：${err.message || '网络错误'}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
     }
   } finally {
     _aiLoading = false;
@@ -526,7 +527,7 @@ function renderDraftCards() {
       const item = draft.data;
       return `
         <div class="ai-draft-card" style="margin: 10px 0; padding: 12px; border: 1px dashed var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 6%, transparent);">
-          <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">📝 AI 草拟行动项（待确认）</div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">${icon('fileText', {size: 14})} AI 草拟行动项（待确认）</div>
           <div style="font-size: 12px; color: var(--text-primary); line-height: 1.6;">
             <div><strong>内容：</strong>${escapeHtmlLocal(item.content)}</div>
             <div><strong>负责人：</strong>${escapeHtmlLocal(item.owner) || '<span style="color:var(--text-tertiary)">未指定</span>'}</div>
@@ -544,7 +545,7 @@ function renderDraftCards() {
       const m = draft.data;
       return `
         <div class="ai-draft-card" style="margin: 10px 0; padding: 12px; border: 1px dashed var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 6%, transparent);">
-          <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">📝 AI 草拟会议（待确认）</div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">${icon('fileText', {size: 14})} AI 草拟会议（待确认）</div>
           <div style="font-size: 12px; color: var(--text-primary); line-height: 1.6;">
             <div><strong>标题：</strong>${escapeHtmlLocal(m.title)}</div>
             <div><strong>日期：</strong>${escapeHtmlLocal(m.date)}</div>

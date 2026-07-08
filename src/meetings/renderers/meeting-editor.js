@@ -1,4 +1,5 @@
 import { getMeetings, addMeeting, persistMeetings, deleteMeetingByIndex } from '../data-store.js';
+import { icon } from '../../../assets/js/icons.js';
 import {
   computeAgendaTimeSlots,
   getReportAssets,
@@ -293,14 +294,14 @@ function renderAgendaList() {
     if (reviewing) {
       scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--primary-light); color: var(--primary); white-space: nowrap;">⏳ 评审中...</span>`;
     } else if (!url) {
-      scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--bg-page); color: var(--text-tertiary); white-space: nowrap; border: 1px solid var(--border-light);">🔍 送审</span>`;
+      scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--bg-page); color: var(--text-tertiary); white-space: nowrap; border: 1px solid var(--border-light);">${icon('search', {size: 14})} 送审</span>`;
     } else {
       const info = getMaterialReviewInfo(url);
       if (info) {
         const color = info.score >= 80 ? 'var(--success)' : info.score >= 60 ? 'var(--warning)' : 'var(--danger)';
-        scoreHtml = `<span onclick="event.stopPropagation(); openAgendaReviewDetail('${url.replace(/'/g, "\\'")}')" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: ${color}18; color: ${color}; cursor: pointer; white-space: nowrap; font-weight: 600;">✅ ${info.score}分</span>`;
+        scoreHtml = `<span onclick="event.stopPropagation(); openAgendaReviewDetail('${url.replace(/'/g, "\\'")}')" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: ${color}18; color: ${color}; cursor: pointer; white-space: nowrap; font-weight: 600;">${icon('check', {size: 14})} ${info.score}分</span>`;
       } else {
-        scoreHtml = `<button type="button" onclick="event.stopPropagation(); reviewSingleAgenda(${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">🔍 送审</button>`;
+        scoreHtml = `<button type="button" onclick="event.stopPropagation(); reviewSingleAgenda(${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">${icon('search', {size: 14})} 送审</button>`;
       }
     }
     // G2: 审核状态徽标
@@ -315,7 +316,7 @@ function renderAgendaList() {
       <div style="display: flex; align-items: flex-start; gap: 8px;">
         ${batchMode ? `<div style="width: 18px; display: flex; align-items: center; padding-top: 6px;">${checkbox}</div>` : `<div style="width: 22px; display: flex; align-items: center; justify-content: center; padding-top: 6px;"><span style="font-size: 12px; color: var(--text-tertiary);">${idx + 1}.</span></div>`}
         <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0;">
-          <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">⏰ ${timeSlots[idx]?.start || '--:--'} ~ ${timeSlots[idx]?.end || '--:--'} · ${item.duration || 0} 分钟</div>
+          <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">${icon('clock', {size: 14})} ${timeSlots[idx]?.start || '--:--'} ~ ${timeSlots[idx]?.end || '--:--'} · ${item.duration || 0} 分钟</div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <select onchange="updateAgendaType(${idx}, this.value)" style="padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); width: 110px; flex-shrink: 0;">
               ${Object.entries(window.AGENDA_TYPE_LABELS).map(([k, v]) => `<option value="${k}" ${item.type === k ? 'selected' : ''}>${v}</option>`).join('')}
@@ -332,7 +333,7 @@ function renderAgendaList() {
           <div style="display: flex; align-items: center; gap: 8px;">
             <input type="text" value="${(item.data_views || []).join(', ')}" onchange="updateAgendaDataViews(${idx}, this.value)" placeholder="关联报表 ID，逗号分隔" style="flex: 1; min-width: 0; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-primary);" />
             <input type="text" value="${item.pre_report_section || ''}" onchange="updateAgendaPreReportSection(${idx}, this.value)" placeholder="报告章节，如 §2.1" style="width: 130px; flex-shrink: 0; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-primary);" />
-            <button type="button" onclick="openReportAssetManager(${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap; flex-shrink: 0;">📊 报表</button>
+            <button type="button" onclick="openReportAssetManager(${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap; flex-shrink: 0;">${icon('chartBar', {size: 14})} 报表</button>
           </div>
           ${(() => {
             const warning = getAgendaPostponeWarning(item);
@@ -446,9 +447,9 @@ function getReviewerScene(scenario) {
 function renderAgendaReviewScoreHtml(url) {
   if (!url) return '';
   const info = getMaterialReviewInfo(url);
-  if (!info) return `<button type="button" onclick="event.stopPropagation(); reviewSingleAgenda(this.dataset.idx)" data-idx="" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">🔍 送审</button>`;
+  if (!info) return `<button type="button" onclick="event.stopPropagation(); reviewSingleAgenda(this.dataset.idx)" data-idx="" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap;">${icon('search', {size: 14})} 送审</button>`;
   const color = info.score >= 80 ? 'var(--success)' : info.score >= 60 ? 'var(--warning)' : 'var(--danger)';
-  return `<span onclick="event.stopPropagation(); openAgendaReviewDetail('${url.replace(/'/g, "\\'")}')" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: ${color}18; color: ${color}; cursor: pointer; white-space: nowrap; font-weight: 600;">✅ ${info.score}分</span>`;
+  return `<span onclick="event.stopPropagation(); openAgendaReviewDetail('${url.replace(/'/g, "\\'")}')" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: ${color}18; color: ${color}; cursor: pointer; white-space: nowrap; font-weight: 600;">${icon('check', {size: 14})} ${info.score}分</span>`;
 }
 function toggleAgendaReviewMode() {
   window._agendaReviewMode = !window._agendaReviewMode;
@@ -464,7 +465,7 @@ function toggleAgendaReviewMode() {
     if (batchBtn) batchBtn.style.display = 'none';
     if (toggleBtn) toggleBtn.style.display = 'inline-block';
   }
-  if (batchBtn) batchBtn.textContent = '📦 批量送审 (' + window._agendaBatchSelections.size + ')';
+  if (batchBtn) batchBtn.textContent = `${icon('package', {size: 14})} 批量送审 (${window._agendaBatchSelections.size})`;
   renderAgendaList();
 }
 function updateBatchReviewSelection(idx, checked) {
@@ -472,7 +473,7 @@ function updateBatchReviewSelection(idx, checked) {
   else window._agendaBatchSelections.delete(idx);
   const count = window._agendaBatchSelections.size;
   const btn = document.getElementById('batch-review-btn');
-  if (btn) btn.textContent = `📦 批量送审 (${count})`;
+  if (btn) btn.textContent = `${icon('package', {size: 14})} 批量送审 (${count})`;
 }
 
 /**
@@ -683,14 +684,14 @@ async function reReviewAgendaMaterial() {
       openAgendaReviewDetail(url);
       // 刷新议程列表
       renderAgendaList();
-      window.showToast('重新评审完成 ✅', 'success');
+      window.showToast(`重新评审完成 ${icon('check', {size: 14})}`, 'success');
     } else {
       window.showToast('评审失败：' + (data.error || '未知错误'), 'error');
     }
   } catch (e) {
     window.showToast('评审服务不可用，请检查 reviewer 后端是否启动', 'error');
   }
-  if (btn) { btn.textContent = '🔄 重新送审'; btn.disabled = false; }
+  if (btn) { btn.textContent = `${icon('arrowsClockwise', {size: 14})} 重新送审`; btn.disabled = false; }
 }
 function showAgendaReviewSummary() {
   document.getElementById('agenda-review-detail-summary').style.display = 'block';
@@ -841,7 +842,7 @@ function renderDecisionList() {
           <input type="text" id="edit-decision-decider-${idx}" value="${typeof item.decider === 'object' ? (item.decider.displayName || item.decider.name || '') : (item.decider || '')}" onchange="updateDecisionDecider(${idx})" placeholder="审批人" style="width: 90px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">
-          <span style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap;">🔗 KMS</span>
+          <span style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap;">${icon('link', {size: 14})} KMS</span>
           <input type="url" value="${item.kmsUrl || ''}" onchange="updateDecisionKmsUrl(${idx}, this.value)" placeholder="KMS 链接" style="width: 220px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
         </div>
       </div>

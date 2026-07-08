@@ -4,6 +4,7 @@
  */
 
 import { computeMeetingReadiness } from '../utils/helpers.js';
+import { icon } from '../../../assets/js/icons.js';
 import { findMeetingById, persistMeetings } from '../data-store.js';
 
 function openMeetingPreparation(meetingId) {
@@ -26,14 +27,14 @@ function renderMeetingPreparation(m) {
   const header = document.getElementById('meeting-preparation-header-title');
   const markBtn = document.getElementById('preparation-mark-done-btn');
   if (!content) return;
-  if (header) header.textContent = `📋 会前准备 · ${m.title || '未命名会议'}`;
+  if (header) header.textContent = `${icon('clipboardText', {size: 14})} 会前准备 · ${m.title || '未命名会议'}`;
 
   const readiness = computeMeetingReadiness(m);
   const statusColor = readiness.status === 'ready' ? 'var(--success)' : readiness.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)';
   const statusLabel = readiness.status === 'ready' ? '已就绪' : readiness.status === 'in_progress' ? '准备中' : '未开始';
 
   const checkRows = readiness.checks.map(c => {
-    const icon = c.passed ? '✅' : c.optional ? '⏸️' : '❌';
+    const checkIcon = c.passed ? icon('check', {size: 14}) : c.optional ? '⏸️' : icon('x', {size: 14});
     const color = c.passed ? 'var(--success)' : c.optional ? 'var(--text-tertiary)' : 'var(--danger)';
     const badge = c.passed
       ? '<span class="status-badge status-success">已通过</span>'
@@ -42,7 +43,7 @@ function renderMeetingPreparation(m) {
         : '<span class="status-badge status-danger">待完成</span>';
     return `
       <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);">
-        <span style="font-size: 16px; width: 24px; text-align: center;">${icon}</span>
+        <span style="font-size: 16px; width: 24px; text-align: center;">${checkIcon}</span>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${c.label}</span>
@@ -75,7 +76,7 @@ function renderMeetingPreparation(m) {
       ${checkRows || '<div style="padding: 16px; text-align: center; color: var(--text-secondary); font-size: 13px;">暂无检查项</div>'}
     </div>
     <div style="display: flex; align-items: center; gap: 8px; padding: 12px; background: var(--primary-light); border-radius: 8px; font-size: 12px; color: var(--primary);">
-      <span>💡</span>
+      <span>${icon('lightbulb', {size: 14})}</span>
       <span>所有检查项通过后，可一键标记「会前评审完成」。未达到 100% 时标记将弹出确认提示。</span>
     </div>
   `;

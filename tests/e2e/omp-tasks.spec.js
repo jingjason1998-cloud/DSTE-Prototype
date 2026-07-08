@@ -38,7 +38,7 @@ test.describe('OMP 重点工作管理', () => {
         dept: '测试部',
         startDate: '2026-01-01',
         endDate: '2026-12-31',
-        relatedKpiIds: [],
+        kpiAssociations: [],
         budget: 100,
         actualCost: 0,
       });
@@ -52,7 +52,7 @@ test.describe('OMP 重点工作管理', () => {
         owner: '测试人',
         status: 'planning',
         progress: 0,
-        relatedKpiIds: [],
+        kpiAssociations: [],
       });
       localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(tasks));
       window._ompState = window._ompState || {};
@@ -358,7 +358,7 @@ test.describe('OMP 重点工作管理', () => {
           dept: '测试部',
           startDate: '2026-01-01',
           endDate: '2026-12-31',
-          relatedKpiIds: [],
+          kpiAssociations: [],
           budget: 0,
           actualCost: 0,
         });
@@ -414,7 +414,7 @@ test.describe('OMP 重点工作管理', () => {
           dept: '测试部',
           startDate: '2026-01-01',
           endDate: '2026-12-31',
-          relatedKpiIds: [],
+          kpiAssociations: [],
           budget: 0,
           actualCost: 0,
         });

@@ -5,6 +5,8 @@
  * 纯工具函数，不涉及业务逻辑、DOM 操作或状态管理
  */
 
+import { icon } from '../../../assets/js/icons.js';
+
 /**
  * 根据材料链接获取审核评分
  * @param {string|null} url - 材料链接 URL
@@ -121,7 +123,7 @@ export function formatAgendaSourceHint(agenda, meetings) {
   if (!agenda || !agenda.carriedFromMeetingId) return '';
   const source = (meetings || []).find(x => x.id === agenda.carriedFromMeetingId);
   const title = source ? (source.title || '上游会议') : '上游会议';
-  return `⬆️ 来自 ${title}，已顺延 ${agenda.postponedCount || 0} 次`;
+  return `${icon('arrowUp', {size: 14})} 来自 ${title}，已顺延 ${agenda.postponedCount || 0} 次`;
 }
 
 /**
@@ -131,7 +133,7 @@ export function formatAgendaSourceHint(agenda, meetings) {
  */
 export function getAgendaPostponeWarning(agenda) {
   if (!agenda || typeof agenda.postponedCount !== 'number') return null;
-  if (agenda.postponedCount >= 3) return '⚠️ 已顺延 3 次';
+  if (agenda.postponedCount >= 3) return `${icon('warning', {size: 14})} 已顺延 3 次`;
   if (agenda.postponedCount >= 2) return '已顺延 2 次';
   return null;
 }

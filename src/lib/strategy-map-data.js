@@ -1,4 +1,5 @@
 import { Storage } from './utils.js';
+import { icon } from '../../assets/js/icons.js';
 import { createStrategyMapRepository, Repository } from './repository.js';
 import { normalizePersonField } from './employee-directory.js';
 import { getDefaultSyncQueue } from './sync-queue.js';
@@ -73,10 +74,10 @@ function linksRepo(mapId) {
 }
 
 export const DIM_CONFIG = {
-  fin: { key: 'fin', name: '财务维度', icon: '💰', color: '#1677FF', desc: '股东价值最大化' },
-  cus: { key: 'cus', name: '客户维度', icon: '🤝', color: '#52C41A', desc: '客户价值主张' },
-  int: { key: 'int', name: '内部流程维度', icon: '⚙️', color: '#FAAD14', desc: '运营卓越' },
-  lea: { key: 'lea', name: '学习与成长维度', icon: '📚', color: '#722ED1', desc: '组织能力建设' },
+  fin: { key: 'fin', name: '财务维度', icon: 'currencyDollar', color: '#1677FF', desc: '股东价值最大化' },
+  cus: { key: 'cus', name: '客户维度', icon: 'handshake', color: '#52C41A', desc: '客户价值主张' },
+  int: { key: 'int', name: '内部流程维度', icon: 'settings', color: '#FAAD14', desc: '运营卓越' },
+  lea: { key: 'lea', name: '学习与成长维度', icon: 'books', color: '#722ED1', desc: '组织能力建设' },
 };
 
 export const DIM_ORDER = { lea: 0, int: 1, cus: 2, fin: 3 };

@@ -1,4 +1,5 @@
 import { showToast, Storage } from '../../lib/utils.js';
+import { icon } from '../../../assets/js/icons.js';
 import { Repository } from '../../lib/repository.js';
 import { loadIssues, loadAllIssues } from './issue-import.js';
 
@@ -364,7 +365,7 @@ export function renderAiMatchResults() {
     container.innerHTML = _aiMatchResults.map((r, idx) => {
         const scorePct = Math.round(r.score * 100);
         const scoreClass = scorePct >= 50 ? 'high' : scorePct >= 30 ? 'medium' : 'low';
-        const icon = r.issue.sourceSystem === 'ST' ? '🏛️' : '🏢';
+        const sysIcon = r.issue.sourceSystem === 'ST' ? `${icon('building', {size: 14})}` : `${icon('buildings', {size: 14})}`;
         const relLabel = r.relationSuggestion === 'direct' ? '直接驱动' : r.relationSuggestion === 'support' ? '相关支撑' : '参考关联';
         const relColor = r.relationSuggestion === 'direct' ? '#ef4444' : r.relationSuggestion === 'support' ? '#3b82f6' : '#6b7280';
         return `
@@ -372,7 +373,7 @@ export function renderAiMatchResults() {
             <div class="ai-match-header">
                 <div class="ai-match-score ${scoreClass}">${scorePct}%</div>
                 <div class="ai-match-info">
-                    <div class="ai-match-title">${icon} ${escapeHtml(r.issue.issueId)} ${escapeHtml(r.issue.issueTitle)}</div>
+                    <div class="ai-match-title">${sysIcon} ${escapeHtml(r.issue.issueId)} ${escapeHtml(r.issue.issueTitle)}</div>
                     <div class="ai-match-meta">${escapeHtml(r.issue.meetingName)} · ${escapeHtml(r.issue.department)} · ${escapeHtml(r.issue.status)} · 建议关系: <span style="color:${relColor}; font-weight:600;">${relLabel}</span></div>
                 </div>
                 <input type="checkbox" id="aimatch_cb_${idx}" checked style="width:18px; height:18px; accent-color: var(--accent-indigo); cursor:pointer;">
@@ -733,12 +734,12 @@ export function generateGlobalReport(issues, reportType) {
     const summary = `本期共分析 ${totalIssues} 个议题：${inProgressCount} 个进行中，${closedCount} 个已关闭；${typeDist.length} 种议题类型，平均处理周期 ${avgProcessDays} 天；${deadlineRisk.length} 个逾期，${longPending.length} 个长期未更新，${stuck.length} 个卡滞，${noConclusion.length} 个缺少结论`;
 
     const recommendations = [
-        deadlineRisk.length > 0 ? `🚨 优先处理 ${deadlineRisk.length} 个逾期议题` : '逾期控制良好',
-        stuck.length > 0 ? `⚠️ ${stuck.length} 个议题卡滞，需推动当前节点审批` : '议题流转顺畅',
-        noConclusion.length > totalIssues * 0.1 ? `📝 ${noConclusion.length} 个议题缺少结论，需组织专题讨论` : '结论覆盖率良好',
-        longPending.length > 0 ? `⏰ review ${longPending.length} 个长期未更新议题` : '更新频率正常',
-        clusters.length > 0 ? `🔗 考虑将 ${clusters.length} 组相关议题聚合成专题管理` : '持续关注议题关联性',
-        typeDist[0] && typeDist[0][1] / totalIssues > 0.5 ? `📊 ${typeDist[0][0]} 类议题占比过半，建议评估资源投入` : '议题类型分布均衡'
+        deadlineRisk.length > 0 ? `${icon('siren', {size: 14})} 优先处理 ${deadlineRisk.length} 个逾期议题` : '逾期控制良好',
+        stuck.length > 0 ? `${icon('warning', {size: 14})} ${stuck.length} 个议题卡滞，需推动当前节点审批` : '议题流转顺畅',
+        noConclusion.length > totalIssues * 0.1 ? `${icon('fileText', {size: 14})} ${noConclusion.length} 个议题缺少结论，需组织专题讨论` : '结论覆盖率良好',
+        longPending.length > 0 ? `${icon('clock', {size: 14})} review ${longPending.length} 个长期未更新议题` : '更新频率正常',
+        clusters.length > 0 ? `${icon('link', {size: 14})} 考虑将 ${clusters.length} 组相关议题聚合成专题管理` : '持续关注议题关联性',
+        typeDist[0] && typeDist[0][1] / totalIssues > 0.5 ? `${icon('chartBar', {size: 14})} ${typeDist[0][0]} 类议题占比过半，建议评估资源投入` : '议题类型分布均衡'
     ].filter(Boolean);
 
     const report = {
@@ -791,7 +792,7 @@ export function openAiReportModal(reportType) {
     const issues = loadIssues(reportType);
     const report = generateGlobalReport(issues, reportType + '_GLOBAL');
 
-    document.getElementById('aiReportTitle').textContent = (reportType === 'ST' ? '🏛️ ST' : '🏢 AT') + ' 议题全局分析报告';
+    document.getElementById('aiReportTitle').innerHTML = `${reportType === 'ST' ? icon('building', {size: 14}) : icon('buildings', {size: 14})} ${reportType} 议题全局分析报告`;
     document.getElementById('aiReportSubtitle').textContent = '分析周期: ' + report.analysisPeriod + ' | 议题总数: ' + report.issueCount + (report.isCached ? ' | 来自缓存' : ' | 刚刚生成');
 
     // ===== 构建丰富的报告视图 =====
@@ -890,16 +891,16 @@ export function openAiReportModal(reportType) {
     // 组装报告
     document.getElementById('aiReportContent').innerHTML =
         overviewHtml +
-        '<div style="margin-bottom: 12px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">📊 执行摘要</div>' +
+        `<div style="margin-bottom: 12px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">${icon('chartBar', {size: 14})} 执行摘要</div>` +
         '<div style="padding: 12px 14px; background: var(--bg-surface); border-radius: 8px; font-size: 12px; color: var(--text-tertiary); line-height: 1.6; margin-bottom: 20px;">' + escapeHtml(report.summary) + '</div>' +
 
         '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">' +
             '<div>' +
-                '<div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">🏷️ 议题类型分布</div>' +
+                `<div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">${icon('tag', {size: 14})} 议题类型分布</div>` +
                 '<div style="padding: 12px; background: var(--bg-surface); border-radius: 8px;">' + typeDistHtml + '</div>' +
             '</div>' +
             '<div>' +
-                '<div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">👥 人员活跃度</div>' +
+                `<div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">${icon('users', {size: 14})} 人员活跃度</div>` +
                 '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">' +
                     '<div style="padding: 10px; background: var(--bg-surface); border-radius: 8px;"><div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Top 提交人</div>' + proposerHtml + '</div>' +
                     '<div style="padding: 10px; background: var(--bg-surface); border-radius: 8px;"><div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Top 负责人</div>' + handlerHtml + '</div>' +
@@ -907,15 +908,15 @@ export function openAiReportModal(reportType) {
             '</div>' +
         '</div>' +
 
-        '<div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">📋 流程与节点分布</div>' +
+        `<div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">${icon('clipboardText', {size: 14})} 流程与节点分布</div>` +
         '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">' +
             '<div style="padding: 12px; background: var(--bg-surface); border-radius: 8px;"><div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">流程状态</div>' + (processDistHtml || '<span style="color: var(--text-muted); font-size: 12px;">无数据</span>') + '</div>' +
             '<div style="padding: 12px; background: var(--bg-surface); border-radius: 8px;"><div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">当前节点</div>' + (nodeDistHtml || '<span style="color: var(--text-muted); font-size: 12px;">无数据</span>') + '</div>' +
         '</div>' +
 
-        '<div style="margin-bottom: 12px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">🔍 核心发现 (' + (report.findings || []).length + ')</div>' + findingsHtml +
+        `<div style="margin-bottom: 12px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">${icon('search', {size: 14})} 核心发现 (${(report.findings || []).length})</div>` + findingsHtml +
 
-        (recommendationsHtml ? '<div style="margin-top: 20px;"><div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">💡 综合建议</div>' + recommendationsHtml + '</div>' : '');
+        (recommendationsHtml ? `<div style="margin-top: 20px;"><div style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">${icon('lightbulb', {size: 14})} 综合建议</div>` + recommendationsHtml + '</div>' : '');
 
     openModal('aiReportModal');
 }
@@ -925,7 +926,7 @@ export function regenerateAiReport() {
     const repo = getAiReportRepo(_currentReportType + '_GLOBAL');
     Storage.remove(repo.storageKey);
     Storage.remove(repo.versionKey);
-    document.getElementById('aiReportContent').innerHTML = '<div style="text-align:center; padding:60px;"><div style="font-size:32px; margin-bottom:12px;">🔄</div><div style="color:var(--text-secondary);">正在重新分析...</div></div>';
+    document.getElementById('aiReportContent').innerHTML = `<div style="text-align:center; padding:60px;"><div style="font-size:32px; margin-bottom:12px;">${icon('arrowsClockwise', {size: 14})}</div><div style="color:var(--text-secondary);">正在重新分析...</div></div>`;
     setTimeout(() => {
         openAiReportModal(_currentReportType);
     }, 300);
@@ -960,12 +961,12 @@ export function openIssueDetailModal(issueId) {
     const issue = allIssues.find(i => i.issueId === issueId);
     if (!issue) return;
 
-    document.getElementById('issueDetailTitle').textContent = (issue.sourceSystem === 'ST' ? '🏛️ ' : '🏢 ') + escapeHtml(issue.issueId);
+    document.getElementById('issueDetailTitle').innerHTML = `${issue.sourceSystem === 'ST' ? icon('building', {size: 14}) : icon('buildings', {size: 14})} ${escapeHtml(issue.issueId)}`;
     document.getElementById('issueDetailSubtitle').textContent = escapeHtml(issue.issueType || issue.department || '未分类') + ' · ' + escapeHtml(issue.proposer || '未指定') + ' · ' + escapeHtml(issue.status);
 
     let actionItemsHtml = '';
     if (issue.actionItems && issue.actionItems.length > 0) {
-        actionItemsHtml = '<div style="margin-top: 12px;"><div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">📋 行动项</div>' +
+        actionItemsHtml = `<div style="margin-top: 12px;"><div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">${icon('clipboardText', {size: 14})} 行动项</div>` +
             issue.actionItems.map(a => '<div style="padding: 8px 12px; background: var(--bg-surface); border-radius: 6px; margin-bottom: 6px; font-size: 13px;">' +
                 '<div>' + escapeHtml(a.item) + '</div>' +
                 '<div style="color: var(--text-tertiary); margin-top: 4px;">负责人: ' + escapeHtml(a.owner) + ' | 截止: ' + escapeHtml(a.deadline) + ' | 状态: ' + escapeHtml(a.status) + '</div>' +
@@ -974,14 +975,14 @@ export function openIssueDetailModal(issueId) {
 
     let kpisHtml = '';
     if (issue.relatedKpis && issue.relatedKpis.length > 0) {
-        kpisHtml = '<div style="margin-top: 12px;"><div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">📈 关联 KPI</div>' +
+        kpisHtml = `<div style="margin-top: 12px;"><div style="font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">${icon('chartLineUp', {size: 14})} 关联 KPI</div>` +
             '<div style="display: flex; gap: 8px; flex-wrap: wrap;">' + issue.relatedKpis.map(k => '<span style="padding: 4px 10px; background: var(--bg-surface); border-radius: 4px; font-size: 12px;">' + escapeHtml(k) + '</span>').join('') + '</div></div>';
     }
 
     let qualityHtml = '';
     if (issue.importQuality && issue.importQuality.hasWarnings) {
         qualityHtml = '<div style="margin-top: 12px; padding: 10px 12px; background: #fef3c7; border-radius: 6px; font-size: 12px; color: #92400e;">' +
-            '⚠️ 导入警告：<br>' + issue.importQuality.warnings.map(w => '• ' + escapeHtml(w)).join('<br>') + '</div>';
+            `${icon('warning', {size: 14})} 导入警告：<br>` + issue.importQuality.warnings.map(w => '• ' + escapeHtml(w)).join('<br>') + '</div>';
     }
 
     document.getElementById('issueDetailContent').innerHTML =

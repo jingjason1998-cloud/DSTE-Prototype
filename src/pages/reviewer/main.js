@@ -84,21 +84,21 @@
                     dim: '目标-解决方案对齐度',
                     weight: '30分',
                     body: '议题背景清晰、问题定义精准（现象vs根因）、方案直接对应问题根因。不是"通报情况"，而是"请求决策"',
-                    bottom: '⚠️ 红线：零决策请求 = 打回重写',
+                    bottom: ' 红线：零决策请求 = 打回重写',
                     bottomClass: 'red'
                 },
                 {
                     dim: '决策支撑度',
                     weight: '30分',
                     body: '关键论点有数据/案例/对比支撑；提供明确的决策建议及备选方案对比；包含风险评估和资源需求清单',
-                    bottom: '⚠️ 红线：零数据支撑 = 打回补充',
+                    bottom: ' 红线：零数据支撑 = 打回补充',
                     bottomClass: 'red'
                 },
                 {
                     dim: '行动具体化',
                     weight: '25分',
                     body: 'SMART原则：具体(S)、可衡量(M)、可达成(A)、相关(R)、有时限(T)。每个行动项必须有责任人和时间节点',
-                    bottom: '⚠️ 红线：零责任主体或零时间计划 = 打回明确',
+                    bottom: ' 红线：零责任主体或零时间计划 = 打回明确',
                     bottomClass: 'red'
                 },
                 {
@@ -114,35 +114,35 @@
                     dim: '完整性',
                     weight: '35分',
                     body: '述职材料完整覆盖要求的模块：市场现状与竞争格局、业绩达成回顾、核心差距识别、根因分析、下一步行动计划。缺少任一模块均影响评审有效性',
-                    bottom: '⚠️ 红线：缺少市场现状或业绩回顾 = 打回补充',
+                    bottom: ' 红线：缺少市场现状或业绩回顾 = 打回补充',
                     bottomClass: 'red'
                 },
                 {
                     dim: '差距与根因分析',
                     weight: '20分',
                     body: '业绩差距需量化呈现（目标vs实际，同比/环比），根因分析需深入业务本质而非表面归因。建议使用5Why或鱼骨图等结构化方法，避免"市场环境不好"等空泛结论',
-                    bottom: '⚠️ 红线：差距无量化数据或根因停留在表面 = 打回重做',
+                    bottom: ' 红线：差距无量化数据或根因停留在表面 = 打回重做',
                     bottomClass: 'red'
                 },
                 {
                     dim: '业绩预测达成概率分析',
                     weight: '10分',
                     body: '对未来业绩目标的预测需有逻辑支撑（历史趋势、市场容量、竞争态势、资源投入），明确给出达成概率评估及关键假设条件。避免"一定能完成"等主观断言',
-                    bottom: '⚠️ 红线：无概率评估或假设条件缺失 = 打回完善',
+                    bottom: ' 红线：无概率评估或假设条件缺失 = 打回完善',
                     bottomClass: 'red'
                 },
                 {
                     dim: '下一步计划',
                     weight: '20分',
                     body: '改进措施需具体可执行，明确责任人和时间节点，与差距分析形成闭环。优先解决根因中的高影响项，资源需求和支持请求需清晰列出',
-                    bottom: '⚠️ 红线：措施与根因脱节或缺少责任人/时间节点 = 打回明确',
+                    bottom: ' 红线：措施与根因脱节或缺少责任人/时间节点 = 打回明确',
                     bottomClass: 'red'
                 },
                 {
                     dim: 'SP战略关联度',
                     weight: '10分',
                     body: '述职内容需与SP战略方向明确对齐，体现战略解码成果。展示本部门/区域如何承接公司战略，关键举措与战略目标的映射关系清晰',
-                    bottom: '⚠️ 红线：未提及战略方向或缺少对齐分析 = 打回补充',
+                    bottom: ' 红线：未提及战略方向或缺少对齐分析 = 打回补充',
                     bottomClass: 'red'
                 },
                 {
@@ -158,28 +158,28 @@
                     dim: '目标承诺',
                     weight: '20分',
                     body: '战区必须做出明确的业绩承诺，承诺内容可衡量、可追踪。需包含：当月业绩承诺目标(5分)、累计业绩承诺目标(4分)、同比数据及目标(3分)、业绩缺口分析(4分)、承诺目标可量化可衡量(4分)。承诺目标需有数据/商机/历史依据支撑，拒绝拍脑袋',
-                    bottom: '🔴 一票否决：未做出业绩承诺（目标承诺维度为0分）→ 直接退回重写 R5',
+                    bottom: '一票否决：未做出业绩承诺（目标承诺维度为0分）→ 直接退回重写 R5',
                     bottomClass: 'red'
                 },
                 {
                     dim: '行动具体化',
                     weight: '30分',
                     body: '每个行动项必须符合SMART原则，明确责任人和时间节点。含：每个行动项有明确责任人(8分)、明确时间节点(8分)、行动描述具体S(4分)、有可衡量的产出/验收标准M(4分)、行动与业绩目标关联R(3分)、行动切实可行A(3分)。拒绝"加强管理"等笼统表述',
-                    bottom: '🔴 一票否决：行动方案完全无责任人或无时间节点（行动具体化维度低于10分）→ 直接退回重写 R5',
+                    bottom: '一票否决：行动方案完全无责任人或无时间节点（行动具体化维度低于10分）→ 直接退回重写 R5',
                     bottomClass: 'red'
                 },
                 {
                     dim: '材料规范度',
                     weight: '35分',
                     body: '材料结构完整，必需章节齐全。含：财务建议≥3条(7分)、销售运营中心建议≥3条(7分)、项目运营中心建议≥3条(7分)、战区内部分析(7分)、上月承诺复盘(条件触发)(7分)。上月做了业绩承诺但未达成时，必须复盘。拒绝建议雷同、仅罗列数据无洞察',
-                    bottom: '⚠️ 严重：缺少必需章节（如财务建议/运营建议/项目建议）→ 大幅扣分，可能影响上会',
+                    bottom: ' 严重：缺少必需章节（如财务建议/运营建议/项目建议）→ 大幅扣分，可能影响上会',
                     bottomClass: 'yellow'
                 },
                 {
                     dim: '数据质量',
                     weight: '15分',
                     body: '数据准确、逻辑自洽、无明显计算错误。含：同比/环比计算正确(4分)、百分比总和校验(3分)、数量级合理(3分)、正负号符合业务逻辑(2分)、关键指标计算正确(3分)。不深入验证数据来源真实性，但聚焦明显计算错误和逻辑矛盾',
-                    bottom: '🔴 一票否决：数据存在重大错误导致决策误导（数据质量维度低于5分）→ 直接退回重写 R5',
+                    bottom: '一票否决：数据存在重大错误导致决策误导（数据质量维度低于5分）→ 直接退回重写 R5',
                     bottomClass: 'red'
                 }
             ],
@@ -188,28 +188,28 @@
                     dim: '完整性',
                     weight: '25分',
                     body: '年度述职必须覆盖8大模块：年度目标达成回顾、关键战役复盘、团队建设与人才培养、个人能力提升、客户/市场洞察、资源使用效率、问题反思与根因、下年度规划',
-                    bottom: '⚠️ 缺少≥3个模块 → 完整性维度大幅扣分',
+                    bottom: ' 缺少≥3个模块 → 完整性维度大幅扣分',
                     bottomClass: 'yellow'
                 },
                 {
                     dim: 'SP战略关联度',
                     weight: '25分',
                     body: '个人/团队目标必须与公司SP、部门BP对齐。包含4层对齐检查：公司SP、部门BP、个人PBC→SP、下年计划→SP。SP机会覆盖度≥80%不扣分',
-                    bottom: '🔴 一票否决：计划与SP方向明显冲突 → SP维度 = 0分',
+                    bottom: '一票否决：计划与SP方向明显冲突 → SP维度 = 0分',
                     bottomClass: 'red'
                 },
                 {
                     dim: '态度与反思',
                     weight: '25分',
                     body: '坦诚反思、敢于自我批判。评估维度：诚实度（不隐藏失败）、自我批判（归因于内≥40%）、成长思维（具体学习计划）、领导力反思（领导风格与团队影响）',
-                    bottom: '🔴 一票否决：≥5处推卸责任且零自我批判 → 态度维度 ≤ 5分',
+                    bottom: '一票否决：≥5处推卸责任且零自我批判 → 态度维度 ≤ 5分',
                     bottomClass: 'red'
                 },
                 {
                     dim: '下一步计划',
                     weight: '25分',
                     body: '下年度规划具体可执行。要求：目标量化、关键战役3-5个、教训应用、资源明确、风险预案。年度连续性：2025问题→2026行动→2026目标',
-                    bottom: '⚠️ 目标定性或计划与教训脱节 → 大幅扣分',
+                    bottom: ' 目标定性或计划与教训脱节 → 大幅扣分',
                     bottomClass: 'yellow'
                 }
             ]
@@ -344,7 +344,7 @@
                 // 在合格标准下方添加场景切换提示
                 const stdBody = document.getElementById('passStandardBody');
                 if (stdBody) {
-                    stdBody.innerHTML += '<div style="margin-top:8px;padding:6px 10px;background:#fffbeb;border-radius:6px;border:1px solid #fcd34d;font-size:0.85em;color:#92400e;">⚠️ 场景已切换，请重新执行审核以获取当前场景的评审结果</div>';
+                    stdBody.innerHTML += '<div style="margin-top:8px;padding:6px 10px;background:#fffbeb;border-radius:6px;border:1px solid #fcd34d;font-size:0.85em;color:#92400e;"> 场景已切换，请重新执行审核以获取当前场景的评审结果</div>';
                 }
             }
 
@@ -720,7 +720,7 @@
             if (resolvedFatal > 0) parts.push(`修复 ${resolvedFatal} 个致命问题`);
             if (resolvedWarn > 0) parts.push(`修复 ${resolvedWarn} 个警告`);
             if (resolvedTip > 0) parts.push(`修复 ${resolvedTip} 个建议`);
-            if (newFatal > 0) parts.push(`新增 ${newFatal} 个致命问题 ⚠️`);
+            if (newFatal > 0) parts.push(`新增 ${newFatal} 个致命问题 `);
             if (newWarn > 0) parts.push(`新增 ${newWarn} 个警告`);
             
             return `从 v${v1.version || 1}(${v1.total_score || '--'}分) 到 v${v2.version || '--'}(${v2.total_score || '--'}分)：${parts.join('，')}`;
@@ -728,7 +728,7 @@
         
         function renderIssueCard(issue, type) {
             const colors = {'致命': '#ff5555', '严重': '#ff5555', '警告': '#ffcc00', '建议': '#00ff88'};
-            const icons = {'resolved': '✅', 'new': '❗', 'persistent': '⏳'};
+            const icons = {'resolved': '', 'new': '', 'persistent': '⏳'};
             const labels = {'resolved': '→ 已修复', 'new': '← 新增', 'persistent': '仍遗留'};
             const color = colors[issue.level] || '#888';
             return `
@@ -777,13 +777,13 @@
             
             content.innerHTML = `
                 <div style="background:#f9fafb;padding:12px 16px;border-radius:8px;margin-bottom:16px;border:1px solid #e8e8e8;">
-                    <div style="font-size:0.85em;color:#6b7280;margin-bottom:4px;">📄 对比材料</div>
+                    <div style="font-size:0.85em;color:#6b7280;margin-bottom:4px;">对比材料</div>
                     <div style="font-size:1em;color:#1f2937;font-weight:600;">${materialTitle}</div>
                     <div style="font-size:0.75em;color:#9ca3af;margin-top:2px;">${escapeHtml(v2.url || v1.url || '')}</div>
                 </div>
                 
                 <div style="background:rgba(59,130,246,0.08);padding:12px 16px;border-radius:8px;margin-bottom:20px;border-left:3px solid #2563eb;">
-                    <div style="font-size:0.9em;color:#2563eb;font-weight:600;">📊 ${escapeHtml(summary)}</div>
+                    <div style="font-size:0.9em;color:#2563eb;font-weight:600;">${escapeHtml(summary)}</div>
                 </div>
                 
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
@@ -823,14 +823,14 @@
                 <div style="display:grid;grid-template-columns:1fr;gap:16px;">
                     ${compareResult.issues.resolved.length > 0 ? `
                         <div style="background:rgba(0,255,136,0.03);padding:12px 16px;border-radius:8px;border:1px solid rgba(0,255,136,0.1);">
-                            <div style="font-size:0.85em;color:#00ff88;font-weight:600;margin-bottom:8px;">✅ 已修复的问题 (${compareResult.issues.resolved.length})</div>
+                            <div style="font-size:0.85em;color:#00ff88;font-weight:600;margin-bottom:8px;"> 已修复的问题 (${compareResult.issues.resolved.length})</div>
                             ${compareResult.issues.resolved.map(i => renderIssueCard(i, 'resolved')).join('')}
                         </div>
                     ` : ''}
                     
                     ${compareResult.issues.new.length > 0 ? `
                         <div style="background:rgba(255,85,85,0.03);padding:12px 16px;border-radius:8px;border:1px solid rgba(255,85,85,0.1);">
-                            <div style="font-size:0.85em;color:#ff5555;font-weight:600;margin-bottom:8px;">❗ 新增的问题 (${compareResult.issues.new.length})</div>
+                            <div style="font-size:0.85em;color:#ff5555;font-weight:600;margin-bottom:8px;"> 新增的问题 (${compareResult.issues.new.length})</div>
                             ${compareResult.issues.new.map(i => renderIssueCard(i, 'new')).join('')}
                         </div>
                     ` : ''}
@@ -1015,7 +1015,7 @@
                 if (rdata.success && rdata.results) {
                     let html = '';
                     rdata.results.forEach(function(res) {
-                        const icon = res.status === 'completed' ? '✅' : (res.status === 'failed' ? '❌' : '⏳');
+                        const icon = res.status === 'completed' ? '' : (res.status === 'failed' ? '' : '⏳');
                         const score = res.total_score ? ' · <strong style="color:' + (res.total_score >= 80 ? '#16a34a' : (res.total_score >= 60 ? '#ca8a04' : '#dc2626')) + ';">' + res.total_score + '分</strong>' : '';
                         const titleColor = res.status === 'failed' ? '#dc2626' : '#374151';
                         const rawTitle = res.title || res.url || '';
@@ -1119,8 +1119,8 @@
                 const rankBorder = idx < 3 ? 'border-color:' + rankColors[idx] + '40;' : '';
                 const passed = (s.total_score || 0) >= PASS_LINE;
                 const statusBadge = passed 
-                    ? '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#dcfce7;color:#166534;font-weight:600;">✅ 合格</span>'
-                    : '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#fee2e2;color:#991b1b;font-weight:600;">❌ 不合格</span>';
+                    ? '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#dcfce7;color:#166534;font-weight:600;"> 合格</span>'
+                    : '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7em;background:#fee2e2;color:#991b1b;font-weight:600;"> 不合格</span>';
                 const scoreColor = s.total_score >= 80 ? '#16a34a' : (s.total_score >= 60 ? '#ca8a04' : '#dc2626');
                 const titleShort = (s.title || s.url || '未知').substring(0, 20) + ((s.title || s.url || '').length > 20 ? '...' : '');
                 html += '<div style="flex:1;min-width:160px;max-width:220px;padding:14px;border-radius:10px;border:1px solid #e5e7eb;' + rankBg + rankBorder + 'box-shadow:0 1px 3px rgba(0,0,0,0.04);">';
@@ -1173,7 +1173,7 @@
             
             // 总分行
             html += '<tr style="background:' + thBg + ';font-weight:700;border-top:2px solid #e5e7eb;">';
-            html += '<td style="padding:10px 8px;text-align:left;color:#1f2937;font-size:0.9em;white-space:nowrap;">🏆 总分</td>';
+            html += '<td style="padding:10px 8px;text-align:left;color:#1f2937;font-size:0.9em;white-space:nowrap;">总分</td>';
             sortedColKeys.forEach(function(k) {
                 const s = sortedScores.find(function(item) { return item.url === k; });
                 const total = s ? (s.total_score || 0) : 0;
@@ -1184,7 +1184,7 @@
             
             // 统计行：平均分
             html += '<tr style="border-top:1px dashed #e5e7eb;">';
-            html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">📊 平均分</td>';
+            html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">平均分</td>';
             sortedColKeys.forEach(function(k) {
                 const scores = data.matrix.map(function(row) { return row[k] || 0; });
                 const avg = scores.length ? (scores.reduce(function(a,b){return a+b;}, 0) / scores.length).toFixed(1) : 0;
@@ -1239,12 +1239,12 @@
                     mode: 'cors'
                 });
                 if (resp.ok) {
-                    document.getElementById('proxyStatus').textContent = '✅ 代理在线';
+                    document.getElementById('proxyStatus').textContent = ' 代理在线';
                     document.getElementById('proxyStatus').className = 'proxy-status online';
                     return true;
                 }
             } catch(e) {}
-            document.getElementById('proxyStatus').textContent = '❌ 代理离线';
+            document.getElementById('proxyStatus').textContent = ' 代理离线';
             document.getElementById('proxyStatus').className = 'proxy-status offline';
             return false;
         }
@@ -1334,8 +1334,8 @@
 
             let passed = null;
             // 精确匹配判定结果，避免在"通过标准"段落误匹配
-            if (/判定[：:]\s*✅\s*通过/.test(reportText)) passed = true;
-            else if (/判定[：:]\s*❌\s*待修改/.test(reportText)) passed = false;
+            if (/判定[：:]\s*\s*通过/.test(reportText)) passed = true;
+            else if (/判定[：:]\s*\s*待修改/.test(reportText)) passed = false;
 
             return { scores, totalScore, passed };
         }
@@ -1708,7 +1708,7 @@
                 document.getElementById('promptSection').classList.add('hidden');
                 
                 document.getElementById('resultCard').classList.remove('hidden');
-                setStatus('✅ AI 审核完成！', 'success');
+                setStatus(' AI 审核完成！', 'success');
                 lastReviewTime = Date.now();  // 记录成功审核时间
                 
                 // 保存到 IndexedDB 历史记录
@@ -1736,7 +1736,7 @@
                 }
                 
             } catch(err) {
-                setStatus('❌ ' + err.message, 'error');
+                setStatus(' ' + err.message, 'error');
                 console.error(err);
             } finally {
                 btn.disabled = false;
@@ -1802,10 +1802,10 @@
                 document.getElementById('rawReportContent').classList.add('hidden');
                 
                 document.getElementById('resultCard').classList.remove('hidden');
-                setStatus('✅ 内容提要生成完毕', 'success');
+                setStatus(' 内容提要生成完毕', 'success');
                 
             } catch(err) {
-                setStatus('❌ ' + err.message, 'error');
+                setStatus(' ' + err.message, 'error');
                 console.error(err);
             } finally {
                 btn.disabled = false;
@@ -1817,7 +1817,7 @@
         function copyReport() {
             if (!currentReport) return;
             navigator.clipboard.writeText(currentReport).then(() => {
-                setStatus('✅ 报告已复制到剪贴板！', 'success');
+                setStatus(' 报告已复制到剪贴板！', 'success');
             }).catch(() => {
                 fallbackCopy(currentReport);
             });
@@ -1826,7 +1826,7 @@
         function copyPrompt() {
             if (!currentPrompt) return;
             navigator.clipboard.writeText(currentPrompt).then(() => {
-                setStatus('✅ 提示词已复制到剪贴板！', 'success');
+                setStatus(' 提示词已复制到剪贴板！', 'success');
             }).catch(() => {
                 fallbackCopy(currentPrompt);
             });
@@ -1839,7 +1839,7 @@
             textarea.select();
             document.execCommand('copy');
             document.body.removeChild(textarea);
-            setStatus('✅ 已复制到剪贴板！', 'success');
+            setStatus(' 已复制到剪贴板！', 'success');
         }
         
         function toggleRawReport() {
@@ -1882,7 +1882,7 @@
                         <div>• R4 (60-69分)：存在较多问题，大幅修改后重新评审</div>
                         <div>• R5 (0-59分)：严重不达标，退回重写</div>
                     </div>
-                    <div class="std-item"><span class="std-dot"></span><span><strong>🔴 一票否决项</strong></span></div>
+                    <div class="std-item"><span class="std-dot"></span><span><strong>一票否决项</strong></span></div>
                     <div style="padding-left:18px;color:var(--text-tertiary);font-size:0.85em;">
                         <div>• 目标承诺维度为 0 分（未做出业绩承诺）</div>
                         <div>• 行动具体化维度低于 10 分（无责任人或无时间节点）</div>
@@ -1908,10 +1908,10 @@
             totalEl.textContent = scoreData.totalScore;
             
             if (scoreData.passed === true) {
-                badgeEl.textContent = '✅ 通过';
+                badgeEl.textContent = ' 通过';
                 badgeEl.className = 'analysis-status-badge pass';
             } else if (scoreData.passed === false) {
-                badgeEl.textContent = '❌ 待修改';
+                badgeEl.textContent = ' 待修改';
                 badgeEl.className = 'analysis-status-badge fail';
             } else {
                 badgeEl.textContent = '审核完成';
@@ -1956,7 +1956,7 @@
                 if (actionScore && actionScore.score < 10) vetoLines.push('行动具体化 ' + actionScore.score + ' 分 &lt; 10 分（无责任人或无时间节点）→ 一票否决 R5');
                 if (dataQualityScore && dataQualityScore.score < 5) vetoLines.push('数据质量 ' + dataQualityScore.score + ' 分 &lt; 5 分（重大错误导致决策误导）→ 一票否决 R5');
                 if (vetoLines.length > 0) {
-                    bottomLineHtml = `<span class="highlight-red">🔴 触发一票否决：</span><br>` + vetoLines.map(l => `• ${l}`).join('<br>');
+                    bottomLineHtml = `<span class="highlight-red">触发一票否决：</span><br>` + vetoLines.map(l => `• ${l}`).join('<br>');
                     bottomLineHtml += '<br><span style="color:#ff7777;font-size:0.85em;">一票否决项不修改到位，本次不予上会</span>';
                 } else {
                     // 未触发一票否决，显示 R 级评定
@@ -2075,33 +2075,33 @@
             // 问题定义
             const prob = facts.problem_definition;
             if (prob) {
-                items.push(renderFactItem(prob.has_problem_definition, prob.has_problem_definition ? '✓' : '✗', prob.has_problem_definition ? `问题定义：已检测到（${(prob.keywords_found || []).slice(0, 3).join('、')}）` : '问题定义：未明确检测到议题/问题/痛点描述'));
+                items.push(renderFactItem(prob.has_problem_definition, prob.has_problem_definition ? '' : '', prob.has_problem_definition ? `问题定义：已检测到（${(prob.keywords_found || []).slice(0, 3).join('、')}）` : '问题定义：未明确检测到议题/问题/痛点描述'));
             }
             
             // 目标-方案对齐
             const align = facts.solution_alignment;
             if (align) {
                 if (align.has_alignment) {
-                    items.push(renderFactItem(true, '✓', '目标-方案对齐：问题与解决方案均已检测到'));
+                    items.push(renderFactItem(true, '', '目标-方案对齐：问题与解决方案均已检测到'));
                 } else if (align.has_problem && !align.has_solution) {
-                    items.push(renderFactItem(false, '✗', '目标-方案对齐：有问题描述但缺少对应解决方案'));
+                    items.push(renderFactItem(false, '', '目标-方案对齐：有问题描述但缺少对应解决方案'));
                 } else if (!align.has_problem && align.has_solution) {
-                    items.push(renderFactItem(false, '✗', '目标-方案对齐：有解决方案但缺少问题定义'));
+                    items.push(renderFactItem(false, '', '目标-方案对齐：有解决方案但缺少问题定义'));
                 } else {
-                    items.push(renderFactItem(false, '✗', '目标-方案对齐：未检测到明确的问题和解决方案'));
+                    items.push(renderFactItem(false, '', '目标-方案对齐：未检测到明确的问题和解决方案'));
                 }
             }
             
             // 数据支撑
             const data = facts.data_support;
             if (data) {
-                items.push(renderFactItem(data.has_data_support, data.has_data_support ? '✓' : '✗', data.has_data_support ? `数据支撑：检测到 ${data.data_count || 0} 处量化数据` : '数据支撑：未检测到量化数据（百分比/金额/数量等）'));
+                items.push(renderFactItem(data.has_data_support, data.has_data_support ? '' : '', data.has_data_support ? `数据支撑：检测到 ${data.data_count || 0} 处量化数据` : '数据支撑：未检测到量化数据（百分比/金额/数量等）'));
             }
             
             // 决策逻辑
             const logic = facts.decision_logic;
             if (logic) {
-                items.push(renderFactItem(logic.has_decision_logic, logic.has_decision_logic ? '✓' : '✗', logic.has_decision_logic ? '决策逻辑：已检测到推理/结论表述' : '决策逻辑：未检测到明确的分析推理过程'));
+                items.push(renderFactItem(logic.has_decision_logic, logic.has_decision_logic ? '' : '', logic.has_decision_logic ? '决策逻辑：已检测到推理/结论表述' : '决策逻辑：未检测到明确的分析推理过程'));
             }
             
             // 行动具体化
@@ -2114,7 +2114,7 @@
                 if (parts.length > 0) {
                     items.push(renderFactItem(null, '•', `行动具体化：${parts.join(' | ')}`, 'info'));
                 } else {
-                    items.push(renderFactItem(false, '✗', '行动具体化：未检测到具体行动安排'));
+                    items.push(renderFactItem(false, '', '行动具体化：未检测到具体行动安排'));
                 }
             }
             
@@ -2127,9 +2127,9 @@
                 if (fmt.has_tables) parts.push('表格');
                 if (fmt.has_paragraphs) parts.push('分段');
                 if (parts.length > 0) {
-                    items.push(renderFactItem(true, '✓', `材料格式：${parts.join(' | ')}`));
+                    items.push(renderFactItem(true, '', `材料格式：${parts.join(' | ')}`));
                 } else {
-                    items.push(renderFactItem(false, '✗', '材料格式：结构混乱，缺少标题/列表/表格'));
+                    items.push(renderFactItem(false, '', '材料格式：结构混乱，缺少标题/列表/表格'));
                 }
             }
             
@@ -2138,14 +2138,14 @@
             const comp = facts.completeness;
             if (comp) {
                 const pass = comp.has_all_modules;
-                items.push(renderFactItem(pass, pass ? '✓' : '✗', pass ? `5大模块齐全（${comp.found_count}/${comp.total_count}）` : `模块缺失：${comp.found_count}/${comp.total_count}，缺少：${(comp.missing || []).join('、')}`));
+                items.push(renderFactItem(pass, pass ? '' : '', pass ? `5大模块齐全（${comp.found_count}/${comp.total_count}）` : `模块缺失：${comp.found_count}/${comp.total_count}，缺少：${(comp.missing || []).join('、')}`));
             }
             
             // 根因分析工具
             const tools = facts.root_cause_tools;
             if (tools) {
                 const pass = tools.has_tool;
-                items.push(renderFactItem(pass, pass ? '✓' : '✗', pass ? `根因分析工具：${(tools.tools_found || []).join('、')}` : '根因分析工具：未检测到 5Why/鱼骨图/漏斗分析'));
+                items.push(renderFactItem(pass, pass ? '' : '', pass ? `根因分析工具：${(tools.tools_found || []).join('、')}` : '根因分析工具：未检测到 5Why/鱼骨图/漏斗分析'));
             }
             
             // 归因
@@ -2161,13 +2161,13 @@
             // 里程碑
             const ms = facts.milestones;
             if (ms) {
-                items.push(renderFactItem(ms.has_milestone, ms.has_milestone ? '✓' : '✗', ms.has_milestone ? '里程碑/验收标准：已检测到' : '里程碑/验收标准：未检测到'));
+                items.push(renderFactItem(ms.has_milestone, ms.has_milestone ? '' : '', ms.has_milestone ? '里程碑/验收标准：已检测到' : '里程碑/验收标准：未检测到'));
             }
             
             // SP引用
             const sp = facts.sp_reference;
             if (sp) {
-                items.push(renderFactItem(sp.has_sp_reference, sp.has_sp_reference ? '✓' : '✗', sp.has_sp_reference ? 'SP/战略引用：已检测到' : 'SP/战略引用：未检测到'));
+                items.push(renderFactItem(sp.has_sp_reference, sp.has_sp_reference ? '' : '', sp.has_sp_reference ? 'SP/战略引用：已检测到' : 'SP/战略引用：未检测到'));
             }
             
             // 资源需求
@@ -2176,7 +2176,7 @@
                 const parts = [];
                 const labels = {hr: '人力', budget: '预算', training: '培训', policy: '政策支持'};
                 for (const key of ['hr', 'budget', 'training', 'policy']) {
-                    parts.push(`${res[key] && res[key].has ? '✓' : '✗'}${labels[key]}`);
+                    parts.push(`${res[key] && res[key].has ? '' : ''}${labels[key]}`);
                 }
                 items.push(renderFactItem(null, '•', `资源需求：${parts.join(' | ')}`, 'info'));
             }
@@ -2184,19 +2184,19 @@
             // 硬缺口方案
             const gap = facts.hard_gap_plan;
             if (gap) {
-                items.push(renderFactItem(gap.has_gap_plan, gap.has_gap_plan ? '✓' : '✗', gap.has_gap_plan ? '硬缺口应对方案：已检测到' : '硬缺口应对方案：未检测到'));
+                items.push(renderFactItem(gap.has_gap_plan, gap.has_gap_plan ? '' : '', gap.has_gap_plan ? '硬缺口应对方案：已检测到' : '硬缺口应对方案：未检测到'));
             }
             
             // 表格
             const tbl = facts.tables;
             if (tbl) {
-                items.push(renderFactItem(tbl.has_tables, tbl.has_tables ? '✓' : '✗', tbl.has_tables ? `数据表格：已检测到（${tbl.table_line_count || 0} 行表格）` : '数据表格：未检测到'));
+                items.push(renderFactItem(tbl.has_tables, tbl.has_tables ? '' : '', tbl.has_tables ? `数据表格：已检测到（${tbl.table_line_count || 0} 行表格）` : '数据表格：未检测到'));
             }
             
             // 同比环比
             const qoq = facts.quarter_over_quarter;
             if (qoq) {
-                items.push(renderFactItem(qoq.has_qoq, qoq.has_qoq ? '✓' : '✗', qoq.has_qoq ? '同比/环比数据：已检测到' : '同比/环比数据：未检测到'));
+                items.push(renderFactItem(qoq.has_qoq, qoq.has_qoq ? '' : '', qoq.has_qoq ? '同比/环比数据：已检测到' : '同比/环比数据：未检测到'));
             }
             
             box.innerHTML = items.join('');
@@ -2311,11 +2311,11 @@
                 };
                 
                 await html2pdf().set(opt).from(container).save();
-                setStatus('✅ PDF 导出成功', 'success');
+                setStatus(' PDF 导出成功', 'success');
                 
             } catch (err) {
                 console.error('PDF导出失败:', err);
-                setStatus('❌ PDF 导出失败: ' + err.message, 'error');
+                setStatus(' PDF 导出失败: ' + err.message, 'error');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -2436,9 +2436,9 @@
                 const temp = cfg.temperature !== undefined ? cfg.temperature : '0.3';
                 document.getElementById('configSummary').textContent = `${model} · temp=${temp}`;
                 
-                setConfigStatus('✅ 配置已加载', 'success');
+                setConfigStatus(' 配置已加载', 'success');
             } catch(err) {
-                setConfigStatus('⚠️ 后端连接失败，使用本地配置', 'error');
+                setConfigStatus(' 后端连接失败，使用本地配置', 'error');
                 document.getElementById('configSummary').textContent = '本地模式';
             }
         }
@@ -2468,7 +2468,7 @@
             if (timeout !== '') updates.api_timeout = parseInt(timeout);
             
             if (Object.keys(updates).length === 0) {
-                setConfigStatus('⚠️ 没有要保存的更改', 'error');
+                setConfigStatus(' 没有要保存的更改', 'error');
                 return;
             }
             
@@ -2484,11 +2484,11 @@
                     throw new Error(data.error || '保存失败');
                 }
                 
-                setConfigStatus('✅ 配置已保存', 'success');
+                setConfigStatus(' 配置已保存', 'success');
                 // 重新加载以显示脱敏后的值和更新摘要
                 await loadConfig();
             } catch(err) {
-                setConfigStatus('❌ ' + err.message, 'error');
+                setConfigStatus(' ' + err.message, 'error');
             }
         }
         

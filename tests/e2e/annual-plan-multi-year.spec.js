@@ -86,7 +86,6 @@ test.describe('年度经营计划 - 多年度切换', () => {
     await page.locator('[data-action="ap-add-keytask"]').click();
     await page.waitForTimeout(300);
     await page.locator('#ap-kt-name').fill('2027专属测试重点工作');
-    await page.locator('#ap-kt-seq').fill('99');
     await page.locator('[data-modal-action="modal-save-keytask"]').click();
     await page.waitForTimeout(500);
 

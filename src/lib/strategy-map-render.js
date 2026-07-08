@@ -4,6 +4,7 @@
  */
 
 import { DIM_CONFIG, DIM_ORDER, statusText } from './strategy-map-data.js';
+import { icon } from '../../assets/js/icons.js';
 import { renderPerson } from './employee-directory.js';
 
 // ========== 工具函数 ==========
@@ -138,7 +139,7 @@ export function buildCard({ obj, year, allExpanded, currentView, hasChildren = f
   let badge = '';
   if (year) {
     const fl = ms[year]?.focusLevel;
-    if (fl === 'primary') badge = `<span class="obj-focus primary">🔥 重点</span>`;
+    if (fl === 'primary') badge = `<span class="obj-focus primary">${icon('fire', {size: 14})} 重点</span>`;
     else if (fl === 'secondary') badge = `<span class="obj-focus secondary">○ 次要</span>`;
   }
 
@@ -273,10 +274,10 @@ export function drawLinks({ links, objectives, visibleIds, svgId, canvasId }) {
 // ========== 详情面板内容 ==========
 export function renderDetailPanel(obj, isEditMode = false) {
   const dimNames = {
-    fin: '💰 财务维度',
-    cus: '🤝 客户维度',
-    int: '⚙️ 内部流程维度',
-    lea: '📚 学习与成长维度'
+    fin: `${icon('currencyDollar', {size: 14})} 财务维度`,
+    cus: `${icon('handshake', {size: 14})} 客户维度`,
+    int: `${icon('settings', {size: 14})} 内部流程维度`,
+    lea: `${icon('books', {size: 14})} 学习与成长维度`
   };
   const ms = obj.milestones || {};
   const years = [2025, 2026, 2027];
@@ -292,9 +293,9 @@ export function renderDetailPanel(obj, isEditMode = false) {
     </tr>`;
   }).join('');
 
-  const kpiBadge = obj.kpiRef ? `<span class="detail-tag">📊 已关联 KPI</span>` : `<span class="detail-tag" title="暂支持与 KPI/重点任务系统打通">🔌 未接入</span>`;
+  const kpiBadge = obj.kpiRef ? `<span class="detail-tag">${icon('chartBar', {size: 14})} 已关联 KPI</span>` : `<span class="detail-tag" title="暂支持与 KPI/重点任务系统打通">${icon('plug', {size: 14})} 未接入</span>`;
   const editButton = isEditMode
-    ? `<div style="margin-top:20px;"><button class="btn btn-primary" data-action="edit-obj" data-id="${obj.id}">✏️ 编辑目标</button></div>`
+    ? `<div style="margin-top:20px;"><button class="btn btn-primary" data-action="edit-obj" data-id="${obj.id}">${icon('pencil-simple', {size: 14})} 编辑目标</button></div>`
     : '';
 
   return `
@@ -302,14 +303,14 @@ export function renderDetailPanel(obj, isEditMode = false) {
     <div class="detail-name">${escapeHtml(obj.name)}</div>
     <div class="detail-desc">${escapeHtml(obj.desc)}</div>
     <div class="detail-section">
-      <div class="detail-section-title">📅 年度里程碑（2025-2027）</div>
+      <div class="detail-section-title">${icon('calendar', {size: 14})} 年度里程碑（2025-2027）</div>
       <table class="ms-table">
         <tr><th>年份</th><th>目标值</th><th>实际值</th><th>状态</th><th>重点级别</th></tr>
         ${rows}
       </table>
     </div>
-    <div class="detail-section"><div class="detail-section-title">👤 负责人</div><span class="detail-tag">${escapeHtml(renderPerson(obj.owner)) || '未指定'}</span></div>
-    <div class="detail-section"><div class="detail-section-title">🔗 系统关联</div>${kpiBadge}</div>
+    <div class="detail-section"><div class="detail-section-title">${icon('userPlain', {size: 14})} 负责人</div><span class="detail-tag">${escapeHtml(renderPerson(obj.owner)) || '未指定'}</span></div>
+    <div class="detail-section"><div class="detail-section-title">${icon('link', {size: 14})} 系统关联</div>${kpiBadge}</div>
     ${editButton}
   `;
 }

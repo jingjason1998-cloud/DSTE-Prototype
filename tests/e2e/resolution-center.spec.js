@@ -13,7 +13,7 @@ test.describe('Resolution Center Drawer', () => {
     await totalCard.click();
 
     // 验证抽屉标题
-    await expect(page.locator('text=📋 决议中心').first()).toBeVisible();
+    await expect(page.locator('text=决议中心').first()).toBeVisible();
 
     // 验证精简后的 3 状态筛选 pills 存在
     for (const label of ['全部', '待审批', '已通过', '已闭环']) {

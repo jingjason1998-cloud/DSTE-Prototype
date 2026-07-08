@@ -7,6 +7,7 @@
  */
 
 import { renderPerson } from '../../lib/employee-directory.js';
+import { icon } from '../../../assets/js/icons.js';
 
 /**
  * 根据通知类型和数据渲染企业微信 markdown 消息
@@ -30,7 +31,7 @@ export function renderNotificationMessage(type, data) {
             ? '已执行'
             : '待审批';
       return (
-        `## 📋 决议推送\n` +
+        `## ${icon('clipboardText', {size: 14})} 决议推送\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**内容：**${data.content}\n` +
         `**负责人：**${renderPerson(data.owner)}\n` +
@@ -56,7 +57,7 @@ export function renderNotificationMessage(type, data) {
             : `距截止还有 ${data.daysLeft} 天`
           : '若干天';
       return (
-        `## ⏰ 待办提醒\n` +
+        `## ${icon('clock', {size: 14})} 待办提醒\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**内容：**${data.content}\n` +
         `**负责人：**${renderPerson(data.owner)}\n` +
@@ -67,17 +68,17 @@ export function renderNotificationMessage(type, data) {
 
     case 'alert-meeting':
       return (
-        `## ⚠️ 会议预警\n` +
+        `## ${icon('warning', {size: 14})} 会议预警\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**问题：**${data.stepLabel} 尚未完成\n` +
         `**逾期：**<font color="warning">${data.daysOverdue} 天</font>\n` +
         `**会议日期：**${data.meetingDate}\n` +
-        `> 💡 请尽快推进！`
+        `> ${icon('lightbulb', {size: 14})} 请尽快推进！`
       );
 
     case 'alert-action':
       return (
-        `## ⚠️ 行动项预警\n` +
+        `## ${icon('warning', {size: 14})} 行动项预警\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**行动项：**${data.content}\n` +
         `**负责人：**${renderPerson(data.owner)}\n` +
@@ -88,7 +89,7 @@ export function renderNotificationMessage(type, data) {
     case 'agenda': {
       const modeTip = data.mode === 'material' ? '请提前准备议程材料' : data.mode === 'change' ? '议程信息已更新，请留意' : '请准时参加议程讨论';
       return (
-        `## 📋 议程通知\n` +
+        `## ${icon('clipboardText', {size: 14})} 议程通知\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**议程：**${data.agendaTitle}\n` +
         `**类型：**${data.agendaType || '其他'}\n` +
@@ -96,7 +97,7 @@ export function renderNotificationMessage(type, data) {
         `**负责人：**${renderPerson(data.owner)}\n` +
         (data.speaker ? `**演讲人：**${data.speaker}\n` : '') +
         (data.materialLink ? `**材料：**[查看材料](${data.materialLink})\n` : '') +
-        `> 💡 ${modeTip}`
+        `> ${icon('lightbulb', {size: 14})} ${modeTip}`
       );
     }
 
@@ -105,12 +106,12 @@ export function renderNotificationMessage(type, data) {
         `${i + 1}. 【${a.type || '其他'}】${a.title}（${a.duration || 0}min）— 负责人：${renderPerson(a.owner)}`
       ).join('\n');
       return (
-        `## 📋 会议议程总览\n` +
+        `## ${icon('clipboardText', {size: 14})} 会议议程总览\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**日期：**${data.meetingDate || '待定'}\n` +
         (data.location ? `**地点：**${data.location}\n` : '') +
         `\n**议程列表：**\n${items || '> 暂无议程'}\n\n` +
-        `> 📌 合计 ${data.totalDuration || 0} 分钟，共 ${(data.agendaItems || []).length} 项议程`
+        `> ${icon('pushPin', {size: 14})} 合计 ${data.totalDuration || 0} 分钟，共 ${(data.agendaItems || []).length} 项议程`
       );
     }
 

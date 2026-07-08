@@ -4,6 +4,7 @@
  */
 
 import { getMeetings } from '../data-store.js';
+import { icon } from '../../../assets/js/icons.js';
 import { renderPerson } from '../../lib/employee-directory.js';
 
 const FILTER_TABS = [
@@ -55,7 +56,7 @@ function renderPendingActionsList(meetingsData, filter = 'pending') {
 
   if (items.length === 0) {
     return renderPendingActionsTabs(filter) +
-      '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">🎉 暂无行动项</div>';
+      `<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">${icon('confetti', {size: 14})} 暂无行动项</div>`;
   }
 
   return renderPendingActionsTabs(filter) + items.map((a, i) => {
@@ -63,8 +64,8 @@ function renderPendingActionsList(meetingsData, filter = 'pending') {
     let _timeTag = '';
     if (!_isCompleted && a.deadline) {
       const _daysLeft = Math.ceil((new Date(a.deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
-      if (_daysLeft < 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">⚠️ 已逾期 ${Math.abs(_daysLeft)} 天</span>`;
-      else if (_daysLeft === 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">🔥 今天到期</span>`;
+      if (_daysLeft < 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">${icon('warning', {size: 14})} 已逾期 ${Math.abs(_daysLeft)} 天</span>`;
+      else if (_daysLeft === 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">${icon('fire', {size: 14})} 今天到期</span>`;
       else if (_daysLeft <= 3) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,34,45,0.12); color: var(--danger); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
       else if (_daysLeft <= 7) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,158,11,0.12); color: var(--warning); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
       else _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(34,197,94,0.12); color: var(--success); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
@@ -74,7 +75,7 @@ function renderPendingActionsList(meetingsData, filter = 'pending') {
     const _borderColor = _isCompleted ? 'var(--success)' : _statusCfg.color;
     const _bgMix = `color-mix(in srgb, ${_statusCfg.color} 15%, transparent)`;
     const _completedHint = _isCompleted
-      ? `<span style="font-size: 11px; color: var(--success); font-weight: 500;">✅ 已完成${a.completedAt ? ' · ' + formatCompletedAt(a.completedAt) : ''}</span>`
+      ? `<span style="font-size: 11px; color: var(--success); font-weight: 500;">${icon('check', {size: 14})} 已完成${a.completedAt ? ' · ' + formatCompletedAt(a.completedAt) : ''}</span>`
       : '';
 
     return `
@@ -93,8 +94,8 @@ function renderPendingActionsList(meetingsData, filter = 'pending') {
       </div>
       <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">${escapeHtml(a.content)}</div>
       <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
-        <span>👤 ${escapeHtml(renderPerson(a.owner))}</span>
-        <span>📅 ${a.deadline || '未设置'}</span>
+        <span>${icon('userPlain', {size: 14})} ${escapeHtml(renderPerson(a.owner))}</span>
+        <span>${icon('calendar', {size: 14})} ${a.deadline || '未设置'}</span>
       </div>
       <div id="action-note-display-${a.meetingId}-${a.actionIdx}" data-action-note="${i}" style="margin-top: 8px;">
         <div style="padding: 8px 10px; background: var(--bg-card); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">${a.progressNote ? escapeHtml(a.progressNote) : '<span style="color: var(--text-tertiary);">暂无更新说明</span>'}</div>
@@ -124,7 +125,7 @@ function getPendingActionsTitle(filter, meetings) {
   } else {
     count = allActions.length;
   }
-  return `🔔 行动项 (${tabLabel} ${count})`;
+  return `${icon('notification', {size: 14})} 行动项 (${tabLabel} ${count})`;
 }
 
 function refreshPendingActionsList() {

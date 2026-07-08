@@ -4,6 +4,7 @@
  */
 
 import { getScoreColor, getScoreLabel } from '../utils/scoring.js';
+import { icon } from '../../../assets/js/icons.js';
 import {
   computeMeetingReadiness,
   getMaterialScore,
@@ -30,7 +31,7 @@ function renderPersonSafe(value) {
 function renderDetailHeader(m, sc, st) {
   return `
     <span style="font-size: 18px; font-weight: 700; color: var(--text-primary);">${m.title}</span>
-    <span style="padding: 1px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: ${sc.color || 'var(--text-tertiary)'}18; color: ${sc.color || 'var(--text-tertiary)'};">${sc.icon || '📋'} ${sc.label || m.scenario}</span>
+    <span style="padding: 1px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: ${sc.color || 'var(--text-tertiary)'}18; color: ${sc.color || 'var(--text-tertiary)'};">${sc.icon ? icon(sc.icon, {size: 14}) : icon('clipboardText', {size: 14})} ${sc.label || m.scenario}</span>
     <span class="status-badge ${st.badgeClass}">${st.label}</span>
   `;
 }
@@ -40,7 +41,7 @@ function renderPipelineSummary(m) {
   const steps = PIPELINE_STEPS();
   const done = steps.filter((s) => m.pipeline[s.key]).length;
   return `<div style="display: flex; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px dashed var(--border-light);">
-    <span style="font-size: 12px; color: var(--text-secondary); min-width: 48px; flex-shrink: 0;">📊 流程</span>
+    <span style="font-size: 12px; color: var(--text-secondary); min-width: 48px; flex-shrink: 0;">${icon('chartBar', {size: 14})} 流程</span>
     <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
       <div style="flex: 1; height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden;">
         <div style="width: ${Math.round((done / steps.length) * 100)}%; height: 100%; background: ${done === steps.length ? 'var(--success)' : 'var(--primary)'}; border-radius: 2px;"></div>
@@ -88,26 +89,26 @@ function renderInfoPanel(m, st) {
   }
 
   const rows = [
-    ['📅', '日期', m.date],
-    ['📍', '地点', m.location || '待确认'],
-    ['👤', '主持人', renderPersonSafe(m.host)],
-    ['📝', '记录人', renderPersonSafe(m.recorder)],
-    ['🏢', '层级', m.level],
-    ['📊', '状态', `<span class="status-badge ${st.badgeClass}">${st.label}</span>`],
-    ['🔗', 'KMS', m.meeting_link
+    [`${icon('calendar', {size: 14})}`, '日期', m.date],
+    [`${icon('mapPin', {size: 14})}`, '地点', m.location || '待确认'],
+    [`${icon('userPlain', {size: 14})}`, '主持人', renderPersonSafe(m.host)],
+    [`${icon('fileText', {size: 14})}`, '记录人', renderPersonSafe(m.recorder)],
+    [`${icon('buildings', {size: 14})}`, '层级', m.level],
+    [`${icon('chartBar', {size: 14})}`, '状态', `<span class="status-badge ${st.badgeClass}">${st.label}</span>`],
+    [`${icon('link', {size: 14})}`, 'KMS', m.meeting_link
       ? `<a href="${m.meeting_link}" target="_blank" style="color: var(--primary); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 140px;">${m.meeting_link.replace(/^https?:\/\//, '')}</a>`
       : '<span style="font-size: 12px; color: var(--text-tertiary);">未设置</span>'],
-    ['📋', '会前准备', `<span style="font-size: 12px; font-weight: 600; color: ${readinessColor};">${readiness.percentage}% · ${readinessLabel}</span>`],
-    ['🔍', '材料审核', reviewSummaryHtml],
-    ['⭐', '评估', evalHtml],
+    [`${icon('clipboardText', {size: 14})}`, '会前准备', `<span style="font-size: 12px; font-weight: 600; color: ${readinessColor};">${readiness.percentage}% · ${readinessLabel}</span>`],
+    [`${icon('search', {size: 14})}`, '材料审核', reviewSummaryHtml],
+    [`${icon('star', {size: 14})}`, '评估', evalHtml],
   ];
 
   const bottomButton = m.status === 'completed'
     ? `<div style="padding: 10px 0 4px; text-align: center;">
-        <button type="button" onclick="window.openMeetingEvalModal('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--warning); border-radius: 6px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; font-weight: 500; width: 100%;">${m.effectiveness ? '⭐ 重新评估' : '⭐ 评估会议'}</button>
+        <button type="button" onclick="window.openMeetingEvalModal('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--warning); border-radius: 6px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; font-weight: 500; width: 100%;">${icon('star', {size: 14})} ${m.effectiveness ? '重新评估' : '评估会议'}</button>
       </div>`
     : `<div style="padding: 10px 0 4px; text-align: center;">
-        <button type="button" onclick="window.openMeetingPreparation('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500; width: 100%;">📋 会前准备</button>
+        <button type="button" onclick="window.openMeetingPreparation('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500; width: 100%;">${icon('clipboardText', {size: 14})} 会前准备</button>
       </div>`;
 
   return `
@@ -134,7 +135,7 @@ function renderPipelineSteps(m) {
   return `
     <div style="padding: 12px 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light);">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-        <span style="font-size: 13px; font-weight: 600;">📊 一报一会流程</span>
+        <span style="font-size: 13px; font-weight: 600;">${icon('chartBar', {size: 14})} 一报一会流程</span>
         <span style="font-size: 11px; color: ${doneCount === total ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total}</span>
       </div>
       <div style="display: flex; align-items: center; justify-content: space-between; position: relative; padding: 0 2px;">
@@ -145,7 +146,7 @@ function renderPipelineSteps(m) {
           return `
             <div onclick="window.togglePipelineStep('${m.id}', '${step.key}')" title="点击切换状态"
               style="display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; position: relative; z-index: 1; flex: 1; max-width: 60px;">
-              <span style="width: 16px; height: 16px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : '#fff'}; color: ${isDone ? '#fff' : isCurrent ? '#fff' : 'var(--text-tertiary)'}; display: flex; align-items: center; justify-content: center; font-size: 9px; border: 2px solid ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border-light)'};">${isDone ? '✓' : step.icon}</span>
+              <span style="width: 16px; height: 16px; border-radius: 50%; background: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : '#fff'}; color: ${isDone ? '#fff' : isCurrent ? '#fff' : 'var(--text-tertiary)'}; display: flex; align-items: center; justify-content: center; font-size: 9px; border: 2px solid ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border-light)'};">${isDone ? icon('check', {size: 14}) : step.icon}</span>
               <span style="font-size: 10px; color: ${isDone ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight: ${isCurrent ? '600' : '400'}; text-align: center; line-height: 1.2;">${step.label}</span>
             </div>
           `;
@@ -188,14 +189,14 @@ function renderAgendaItem(m, a, i, time) {
           ${reviewStatusBadge}
         </div>
         <div style="display: flex; gap: 12px; font-size: 11px; color: var(--text-secondary); flex-wrap: wrap;">
-          ${a.speaker ? `<span>👤 ${a.speaker}</span>` : ''}
-          ${a.material_link ? `<span>📎 <a href="${a.material_link}" target="_blank" style="color: var(--primary);">材料</a></span>` : ''}
-          ${a.purpose ? `<span>🎯 ${a.purpose}</span>` : ''}
+          ${a.speaker ? `<span>${icon('userPlain', {size: 14})} ${a.speaker}</span>` : ''}
+          ${a.material_link ? `<span>${icon('paperclip', {size: 14})} <a href="${a.material_link}" target="_blank" style="color: var(--primary);">材料</a></span>` : ''}
+          ${a.purpose ? `<span>${icon('target', {size: 14})} ${a.purpose}</span>` : ''}
           <span style="color: var(--primary);">${a.duration}分钟</span>
           ${sourceHint ? `<span style="color: var(--warning);">${sourceHint}</span>` : ''}
         </div>
       </div>
-      <button type="button" onclick="event.stopPropagation(); window.pushAgenda('${m.id}', ${i})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0; white-space: nowrap;">📢 推送</button>
+      <button type="button" onclick="event.stopPropagation(); window.pushAgenda('${m.id}', ${i})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0; white-space: nowrap;">${icon('broadcast', {size: 14})} 推送</button>
     </div>
   `;
 }
@@ -211,11 +212,11 @@ function renderAgendaSection(m) {
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 16px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <div>
-          <span style="font-size: 15px; font-weight: 700;">📋 会议议程</span>
+          <span style="font-size: 15px; font-weight: 700;">${icon('clipboardText', {size: 14})} 会议议程</span>
           <span style="font-size: 12px; color: var(--text-secondary); margin-left: 8px;">共 ${agendaCompletion.total} 项 · ${agendaTotalMinutes} 分钟</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button type="button" onclick="event.stopPropagation(); window.pushAgendaMeeting('${m.id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">📢 推送议程</button>
+          <button type="button" onclick="event.stopPropagation(); window.pushAgendaMeeting('${m.id}')" style="padding: 4px 10px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer;">${icon('broadcast', {size: 14})} 推送议程</button>
           <span style="font-size: 12px; color: var(--text-secondary);">已完成 ${agendaCompletion.completed} / ${agendaCompletion.total}${postponedHint}</span>
           <svg width="28" height="28" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--border-light)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" stroke-width="3" stroke-dasharray="0 94"/></svg>
         </div>
@@ -234,7 +235,7 @@ function renderMinutesSection(m) {
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-minutes')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 14px; font-weight: 600;">📄 纪要</span>
+          <span style="font-size: 14px; font-weight: 600;">${icon('fileText', {size: 14})} 纪要</span>
           ${m.minutesStatus ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: ${m.minutesStatus === 'final' ? 'var(--success-light)' : 'var(--warning-light)'}; color: ${m.minutesStatus === 'final' ? 'var(--success)' : 'var(--warning)'};">${m.minutesStatus === 'final' ? '已定稿' : '起草中'}</span>` : ''}
         </div>
         <span id="detail-minutes-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
@@ -252,12 +253,12 @@ function renderActionItem(m, a, idx, arr) {
   const sourceAgenda = (m.agenda_items || []).find((x) => x.id && x.id === a.sourceAgendaId);
   const sourceDecision = (m.decisions || []).find((x) => x.id && x.id === a.sourceDecisionId);
   const sourceTags = [];
-  if (sourceAgenda) sourceTags.push(`📋 ${escapeHtml((sourceAgenda.title || '议题').slice(0, 16))}`);
-  if (sourceDecision) sourceTags.push(`📋 ${escapeHtml((sourceDecision.content || '决议').slice(0, 16))}`);
+  if (sourceAgenda) sourceTags.push(`${icon('clipboardText', {size: 14})} ${escapeHtml((sourceAgenda.title || '议题').slice(0, 16))}`);
+  if (sourceDecision) sourceTags.push(`${icon('clipboardText', {size: 14})} ${escapeHtml((sourceDecision.content || '决议').slice(0, 16))}`);
 
   const progressRow = a.progressNote || sourceTags.length
     ? `<div style="margin-top: 4px; font-size: 11px; color: var(--text-tertiary); padding-left: 24px; display: flex; gap: 10px; flex-wrap: wrap;">
-        ${a.progressNote ? `<span>📝 ${escapeHtml(a.progressNote)}</span>` : ''}
+        ${a.progressNote ? `<span>${icon('fileText', {size: 14})} ${escapeHtml(a.progressNote)}</span>` : ''}
         ${sourceTags.map((t) => `<span>${t}</span>`).join('')}
       </div>`
     : '';
@@ -266,10 +267,10 @@ function renderActionItem(m, a, idx, arr) {
     <div style="padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
-        <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? '✅' : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
+        <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? `${icon('check', {size: 14})}` : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
         <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.content || '')}</span>
         <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${renderPersonSafe(a.owner)} · ${escapeHtml(a.deadline || '未定')}</span>
-        <button type="button" onclick="event.stopPropagation(); window.pushTodoReminder('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0;">⏰ 提醒</button>
+        <button type="button" onclick="event.stopPropagation(); window.pushTodoReminder('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0;">${icon('clock', {size: 14})} 提醒</button>
       </div>
       ${progressRow}
     </div>
@@ -283,7 +284,7 @@ function renderActionsSection(m) {
   return `
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-actions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-        <span style="font-size: 14px; font-weight: 600;">✅ 行动项${actionCount > 0 ? '（' + actionCount + '项）' : ''}</span>
+        <span style="font-size: 14px; font-weight: 600;">${icon('check', {size: 14})} 行动项${actionCount > 0 ? '（' + actionCount + '项）' : ''}</span>
         <span id="detail-actions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
       </div>
       <div id="detail-actions" style="padding: 0 16px 12px;">
@@ -299,11 +300,11 @@ function renderDecisionItem(m, d, idx, arr) {
   return `
     <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
       <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
-      <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? '✅' : '⏳'}</span>
+      <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? `${icon('check', {size: 14})}` : '⏳'}</span>
       <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.content}</span>
-      ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" onclick="event.stopPropagation()" title="打开 KMS 文档" style="font-size: 12px; color: var(--primary); text-decoration: none; flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--primary-light); border-radius: 4px; background: var(--primary-light);">🔗 KMS</a>` : ''}
+      ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" onclick="event.stopPropagation()" title="打开 KMS 文档" style="font-size: 12px; color: var(--primary); text-decoration: none; flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--primary-light); border-radius: 4px; background: var(--primary-light);">${icon('link', {size: 14})} KMS</a>` : ''}
       <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${renderPersonSafe(d.owner || d.decider)} · ${d.deadline || d.decision_date || '未定'}</span>
-      <button type="button" onclick="event.stopPropagation(); window.pushResolution('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; flex-shrink: 0;">📢 推送</button>
+      <button type="button" onclick="event.stopPropagation(); window.pushResolution('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--success); border-radius: 4px; background: rgba(34,197,94,0.08); color: var(--success); cursor: pointer; flex-shrink: 0;">${icon('broadcast', {size: 14})} 推送</button>
     </div>
   `;
 }
@@ -315,7 +316,7 @@ function renderDecisionsSection(m) {
   return `
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-decisions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-        <span style="font-size: 14px; font-weight: 600;">📋 决议${decisionCount > 0 ? '（' + decisionCount + '项）' : ''}</span>
+        <span style="font-size: 14px; font-weight: 600;">${icon('clipboardText', {size: 14})} 决议${decisionCount > 0 ? '（' + decisionCount + '项）' : ''}</span>
         <span id="detail-decisions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
       </div>
       <div id="detail-decisions" style="padding: 0 16px 12px;">
@@ -381,13 +382,13 @@ function renderEvalSection(m) {
 function renderChainCard(meeting, direction, missing = false) {
   if (!meeting) {
     const label = missing
-      ? (direction === 'upstream' ? '⬆️ 上游未找到' : '⬇️ 下游未找到')
-      : (direction === 'upstream' ? '⬆️ 无上游' : '⬇️ 无下游');
+      ? (direction === 'upstream' ? `${icon('arrowUp', {size: 14})} 上游未找到` : `${icon('arrowDown', {size: 14})} 下游未找到`)
+      : (direction === 'upstream' ? `${icon('arrowUp', {size: 14})} 无上游` : `${icon('arrowDown', {size: 14})} 无下游`);
     const color = missing ? 'var(--text-secondary)' : 'var(--text-tertiary)';
     return `<div style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; text-align: center; font-size: 12px; color: ${color};">${label}</div>`;
   }
   return `<div onclick="window.openMeetingDetail('${meeting.id}')" style="flex: 1; padding: 10px; background: var(--bg-page); border-radius: 8px; cursor: pointer; border: 1px solid var(--border-light); text-align: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-light)'">
-    <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">${direction === 'upstream' ? '⬆️ 上游' : '⬇️ 下游'}</div>
+    <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">${direction === 'upstream' ? `${icon('arrowUp', {size: 14})} 上游` : `${icon('arrowDown', {size: 14})} 下游`}</div>
     <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${meeting.title}</div>
     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${meeting.date}</div>
   </div>`;
@@ -401,14 +402,14 @@ function renderChainSection(m) {
   return `
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-chain')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
-        <span style="font-size: 14px; font-weight: 600;">🔗 会议链</span>
+        <span style="font-size: 14px; font-weight: 600;">${icon('link', {size: 14})} 会议链</span>
         <span id="detail-chain-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
       </div>
       <div id="detail-chain" style="padding: 0 16px 12px;">
         <div style="display: flex; align-items: stretch; gap: 8px;">
           ${renderChainCard(upstream, 'upstream', !!m.upstreamMeeting && !upstream)}
           <div style="flex: 1; padding: 10px; background: var(--primary-light); border-radius: 8px; border: 1.5px solid var(--primary); text-align: center;">
-            <div style="font-size: 10px; color: var(--primary); margin-bottom: 4px;">📍 当前</div>
+            <div style="font-size: 10px; color: var(--primary); margin-bottom: 4px;">${icon('mapPin', {size: 14})} 当前</div>
             <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.title}</div>
             <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${m.date}</div>
           </div>

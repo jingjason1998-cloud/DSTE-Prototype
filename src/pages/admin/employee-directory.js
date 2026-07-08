@@ -12,6 +12,7 @@ import {
   clearEmployeeDirectory,
   IMPORT_META_STORAGE_KEY,
 } from '../../lib/employee-directory.js';
+import { icon } from '../../../assets/js/icons.js';
 import { importEmployeesFromFile, executeImport } from '../../lib/employee-import.js';
 import { showToast, escapeHtml } from '../../lib/utils.js';
 
@@ -36,7 +37,7 @@ function renderPageLayout() {
   container.innerHTML = `
     <div class="employee-directory-page">
       <header class="page-header">
-        <h1>👥 人员与组织管理</h1>
+        <h1>${icon('users', {size: 14})} 人员与组织管理</h1>
         <p class="page-desc">导入人员信息表后，全系统可统一使用实际组织架构和名单。Excel 为唯一来源，重新导入即可更新。</p>
       </header>
 
@@ -95,7 +96,7 @@ function renderImportPanel() {
 
   container.innerHTML = `
     <div class="import-zone" id="import-drop-zone">
-      <div class="import-icon">📁</div>
+      <div class="import-icon">${icon('folder', {size: 14})}</div>
       <div class="import-text">拖拽人员信息表到此处，或点击选择文件</div>
       <div class="import-hint">支持 .xlsx / .xls / .csv，必填列：工号、姓名、组织全称、ldap</div>
       <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" style="display:none;">
@@ -210,7 +211,7 @@ function renderOrgNode(orgId, orgUnits, depth, empMap) {
   const employees = empMap[orgId] || [];
 
   const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '';
-  const folderIcon = hasChildren ? (isExpanded ? '📂' : '📁') : '📂';
+  const folderIcon = hasChildren ? (isExpanded ? icon('folders', {size: 14}) : icon('folder', {size: 14})) : icon('folders', {size: 14});
   const rowBg = isSelected ? 'background: var(--primary-light, color-mix(in srgb, var(--primary) 12%, transparent)); border-radius: 6px;' : '';
   const nameColor = isSelected ? 'var(--primary)' : 'var(--text-primary)';
   const fontWeight = isSelected ? '600' : '400';

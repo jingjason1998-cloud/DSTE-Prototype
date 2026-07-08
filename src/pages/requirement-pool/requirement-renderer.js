@@ -10,6 +10,7 @@ import {
   STATUS_TRANSITIONS,
   getCurrentUser
 } from './requirement-store.js';
+import { icon } from '../../../assets/js/icons.js';
 
 const STATUS_COLORS = {
   COLLECTED: 'var(--text-tertiary)',
@@ -90,10 +91,10 @@ function renderHeader() {
 
 function renderTabs(activeTab) {
   const tabs = [
-    { id: 'pool', label: '📋 需求池' },
-    { id: 'mine', label: '👤 我的需求' },
-    { id: 'release', label: '📅 版本规划' },
-    { id: 'recycle', label: '🗑 回收站' }
+    { id: 'pool', label: `${icon('clipboardText', {size: 14})} 需求池` },
+    { id: 'mine', label: `${icon('userPlain', {size: 14})} 我的需求` },
+    { id: 'release', label: `${icon('calendar', {size: 14})} 版本规划` },
+    { id: 'recycle', label: `${icon('delete', {size: 14})} 回收站` }
   ];
   return `
     <div class="req-tabs">
@@ -225,7 +226,7 @@ export function renderFilters(filters) {
     <div class="req-filters">
       <div class="req-filter-group">
         <input type="text" class="req-filter-input" id="req-filter-keyword"
-               placeholder="🔍 搜索标题、描述、编号..." value="${escapeHtml(filters.keyword || '')}"
+               placeholder="${icon('search', {size: 14})} 搜索标题、描述、编号..." value="${escapeHtml(filters.keyword || '')}"
                data-req-action="filter-keyword">
       </div>
       ${renderSelect('req-filter-status', '状态', statusOptions, filters.status, 'filter-status')}
@@ -261,7 +262,7 @@ function renderActionsBar() {
         <button class="btn btn-primary" data-req-action="new-requirement">+ 新建需求</button>
       </div>
       <div class="req-actions-right">
-        <button class="btn btn-ghost btn-sm" data-req-action="export-data">📤 导出</button>
+        <button class="btn btn-ghost btn-sm" data-req-action="export-data">${icon('upload', {size: 14})} 导出</button>
       </div>
     </div>
   `;
@@ -271,7 +272,7 @@ export function renderTable(requirements, state) {
   if (!requirements.length) {
     return `
       <div class="req-empty-state">
-        <div class="req-empty-icon">📋</div>
+        <div class="req-empty-icon">${icon('clipboardText', {size: 14})}</div>
         <div class="req-empty-title">暂无需求</div>
         <div class="req-empty-desc">点击「新建需求」开始收集 DSTE 产品迭代需求</div>
       </div>
@@ -328,9 +329,9 @@ function renderTableRow(req, state) {
       <td>${escapeHtml(owner)}</td>
       <td>
         <div class="req-row-actions">
-          <button class="req-action-btn" data-req-action="view-detail" data-req-id="${req.id}" title="查看">👁</button>
-          <button class="req-action-btn" data-req-action="edit-requirement" data-req-id="${req.id}" title="编辑">✏️</button>
-          <button class="req-action-btn" data-req-action="confirm-delete" data-req-id="${req.id}" title="删除">🗑</button>
+          <button class="req-action-btn" data-req-action="view-detail" data-req-id="${req.id}" title="查看">${icon('eye', {size: 14})}</button>
+          <button class="req-action-btn" data-req-action="edit-requirement" data-req-id="${req.id}" title="编辑">${icon('pencil-simple', {size: 14})}</button>
+          <button class="req-action-btn" data-req-action="confirm-delete" data-req-id="${req.id}" title="删除">${icon('delete', {size: 14})}</button>
         </div>
       </td>
     </tr>
@@ -385,7 +386,7 @@ export function renderRequirementForm(req = null) {
     <form class="req-form" id="req-form" data-req-id="${data.id || ''}">
       <!-- 人填基础信息 -->
       <div class="req-form-section">
-        <div class="req-form-section-title">📝 基础信息（人工填写）</div>
+        <div class="req-form-section-title">${icon('fileText', {size: 14})} 基础信息（人工填写）</div>
         <div class="req-form-grid">
           <div class="req-form-field req-form-field-full">
             <label>标题 *</label>
@@ -411,7 +412,7 @@ export function renderRequirementForm(req = null) {
 
         <div class="req-ai-actions">
           <button type="button" class="btn btn-secondary" data-req-action="ai-analyze">
-            🤖 AI 分析
+            ${icon('robot', {size: 14})} AI 分析
           </button>
           <span class="req-ai-tip">AI 将根据标题和描述自动推断类型、优先级、影响模块、问题、价值和验收标准</span>
         </div>
@@ -420,7 +421,7 @@ export function renderRequirementForm(req = null) {
 
       <!-- AI 分析结果区（可编辑） -->
       <div class="req-form-section" id="req-ai-suggestions">
-        <div class="req-form-section-title">🤖 AI 分析建议（可人工调整）</div>
+        <div class="req-form-section-title">${icon('robot', {size: 14})} AI 分析建议（可人工调整）</div>
         <div class="req-form-grid">
           <div class="req-form-field">
             <label>类型 *</label>
@@ -474,7 +475,7 @@ export function renderRequirementForm(req = null) {
 
       <!-- 扩展信息 -->
       <div class="req-form-section">
-        <div class="req-form-section-title">📋 扩展信息（可选）</div>
+        <div class="req-form-section-title">${icon('clipboardText', {size: 14})} 扩展信息（可选）</div>
         <div class="req-form-grid">
           <div class="req-form-field">
             <label>目标版本</label>

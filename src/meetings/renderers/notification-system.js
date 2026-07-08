@@ -1,4 +1,5 @@
 import { renderNotificationMessage } from '../utils/notifications.js';
+import { icon } from '../../../assets/js/icons.js';
 import { getMeetings } from '../data-store.js';
 
 const NOTIF_CONFIG_KEY = 'dste_notification_config';
@@ -57,7 +58,7 @@ async function resolvePushWithWebhook() {
   const webhookUrl = selected.value;
   closeWebhookSelector();
   const res = await sendWeComNotification(payload.type, payload.data, webhookUrl);
-  if (res.success) { window.showToast('发送成功 ✅', 'success'); } else { window.showToast('发送失败：' + res.msg, 'error'); }
+  if (res.success) { window.showToast(`发送成功 ${icon('check', {size: 14})}`, 'success'); } else { window.showToast('发送失败：' + res.msg, 'error'); }
 }
 
 function openWebhookSelector(type, data) {
@@ -65,7 +66,7 @@ function openWebhookSelector(type, data) {
   if (!cfg.webhooks || cfg.webhooks.length === 0) { window.showToast('请先配置企业微信群 Webhook', 'warning'); openNotificationConfig(); return; }
   if (cfg.webhooks.length === 1) {
     sendWeComNotification(type, data, cfg.webhooks[0].url).then(res => {
-      if (res.success) { window.showToast('发送成功 ✅', 'success'); } else { window.showToast('发送失败：' + res.msg, 'error'); }
+      if (res.success) { window.showToast(`发送成功 ${icon('check', {size: 14})}`, 'success'); } else { window.showToast('发送失败：' + res.msg, 'error'); }
     });
     return;
   }
@@ -149,11 +150,11 @@ function openNotificationCenter() {
   const listHtml = logs.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); padding: 40px 0;">暂无推送记录</div>' : logs.map(l => `
     <div style="padding: 12px; background: var(--bg-page); border-radius: 8px; margin-bottom: 8px; border-left: 3px solid ${l.status === 'success' ? 'var(--success)' : 'var(--danger)'}">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-        <span style="font-size: 13px; font-weight: 600;">${l.type === 'resolution' ? '📋 决议推送' : l.type === 'todo' ? '⏰ 待办提醒' : l.type.startsWith('agenda') ? '📋 议程通知' : '⚠️ 预警'}</span>
+        <span style="font-size: 13px; font-weight: 600;">${l.type === 'resolution' ? `${icon('clipboardText', {size: 14})} 决议推送` : l.type === 'todo' ? `${icon('clock', {size: 14})} 待办提醒` : l.type.startsWith('agenda') ? `${icon('clipboardText', {size: 14})} 议程通知` : `${icon('warning', {size: 14})} 预警`}</span>
         <span style="font-size: 11px; color: var(--text-tertiary);">${new Date(l.sentAt).toLocaleString()}</span>
       </div>
       <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${l.content}</div>
-      <div style="font-size: 11px; color: ${l.status === 'success' ? 'var(--success)' : 'var(--danger)'}">${l.status === 'success' ? '✅ 成功' : '❌ ' + (l.error || '失败')}</div>
+      <div style="font-size: 11px; color: ${l.status === 'success' ? 'var(--success)' : 'var(--danger)'}">${l.status === 'success' ? `${icon('check', {size: 14})} 成功` : `${icon('x', {size: 14})} ${l.error || '失败'}`}</div>
     </div>
   `).join('');
   const ov = document.getElementById('notification-center-overlay');
@@ -246,7 +247,7 @@ function saveNotificationConfigFromUI() {
   };
   saveNotificationConfig(cfg);
   closeNotificationConfig();
-  window.showToast('通知配置已保存 ✅', 'success');
+  window.showToast(`通知配置已保存 ${icon('check', {size: 14})}`, 'success');
 }
 
 // Expose on window for onclick handlers in HTML strings

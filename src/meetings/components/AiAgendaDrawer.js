@@ -14,6 +14,7 @@ import {
   getAgendaTypeLabel,
   getSourceTypeLabel,
 } from '../utils/agenda-recommender.js';
+import { icon } from '../../../assets/js/icons.js';
 import { escapeHtml } from '../../lib/utils.js';
 
 let _candidates = [];
@@ -204,7 +205,7 @@ function renderAiAgendaContent() {
 
   return `
     <div id="ai-agenda-panel-header" style="padding: 14px 16px; border-bottom: 1px solid var(--border-color); background: var(--bg-page); flex-shrink: 0;">
-      <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">🤖 AI 推荐议程</div>
+      <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${icon('robot', {size: 14})} AI 推荐议程</div>
       <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">候选挑选，人工确认后采纳</div>
     </div>
     <div id="ai-agenda-panel-body" style="padding: 14px 16px; flex: 1; overflow-y: auto; min-height: 0;">
@@ -243,7 +244,7 @@ function renderPanelBody(meetingTitle) {
     <div style="margin-bottom: 14px;">
       <button type="button" onclick="generateAiAgendaCandidates()" ${ _isLoading ? 'disabled' : '' }
         style="width: 100%; padding: 7px 10px; font-size: 12px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500; opacity: ${ _isLoading ? '0.7' : '1' };">
-        ${_isLoading ? '⏳ AI 分析中...' : '🤖 生成候选议程'}
+        ${_isLoading ? '⏳ AI 分析中...' : `${icon('robot', {size: 14})} 生成候选议程`}
       </button>
     </div>
     ${_isLoading ? renderLoading() : ''}
@@ -281,7 +282,7 @@ function renderLoading() {
 function renderError(message) {
   return `
     <div style="padding: 12px; background: rgba(245,34,45,0.06); border: 1px solid rgba(245,34,45,0.2); border-radius: 8px; color: var(--danger); font-size: 12px; margin-bottom: 10px;">
-      <div>❌ ${escapeHtml(message)}</div>
+      <div>${icon('x', {size: 14})} ${escapeHtml(message)}</div>
       <button type="button" onclick="generateAiAgendaCandidates()" style="margin-top: 8px; padding: 4px 10px; font-size: 11px; border: 1px solid var(--danger); border-radius: 4px; background: transparent; color: var(--danger); cursor: pointer;">重试</button>
     </div>
   `;
@@ -290,7 +291,7 @@ function renderError(message) {
 function renderEmptyState(meetingTitle) {
   return `
     <div style="text-align: center; padding: 30px 0; color: var(--text-tertiary);">
-      <div style="font-size: 28px; margin-bottom: 6px;">📝</div>
+      <div style="font-size: 28px; margin-bottom: 6px;">${icon('fileText', {size: 14})}</div>
       <div style="font-size: 12px;">点击上方按钮，为「${escapeHtml(meetingTitle)}」生成候选议程。</div>
     </div>
   `;
@@ -327,10 +328,10 @@ function renderCandidateCard(candidate) {
           <div style="display: flex; flex-wrap: wrap; gap: 4px; font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">
             <span style="padding: 1px 5px; border-radius: 3px; background: var(--primary-light); color: var(--primary);">${typeLabel}</span>
             <span style="padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border-light);">⏱️ ${duration} 分钟</span>
-            <span style="padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border-light);">👤 ${owner}</span>
+            <span style="padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border-light);">${icon('userPlain', {size: 14})} ${owner}</span>
             <span style="padding: 1px 5px; border-radius: 3px; background: rgba(34,197,94,0.08); color: var(--success);">置信度 ${confidence}%</span>
           </div>
-          ${reason ? `<div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 3px;">💡 ${reason}</div>` : ''}
+          ${reason ? `<div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 3px;">${icon('lightbulb', {size: 14})} ${reason}</div>` : ''}
           <div style="font-size: 10px; color: var(--text-tertiary);">来源：${sourceLabel}</div>
         </div>
       </div>

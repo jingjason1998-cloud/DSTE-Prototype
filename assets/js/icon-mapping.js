@@ -126,6 +126,7 @@ export const ICONS = {
   folderOpen: 'folder-open',
   caretUp: 'caret-up',
   caretDown: 'caret-down',
+  bookmark: 'bookmark',
 
   // Meetings module extras
   chat: 'chat',
@@ -150,6 +151,7 @@ export const ICONS = {
   mapTrifold: 'map-trifold',
   siren: 'siren',
   eye: 'eye',
+  plug: 'plug',
 
   // Cockpit / general extras
   tray: 'tray',

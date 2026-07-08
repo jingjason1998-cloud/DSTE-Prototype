@@ -19,8 +19,8 @@ test('calendar view replaces only meeting list panel', async ({ page }) => {
   await expect(listPanel).not.toBeVisible();
 
   // Right sidebar modules should still be visible
-  await expect(page.locator('text=📈 决议执行趋势').first()).toBeVisible();
-  await expect(page.locator('text=🔔 待办提醒').first()).toBeVisible();
+  await expect(page.locator('text=决议执行趋势').first()).toBeVisible();
+  await expect(page.locator('text=待办提醒').first()).toBeVisible();
 
   // KPI bar should still be visible
   await expect(page.locator('text=本月会议').first()).toBeVisible();
@@ -29,7 +29,7 @@ test('calendar view replaces only meeting list panel', async ({ page }) => {
   await expect(page.locator('#filter-month')).toBeVisible();
 
   // Minutes section should still be visible
-  await expect(page.locator('text=📄 会议纪要').first()).toBeVisible();
+  await expect(page.locator('text=会议纪要').first()).toBeVisible();
 
   // Resolution center KPI card should still be visible
   await expect(page.locator('text=决议总数').first()).toBeVisible();

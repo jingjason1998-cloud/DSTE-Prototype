@@ -183,7 +183,7 @@
     updateIcon(theme) {
       const btn = document.getElementById('theme-toggle');
       if (btn) {
-        btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        btn.textContent = theme === 'dark' ? '亮' : '暗';
         btn.title = theme === 'dark' ? '切换亮色模式' : '切换暗色模式';
       }
     }
@@ -321,7 +321,7 @@
       const aiMsg = document.createElement('div');
       aiMsg.className = 'ai-message ai';
       const aiStrong = document.createElement('strong');
-      aiStrong.textContent = '🤖 AI:';
+      aiStrong.textContent = 'AI:';
       aiMsg.appendChild(aiStrong);
       aiMsg.appendChild(document.createTextNode(' 正在分析...'));
       content.appendChild(aiMsg);
@@ -333,7 +333,7 @@
       setTimeout(() => {
         aiMsg.replaceChildren();
         const aiStrong2 = document.createElement('strong');
-        aiStrong2.textContent = '🤖 AI:';
+        aiStrong2.textContent = 'AI:';
         aiMsg.appendChild(aiStrong2);
         aiMsg.appendChild(document.createTextNode(' 我理解了您关于"'));
         const aiText = document.createElement('span');
@@ -394,7 +394,7 @@
       SidebarManager.toggle();
     });
     
-    console.log('✅ DSTE 战略管理平台已加载');
+    console.log(' DSTE 战略管理平台已加载');
   }
 
   // DOM 加载完成后初始化

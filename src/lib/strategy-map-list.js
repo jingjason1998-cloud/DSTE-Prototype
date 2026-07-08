@@ -8,6 +8,7 @@ import {
   DEFAULT_MAP_ID,
   loadRemoteStrategyMaps
 } from './strategy-map-data.js';
+import { icon } from '../../assets/js/icons.js';
 
 /**
  * 战略地图列表页逻辑
@@ -136,33 +137,33 @@ function renderMapCard(map) {
     <div class="sm-map-card ${map.status === 'archived' ? 'archived' : ''}" data-id="${map.id}" data-action="view-map">
       <div class="sm-map-card-header">
         <div class="sm-map-card-title">
-          <span class="icon">🗺️</span>
+          <span class="icon">${icon('mapTrifold', {size: 14})}️</span>
           <span>${escapeHtml(map.name)}</span>
         </div>
         <div class="sm-map-card-actions">
-          <button class="btn-icon" title="查看" data-action="view-map" data-id="${map.id}">👁</button>
-          <button class="btn-icon" title="编辑" data-action="edit-map" data-id="${map.id}">✏️</button>
-          <button class="btn-icon danger" title="删除" data-action="delete-map" data-id="${map.id}" ${isDefault ? 'disabled' : ''}>🗑</button>
+          <button class="btn-icon" title="查看" data-action="view-map" data-id="${map.id}">${icon('eye', {size: 14})}</button>
+          <button class="btn-icon" title="编辑" data-action="edit-map" data-id="${map.id}">${icon('pencil-simple', {size: 14})}</button>
+          <button class="btn-icon danger" title="删除" data-action="delete-map" data-id="${map.id}" ${isDefault ? 'disabled' : ''}>${icon('delete', {size: 14})}</button>
         </div>
       </div>
       <div class="sm-map-card-meta">
         <span class="status-badge ${statusCfg.badgeClass}"><span class="dot" style="background:${statusCfg.dot}"></span>${mapStatusText(map.status)}</span>
-        <span>📅 ${cycle}</span>
-        <span>🏢 ${escapeHtml(map.deptName || '未指定部门')}</span>
-        <span>🔖 ${escapeHtml(map.versionLabel || `v${map.version || 1}`)}</span>
+        <span>${icon('calendar', {size: 14})} ${cycle}</span>
+        <span>${icon('buildings', {size: 14})} ${escapeHtml(map.deptName || '未指定部门')}</span>
+        <span>${icon('bookmark', {size: 14})} ${escapeHtml(map.versionLabel || `v${map.version || 1}`)}</span>
       </div>
       <div class="sm-map-card-desc">${escapeHtml(map.description || '暂无描述')}</div>
       <div class="sm-map-card-links">
-        ${hasSource ? `<a class="sm-map-link" href="${escapeHtml(map.source)}" target="_blank" rel="noopener" data-action="link">🔗 KMS 链接</a>` : ''}
-        ${hasPresentationUrl ? `<a class="sm-map-link" href="${escapeHtml(map.presentation.url)}" target="_blank" rel="noopener" data-action="link">📎 宣贯 PPT</a>` : ''}
-        ${hasPresentationFile ? `<a class="sm-map-link" href="${escapeHtml(map.presentation.fileData)}" download="${escapeHtml(map.presentation.fileName)}" data-action="link">📎 ${escapeHtml(map.presentation.fileName)}</a>` : ''}
+        ${hasSource ? `<a class="sm-map-link" href="${escapeHtml(map.source)}" target="_blank" rel="noopener" data-action="link">${icon('link', {size: 14})} KMS 链接</a>` : ''}
+        ${hasPresentationUrl ? `<a class="sm-map-link" href="${escapeHtml(map.presentation.url)}" target="_blank" rel="noopener" data-action="link">${icon('paperclip', {size: 14})} 宣贯 PPT</a>` : ''}
+        ${hasPresentationFile ? `<a class="sm-map-link" href="${escapeHtml(map.presentation.fileData)}" download="${escapeHtml(map.presentation.fileName)}" data-action="link">${icon('paperclip', {size: 14})} ${escapeHtml(map.presentation.fileName)}</a>` : ''}
       </div>
       <div class="sm-map-card-footer">
         <div class="sm-map-card-dims">
-          <span>💰 财务(${dimCounts.fin})</span>
-          <span>🤝 客户(${dimCounts.cus})</span>
-          <span>⚙️ 内部(${dimCounts.int})</span>
-          <span>📚 学习(${dimCounts.lea})</span>
+          <span>${icon('currencyDollar', {size: 14})} 财务(${dimCounts.fin})</span>
+          <span>${icon('handshake', {size: 14})} 客户(${dimCounts.cus})</span>
+          <span>${icon('settings', {size: 14})} 内部(${dimCounts.int})</span>
+          <span>${icon('books', {size: 14})} 学习(${dimCounts.lea})</span>
         </div>
         <div>更新于 ${updatedAt}</div>
       </div>

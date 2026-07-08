@@ -1,4 +1,5 @@
 import { showToast, Storage } from '../../lib/utils.js';
+import { icon } from '../../../assets/js/icons.js';
 import { Repository } from '../../lib/repository.js';
 
 // 被 main.js 导入，请勿删除 export
@@ -291,7 +292,7 @@ export function openImportModal() {
     document.getElementById('importDropZone').style.borderColor = 'var(--border-color)';
     document.getElementById('importDropZone').style.background = '';
     document.getElementById('importDropZone').innerHTML =
-        '<div style="font-size: 36px; margin-bottom: 8px;">📁</div>' +
+        `<div style="font-size: 36px; margin-bottom: 8px;">${icon('folder', {size: 14})}</div>` +
         '<div style="font-weight: 500; color: var(--text-secondary); margin-bottom: 4px;">拖拽 Excel / CSV 文件到此处</div>' +
         '<div style="font-size: 13px; color: var(--text-muted);">或点击选择文件 · 支持 .xlsx .xls .csv</div>' +
         '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" data-action="import-file-select">';
@@ -361,9 +362,9 @@ export function processImportFile(file) {
             _importRows = rows;
             _importFileName = file.name;
             document.getElementById('importDropZone').innerHTML =
-                '<div style="font-size: 36px; margin-bottom: 8px;">✅</div>' +
-                '<div style="font-weight: 500; color: var(--success);">' + escapeHtml(file.name) + '</div>' +
-                '<div style="font-size: 13px; color: var(--text-muted);">共 ' + _importRows.length + ' 行数据 · 点击可重新选择</div>' +
+                `<div style="font-size: 36px; margin-bottom: 8px;">${icon('check', {size: 14})}</div>` +
+                `<div style="font-weight: 500; color: var(--success);">${escapeHtml(file.name)}</div>` +
+                `<div style="font-size: 13px; color: var(--text-muted);">共 ${_importRows.length} 行数据 · 点击可重新选择</div>` +
                 '<input type="file" id="importFileInput" style="display: none;" accept=".xlsx,.xls,.csv" data-action="import-file-select">';
             updateImportPreview();
         } catch (err) {
@@ -426,13 +427,13 @@ export function updateImportPreview() {
                 '<td>' + escapeHtml(row['议题主题'] || '-') + '</td>' +
                 '<td>' + escapeHtml(row['片联议题类型'] || '-') + '</td>' +
                 '<td>' + escapeHtml(row['议题状态'] || '-') + '</td>' +
-                '<td>' + (validated.isValid ? '<span style="color:var(--success)">✅ 有效</span>' : '<span style="color:var(--danger)">❌ ' + escapeHtml(validated.errors[0]) + '</span>') + '</td>';
+                '<td>' + (validated.isValid ? `<span style="color:var(--success)">${icon('check', {size: 14})} 有效</span>` : `<span style="color:var(--danger)">${icon('x', {size: 14})} ${escapeHtml(validated.errors[0])}</span>`) + '</td>';
         } else {
             tr.innerHTML = '<td>' + escapeHtml(row['议题编号'] || '-') + '</td>' +
                 '<td>' + escapeHtml(row['议题标题'] || '-') + '</td>' +
                 '<td>' + escapeHtml(row['议题类型'] || '-') + '</td>' +
                 '<td>' + escapeHtml(row['状态'] || '-') + '</td>' +
-                '<td>' + (validated.isValid ? '<span style="color:var(--success)">✅ 有效</span>' : '<span style="color:var(--danger)">❌ ' + escapeHtml(validated.errors[0]) + '</span>') + '</td>';
+                '<td>' + (validated.isValid ? `<span style="color:var(--success)">${icon('check', {size: 14})} 有效</span>` : `<span style="color:var(--danger)">${icon('x', {size: 14})} ${escapeHtml(validated.errors[0])}</span>`) + '</td>';
         }
         tbody.appendChild(tr);
         if (validated.isValid) validCount++; else errorCount++;
