@@ -4,6 +4,7 @@
  */
 
 import { getOrgTree } from '../lib/employee-directory.js';
+import { icon } from '../../assets/js/icons.js';
 
 const DEFAULT_OPTIONS = {
   placeholder: '选择组织...',
@@ -42,7 +43,7 @@ export function createOrgSelector(container, options = {}) {
       <div class="org-selector" data-org-selector="true" style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;overflow:hidden;">
         <div class="org-selector-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-page);border-bottom:1px solid var(--border-color);cursor:pointer;">
           <span style="color:var(--text-primary);font-size:13px;">${escapeHtml(getDisplayLabel(tree))}</span>
-          ${opts.allowClear && selectedValue ? '<span class="org-selector-clear" style="color:var(--text-tertiary);cursor:pointer;font-size:16px;line-height:1;">×</span>' : ''}
+          ${opts.allowClear && selectedValue ? `<span class="org-selector-clear" style="color:var(--text-tertiary);cursor:pointer;font-size:16px;line-height:1;">${icon('x', {size: 14})}</span>` : ''}
         </div>
         <div class="org-selector-tree" style="max-height:260px;overflow-y:auto;padding:4px 0;">
           ${hasData ? tree.roots.map(id => renderOrgNode(id, tree.orgUnits, 0)).join('') : `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;">暂无组织数据</div>`}
@@ -66,7 +67,7 @@ export function createOrgSelector(container, options = {}) {
     const isExpanded = expandedIds.has(orgId);
     const isSelected = selectedValue === orgId;
     const indent = depth * 18;
-    const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '·';
+    const toggleIcon = hasChildren ? (isExpanded ? icon('caretDown', {size: 12}) : icon('caretRight', {size: 12})) : icon('circle', {size: 6});
     const rowBg = isSelected ? 'background:var(--primary-light,color-mix(in srgb, var(--primary) 12%, transparent));' : '';
     const nameColor = isSelected ? 'var(--primary)' : 'var(--text-primary)';
     const fontWeight = isSelected ? '600' : '400';

@@ -813,6 +813,31 @@
         const totalAgendaItems = meetings.reduce((s, m) => s + (m.agenda_items?.length || 0), 0);
         const actionDone = allActions.filter(a => a.status === 'completed').length;
         const actionTotal = allActions.length;
+
+        // ---- 决议执行趋势（按会议月份统计决议闭环率）----
+        const isDecisionClosed = d => d.status === 'closed' || d.status === 'approved' || d.status === 'implemented';
+        const monthlyResolutionStats = {};
+        meetings.forEach(m => {
+          if (!m.month) return;
+          if (!monthlyResolutionStats[m.month]) monthlyResolutionStats[m.month] = { total: 0, closed: 0 };
+          (m.decisions || []).forEach(d => {
+            monthlyResolutionStats[m.month].total += 1;
+            if (isDecisionClosed(d)) monthlyResolutionStats[m.month].closed += 1;
+          });
+        });
+        const resolutionTrendMonths = Object.keys(monthlyResolutionStats).sort();
+        const resolutionTrendData = resolutionTrendMonths.slice(-6).map(month => {
+          const stats = monthlyResolutionStats[month];
+          return {
+            month,
+            label: parseInt(month.split('-')[1], 10) + '月',
+            rate: stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0
+          };
+        });
+        const avgResolutionClosureRate = allDecisions.length > 0
+          ? Math.round((allDecisions.filter(isDecisionClosed).length / allDecisions.length) * 100)
+          : 0;
+
         const thisMonth = new Date().toISOString().slice(0, 7);
         const thisMonthMeetings = meetings.filter(m => m.month === thisMonth).length;
         const pipelineMeetings = meetings.filter(m => SCENARIO_CONFIG[m.scenario]?.pipelineEnabled);
@@ -1556,7 +1581,7 @@
           </div>
 
           <!-- 筛选栏 -->
-          <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
             <select id="filter-month" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
               <option value="all">${icon('calendar', {size: 14})} 全部月份</option>
               <option value="2026-03">2026-03</option>
@@ -1565,23 +1590,22 @@
               <option value="2026-06">2026-06</option>
               <option value="2026-07">2026-07</option>
             </select>
-            <select id="filter-scenario" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
-              <option value="all">${icon('tag', {size: 14})} 全部场景</option>
-              <option value="union_quarterly">片联季度会议</option>
-              <option value="hq_routine">营销本部月/双周会</option>
-              <option value="region_routine">战区月度经营分析会</option>
-              <option value="lagging_region">落后战区业绩承诺会</option>
-              <option value="lagging_vertical">落后垂直客群经分会</option>
-            </select>
-            <select id="filter-pipeline" onchange="applyFilters()" style="padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; outline: none;">
-              <option value="all">${icon('fileText', {size: 14})} 全部一报一会阶段</option>
-              <option value="reportGenerated">报告生成</option>
-              <option value="preReviewDone">会前评审</option>
-              <option value="meetingHeld">会议召开</option>
-              <option value="minutesDrafted">纪要起草</option>
-              <option value="minutesApproved">纪要定稿</option>
-              <option value="actionsTracked">行动追踪</option>
-            </select>
+            <div id="filter-status-tabs" style="display: flex; gap: 10px; flex-wrap: wrap;">
+              ${[
+                { key: 'all', label: '全部', color: 'var(--primary)' },
+                { key: 'in_progress', label: STATUS_CONFIG.in_progress.label, color: STATUS_CONFIG.in_progress.color },
+                { key: 'completed', label: STATUS_CONFIG.completed.label, color: STATUS_CONFIG.completed.color },
+                { key: 'planned', label: STATUS_CONFIG.planned.label, color: STATUS_CONFIG.planned.color }
+              ].map(s => {
+                const count = s.key === 'all' ? meetings.length : meetings.filter(m => m.status === s.key).length;
+                const isActive = s.key === 'all';
+                return `<button type="button" data-status-tab="${s.key}" data-status-color="${s.color}" onclick="switchMeetingStatusTab('${s.key}'); event.stopPropagation();" style="padding: 5px 14px; border-radius: 18px; border: 1px solid ${isActive ? s.color : 'var(--border-color)'}; background: ${isActive ? `color-mix(in srgb, ${s.color} 14%, transparent)` : 'var(--bg-card)'}; color: ${isActive ? s.color : 'var(--text-secondary)'}; font-size: 13px; font-weight: ${isActive ? '600' : '500'}; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='${s.color}'" onmouseout="if(window._meetingsFilterStatus!=='${s.key}')this.style.borderColor='var(--border-color)'">
+                  <span>${s.label}</span>
+                  <span style="min-width: 20px; text-align: center; padding: 1px 5px; border-radius: 10px; background: ${isActive ? `color-mix(in srgb, ${s.color} 22%, transparent)` : 'var(--bg-page)'}; font-size: 11px; font-weight: 600; color: ${isActive ? s.color : 'var(--text-tertiary)'};">${count}</span>
+                </button>`;
+              }).join('')}
+            </div>
             <div style="margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap;">
               <span>${icon('fileText', {size: 14})} 议题 <strong style="color: var(--text-primary);">${totalAgendaItems}</strong></span>
               <span>${icon('check', {size: 14})} 决议 <strong style="color: var(--text-primary);">${allDecisions.length}</strong></span>
@@ -1599,24 +1623,6 @@
                   <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="card-title">${icon('clipboardText', {size: 14})} 会议列表</div>
                     <span class="meeting-list-count" style="font-size: 12px; color: var(--text-tertiary);">共 ${totalMeetings} 场</span>
-                  </div>
-                  <div style="padding: 0 16px 12px;">
-                    <div id="filter-status-tabs" style="display: flex; gap: 10px; flex-wrap: wrap; padding: 10px; background: var(--bg-page); border-radius: 10px; border: 1px solid var(--border-light);">
-                      ${[
-                        { key: 'all', label: '全部', color: 'var(--primary)' },
-                        { key: 'in_progress', label: STATUS_CONFIG.in_progress.label, color: STATUS_CONFIG.in_progress.color },
-                        { key: 'completed', label: STATUS_CONFIG.completed.label, color: STATUS_CONFIG.completed.color },
-                        { key: 'planned', label: STATUS_CONFIG.planned.label, color: STATUS_CONFIG.planned.color }
-                      ].map(s => {
-                        const count = s.key === 'all' ? meetings.length : meetings.filter(m => m.status === s.key).length;
-                        const isActive = s.key === 'all';
-                        return `<button type="button" data-status-tab="${s.key}" data-status-color="${s.color}" onclick="switchMeetingStatusTab('${s.key}'); event.stopPropagation();" style="padding: 5px 14px; border-radius: 18px; border: 1px solid ${isActive ? s.color : 'var(--border-color)'}; background: ${isActive ? `color-mix(in srgb, ${s.color} 14%, transparent)` : 'var(--bg-card)'}; color: ${isActive ? s.color : 'var(--text-secondary)'}; font-size: 13px; font-weight: ${isActive ? '600' : '500'}; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;"
-                          onmouseover="this.style.borderColor='${s.color}'" onmouseout="if(window._meetingsFilterStatus!=='${s.key}')this.style.borderColor='var(--border-color)'">
-                          <span>${s.label}</span>
-                          <span style="min-width: 20px; text-align: center; padding: 1px 5px; border-radius: 10px; background: ${isActive ? `color-mix(in srgb, ${s.color} 22%, transparent)` : 'var(--bg-page)'}; font-size: 11px; font-weight: 600; color: ${isActive ? s.color : 'var(--text-tertiary)'};">${count}</span>
-                        </button>`;
-                      }).join('')}
-                    </div>
                   </div>
                   <div id="meeting-cards-container" style="display: flex; flex-direction: column; gap: 12px;">
                     ${meetingCards}
@@ -1645,19 +1651,19 @@
                 <div style="padding: 8px 0;">
                   <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
                     <span>月度闭环率</span>
-                    <span style="color: var(--success);">↑ 同比 +12%</span>
+                    <span style="color: var(--success);">平均闭环率 ${avgResolutionClosureRate}%</span>
                   </div>
+                  ${resolutionTrendData.length > 0 ? `
                   <div style="display: flex; align-items: flex-end; gap: 6px; height: 60px;">
-                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 40%;"></div>
-                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 55%;"></div>
-                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 50%;"></div>
-                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 70%;"></div>
-                    <div style="flex: 1; background: var(--primary); border-radius: 3px; height: 85%;"></div>
-                    <div style="flex: 1; background: var(--primary-light); border-radius: 3px; height: 60%;"></div>
+                    ${resolutionTrendData.map((item, idx) => {
+                      const isLast = idx === resolutionTrendData.length - 1;
+                      return `<div title="${item.month} 闭环率 ${item.rate}%" style="flex: 1; background: ${isLast ? 'var(--primary)' : 'var(--primary-light)'}; border-radius: 3px; height: ${Math.max(item.rate, 4)}%;"></div>`;
+                    }).join('')}
                   </div>
                   <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
-                    <span>1月</span><span>6月</span>
+                    <span>${resolutionTrendData[0].label}</span><span>${resolutionTrendData[resolutionTrendData.length - 1].label}</span>
                   </div>
+                  ` : '<div style="text-align: center; color: var(--text-tertiary); font-size: 12px; padding: 20px 0;">暂无决议数据</div>'}
                 </div>
               </div>
               <div class="card">

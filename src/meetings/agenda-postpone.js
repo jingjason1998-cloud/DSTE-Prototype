@@ -39,9 +39,13 @@ function renderPostponeTargetList() {
   const container = document.getElementById('postpone-target-list');
   if (!container) return;
   const { meetingId } = _postponeState;
-  const list = getMeetings().filter(x => x.id !== meetingId).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const today = new Date();
+  const todayStr = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+  const list = getMeetings()
+    .filter(x => x.id !== meetingId && x.date && x.date > todayStr)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   if (list.length === 0) {
-    container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px; font-size: 13px;">系统中没有其他会议可顺延</div>';
+    container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px; font-size: 13px;">今天之后没有其他会议可顺延</div>';
     return;
   }
   const selectedId = _postponeState.selectedTargetId;

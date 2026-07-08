@@ -162,7 +162,7 @@ function renderAgendaItem(m, a, i, time) {
   const materialScore = getMaterialScore(a.material_link);
   const materialBadge = materialScore === null
     ? ''
-    : `<span style="font-size: 10px; font-weight: 600; color: ${getScoreColor(materialScore)};">⭐ ${materialScore}分</span>`;
+    : `<span style="font-size: 10px; font-weight: 600; color: ${getScoreColor(materialScore)};">${icon('star', {size: 10})} ${materialScore}分</span>`;
   // G2: 审核状态徽标
   const reviewStatusBadge = a.reviewStatus === 'reviewed'
     ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: rgba(16,185,129,0.08); color: var(--success); border: 1px solid rgba(16,185,129,0.2);">已审核</span>`
@@ -238,7 +238,7 @@ function renderMinutesSection(m) {
           <span style="font-size: 14px; font-weight: 600;">${icon('fileText', {size: 14})} 纪要</span>
           ${m.minutesStatus ? `<span style="padding: 1px 6px; border-radius: 4px; font-size: 10px; background: ${m.minutesStatus === 'final' ? 'var(--success-light)' : 'var(--warning-light)'}; color: ${m.minutesStatus === 'final' ? 'var(--success)' : 'var(--warning)'};">${m.minutesStatus === 'final' ? '已定稿' : '起草中'}</span>` : ''}
         </div>
-        <span id="detail-minutes-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+        <span id="detail-minutes-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">${icon('caretDown', {size: 12})}</span>
       </div>
       <div id="detail-minutes" style="padding: 0 16px 12px;">
         ${m.minutes_content
@@ -285,7 +285,7 @@ function renderActionsSection(m) {
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-actions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
         <span style="font-size: 14px; font-weight: 600;">${icon('check', {size: 14})} 行动项${actionCount > 0 ? '（' + actionCount + '项）' : ''}</span>
-        <span id="detail-actions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+        <span id="detail-actions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">${icon('caretDown', {size: 12})}</span>
       </div>
       <div id="detail-actions" style="padding: 0 16px 12px;">
         ${actionCount === 0
@@ -317,7 +317,7 @@ function renderDecisionsSection(m) {
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-decisions')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
         <span style="font-size: 14px; font-weight: 600;">${icon('clipboardText', {size: 14})} 决议${decisionCount > 0 ? '（' + decisionCount + '项）' : ''}</span>
-        <span id="detail-decisions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+        <span id="detail-decisions-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">${icon('caretDown', {size: 12})}</span>
       </div>
       <div id="detail-decisions" style="padding: 0 16px 12px;">
         ${decisionCount === 0
@@ -352,10 +352,10 @@ function renderEvalSection(m) {
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-eval')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 14px; font-weight: 600;">⭐ 评估</span>
+          <span style="font-size: 14px; font-weight: 600;">${icon('star', {size: 14})} 评估</span>
           <span style="font-size: 12px; font-weight: 600; color: ${getScoreColor(score)};">${score} · ${getScoreLabel(score)}</span>
         </div>
-        <span id="detail-eval-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+        <span id="detail-eval-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">${icon('caretDown', {size: 12})}</span>
       </div>
       <div id="detail-eval" style="padding: 0 16px 12px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -403,7 +403,7 @@ function renderChainSection(m) {
     <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden;">
       <div onclick="window.toggleDetailSection('detail-chain')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none;">
         <span style="font-size: 14px; font-weight: 600;">${icon('link', {size: 14})} 会议链</span>
-        <span id="detail-chain-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">▼</span>
+        <span id="detail-chain-toggle" style="font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s;">${icon('caretDown', {size: 12})}</span>
       </div>
       <div id="detail-chain" style="padding: 0 16px 12px;">
         <div style="display: flex; align-items: stretch; gap: 8px;">

@@ -178,7 +178,7 @@ describe('openWebhookSelector', () => {
     });
     ns.openWebhookSelector('resolution', { meetingTitle: 'M', content: 'C', owner: 'O', deadline: 'D', status: 'approved' });
     await vi.waitFor(() => expect(window.showToast).toHaveBeenCalled());
-    expect(window.showToast).toHaveBeenCalledWith('发送成功 ✅', 'success');
+    expect(window.showToast).toHaveBeenCalledWith(expect.stringContaining('发送成功'), 'success');
   });
 });
 

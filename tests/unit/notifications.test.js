@@ -13,7 +13,7 @@ describe('renderNotificationMessage', () => {
         kmsUrl: 'https://kms.example.com/doc/1',
       });
 
-      expect(msg).toContain('📋 决议推送');
+      expect(msg).toContain('决议推送');
       expect(msg).toContain('Q1 战略会');
       expect(msg).toContain('Q2 营收目标 3.2 亿');
       expect(msg).toContain('李经理');
@@ -56,7 +56,7 @@ describe('renderNotificationMessage', () => {
         daysLeft: 5,
       });
 
-      expect(msg).toContain('⏰ 待办提醒');
+      expect(msg).toContain('待办提醒');
       expect(msg).toContain('完成市场调研');
       expect(msg).toContain('王总监');
       expect(msg).toContain('距截止还有 5 天');
@@ -105,7 +105,7 @@ describe('renderNotificationMessage', () => {
         meetingDate: '2026-05-20',
       });
 
-      expect(msg).toContain('⚠️ 会议预警');
+      expect(msg).toContain('会议预警');
       expect(msg).toContain('纪要起草 尚未完成');
       expect(msg).toContain('3 天');
       expect(msg).toContain('2026-05-20');
@@ -122,7 +122,7 @@ describe('renderNotificationMessage', () => {
         daysLeft: 2,
       });
 
-      expect(msg).toContain('⚠️ 行动项预警');
+      expect(msg).toContain('行动项预警');
       expect(msg).toContain('更新销售数据');
       expect(msg).toContain('距截止仅剩 2 天');
     });
@@ -140,7 +140,7 @@ describe('renderNotificationMessage', () => {
         materialLink: 'https://docs.example.com/agenda1',
       });
 
-      expect(msg).toContain('📋 议程通知');
+      expect(msg).toContain('议程通知');
       expect(msg).toContain('Q1 战略会');
       expect(msg).toContain('KPI 达成追踪');
       expect(msg).toContain('目标管理');
@@ -192,7 +192,7 @@ describe('renderNotificationMessage', () => {
         totalDuration: 75,
       });
 
-      expect(msg).toContain('📋 会议议程总览');
+      expect(msg).toContain('会议议程总览');
       expect(msg).toContain('Q2 复盘会');
       expect(msg).toContain('2026-06-15');
       expect(msg).toContain('3F 大会议室');

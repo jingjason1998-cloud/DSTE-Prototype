@@ -1533,103 +1533,204 @@
         if (!association) return '';
         return omp_getIndicatorNameByKpiInstanceId(association.kpiInstanceId);
       }
-      function omp_groupKpisByDept(kpis) {
-        const groups = {};
-        kpis.forEach(k => {
-          const dept = k.dept || '未分组';
-          if (!groups[dept]) groups[dept] = [];
-          groups[dept].push(k);
-        });
-        return groups;
-      }
-      function omp_renderKpiOptions(kpis, selectedIds, disabledIds) {
-        const groups = omp_groupKpisByDept(kpis);
-        const selSet = new Set(selectedIds || []);
-        const disSet = new Set(disabledIds || []);
-        return Object.entries(groups).map(([dept, list]) => {
-          const options = list.map(k => {
-            const selected = selSet.has(k.id) ? 'selected' : '';
-            const disabled = disSet.has(k.id) ? 'disabled' : '';
-            return `<option value="${k.id}" ${selected} ${disabled}>${escapeHtml(omp_getIndicatorName(k.indicatorId))} (${escapeHtml(k.dept || '-')})</option>`;
-          }).join('');
-          return `<optgroup label="${escapeHtml(dept)}">${options}</optgroup>`;
-        }).join('');
-      }
       function omp_renderKpiAssociationFields(task, prefix, options) {
-        const { kpis, primaryId, supportingIds, taskDept, primaryDisabled, cycleId } = options;
-        const filteredKpis = kpis.filter(k => k.cycleId === cycleId);
-        const primarySelect = `
+        const { primaryId, supportingIds, taskDept, primaryDisabled, cycleId } = options;
+        const primaryAssociation = primaryId ? { kpiInstanceId: primaryId, relationType: 'primary' } : null;
+        const supportingAssociations = (supportingIds || []).map(id => ({ kpiInstanceId: id, relationType: 'supporting' }));
+        const associations = primaryAssociation ? [primaryAssociation, ...supportingAssociations] : [...supportingAssociations];
+        return `
           <div style="grid-column:1 / -1;">
+            <input type="hidden" id="${prefix}-kpi-associations-data" value="${escapeHtml(JSON.stringify(associations))}" data-task-dept="${escapeHtml(taskDept || '')}" data-cycle-id="${escapeHtml(cycleId || '')}">
             <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">主指标（单选，非必填）</label>
-            <select id="${prefix}-primary-kpi" ${primaryDisabled ? 'disabled' : ''} onchange="window.omp_updateKpiDeptWarning('${prefix}', '${escapeHtml(taskDept || '')}')" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:${primaryDisabled ? 'var(--bg-page)' : 'var(--bg-card)'};color:var(--text-primary);font-size:13px;">
-              <option value="">无</option>
-              ${omp_renderKpiOptions(filteredKpis, primaryId ? [primaryId] : [], [])}
-            </select>
+            <div id="${prefix}-primary-kpi-container" style="position:relative;">
+              <input type="text" id="${prefix}-primary-kpi-search"
+                ${primaryDisabled ? 'disabled' : ''}
+                placeholder="${primaryDisabled ? '主指标由年度经营计划同步' : '输入指标名称 / KPI 负责人 / 部门进行搜索'}"
+                oninput="window.omp_handleKpiSearch('${prefix}', 'primary')"
+                onfocus="window.omp_handleKpiSearch('${prefix}', 'primary')"
+                style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:${primaryDisabled ? 'var(--bg-page)' : 'var(--bg-card)'};color:var(--text-primary);font-size:13px;">
+              <div id="${prefix}-primary-kpi-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:240px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;z-index:100;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
+            <div id="${prefix}-primary-kpi-selected" style="margin-top:8px;">
+              ${primaryAssociation ? omp_renderKpiSelectedTag(primaryAssociation, prefix, 'primary', primaryDisabled) : ''}
+            </div>
             ${primaryDisabled ? '<div style="font-size:12px;color:var(--text-tertiary);margin-top:4px;">ℹ️ 主指标由年度经营计划同步，如需修改请前往「年度经营计划」页面</div>' : ''}
-          </div>`;
-        const supportingCheckboxes = `
+          </div>
           <div style="grid-column:1 / -1;">
             <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">相关指标（多选）</label>
-            <div id="${prefix}-supporting-kpis" style="width:100%;max-height:160px;overflow-y:auto;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;padding:8px 12px;">
-              ${filteredKpis.length === 0 ? '<div style="color:var(--text-tertiary);font-size:12px;">暂无可选 KPI</div>' : Object.entries(omp_groupKpisByDept(filteredKpis)).map(([dept, list]) => `
-                <div style="font-size:12px;font-weight:600;color:var(--text-tertiary);margin:8px 0 4px;">${escapeHtml(dept)}</div>
-                ${list.map(k => {
-                  const checked = (supportingIds || []).includes(k.id) ? 'checked' : '';
-                  const disabled = primaryId === k.id ? 'disabled' : '';
-                  const opacity = primaryId === k.id ? 'opacity:0.5;' : '';
-                  return `
-                    <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;cursor:pointer;${opacity}">
-                      <input type="checkbox" value="${k.id}" ${checked} ${disabled} onchange="window.omp_updateKpiDeptWarning('${prefix}', '${escapeHtml(taskDept || '')}')">
-                      <span>${escapeHtml(omp_getIndicatorName(k.indicatorId))} (${escapeHtml(k.dept || '-')})</span>
-                    </label>`;
-                }).join('')}
-              `).join('')}
+            <div id="${prefix}-supporting-kpi-container" style="position:relative;">
+              <input type="text" id="${prefix}-supporting-kpi-search"
+                placeholder="输入指标名称 / KPI 负责人 / 部门进行搜索"
+                oninput="window.omp_handleKpiSearch('${prefix}', 'supporting')"
+                onfocus="window.omp_handleKpiSearch('${prefix}', 'supporting')"
+                style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+              <div id="${prefix}-supporting-kpi-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:240px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;z-index:100;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
             </div>
-          </div>`;
-        return primarySelect + supportingCheckboxes + `
+            <div id="${prefix}-supporting-kpi-selected" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
+              ${supportingAssociations.map(a => omp_renderKpiSelectedTag(a, prefix, 'supporting', false)).join('')}
+            </div>
+          </div>
           <div id="${prefix}-kpi-dept-warning" style="grid-column:1 / -1;display:none;font-size:12px;color:var(--warning);padding:8px 12px;background:var(--warning-bg);border-radius:6px;">
             所选 KPI 归属部门与任务部门不同，请确认关联合理性。
           </div>`;
       }
-      window.omp_updateKpiDeptWarning = function(prefix, taskDept) {
-        const primarySelect = document.getElementById(`${prefix}-primary-kpi`);
-        const supportingContainer = document.getElementById(`${prefix}-supporting-kpis`);
-        const warning = document.getElementById(`${prefix}-kpi-dept-warning`);
-        if (!primarySelect || !supportingContainer || !warning) return;
-        const primaryId = primarySelect.value;
-        // 相关指标中禁用已选主指标
-        supportingContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          const isPrimary = primaryId && cb.value === primaryId;
-          cb.disabled = !!isPrimary;
-          cb.parentElement.style.opacity = isPrimary ? '0.5' : '';
+      function omp_renderKpiSelectedTag(association, prefix, type, disabled) {
+        const name = omp_getKpiAssociationDisplayName(association);
+        const kpi = omp_getKpiByInstanceId(association.kpiInstanceId);
+        const dept = kpi?.dept || '-';
+        return `
+          <span class="omp-kpi-tag" data-kpi-id="${association.kpiInstanceId}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border-color);border-radius:16px;background:var(--bg-page);font-size:13px;color:var(--text-primary);">
+            <span>${escapeHtml(name)} (${escapeHtml(dept)})</span>
+            ${disabled ? '' : `<button type="button" onclick="window.omp_removeKpiAssociation('${prefix}', '${type}', '${association.kpiInstanceId}')" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:14px;line-height:1;padding:0;">×</button>`}
+          </span>`;
+      }
+      function omp_searchKpis(query, cycleId, excludeIds, taskDept) {
+        const kpis = (omp_load('kpiInstances') || []).filter(k => k.cycleId === cycleId);
+        const q = query.toLowerCase();
+        const excludeSet = new Set(excludeIds || []);
+        const matched = kpis.filter(k => !excludeSet.has(k.id)).filter(k => {
+          const ind = omp_getIndicatorName(k.indicatorId) || '';
+          const ownerStr = typeof k.owner === 'string' ? k.owner : (k.owner?.displayName || k.owner?.name || '');
+          return ind.toLowerCase().includes(q) ||
+                 (k.dept || '').toLowerCase().includes(q) ||
+                 ownerStr.toLowerCase().includes(q);
         });
-        const selectedIds = new Set();
-        if (primaryId) selectedIds.add(primaryId);
-        supportingContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => selectedIds.add(cb.value));
-        const kpis = omp_load('kpiInstances');
+        matched.sort((a, b) => {
+          if (taskDept) {
+            const aSameDept = a.dept === taskDept ? 1 : 0;
+            const bSameDept = b.dept === taskDept ? 1 : 0;
+            if (aSameDept !== bSameDept) return bSameDept - aSameDept;
+          }
+          const aName = omp_getIndicatorName(a.indicatorId) || '';
+          const bName = omp_getIndicatorName(b.indicatorId) || '';
+          return aName.localeCompare(bName);
+        });
+        return matched.slice(0, 10);
+      }
+      window.omp_handleKpiSearch = function(prefix, type) {
+        const input = document.getElementById(`${prefix}-${type}-kpi-search`);
+        if (!input) return;
+        const timerKey = `_ompKpiSearchTimer_${prefix}_${type}`;
+        if (window[timerKey]) { clearTimeout(window[timerKey]); }
+        window[timerKey] = setTimeout(() => {
+          window[timerKey] = null;
+          const dropdown = document.getElementById(`${prefix}-${type}-kpi-dropdown`);
+          if (!dropdown) return;
+          const query = input.value.trim();
+          document.querySelectorAll('[id$="-kpi-dropdown"]').forEach(el => { if (el.id !== dropdown.id) el.style.display = 'none'; });
+          if (!query) { dropdown.style.display = 'none'; return; }
+          const dataInput = document.getElementById(`${prefix}-kpi-associations-data`);
+          const cycleId = dataInput?.dataset?.cycleId || '';
+          const taskDept = dataInput?.dataset?.taskDept || '';
+          let associations = [];
+          try { associations = JSON.parse(dataInput?.value || '[]'); } catch (e) { associations = []; }
+          const selectedIds = associations.map(a => a.kpiInstanceId);
+          if (type === 'supporting') {
+            const primary = associations.find(a => a.relationType === 'primary');
+            if (primary) selectedIds.push(primary.kpiInstanceId);
+          }
+          const results = omp_searchKpis(query, cycleId, selectedIds, taskDept);
+          if (results.length === 0) {
+            dropdown.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--text-tertiary);">未找到相关 KPI，请尝试其他关键词</div>`;
+          } else {
+            dropdown.innerHTML = results.map(k => `
+              <div onmousedown="event.preventDefault();" onclick="window.omp_selectKpi('${prefix}', '${type}', '${k.id}')" style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border-light);">
+                <div style="font-weight:500;">${escapeHtml(omp_getIndicatorName(k.indicatorId))}</div>
+                <div style="font-size:12px;color:var(--text-tertiary);">${escapeHtml(k.dept || '-')} · ${escapeHtml(typeof k.owner === 'string' ? k.owner : (k.owner?.displayName || k.owner?.name || '-'))}</div>
+              </div>`).join('');
+          }
+          dropdown.style.display = 'block';
+        }, 200);
+      };
+      window.omp_selectKpi = function(prefix, type, kpiInstanceId) {
+        const dataInput = document.getElementById(`${prefix}-kpi-associations-data`);
+        let associations = [];
+        try { associations = JSON.parse(dataInput?.value || '[]'); } catch (e) { associations = []; }
+        if (type === 'primary') {
+          const idx = associations.findIndex(a => a.relationType === 'primary');
+          if (idx > -1) associations.splice(idx, 1);
+          associations.unshift({ kpiInstanceId, relationType: 'primary' });
+        } else {
+          if (!associations.some(a => a.kpiInstanceId === kpiInstanceId)) {
+            associations.push({ kpiInstanceId, relationType: 'supporting' });
+          }
+        }
+        if (dataInput) dataInput.value = JSON.stringify(associations);
+        const searchInput = document.getElementById(`${prefix}-${type}-kpi-search`);
+        const dropdown = document.getElementById(`${prefix}-${type}-kpi-dropdown`);
+        if (searchInput) searchInput.value = '';
+        if (dropdown) dropdown.style.display = 'none';
+        window.omp_refreshKpiAssociationUI(prefix);
+      };
+      window.omp_removeKpiAssociation = function(prefix, type, kpiInstanceId) {
+        const dataInput = document.getElementById(`${prefix}-kpi-associations-data`);
+        let associations = [];
+        try { associations = JSON.parse(dataInput?.value || '[]'); } catch (e) { associations = []; }
+        associations = associations.filter(a => !(a.kpiInstanceId === kpiInstanceId && (type === 'primary' ? a.relationType === 'primary' : a.relationType === 'supporting')));
+        if (dataInput) dataInput.value = JSON.stringify(associations);
+        window.omp_refreshKpiAssociationUI(prefix);
+      };
+      window.omp_refreshKpiAssociationUI = function(prefix) {
+        const dataInput = document.getElementById(`${prefix}-kpi-associations-data`);
+        let associations = [];
+        try { associations = JSON.parse(dataInput?.value || '[]'); } catch (e) { associations = []; }
+        const primary = associations.find(a => a.relationType === 'primary');
+        const supporting = associations.filter(a => a.relationType === 'supporting');
+        const primaryContainer = document.getElementById(`${prefix}-primary-kpi-selected`);
+        const supportingContainer = document.getElementById(`${prefix}-supporting-kpi-selected`);
+        const primarySearch = document.getElementById(`${prefix}-primary-kpi-search`);
+        if (primaryContainer) {
+          const primaryDisabled = primarySearch?.disabled || false;
+          primaryContainer.innerHTML = primary ? omp_renderKpiSelectedTag(primary, prefix, 'primary', primaryDisabled) : '';
+        }
+        if (supportingContainer) {
+          supportingContainer.innerHTML = supporting.map(a => omp_renderKpiSelectedTag(a, prefix, 'supporting', false)).join('');
+        }
+        window.omp_updateKpiDeptWarning(prefix);
+      };
+      window.omp_updateKpiDeptWarning = function(prefix) {
+        const dataInput = document.getElementById(`${prefix}-kpi-associations-data`);
+        let associations = [];
+        try { associations = JSON.parse(dataInput?.value || '[]'); } catch (e) { associations = []; }
+        const warning = document.getElementById(`${prefix}-kpi-dept-warning`);
+        if (!warning) return;
+        let taskDept = dataInput?.dataset?.taskDept || '';
+        if (prefix === 'omp-task') {
+          taskDept = document.getElementById('omp-task-dept')?.value?.trim() || taskDept;
+        }
         let hasCrossDept = false;
-        selectedIds.forEach(id => {
-          const kpi = kpis.find(k => k.id === id);
+        associations.forEach(a => {
+          const kpi = omp_getKpiByInstanceId(a.kpiInstanceId);
           if (kpi && taskDept && kpi.dept !== taskDept) hasCrossDept = true;
         });
         warning.style.display = hasCrossDept ? 'block' : 'none';
       };
+      window.omp_initKpiSearchFields = function(prefix, taskDept) {
+        if (!window._ompKpiDropdownCloseBound) {
+          document.addEventListener('click', function(e) {
+            document.querySelectorAll('[id$="-kpi-dropdown"]').forEach(el => {
+              const container = el.closest('[id$="-kpi-container"]');
+              if (container && !container.contains(e.target)) el.style.display = 'none';
+            });
+          });
+          window._ompKpiDropdownCloseBound = true;
+        }
+        const dataInput = document.getElementById(`${prefix}-kpi-associations-data`);
+        if (dataInput && taskDept) dataInput.dataset.taskDept = taskDept;
+        window.omp_updateKpiDeptWarning(prefix);
+      };
       function omp_collectKpiAssociationsFromForm(prefix, existingAssociations, isDerived) {
-        const primarySelect = document.getElementById(`${prefix}-primary-kpi`);
-        const supportingContainer = document.getElementById(`${prefix}-supporting-kpis`);
-        const associations = [];
+        const dataInput = document.getElementById(`${prefix}-kpi-associations-data`);
+        let associations = [];
+        try { associations = JSON.parse(dataInput?.value || '[]'); } catch (e) { associations = []; }
         if (isDerived) {
           const existingPrimary = (existingAssociations || []).find(a => a.relationType === 'primary');
-          if (existingPrimary) associations.push({ ...existingPrimary });
-        } else if (primarySelect && primarySelect.value) {
-          associations.push({ kpiInstanceId: primarySelect.value, relationType: 'primary' });
-        }
-        if (supportingContainer) {
-          supportingContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-            if (cb.disabled) return;
-            if (associations.some(a => a.kpiInstanceId === cb.value)) return;
-            associations.push({ kpiInstanceId: cb.value, relationType: 'supporting' });
+          const finalAssociations = [];
+          if (existingPrimary) finalAssociations.push({ ...existingPrimary });
+          associations.filter(a => a.relationType !== 'primary').forEach(a => {
+            if (!finalAssociations.some(f => f.kpiInstanceId === a.kpiInstanceId)) finalAssociations.push({ ...a });
           });
+          return finalAssociations;
         }
         return associations;
       }
@@ -2801,7 +2902,7 @@
             <button class="btn btn-primary" data-modal-action="modal-save-keytask">保存</button>
           </div>
         `, true);
-        window.omp_updateKpiDeptWarning('ap-kt', '');
+        window.omp_initKpiSearchFields('ap-kt', '');
         if (window.ensurePersonInput) window.ensurePersonInput('ap-kt-owner', '');
       };
       window.ap_editKeyTask = function(ktId) {
@@ -2880,7 +2981,7 @@
             </div>
           </div>
         `, true);
-        window.omp_updateKpiDeptWarning('ap-kt', kt.dept || '');
+        window.omp_initKpiSearchFields('ap-kt', kt.dept || '');
         if (window.ensurePersonInput) window.ensurePersonInput('ap-kt-owner', kt.owner || '');
       };
       window.ap_saveKeyTask = function() {
@@ -7698,11 +7799,7 @@
                 <div style="min-width:24px;text-align:center;font-size:13px;font-weight:600;color:var(--text-secondary);">${idx + 1}.</div>
                 <div style="flex:1;min-width:0;">
                   <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${escapeHtml(s.name)}</div>
-                  <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">负责人: ${ownerName} · 成员 ${memberCount} 人 · 权重 ${s.weight || 1}</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;width:120px;">
-                  <div style="flex:1;height:6px;background:var(--bg-page);border-radius:3px;overflow:hidden;"><div style="width:${s.progress || 0}%;height:100%;background:var(--primary);border-radius:3px;"></div></div>
-                  <span style="font-size:12px;font-weight:500;">${s.progress || 0}%</span>
+                  <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">负责人: ${ownerName} · 成员 ${memberCount} 人${s.target ? ' · 目标: ' + escapeHtml(s.target) : ''}</div>
                 </div>
                 <button class="btn btn-sm btn-secondary" data-action="omp-edit-subtask" data-id="${s.id}" style="font-size:12px;padding:3px 8px;">编辑</button>
               </div>`;
@@ -7788,7 +7885,7 @@
             <button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal').remove(); window._ompState.editingTaskId = null;">取消</button>
             <button class="btn btn-primary" onclick="window.omp_saveTask()">保存</button>
           </div>`, true);
-        window.omp_updateKpiDeptWarning('omp-task', task.dept || '');
+        window.omp_initKpiSearchFields('omp-task', task.dept || '');
         if (window.ensurePersonInput) {
           window.ensurePersonInput('omp-task-owner', task.owner || '');
           if (activeTab === 'subtasks') {
@@ -7846,7 +7943,7 @@
             <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">描述</label><textarea id="omp-task-desc" rows="2" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${task.description}</textarea></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型 *</label><select id="omp-task-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="strategic" ${task.type === 'strategic' ? 'selected' : ''}><span class="icon" data-icon="target" data-icon-size="14"></span> 战略举措</option><option value="improvement" ${task.type === 'improvement' ? 'selected' : ''}><span class="icon" data-icon="gear" data-icon-size="14"></span> 业务改进</option><option value="capability" ${task.type === 'capability' ? 'selected' : ''}><span class="icon" data-icon="books" data-icon-size="14"></span> 能力建设</option><option value="risk_response" ${task.type === 'risk_response' ? 'selected' : ''}><span class="icon" data-icon="warning" data-icon-size="14"></span>️ 风险应对</option></select></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人 *</label><input type="text" id="omp-task-owner" value="${typeof task.owner === 'object' ? (task.owner.displayName || task.owner.name || '') : (task.owner || '')}" ${task.annualPlanTaskId ? 'disabled' : ''} style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:${task.annualPlanTaskId ? 'var(--bg-page)' : 'var(--bg-card)'};color:var(--text-primary);font-size:13px;"></div>
-            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门 *</label><input type="text" id="omp-task-dept" value="${task.dept}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门 *</label><input type="text" id="omp-task-dept" value="${task.dept}" oninput="window.omp_updateKpiDeptWarning('omp-task')" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             ${task.annualPlanTaskId ? `<div style="grid-column:1 / -1;font-size:12px;color:var(--text-tertiary);padding:8px 12px;background:var(--bg-page);border-radius:6px;">ℹ️ 负责人由年度经营计划同步，如需修改请前往「年度经营计划」页面</div>` : ''}
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label><input type="date" id="omp-task-start" value="${task.startDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">截止日期 *</label><input type="date" id="omp-task-end" value="${task.endDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
@@ -7874,11 +7971,7 @@
             <div class="omp-subtask-number" style="min-width:24px;text-align:center;font-size:13px;font-weight:600;color:var(--text-secondary);">${idx + 1}.</div>
             <input type="text" class="omp-subtask-name" value="${escapeHtml(subtask.name)}" placeholder="子任务名称 *" style="flex:1;min-width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
             <input type="text" id="${ownerInputId}" class="omp-subtask-owner" value="${typeof subtask.owner === 'object' ? (subtask.owner.displayName || subtask.owner.name || '') : (subtask.owner || '')}" placeholder="负责人 *" style="width:90px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-            <input type="date" class="omp-subtask-start" value="${subtask.startDate || ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-            <input type="date" class="omp-subtask-end" value="${subtask.endDate || ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-            <input type="number" class="omp-subtask-progress" value="${subtask.progress || 0}" min="0" max="100" placeholder="进度" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-            <input type="number" class="omp-subtask-weight" value="${subtask.weight || 1}" min="1" placeholder="权重" style="width:55px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-            <input type="number" class="omp-subtask-budget" value="${subtask.budget || ''}" placeholder="预算" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+            <input type="text" class="omp-subtask-target" value="${escapeHtml(subtask.target || '')}" placeholder="目标" style="flex:1;min-width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
             <button type="button" onclick="window.omp_removeSubtaskRow(this)" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;width:24px;" title="删除"><span class="icon" data-icon="x" data-icon-size="14"></span></button>
           </div>`;
       }
@@ -7886,12 +7979,22 @@
       function omp_renderSubtaskTab(parentTaskId) {
         const subtasks = omp_getSubtasks(parentTaskId);
         const rowHtml = subtasks.map((s, idx) => omp_renderSubtaskRow(s, idx, subtasks.length)).join('');
+        const headerHtml = `
+          <div style="display:flex;gap:8px;align-items:center;padding:6px 12px;font-size:12px;color:var(--text-tertiary);border-bottom:1px solid var(--border-light);margin-bottom:8px;">
+            <div style="width:48px;"></div>
+            <div style="min-width:24px;text-align:center;"></div>
+            <div style="flex:1;min-width:80px;">子任务名称</div>
+            <div style="width:90px;">负责人</div>
+            <div style="flex:1;min-width:80px;">目标</div>
+            <div style="width:24px;"></div>
+          </div>`;
         return `
           <div style="margin-bottom:16px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <div style="font-size:14px;font-weight:600;">子任务 (${subtasks.length})</div>
               <button type="button" class="btn btn-sm btn-primary" onclick="window.omp_addSubtaskRow('${parentTaskId}')" style="font-size:12px;">+ 添加子任务</button>
             </div>
+            ${subtasks.length > 0 ? headerHtml : ''}
             <div id="omp-subtask-list">${subtasks.length > 0 ? rowHtml : '<div style="padding:24px;text-align:center;color:var(--text-tertiary);">暂无子任务，点击上方按钮添加</div>'}</div>
           </div>`;
       }
@@ -7979,11 +8082,7 @@
           <div class="omp-subtask-number" style="min-width:24px;text-align:center;font-size:13px;font-weight:600;color:var(--text-secondary);"></div>
           <input type="text" class="omp-subtask-name" placeholder="子任务名称 *" style="flex:1;min-width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
           <input type="text" id="${ownerInputId}" class="omp-subtask-owner" placeholder="负责人 *" style="width:90px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-          <input type="date" class="omp-subtask-start" value="${parent ? parent.startDate : ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-          <input type="date" class="omp-subtask-end" value="${parent ? parent.endDate : ''}" style="width:120px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-          <input type="number" class="omp-subtask-progress" value="0" min="0" max="100" placeholder="进度" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-          <input type="number" class="omp-subtask-weight" value="1" min="1" placeholder="权重" style="width:55px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
-          <input type="number" class="omp-subtask-budget" placeholder="预算" style="width:60px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+          <input type="text" class="omp-subtask-target" placeholder="目标" style="flex:1;min-width:80px;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">
           <button type="button" onclick="window.omp_removeSubtaskRow(this)" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;width:24px;" title="删除"><span class="icon" data-icon="x" data-icon-size="14"></span></button>
         `;
         container.appendChild(row);
@@ -8058,11 +8157,7 @@
           const ownerInput = row.querySelector('.omp-subtask-owner');
           const ownerRaw = ownerInput?.value?.trim();
           const owner = (ownerInput?.id && window.getPersonValue) ? window.getPersonValue(ownerInput.id) : ownerRaw;
-          const startDate = row.querySelector('.omp-subtask-start')?.value || '';
-          const endDate = row.querySelector('.omp-subtask-end')?.value || '';
-          const progress = parseInt(row.querySelector('.omp-subtask-progress')?.value, 10) || 0;
-          const weight = parseInt(row.querySelector('.omp-subtask-weight')?.value, 10) || 1;
-          const budget = parseFloat(row.querySelector('.omp-subtask-budget')?.value) || 0;
+          const target = row.querySelector('.omp-subtask-target')?.value?.trim() || '';
           if (!name || !owner) return;
           if (isNew) {
             result.push({
@@ -8075,21 +8170,22 @@
               description: '',
               type: parent ? parent.type : 'improvement',
               status: 'planning',
-              progress,
+              progress: 0,
               owner,
               dept: parent ? parent.dept : '',
-              startDate,
-              endDate,
-              budget,
+              startDate: parent ? parent.startDate : '',
+              endDate: parent ? parent.endDate : '',
+              budget: 0,
               actualCost: 0,
               kpiAssociations: [],
               members: [],
-              weight,
+              weight: 1,
+              target,
             });
           } else {
             const existing = existingSubtasks.find(s => s.id === rawId);
             if (existing) {
-              result.push({ ...existing, name, owner, startDate, endDate, progress, budget, weight, seq: idx });
+              result.push({ ...existing, name, owner, target, seq: idx });
             }
           }
         });
@@ -8635,7 +8731,7 @@
             <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">描述</label><textarea id="omp-task-desc" rows="2" placeholder="简要描述工作目标" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;"></textarea></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型 *</label><select id="omp-task-type" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"><option value="strategic"><span class="icon" data-icon="target" data-icon-size="14"></span> 战略举措</option><option value="improvement"><span class="icon" data-icon="gear" data-icon-size="14"></span> 业务改进</option><option value="capability"><span class="icon" data-icon="books" data-icon-size="14"></span> 能力建设</option><option value="risk_response"><span class="icon" data-icon="warning" data-icon-size="14"></span>️ 风险应对</option></select></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人 *</label><input type="text" id="omp-task-owner" placeholder="如: 李经理" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
-            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门 *</label><input type="text" id="omp-task-dept" placeholder="如: 销售部" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">部门 *</label><input type="text" id="omp-task-dept" placeholder="如: 销售部" oninput="window.omp_updateKpiDeptWarning('omp-task')" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label><input type="date" id="omp-task-start" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">截止日期 *</label><input type="date" id="omp-task-end" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
             <div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">预算 (万)</label><input type="number" id="omp-task-budget" placeholder="如: 200" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
@@ -8644,7 +8740,7 @@
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);"><button class="btn btn-secondary" onclick="document.getElementById('omp-active-modal').remove(); window._ompState.editingTaskId = null;">取消</button><button class="btn btn-primary" onclick="window.omp_saveTask()">保存</button></div>
         `, true);
-        window.omp_updateKpiDeptWarning('omp-task', '');
+        window.omp_initKpiSearchFields('omp-task', '');
         if (window.ensurePersonInput) window.ensurePersonInput('omp-task-owner', '');
       };
 

@@ -7,6 +7,7 @@ import { LINK_TYPES } from './strategy-map-data.js';
 import { renderDetailPanel } from './strategy-map-render.js';
 import { enhancePersonInput, getPersonInputValue } from '../components/person-input.js';
 import { renderPerson, normalizePerson } from './employee-directory.js';
+import { icon } from '../../assets/js/icons.js';
 
 // ========== Toast ==========
 export const ToastManager = {
@@ -151,7 +152,7 @@ export const ModalManager = {
       <div class="modal">
         <div class="modal-header">
           <span class="modal-title" id="mapConfigTitle">新建战略地图</span>
-          <button class="modal-close" data-action="close-map-config">×</button>
+          <button class="modal-close" data-action="close-map-config">${icon('x', {size: 14})}</button>
         </div>
         <div class="modal-body">
           <input type="hidden" id="mapConfigId">
@@ -415,7 +416,7 @@ export const LinkModalManager = {
       <div class="modal" style="width: 400px;">
         <div class="modal-header">
           <span class="modal-title">编辑因果链</span>
-          <button class="modal-close" data-action="close-link-modal">×</button>
+          <button class="modal-close" data-action="close-link-modal">${icon('x', {size: 14})}</button>
         </div>
         <div class="modal-body">
           <div class="form-row" style="display:flex;gap:12px;">

@@ -126,6 +126,8 @@ export const ICONS = {
   folderOpen: 'folder-open',
   caretUp: 'caret-up',
   caretDown: 'caret-down',
+  caretRight: 'caret-right',
+  caretLeft: 'caret-left',
   bookmark: 'bookmark',
 
   // Meetings module extras

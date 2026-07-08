@@ -1,3 +1,4 @@
+import { icon } from '../../../assets/js/icons.js';
         // 自动判断后端地址：
         // - file:// 打开 → 用 localhost（本地开发）
         // - http://localhost 打开 → 用 localhost:8766（本地开发）
@@ -729,7 +730,7 @@
         function renderIssueCard(issue, type) {
             const colors = {'致命': '#ff5555', '严重': '#ff5555', '警告': '#ffcc00', '建议': '#00ff88'};
             const icons = {'resolved': '', 'new': '', 'persistent': '⏳'};
-            const labels = {'resolved': '→ 已修复', 'new': '← 新增', 'persistent': '仍遗留'};
+            const labels = {'resolved': `${icon('caretRight', {size: 12})} 已修复`, 'new': `${icon('caretLeft', {size: 12})} 新增`, 'persistent': '仍遗留'};
             const color = colors[issue.level] || '#888';
             return `
                 <div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -793,7 +794,7 @@
                         <div style="font-size:0.75em;color:#888;">分</div>
                     </div>
                     <div style="display:flex;align-items:center;justify-content:center;font-size:1.2em;color:${scoreColor};font-weight:600;">
-                        ${scoreChange > 0 ? '↑ +' + scoreChange : (scoreChange < 0 ? '↓ ' + scoreChange : '→ 0')}
+                        ${scoreChange > 0 ? icon('arrowUp', {size: 12}) + ' +' + scoreChange : (scoreChange < 0 ? icon('arrowDown', {size: 12}) + ' ' + scoreChange : icon('caretRight', {size: 12}) + ' 0')}
                     </div>
                     <div style="flex:1;text-align:center;padding:16px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);">
                         <div style="font-size:0.8em;color:#888;margin-bottom:4px;">v${v2.version || '--'} · ${new Date(v2.timestamp).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})}</div>
@@ -807,7 +808,7 @@
                     <div style="display:flex;flex-direction:column;gap:6px;">
                         ${dimChanges.map(d => {
                             const changeColor = d.change > 0 ? '#00ff88' : (d.change < 0 ? '#ff5555' : '#888');
-                            const arrow = d.change > 0 ? '↑' : (d.change < 0 ? '↓' : '→');
+                            const arrow = d.change > 0 ? icon('arrowUp', {size: 12}) : (d.change < 0 ? icon('arrowDown', {size: 12}) : icon('caretRight', {size: 12}));
                             return `
                                 <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:rgba(255,255,255,0.02);border-radius:6px;">
                                     <div style="flex:1;font-size:0.85em;color:#ccc;">${d.name}</div>
@@ -1194,7 +1195,7 @@
             
             // 统计行：最高分
             html += '<tr>';
-            html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">⬆️ 最高分</td>';
+            html += `<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">${icon('arrowUp', {size: 12})} 最高分</td>`;
             sortedColKeys.forEach(function(k) {
                 const scores = data.matrix.map(function(row) { return row[k] || 0; });
                 const max = scores.length ? Math.max.apply(null, scores) : 0;
@@ -1204,7 +1205,7 @@
             
             // 统计行：最低分
             html += '<tr>';
-            html += '<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">⬇️ 最低分</td>';
+            html += `<td style="padding:10px 8px;text-align:left;color:#6b7280;font-size:0.8em;white-space:nowrap;">${icon('arrowDown', {size: 12})} 最低分</td>`;
             sortedColKeys.forEach(function(k) {
                 const scores = data.matrix.map(function(row) { return row[k] || 0; });
                 const min = scores.length ? Math.min.apply(null, scores) : 0;

@@ -140,11 +140,11 @@ export function buildCard({ obj, year, allExpanded, currentView, hasChildren = f
   if (year) {
     const fl = ms[year]?.focusLevel;
     if (fl === 'primary') badge = `<span class="obj-focus primary">${icon('fire', {size: 14})} 重点</span>`;
-    else if (fl === 'secondary') badge = `<span class="obj-focus secondary">○ 次要</span>`;
+    else if (fl === 'secondary') badge = `<span class="obj-focus secondary">${icon('circle', {size: 10})} 次要</span>`;
   }
 
   const drillToggle = (!isSecondary && hasChildren)
-    ? `<button class="drill-toggle ${expanded ? 'expanded' : ''}" data-action="toggle-children" data-id="${obj.id}" title="${expanded ? '收起二级指标' : '展开二级指标'}">▼</button>`
+    ? `<button class="drill-toggle ${expanded ? 'expanded' : ''}" data-action="toggle-children" data-id="${obj.id}" title="${expanded ? '收起二级指标' : '展开二级指标'}">${icon('caretDown', {size: 12})}</button>`
     : '';
 
   const cid = `ms-${obj.id}`;
@@ -154,7 +154,7 @@ export function buildCard({ obj, year, allExpanded, currentView, hasChildren = f
     <div class="obj-desc">${escapeHtml(obj.desc)}</div>
     <div class="obj-ports">
       <div class="port" data-port="left"></div>
-      <button class="ms-toggle" data-action="toggle-ms" data-ms="${cid}"><span>${allExpanded ? '▲' : '▼'}</span> 分解</button>
+      <button class="ms-toggle" data-action="toggle-ms" data-ms="${cid}"><span>${allExpanded ? icon('caretUp', {size: 12}) : icon('caretDown', {size: 12})}</span> 分解</button>
       <div class="port" data-port="right"></div>
     </div>
     <div class="ms-wrap ${allExpanded ? 'open' : ''}" id="${cid}" data-ms-wrap="${obj.id}">${msHtml}</div>

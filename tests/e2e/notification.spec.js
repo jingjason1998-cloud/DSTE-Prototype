@@ -47,7 +47,7 @@ test.describe('Notification System', () => {
     const card = page.locator('.meeting-card').first();
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
-    const pushBtn = page.locator('button:has-text("📢 推送")').first();
+    const pushBtn = page.locator('button:has-text("推送")').first();
     await expect(pushBtn).toBeVisible();
     await page.click('#meeting-detail-overlay button[onclick*="closeMeetingDetail"]');
     await expect(page.locator('#meeting-detail-overlay')).toBeHidden();
@@ -57,14 +57,14 @@ test.describe('Notification System', () => {
     const card = page.locator('.meeting-card').first();
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
-    const remindBtn = page.locator('button:has-text("⏰ 提醒")').first();
+    const remindBtn = page.locator('button:has-text("提醒")').first();
     await expect(remindBtn).toBeVisible();
     await page.click('#meeting-detail-overlay button[onclick*="closeMeetingDetail"]');
     await expect(page.locator('#meeting-detail-overlay')).toBeHidden();
   });
 
   test('disabled type shows alert when pushing', async ({ page }) => {
-    // Pre-configure with agenda disabled (detail overlay 中首个 📢 推送 通常为议程推送)
+    // Pre-configure with agenda disabled (detail overlay 中首个 推送 通常为议程推送)
     await page.evaluate(() => {
       localStorage.setItem('dste_notification_config', JSON.stringify({
         webhooks: [{ id: '1', name: '测试群', url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test' }],
@@ -81,7 +81,7 @@ test.describe('Notification System', () => {
     const card = page.locator('.meeting-card:has-text("片联一季度经营分析会")').first();
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
-    const pushBtn = page.locator('#meeting-detail-overlay button:has-text("📢 推送")').first();
+    const pushBtn = page.locator('#meeting-detail-overlay button:has-text("推送")').first();
     await expect(pushBtn).toBeVisible();
 
     await pushBtn.click();
@@ -106,7 +106,7 @@ test.describe('Notification System', () => {
     const card = page.locator('.meeting-card:has-text("片联一季度经营分析会")').first();
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
-    const pushBtn = page.locator('#meeting-detail-overlay button:has-text("📢 推送")').first();
+    const pushBtn = page.locator('#meeting-detail-overlay button:has-text("推送")').first();
     await expect(pushBtn).toBeVisible();
 
     await pushBtn.click();
@@ -131,7 +131,7 @@ test.describe('Notification System', () => {
     const card = page.locator('.meeting-card:has-text("片联一季度经营分析会")').first();
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
-    const pushBtn = page.locator('#meeting-detail-overlay button:has-text("📢 推送")').first();
+    const pushBtn = page.locator('#meeting-detail-overlay button:has-text("推送")').first();
     await expect(pushBtn).toBeVisible();
 
     await pushBtn.click();
@@ -161,7 +161,7 @@ test.describe('Notification System', () => {
     const card = page.locator('.meeting-card').first();
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
-    const pushBtn = page.locator('button:has-text("📢 推送")').first();
+    const pushBtn = page.locator('button:has-text("推送")').first();
     await pushBtn.click();
 
     await expect(page.locator('#webhook-selector-overlay')).toBeVisible();

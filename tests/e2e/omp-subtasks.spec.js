@@ -68,8 +68,7 @@ test.describe('OMP 重点工作子任务', () => {
     await page.waitForTimeout(200);
     await page.locator('.omp-subtask-row .omp-subtask-name').fill('子任务A');
     await page.locator('.omp-subtask-row .omp-subtask-owner').fill('负责人B');
-    await page.locator('.omp-subtask-row .omp-subtask-progress').fill('50');
-    await page.locator('.omp-subtask-row .omp-subtask-weight').fill('2');
+    await page.locator('.omp-subtask-row .omp-subtask-target').fill('完成原型设计');
 
     await page.locator('.omp-modal .btn-primary:has-text("保存")').click();
     await expect(page.locator('#omp-active-modal')).toHaveCount(0);
@@ -80,7 +79,7 @@ test.describe('OMP 重点工作子任务', () => {
     await page.locator('.omp-task-view-tab:has-text("子任务")').click();
     await page.waitForTimeout(200);
     await expect(page.locator('#omp-task-view-tab-content')).toContainText('子任务A');
-    await expect(page.locator('#omp-task-view-tab-content')).toContainText('50%');
+    await expect(page.locator('#omp-task-view-tab-content')).toContainText('完成原型设计');
   });
 
   test('父任务进度按子任务权重自动聚合', async ({ page }) => {

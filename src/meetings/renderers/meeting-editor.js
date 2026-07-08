@@ -344,10 +344,10 @@ function renderAgendaList() {
         <div style="display: flex; align-items: center; gap: 8px; padding-top: 1px; flex-shrink: 0;">
           <div style="width: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">${scoreHtml}${reviewStatusHtml}</div>
           <input type="text" id="edit-agenda-owner-${idx}" value="${typeof item.owner === 'object' ? (item.owner.displayName || item.owner.name || '') : (item.owner || '')}" onchange="updateAgendaOwner(${idx})" placeholder="负责人" style="width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
-          ${item.status !== 'postponed' ? `<button type="button" onclick="event.stopPropagation(); openPostponeTargetSelector(window._meetingEditData.id, ${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--warning); border-radius: 4px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; white-space: nowrap; flex-shrink: 0;">顺延 →</button>` : ''}
-          <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↑</button>
-          <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">↓</button>
-          <button type="button" onclick="removeAgendaItem(${idx})" ${list.length <= 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+          ${item.status !== 'postponed' ? `<button type="button" onclick="event.stopPropagation(); openPostponeTargetSelector(window._meetingEditData.id, ${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--warning); border-radius: 4px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; white-space: nowrap; flex-shrink: 0;">${icon('caretRight', {size: 12})} 顺延</button>` : ''}
+          <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">${icon('caretUp', {size: 12})}</button>
+          <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">${icon('caretDown', {size: 12})}</button>
+          <button type="button" onclick="removeAgendaItem(${idx})" ${list.length <= 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">${icon('x', {size: 12})}</button>
         </div>
       </div>
     </div>
@@ -744,7 +744,7 @@ function renderActionList() {
           <option value="in_progress" ${item.status === 'in_progress' ? 'selected' : ''}>进行中</option>
           <option value="completed" ${item.status === 'completed' ? 'selected' : ''}>已完成</option>
         </select>
-        <button type="button" onclick="removeActionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+        <button type="button" onclick="removeActionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">${icon('x', {size: 12})}</button>
       </div>
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">
@@ -827,7 +827,7 @@ function renderDecisionList() {
         <select onchange="updateDecisionStatus(${idx}, this.value)" style="width: 100px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);">
           ${statusOptions.map(o => `<option value="${o.value}" ${item.status === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
         </select>
-        <button type="button" onclick="removeDecisionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">×</button>
+        <button type="button" onclick="removeDecisionItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">${icon('x', {size: 12})}</button>
       </div>
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">

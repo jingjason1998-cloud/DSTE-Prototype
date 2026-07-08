@@ -60,7 +60,7 @@ test.describe('Resolution Center Drawer', () => {
 
     // 打开决议中心抽屉
     await page.locator('text=决议总数').first().click();
-    await expect(page.locator('text=📋 决议中心').first()).toBeVisible();
+    await expect(page.locator('#decisions-drawer')).toBeVisible();
 
     // 找到刚添加的决议卡片（按内容搜索）
     const searchInput = page.locator('#decisions-search-input');

@@ -870,7 +870,7 @@ function updateSortIndicators() {
         const indicator = th.querySelector('.sort-indicator');
         if (!indicator) return;
         if (_sortConfig.field === field) {
-            indicator.textContent = _sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
+            indicator.innerHTML = _sortConfig.direction === 'asc' ? icon('caretUp', {size: 12}) : icon('caretDown', {size: 12});
             th.style.color = 'var(--accent-violet)';
         } else {
             indicator.textContent = '';
@@ -1029,13 +1029,13 @@ function renderFormMilestones(milestones) {
     container.innerHTML = milestones.map((m, idx) => `
         <div class="milestone-row" data-msid="${m.id || generateMsId()}">
             <div class="ms-move-group">
-                <button type="button" class="ms-move" data-ms-action="move-up" title="上移">▲</button>
-                <button type="button" class="ms-move" data-ms-action="move-down" title="下移">▼</button>
+                <button type="button" class="ms-move" data-ms-action="move-up" title="上移">${icon('caretUp', {size: 12})}</button>
+                <button type="button" class="ms-move" data-ms-action="move-down" title="下移">${icon('caretDown', {size: 12})}</button>
             </div>
             <input type="text" class="ms-name" value="${escapeHtml(m.name)}" placeholder="里程碑名称" required>
             <input type="date" class="ms-date" value="${m.date || ''}">
-            <span class="milestone-status ${m.status}" data-ms-action="toggle" title="点击切换状态">${m.status === 'completed' ? `${icon('check', {size: 14})} 已完成` : '○ 未完成'}</span>
-            <button type="button" class="milestone-remove" data-ms-action="remove">×</button>
+            <span class="milestone-status ${m.status}" data-ms-action="toggle" title="点击切换状态">${m.status === 'completed' ? `${icon('check', {size: 14})} 已完成` : `${icon('circle', {size: 10})} 未完成`}</span>
+            <button type="button" class="milestone-remove" data-ms-action="remove">${icon('x', {size: 12})}</button>
         </div>
     `).join('');
     updateMilestoneMoveButtons();
@@ -1051,13 +1051,13 @@ function addMilestoneRow() {
     row.dataset.msid = generateMsId();
     row.innerHTML = `
         <div class="ms-move-group">
-            <button type="button" class="ms-move" data-ms-action="move-up" title="上移">▲</button>
-            <button type="button" class="ms-move" data-ms-action="move-down" title="下移">▼</button>
+            <button type="button" class="ms-move" data-ms-action="move-up" title="上移">${icon('caretUp', {size: 12})}</button>
+            <button type="button" class="ms-move" data-ms-action="move-down" title="下移">${icon('caretDown', {size: 12})}</button>
         </div>
         <input type="text" class="ms-name" placeholder="里程碑名称" required>
         <input type="date" class="ms-date">
-        <span class="milestone-status pending" data-ms-action="toggle" title="点击切换状态">○ 未完成</span>
-        <button type="button" class="milestone-remove" data-ms-action="remove">×</button>
+        <span class="milestone-status pending" data-ms-action="toggle" title="点击切换状态">${icon('circle', {size: 10})} 未完成</span>
+        <button type="button" class="milestone-remove" data-ms-action="remove">${icon('x', {size: 12})}</button>
     `;
     container.appendChild(row);
     updateMilestoneMoveButtons();
@@ -1078,7 +1078,7 @@ function toggleMsStatus(el) {
     el.classList.remove('completed', 'pending');
     if (isCompleted) {
         el.classList.add('pending');
-        el.textContent = '○ 未完成';
+        el.textContent = `${icon('circle', {size: 10})} 未完成`;
     } else {
         el.classList.add('completed');
         el.innerHTML = `${icon('check', {size: 14})} 已完成`;

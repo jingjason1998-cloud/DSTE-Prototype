@@ -62,7 +62,7 @@ export function renderNotificationMessage(type, data) {
         `**内容：**${data.content}\n` +
         `**负责人：**${renderPerson(data.owner)}\n` +
         `**截止日期：**${data.deadline || '未定'}\n` +
-        `<font color="${daysColor}">⏳ ${daysText}</font>`
+        `<font color="${daysColor}">${icon('hourglass', {size: 14})} ${daysText}</font>`
       );
     }
 

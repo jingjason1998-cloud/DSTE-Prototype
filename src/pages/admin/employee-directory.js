@@ -210,7 +210,7 @@ function renderOrgNode(orgId, orgUnits, depth, empMap) {
   const indent = depth * 20;
   const employees = empMap[orgId] || [];
 
-  const toggleIcon = hasChildren ? (isExpanded ? '▼' : '▶') : '';
+  const toggleIcon = hasChildren ? (isExpanded ? icon('caretDown', {size: 12}) : icon('caretRight', {size: 12})) : '';
   const folderIcon = hasChildren ? (isExpanded ? icon('folders', {size: 14}) : icon('folder', {size: 14})) : icon('folders', {size: 14});
   const rowBg = isSelected ? 'background: var(--primary-light, color-mix(in srgb, var(--primary) 12%, transparent)); border-radius: 6px;' : '';
   const nameColor = isSelected ? 'var(--primary)' : 'var(--text-primary)';

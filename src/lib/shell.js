@@ -165,11 +165,11 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
       const isCollapsed = localStorage.getItem(groupKey) === 'collapsed';
       if (isCollapsed) group.classList.add('collapsed');
       const groupIcon = item.icon ? `<span class="icon sidebar-group-icon">${icon(item.icon, { size: 14 })}</span>` : '';
-      title.innerHTML = `<span style="display:flex;align-items:center;">${groupIcon}<span>${item.title}</span></span><span class="sidebar-group-toggle">${isCollapsed ? '▶' : '▼'}</span>`;
+      title.innerHTML = `<span style="display:flex;align-items:center;">${groupIcon}<span>${item.title}</span></span><span class="sidebar-group-toggle">${isCollapsed ? icon('caretRight', {size: 12}) : icon('caretDown', {size: 12})}</span>`;
       title.addEventListener('click', () => {
         group.classList.toggle('collapsed');
         const collapsed = group.classList.contains('collapsed');
-        title.querySelector('.sidebar-group-toggle').textContent = collapsed ? '▶' : '▼';
+        title.querySelector('.sidebar-group-toggle').innerHTML = collapsed ? icon('caretRight', {size: 12}) : icon('caretDown', {size: 12});
         localStorage.setItem(groupKey, collapsed ? 'collapsed' : 'expanded');
       });
       group.appendChild(title);
