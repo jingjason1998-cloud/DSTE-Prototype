@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 更新 nginx /api/ 代理到 DSTE 本地 shim
+# 更新 nginx /api/ 代理到 Cloudflare Worker 自定义域名
+# 生产服务器无法直连 workers.dev（DNS 污染），因此通过 jasonxspace.cc 下的自定义域名访问
 # 通过 GitHub Actions 调用，需要 SSH_PRIVATE_KEY / SSH_USER / SSH_HOST 环境变量
 
 set -euo pipefail
@@ -44,13 +45,19 @@ config_file = sys.argv[1]
 with open(config_file, "r") as f:
     content = f.read()
 
-api_block = """    location /api/ {
-        proxy_pass http://127.0.0.1:8766/api/;
-        proxy_set_header Host $host;
+# 代理目标：Cloudflare Worker 自定义域名
+# 生产服务器无法直连 workers.dev（DNS 污染），因此通过 jasonxspace.cc 下的自定义域名访问
+WORKER_DOMAIN = "api.dste.jasonxspace.cc"
+
+api_block = f"""    location /api/ {{
+        proxy_pass https://{WORKER_DOMAIN}/api/;
+        proxy_set_header Host {WORKER_DOMAIN};
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-    }
+        proxy_ssl_server_name on;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+    }}
 """
 
 start_marker = "# === DSTE API PROXY START ==="

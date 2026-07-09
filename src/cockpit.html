@@ -5735,6 +5735,26 @@
         }
       }
 
+      function siMigrateTopicTypes() {
+        const TYPE_MAP = { breakthrough: 'macro', incremental: 'customer', maintenance: 'self' };
+        try {
+          const topics = strategyTopicsRepo.get();
+          if (!Array.isArray(topics)) return;
+          let changed = false;
+          const migrated = topics.map(t => {
+            const newType = TYPE_MAP[t.type];
+            if (newType) {
+              changed = true;
+              return { ...t, type: newType };
+            }
+            return t;
+          });
+          if (changed) strategyTopicsRepo.set(migrated);
+        } catch (e) {
+          console.warn('[SI] topic type migration failed:', e);
+        }
+      }
+
       function siLoadInsights() {
         try {
           const data = DSTE.Storage.getString(SI_STORAGE_KEY_INSIGHTS);
@@ -5763,6 +5783,7 @@
 
       function siLoadTopics() {
         siMigrateTopicsFromV1();
+        siMigrateTopicTypes();
         try {
           const topics = strategyTopicsRepo.get().filter(t => siSafeTopicId(t.id));
           const { topics: cleaned, changed } = siCleanupOrphanTopicChainLinks(topics);
@@ -6025,21 +6046,21 @@
       // 默认专题数据（首次加载无数据时使用，含 2025 历史专题）
       function siDefaultTopics() {
         return [
-          { id: 'st_17173000001_1', name: '海外市场拓展战略研究', year: 2026, type: 'breakthrough', dimension: '财务', status: 'execution', owner: '陈总监', members: [], kmsUrl: '', researchObjectives: '研究东南亚及海外市场的进入策略与本地化路径', deliverables: ['市场调研报告','试点方案'], startDate: '2026-01-01', endDate: '2026-12-31', progress: 65, milestones: [{title:'市场调研',date:'2026-03-01',completed:true},{title:'试点验证',date:'2026-06-01',completed:true},{title:'全面推广',date:'2026-09-01',completed:false},{title:'成果验收',date:'2026-12-01',completed:false}], insights: ['ins_171720000005_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-20' },
-          { id: 'st_17173000002_1', name: '核心产品技术路线规划', year: 2026, type: 'breakthrough', dimension: '流程', status: 'planning', owner: '王总监', members: [], kmsUrl: '', researchObjectives: '明确未来三年核心产品技术路线与关键能力建设', deliverables: ['技术路线图','架构设计文档'], startDate: '2026-03-01', endDate: '2026-09-30', progress: 40, milestones: [{title:'技术选型',date:'2026-04-01',completed:true},{title:'架构设计',date:'2026-05-15',completed:true},{title:'原型验证',date:'2026-07-01',completed:false}], insights: ['ins_171720000001_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-03-01', updatedAt: '2026-05-18' },
-          { id: 'st_17173000003_1', name: '客户成功体系重构', year: 2026, type: 'incremental', dimension: '客户', status: 'insight', owner: '赵经理', members: [], kmsUrl: '', researchObjectives: '重构客户成功体系，提升大客户满意度与续费率', deliverables: [], startDate: '', endDate: '', progress: 0, milestones: [], insights: ['ins_171720000002_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-05-18', updatedAt: '2026-05-18' },
-          { id: 'st_17173000004_1', name: '供应链韧性提升专项', year: 2026, type: 'incremental', dimension: '流程', status: 'execution', owner: '张总监', members: [], kmsUrl: '', researchObjectives: '提升供应链韧性，建立关键物料备选方案', deliverables: ['供应商评估报告','备选方案'], startDate: '2026-02-01', endDate: '2026-08-31', progress: 80, milestones: [{title:'供应商评估',date:'2026-03-01',completed:true},{title:'备选方案',date:'2026-05-01',completed:true},{title:'切换实施',date:'2026-07-01',completed:false}], insights: [], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-02-01', updatedAt: '2026-05-15' },
-          { id: 'st_17173000005_1', name: '人才梯队与组织能力升级', year: 2025, type: 'breakthrough', dimension: '学习成长', status: 'closed', owner: '李HRD', members: [], kmsUrl: '', researchObjectives: '建立面向未来的数字化人才梯队与能力模型', deliverables: ['能力模型','培养体系方案'], startDate: '2025-06-01', endDate: '2026-03-31', progress: 100, milestones: [{title:'能力模型',date:'2025-09-01',completed:true},{title:'培养体系',date:'2025-12-01',completed:true},{title:'评估验收',date:'2026-03-01',completed:true}], insights: [], summary: '完成全员能力评估，建立三级培养体系', previousTopicId: null, nextTopicId: null, createdAt: '2025-06-01', updatedAt: '2026-03-31' },
-          { id: 'st_17173000006_1', name: '数字化转型顶层规划', year: 2026, type: 'breakthrough', dimension: '流程', status: 'execution', owner: '刘CTO', members: [], kmsUrl: '', researchObjectives: '制定公司数字化转型顶层规划与分阶段实施路径', deliverables: ['数字化转型蓝图','实施方案'], startDate: '2026-01-01', endDate: '2026-10-31', progress: 55, milestones: [{title:'现状诊断',date:'2026-02-01',completed:true},{title:'蓝图设计',date:'2026-04-01',completed:true},{title:'方案评审',date:'2026-06-01',completed:false},{title:'分步实施',date:'2026-08-01',completed:false}], insights: ['ins_171720000001_1','ins_171720000004_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-12' },
+          { id: 'st_17173000001_1', name: '海外市场拓展战略研究', year: 2026, type: 'macro', dimension: '财务', status: 'execution', owner: '陈总监', members: [], kmsUrl: '', researchObjectives: '研究东南亚及海外市场的进入策略与本地化路径', deliverables: ['市场调研报告','试点方案'], startDate: '2026-01-01', endDate: '2026-12-31', progress: 65, milestones: [{title:'市场调研',date:'2026-03-01',completed:true},{title:'试点验证',date:'2026-06-01',completed:true},{title:'全面推广',date:'2026-09-01',completed:false},{title:'成果验收',date:'2026-12-01',completed:false}], insights: ['ins_171720000005_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-20' },
+          { id: 'st_17173000002_1', name: '核心产品技术路线规划', year: 2026, type: 'macro', dimension: '流程', status: 'planning', owner: '王总监', members: [], kmsUrl: '', researchObjectives: '明确未来三年核心产品技术路线与关键能力建设', deliverables: ['技术路线图','架构设计文档'], startDate: '2026-03-01', endDate: '2026-09-30', progress: 40, milestones: [{title:'技术选型',date:'2026-04-01',completed:true},{title:'架构设计',date:'2026-05-15',completed:true},{title:'原型验证',date:'2026-07-01',completed:false}], insights: ['ins_171720000001_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-03-01', updatedAt: '2026-05-18' },
+          { id: 'st_17173000003_1', name: '客户成功体系重构', year: 2026, type: 'customer', dimension: '客户', status: 'insight', owner: '赵经理', members: [], kmsUrl: '', researchObjectives: '重构客户成功体系，提升大客户满意度与续费率', deliverables: [], startDate: '', endDate: '', progress: 0, milestones: [], insights: ['ins_171720000002_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-05-18', updatedAt: '2026-05-18' },
+          { id: 'st_17173000004_1', name: '供应链韧性提升专项', year: 2026, type: 'customer', dimension: '流程', status: 'execution', owner: '张总监', members: [], kmsUrl: '', researchObjectives: '提升供应链韧性，建立关键物料备选方案', deliverables: ['供应商评估报告','备选方案'], startDate: '2026-02-01', endDate: '2026-08-31', progress: 80, milestones: [{title:'供应商评估',date:'2026-03-01',completed:true},{title:'备选方案',date:'2026-05-01',completed:true},{title:'切换实施',date:'2026-07-01',completed:false}], insights: [], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-02-01', updatedAt: '2026-05-15' },
+          { id: 'st_17173000005_1', name: '人才梯队与组织能力升级', year: 2025, type: 'macro', dimension: '学习成长', status: 'closed', owner: '李HRD', members: [], kmsUrl: '', researchObjectives: '建立面向未来的数字化人才梯队与能力模型', deliverables: ['能力模型','培养体系方案'], startDate: '2025-06-01', endDate: '2026-03-31', progress: 100, milestones: [{title:'能力模型',date:'2025-09-01',completed:true},{title:'培养体系',date:'2025-12-01',completed:true},{title:'评估验收',date:'2026-03-01',completed:true}], insights: [], summary: '完成全员能力评估，建立三级培养体系', previousTopicId: null, nextTopicId: null, createdAt: '2025-06-01', updatedAt: '2026-03-31' },
+          { id: 'st_17173000006_1', name: '数字化转型顶层规划', year: 2026, type: 'macro', dimension: '流程', status: 'execution', owner: '刘CTO', members: [], kmsUrl: '', researchObjectives: '制定公司数字化转型顶层规划与分阶段实施路径', deliverables: ['数字化转型蓝图','实施方案'], startDate: '2026-01-01', endDate: '2026-10-31', progress: 55, milestones: [{title:'现状诊断',date:'2026-02-01',completed:true},{title:'蓝图设计',date:'2026-04-01',completed:true},{title:'方案评审',date:'2026-06-01',completed:false},{title:'分步实施',date:'2026-08-01',completed:false}], insights: ['ins_171720000001_1','ins_171720000004_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-12' },
           // 2025-2027 SP 历史专题（来自 KMS 营销线 SP823 规划）
-          { id: 'st_17173000007_1', name: '帆软大客户拓展工作的三年业务规划', year: 2025, type: 'breakthrough', dimension: '客户', status: 'closed', owner: '销售总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333002613', researchObjectives: '制定大客户拓展三年规划，明确分层标准与作战机制', deliverables: ['大客户分层标准','铁三角机制','标杆案例库'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'大客户画像',date:'2025-03-01',completed:true},{title:'铁三角机制',date:'2025-06-01',completed:true},{title:'标杆客户打造',date:'2025-09-01',completed:true},{title:'方法论沉淀',date:'2025-12-01',completed:true}], insights: [], summary: '完成大客户分层标准制定，建立铁三角作战机制，沉淀大客户拓展方法论与标杆案例库', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000008_1', name: '帆软年度经常性收入（ARR）三年规划', year: 2025, type: 'breakthrough', dimension: '财务', status: 'closed', owner: '财务总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318263189', researchObjectives: '明确 ARR 统计口径，优化合同结构，建立可持续性收入机制', deliverables: ['ARR口径定义','合同结构优化方案','续费机制'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'ARR口径定义',date:'2025-03-01',completed:true},{title:'合同结构优化',date:'2025-06-01',completed:true},{title:'续费机制设计',date:'2025-09-01',completed:true},{title:'目标达成复盘',date:'2025-12-01',completed:true}], insights: [], summary: '明确 ARR 统计口径，优化新签与续费合同结构，建立可持续性收入跟踪与激励机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000009_1', name: '财务域的市场分析与三年业务规划', year: 2025, type: 'breakthrough', dimension: '财务', status: 'closed', owner: '解决方案总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333004071', researchObjectives: '完成财务域市场洞察，输出财务数字化解决方案', deliverables: ['财务场景调研报告','行业解决方案','标杆客户验证'], startDate: '2025-02-01', endDate: '2025-11-30', progress: 100, milestones: [{title:'财务场景调研',date:'2025-04-01',completed:true},{title:'行业解决方案',date:'2025-06-01',completed:true},{title:'标杆客户验证',date:'2025-09-01',completed:true},{title:'规模化复制',date:'2025-11-01',completed:true}], insights: [], summary: '完成财务域市场洞察，输出财务数字化解决方案，验证并复制标杆客户，支撑业务破圈', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-11-30' },
-          { id: 'st_17173000010_1', name: '数字人才市场分析与三年业务规划', year: 2025, type: 'breakthrough', dimension: '学习成长', status: 'closed', owner: '培训总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1336578837', researchObjectives: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系', deliverables: ['人才需求调研','课程体系','认证机制'], startDate: '2025-03-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'人才需求调研',date:'2025-05-01',completed:true},{title:'课程体系搭建',date:'2025-07-01',completed:true},{title:'认证机制上线',date:'2025-10-01',completed:true},{title:'生态合作落地',date:'2025-12-01',completed:true}], insights: [], summary: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系，建立生态合作培养机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-03-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000011_1', name: '烟草体系客户市场分析与三年业务规划', year: 2025, type: 'incremental', dimension: '客户', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333003592', researchObjectives: '完成烟草行业市场洞察与客户分析，培育标杆客户', deliverables: ['行业洞察报告','标杆客户培育','场景方案沉淀'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'行业洞察',date:'2025-03-01',completed:true},{title:'标杆客户培育',date:'2025-06-01',completed:true},{title:'场景方案沉淀',date:'2025-09-01',completed:true},{title:'规模化推广',date:'2025-12-01',completed:true}], insights: [], summary: '完成烟草行业市场洞察与客户分析，培育标杆客户，沉淀行业化解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000012_1', name: '汽车制造行业客户市场分析与三年业务规划', year: 2025, type: 'incremental', dimension: '客户', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318268670', researchObjectives: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', deliverables: ['行业研究报告','头部客户突破','方案打磨'], startDate: '2025-02-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'行业研究',date:'2025-04-01',completed:true},{title:'头部客户突破',date:'2025-07-01',completed:true},{title:'方案打磨',date:'2025-10-01',completed:true},{title:'成果复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000013_1', name: '上海战区SP三年业务规划和讨论', year: 2025, type: 'breakthrough', dimension: '财务', status: 'closed', owner: '上海战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1321880717', researchObjectives: '完成上海战区三年战略规划，明确增长目标与关键举措', deliverables: ['战区三年规划','年度作战计划'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'现状诊断',date:'2025-03-01',completed:true},{title:'三年目标制定',date:'2025-05-01',completed:true},{title:'关键举措落地',date:'2025-09-01',completed:true},{title:'年度复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成上海战区三年战略规划，明确增长目标与关键举措，形成可执行的年度作战计划', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000014_1', name: '华南战区SP三年业务规划和讨论', year: 2025, type: 'breakthrough', dimension: '财务', status: 'closed', owner: '华南战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1220673571', researchObjectives: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配', deliverables: ['战区三年规划','资源配置方案'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'市场洞察',date:'2025-03-01',completed:true},{title:'目标分解',date:'2025-05-01',completed:true},{title:'资源配置',date:'2025-08-01',completed:true},{title:'复盘验收',date:'2025-12-01',completed:true}], insights: [], summary: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配与复盘验收', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' }
+          { id: 'st_17173000007_1', name: '帆软大客户拓展工作的三年业务规划', year: 2025, type: 'macro', dimension: '客户', status: 'closed', owner: '销售总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333002613', researchObjectives: '制定大客户拓展三年规划，明确分层标准与作战机制', deliverables: ['大客户分层标准','铁三角机制','标杆案例库'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'大客户画像',date:'2025-03-01',completed:true},{title:'铁三角机制',date:'2025-06-01',completed:true},{title:'标杆客户打造',date:'2025-09-01',completed:true},{title:'方法论沉淀',date:'2025-12-01',completed:true}], insights: [], summary: '完成大客户分层标准制定，建立铁三角作战机制，沉淀大客户拓展方法论与标杆案例库', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000008_1', name: '帆软年度经常性收入（ARR）三年规划', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '财务总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318263189', researchObjectives: '明确 ARR 统计口径，优化合同结构，建立可持续性收入机制', deliverables: ['ARR口径定义','合同结构优化方案','续费机制'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'ARR口径定义',date:'2025-03-01',completed:true},{title:'合同结构优化',date:'2025-06-01',completed:true},{title:'续费机制设计',date:'2025-09-01',completed:true},{title:'目标达成复盘',date:'2025-12-01',completed:true}], insights: [], summary: '明确 ARR 统计口径，优化新签与续费合同结构，建立可持续性收入跟踪与激励机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000009_1', name: '财务域的市场分析与三年业务规划', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '解决方案总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333004071', researchObjectives: '完成财务域市场洞察，输出财务数字化解决方案', deliverables: ['财务场景调研报告','行业解决方案','标杆客户验证'], startDate: '2025-02-01', endDate: '2025-11-30', progress: 100, milestones: [{title:'财务场景调研',date:'2025-04-01',completed:true},{title:'行业解决方案',date:'2025-06-01',completed:true},{title:'标杆客户验证',date:'2025-09-01',completed:true},{title:'规模化复制',date:'2025-11-01',completed:true}], insights: [], summary: '完成财务域市场洞察，输出财务数字化解决方案，验证并复制标杆客户，支撑业务破圈', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-11-30' },
+          { id: 'st_17173000010_1', name: '数字人才市场分析与三年业务规划', year: 2025, type: 'macro', dimension: '学习成长', status: 'closed', owner: '培训总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1336578837', researchObjectives: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系', deliverables: ['人才需求调研','课程体系','认证机制'], startDate: '2025-03-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'人才需求调研',date:'2025-05-01',completed:true},{title:'课程体系搭建',date:'2025-07-01',completed:true},{title:'认证机制上线',date:'2025-10-01',completed:true},{title:'生态合作落地',date:'2025-12-01',completed:true}], insights: [], summary: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系，建立生态合作培养机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-03-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000011_1', name: '烟草体系客户市场分析与三年业务规划', year: 2025, type: 'customer', dimension: '客户', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333003592', researchObjectives: '完成烟草行业市场洞察与客户分析，培育标杆客户', deliverables: ['行业洞察报告','标杆客户培育','场景方案沉淀'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'行业洞察',date:'2025-03-01',completed:true},{title:'标杆客户培育',date:'2025-06-01',completed:true},{title:'场景方案沉淀',date:'2025-09-01',completed:true},{title:'规模化推广',date:'2025-12-01',completed:true}], insights: [], summary: '完成烟草行业市场洞察与客户分析，培育标杆客户，沉淀行业化解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000012_1', name: '汽车制造行业客户市场分析与三年业务规划', year: 2025, type: 'customer', dimension: '客户', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318268670', researchObjectives: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', deliverables: ['行业研究报告','头部客户突破','方案打磨'], startDate: '2025-02-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'行业研究',date:'2025-04-01',completed:true},{title:'头部客户突破',date:'2025-07-01',completed:true},{title:'方案打磨',date:'2025-10-01',completed:true},{title:'成果复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000013_1', name: '上海战区SP三年业务规划和讨论', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '上海战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1321880717', researchObjectives: '完成上海战区三年战略规划，明确增长目标与关键举措', deliverables: ['战区三年规划','年度作战计划'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'现状诊断',date:'2025-03-01',completed:true},{title:'三年目标制定',date:'2025-05-01',completed:true},{title:'关键举措落地',date:'2025-09-01',completed:true},{title:'年度复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成上海战区三年战略规划，明确增长目标与关键举措，形成可执行的年度作战计划', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000014_1', name: '华南战区SP三年业务规划和讨论', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '华南战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1220673571', researchObjectives: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配', deliverables: ['战区三年规划','资源配置方案'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'市场洞察',date:'2025-03-01',completed:true},{title:'目标分解',date:'2025-05-01',completed:true},{title:'资源配置',date:'2025-08-01',completed:true},{title:'复盘验收',date:'2025-12-01',completed:true}], insights: [], summary: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配与复盘验收', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' }
         ];
       }
 
@@ -6216,7 +6237,7 @@
         const key = window._strategySortKey || 'updatedAt';
         const dir = window._strategySortDir || 'desc';
         const statusOrder = { insight: 0, planning: 1, execution: 2, closed: 3 };
-        const typeOrder = { breakthrough: 0, incremental: 1, maintenance: 2 };
+        const typeOrder = { macro: 0, customer: 1, self: 2, competition: 3, breakthrough: 0, incremental: 1, maintenance: 2 };
         const sorted = [...topics];
         sorted.sort((a, b) => {
           let va, vb;
@@ -6311,7 +6332,7 @@
 
         const statusClass = { insight: 'status-default', planning: 'status-primary', execution: 'status-warning', closed: 'status-success' };
         const statusLabel = { insight: '洞察阶段', planning: '规划阶段', execution: '执行阶段', closed: '已闭环' };
-        const typeLabel = { breakthrough: '突破型', incremental: '增量型', maintenance: '维持型' };
+        const typeLabel = { macro: '看宏观', customer: '看客户', self: '看自己', competition: '看竞争', breakthrough: '看宏观', incremental: '看客户', maintenance: '看自己' };
         const viewMode = window._strategyViewMode || 'list';
         const sortKey = window._strategySortKey || 'updatedAt';
         const sortDir = window._strategySortDir || 'desc';
@@ -6348,9 +6369,10 @@
           { value: 'closed', label: '已闭环' }
         ];
         const typeOptions = [
-          { value: 'breakthrough', label: '突破型' },
-          { value: 'incremental', label: '增量型' },
-          { value: 'maintenance', label: '维持型' }
+          { value: 'macro', label: '看宏观' },
+          { value: 'customer', label: '看客户' },
+          { value: 'self', label: '看自己' },
+          { value: 'competition', label: '看竞争' }
         ];
 
         function multiSelectHtml(options, selected, kind) {
@@ -6449,6 +6471,9 @@
                   ${hasNext ? `<span class="chain-badge" data-topic-id="${t.nextTopicId}" style="font-size:11px;padding:1px 5px;border-radius:4px;background:var(--success-bg);color:var(--success);cursor:pointer;" title="查看下一年专题">↳ 已深化</span>` : ''}
                 </div>
               </td>
+              <td style="text-align:center;">
+                ${t.kmsUrl && t.kmsUrl !== '#' ? `<a href="${siEscapeHtml(t.kmsUrl)}" target="_blank" rel="noopener noreferrer" title="打开 KMS 页面" style="font-size:13px;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;background:var(--primary-bg);" onmouseover="this.style.background='var(--primary-light)'" onmouseout="this.style.background='var(--primary-bg)'"><span class="icon" data-icon="link" data-icon-size="14"></span>KMS</a>` : '—'}
+              </td>
               <td><span style="padding:2px 8px;border-radius:4px;background:var(--bg-page);font-size:12px;">${siEscapeHtml(t.dimension)}</span></td>
               <td>${typeLabel[t.type] || t.type}</td>
               <td>${siEscapeHtml(siRenderPerson(t.owner))}</td>
@@ -6486,6 +6511,7 @@
                   <thead>
                     <tr>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('name')">专题名称 ${sortIndicator('name')}</th>
+                      <th style="white-space:nowrap;">KMS</th>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('dimension')">战略维度 ${sortIndicator('dimension')}</th>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('type')">类型 ${sortIndicator('type')}</th>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('owner')">负责人 ${sortIndicator('owner')}</th>
@@ -6496,7 +6522,7 @@
                       <th>操作</th>
                     </tr>
                   </thead>
-                  <tbody>${topicRows(yearTopics) || '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
+                  <tbody>${topicRows(yearTopics) || '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
                 </table>
               </div>
             </div>
@@ -6655,7 +6681,7 @@
         const topic = topics.find(t => t.id === topicId);
         if (!topic) return;
 
-        const typeLabel = { breakthrough: '突破型', incremental: '增量型', maintenance: '维持型' };
+        const typeLabel = { macro: '看宏观', customer: '看客户', self: '看自己', competition: '看竞争', breakthrough: '看宏观', incremental: '看客户', maintenance: '看自己' };
         const statusClass = { insight: 'status-default', planning: 'status-primary', execution: 'status-warning', closed: 'status-success' };
         const statusLabel = { insight: '洞察阶段', planning: '规划阶段', execution: '执行阶段', closed: '已闭环' };
         const currentYear = new Date().getFullYear();
@@ -6795,8 +6821,9 @@
         window._siTopicEditId = topicId;
 
         const insightsData = siLoadInsights();
-        const typeOptions = [['breakthrough','突破型'],['incremental','增量型'],['maintenance','维持型']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
+        const typeOptions = [['macro','看宏观'],['customer','看客户'],['self','看自己'],['competition','看竞争']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
         const statusOptions = [['insight','洞察阶段'],['planning','规划阶段'],['execution','执行阶段'],['closed','已闭环']].map(([v,l]) => `<option value="${v}" ${topic.status === v ? 'selected' : ''}>${l}</option>`).join('');
+        const dimensionOptions = [['财务','财务'],['客户','客户'],['流程','流程'],['学习成长','学习成长']].map(([v,l]) => `<option value="${v}" ${topic.dimension === v ? 'selected' : ''}>${l}</option>`).join('');
 
         const milestoneRows = (topic.milestones || []).map((m, idx) => `
           <div class="milestone-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
@@ -6847,7 +6874,7 @@
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度 <span style="color:var(--danger)">*</span></label>
-                  <input type="text" id="edit-topic-dimension" value="${siEscapeHtml(topic.dimension)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  <select id="edit-topic-dimension" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${dimensionOptions}</select>
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型</label>
@@ -7117,7 +7144,7 @@
           name: prefill.name || '',
           summary: prefill.summary || '',
           researchObjectives: prefill.researchObjectives || '',
-          type: prefill.type || 'breakthrough',
+          type: prefill.type || 'macro',
           dimension: prefill.dimension || '流程',
           status: prefill.status || 'insight',
           owner: prefill.owner || '',
@@ -7134,8 +7161,9 @@
         };
 
         const insightsData = siLoadInsights();
-        const typeOptions = [['breakthrough','突破型'],['incremental','增量型'],['maintenance','维持型']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
+        const typeOptions = [['macro','看宏观'],['customer','看客户'],['self','看自己'],['competition','看竞争']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
         const statusOptions = [['insight','洞察阶段'],['planning','规划阶段'],['execution','执行阶段'],['closed','已闭环']].map(([v,l]) => `<option value="${v}" ${topic.status === v ? 'selected' : ''}>${l}</option>`).join('');
+        const dimensionOptions = [['财务','财务'],['客户','客户'],['流程','流程'],['学习成长','学习成长']].map(([v,l]) => `<option value="${v}" ${topic.dimension === v ? 'selected' : ''}>${l}</option>`).join('');
 
         const milestoneRows = (topic.milestones || []).map((m, idx) => `
           <div class="milestone-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
@@ -7191,7 +7219,7 @@
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度 <span style="color:var(--danger)">*</span></label>
-                  <input type="text" id="edit-topic-dimension" value="${siEscapeHtml(topic.dimension)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  <select id="edit-topic-dimension" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${dimensionOptions}</select>
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型</label>
