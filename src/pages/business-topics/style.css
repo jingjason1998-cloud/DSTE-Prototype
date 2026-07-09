@@ -1401,6 +1401,12 @@
         .ms-move { cursor: pointer; color: var(--text-muted); font-size: 10px; background: none; border: none; line-height: 1; padding: 1px 3px; border-radius: 3px; transition: all 0.15s; }
         .ms-move:hover:not(:disabled) { color: var(--primary); background: var(--bg-hover); }
         .ms-move:disabled { opacity: 0.2; cursor: not-allowed; }
+
+        /* ===== 专题序号排序按钮 ===== */
+        .seq-move-group { display: flex; flex-direction: column; gap: 1px; margin-left: 4px; }
+        .seq-move { cursor: pointer; color: var(--text-muted); font-size: 10px; background: none; border: none; line-height: 1; padding: 1px 3px; border-radius: 3px; transition: all 0.15s; }
+        .seq-move:hover:not(:disabled) { color: var(--accent-violet); background: var(--bg-hover); }
+        .seq-move:disabled { opacity: 0.2; cursor: not-allowed; }
         .milestone-status { cursor: pointer; font-size: 12px; padding: 3px 10px; border-radius: 4px; white-space: nowrap; user-select: none; font-weight: 500; transition: all 0.15s; border: 1px solid transparent; }
         .milestone-status:hover { transform: scale(1.05); }
         .milestone-status.completed { background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3); }

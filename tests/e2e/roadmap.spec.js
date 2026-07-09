@@ -19,20 +19,20 @@ test.describe('Roadmap 页面', () => {
   test('执行摘要 KPI 显示当前版本', async ({ page }) => {
     const summary = page.locator('#roadmap-kpi-summary');
     await expect(summary).toBeVisible();
-    // roadmap-data.json 最新版本为 v0.6.6
+    // roadmap-data.json 最新版本为 v0.6.7
     await expect(summary).toContainText('当前版本');
-    await expect(summary).toContainText('v0.6.6');
+    await expect(summary).toContainText('v0.6.7');
   });
 
-  test('显示真实版本数据（v0.6.6 最新）', async ({ page }) => {
+  test('显示真实版本数据（v0.6.7 最新）', async ({ page }) => {
     // 纵向时间线应显示最新版本
     const timeline = page.locator('.roadmap-timeline-vertical');
-    await expect(timeline).toContainText('v0.6.6');
+    await expect(timeline).toContainText('v0.6.7');
   });
 
   test('版本详情卡片显示 CHANGELOG 内容', async ({ page }) => {
-    // 应能看到 v0.6.6 的变更列表
-    const versionCard = page.locator('[id="version-v0.6.6"]');
+    // 应能看到 v0.6.7 的变更列表
+    const versionCard = page.locator('[id="version-v0.6.7"]');
     await expect(versionCard).toBeVisible();
     // 至少包含一个变更类型标签（新增/修复/变更/安全）
     await expect(versionCard).toContainText(/新增|修复|变更|安全/);

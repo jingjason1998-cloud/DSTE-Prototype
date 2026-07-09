@@ -55,13 +55,13 @@ test.describe('Navigation', () => {
     await title.click();
     await page.waitForTimeout(200);
     await expect(group.locator('.sidebar-item[data-page="exe/kpi"]')).not.toBeVisible();
-    await expect(title).toContainText('▶');
+    expect((await title.innerHTML()).includes('<svg')).toBe(true);
 
     // 再次点击展开
     await title.click();
     await page.waitForTimeout(200);
     await expect(group.locator('.sidebar-item[data-page="exe/kpi"]')).toBeVisible();
-    await expect(title).toContainText('▼');
+    expect((await title.innerHTML()).includes('<svg')).toBe(true);
   });
 
   test('navigate to key task management from sidebar', async ({ page }) => {

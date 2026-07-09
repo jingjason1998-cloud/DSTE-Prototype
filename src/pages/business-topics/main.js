@@ -37,6 +37,13 @@ import {
     openLinkIssuesModal, renderLinkIssuesList, saveTopicLinks
 } from './topic-issues.js';
 
+import {
+    getNextTopicSeq,
+    renumberTopicsSeq,
+    sortTopicsBySeq,
+    isNaturalSeqOrder,
+} from './seq-utils.js';
+
 // 暴露人员目录工具给内联事件与动态弹窗
 window.enhancePersonInput = enhancePersonInput;
 window.getPersonInputValue = getPersonInputValue;
@@ -69,14 +76,14 @@ const CURRENT_USER = '销售总监'; // 演示用：当前登录用户
 let _cachedTopics = null;
 let _deleteTargetId = null;
 let _currentTab = 'all';
-const _sortConfig = { field: 'priority', direction: 'desc' };
+const _sortConfig = { field: 'seq', direction: 'asc' };
 let _deptOrgSelector = null;
 let _deptOrgTree = null;
 
 const topicsRepo = new Repository('businessTopics', {
   storageKey: STORAGE_KEY,
   schema: 'array',
-  version: 4,
+  version: 5,
   migrators: {
     2: (topics) => {
       topics.forEach(t => {
@@ -98,6 +105,15 @@ const topicsRepo = new Repository('businessTopics', {
       });
       return topics;
     },
+    5: (topics) => {
+      // 为老数据补 seq 并整平重排，确保从 1 开始连续
+      topics.forEach((t, idx) => {
+        if (typeof t.seq !== 'number') t.seq = idx + 1;
+      });
+      const sorted = sortTopicsBySeq(topics);
+      sorted.forEach((t, idx) => { t.seq = idx + 1; });
+      return sorted;
+    },
   },
 });
 
@@ -118,10 +134,11 @@ function redirectToCasLogin() {
 async function loadRemoteTopics() {
   const remote = await apiLoadArray('/api/topics');
   if (!remote || remote.length === 0) return false;
-  const local = topicsRepo.getRaw();
+  const local = topicsRepo.get();
   const merged = local && local.length > 0
     ? mergeEntities(ensureLastModified(local), ensureLastModified(remote))
     : remote;
+  renumberTopicsSeq(merged);
   _cachedTopics = merged;
   topicsRepo.set(merged);
   return true;
@@ -374,6 +391,7 @@ function initDefaultData(shouldSave = true) {
             dataVersion: 2,
         },
     ];
+    renumberTopicsSeq(topics);
     if (shouldSave) saveTopics(topics);
     return topics;
 }
@@ -575,6 +593,9 @@ function getFilteredTopics() {
     topics.sort((a, b) => {
         let cmp = 0;
         switch (field) {
+            case 'seq':
+                cmp = ((typeof a.seq === 'number' ? a.seq : 0) - (typeof b.seq === 'number' ? b.seq : 0));
+                break;
             case 'name':
                 cmp = (a.name || '').localeCompare(b.name || '');
                 break;
@@ -670,6 +691,12 @@ function renderTable() {
                 openDetailModal(sid);
             }
         };
+
+        // 序号
+        const tdSeq = document.createElement('td');
+        tdSeq.style.cssText = 'text-align:center; font-weight:600; color:var(--text-primary); width:48px;';
+        tdSeq.textContent = typeof t.seq === 'number' ? String(t.seq) : '-';
+        tr.appendChild(tdSeq);
 
         // 名称 + 描述
         const tdName = document.createElement('td');
@@ -792,6 +819,47 @@ function renderTable() {
         };
         opGroup.appendChild(btnDelete);
 
+        if (isNaturalSeqOrder(_sortConfig)) {
+            const allTopics = loadTopics();
+            const minSeq = allTopics.length > 0
+              ? Math.min(...allTopics.map(t => typeof t.seq === 'number' ? t.seq : 0))
+              : 0;
+            const maxSeq = allTopics.length > 0
+              ? Math.max(...allTopics.map(t => typeof t.seq === 'number' ? t.seq : 0))
+              : 0;
+            const isFirst = typeof t.seq === 'number' && t.seq === minSeq;
+            const isLast = typeof t.seq === 'number' && t.seq === maxSeq;
+
+            const btnMoveGroup = document.createElement('div');
+            btnMoveGroup.className = 'seq-move-group';
+
+            const btnUp = document.createElement('button');
+            btnUp.className = 'seq-move';
+            btnUp.type = 'button';
+            btnUp.title = '上移';
+            btnUp.disabled = isFirst;
+            btnUp.innerHTML = icon('caretUp', { size: 10 });
+            btnUp.onclick = (e) => {
+                e.stopPropagation();
+                moveTopicRow(sid, 'up');
+            };
+
+            const btnDown = document.createElement('button');
+            btnDown.className = 'seq-move';
+            btnDown.type = 'button';
+            btnDown.title = '下移';
+            btnDown.disabled = isLast;
+            btnDown.innerHTML = icon('caretDown', { size: 10 });
+            btnDown.onclick = (e) => {
+                e.stopPropagation();
+                moveTopicRow(sid, 'down');
+            };
+
+            btnMoveGroup.appendChild(btnUp);
+            btnMoveGroup.appendChild(btnDown);
+            opGroup.appendChild(btnMoveGroup);
+        }
+
         tdOps.appendChild(opGroup);
         tr.appendChild(tdOps);
 
@@ -821,6 +889,24 @@ function switchTab(tab) {
         el.classList.toggle('active', el.dataset.tab === tab);
     });
     renderTable();
+}
+
+function moveTopicRow(topicId, direction) {
+    const topics = loadTopics();
+    const idx = topics.findIndex(t => t.id === topicId);
+    if (idx === -1) return;
+
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= topics.length) return;
+
+    // 交换两个相邻专题的 seq，保持数组物理顺序不变，按 seq 排序后自然呈现移动效果
+    const tempSeq = topics[idx].seq;
+    topics[idx].seq = topics[targetIdx].seq;
+    topics[targetIdx].seq = tempSeq;
+
+    saveTopics(topics);
+    renderTable();
+    renderStats();
 }
 
 function applyFilters() {
@@ -1140,6 +1226,8 @@ function saveTopic() {
     const tagsRaw = document.getElementById('fTags').value;
     const tags = tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean);
 
+    const existingTopic = id ? loadTopics().find(t => t.id === id) : null;
+
     const topicData = {
         id: id || generateId(),
         name,
@@ -1157,11 +1245,12 @@ function saveTopic() {
         progress,
         milestones,
         tags,
-        linkedIssues: id ? (loadTopics().find(t => t.id === id)?.linkedIssues || []) : [],
-        linkedKpis: id ? (loadTopics().find(t => t.id === id)?.linkedKpis || []) : [],
-        issueStats: id ? (loadTopics().find(t => t.id === id)?.issueStats || {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null}) : {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null},
+        seq: existingTopic?.seq,
+        linkedIssues: existingTopic?.linkedIssues || [],
+        linkedKpis: existingTopic?.linkedKpis || [],
+        issueStats: existingTopic?.issueStats || {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null},
         dataVersion: 2,
-        createdAt: id ? (loadTopics().find(t => t.id === id)?.createdAt || now) : now,
+        createdAt: existingTopic?.createdAt || now,
         updatedAt: now,
     };
 
@@ -1170,6 +1259,7 @@ function saveTopic() {
         const idx = topics.findIndex(t => t.id === id);
         if (idx >= 0) topics[idx] = topicData;
     } else {
+        topicData.seq = getNextTopicSeq(topics);
         topics.push(topicData);
     }
     saveTopics(topics);
@@ -1343,6 +1433,7 @@ function openDeleteModal(id) {
 function confirmDeleteTopic() {
     if (!_deleteTargetId) return;
     const topics = loadTopics().filter(t => t.id !== _deleteTargetId);
+    renumberTopicsSeq(topics);
     saveTopics(topics);
     _deleteTargetId = null;
     closeModal('deleteModal');
@@ -1390,6 +1481,7 @@ function importTopicsFromFile(event) {
                 t.issueStats = t.issueStats || {stCount:0, atCount:0, totalCount:0, lastMeetingDate:null};
                 t.dataVersion = 2;
             });
+            renumberTopicsSeq(validTopics);
             saveTopics(validTopics);
             renderTable();
             renderStats();
@@ -1455,6 +1547,11 @@ async function init() {
 
     let topics = loadTopics();
     const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
+    // 防御：任何缺失 seq 的数据都重新整平（兼容测试/异常状态）
+    if (Array.isArray(topics) && topics.some(t => typeof t.seq !== 'number')) {
+        renumberTopicsSeq(topics);
+        saveTopics(topics);
+    }
     if (topics.length === 0) {
         topics = isLocalDev ? initDefaultData() : [];
     } else if (isLocalDev) {
@@ -1469,6 +1566,7 @@ async function init() {
             }
         });
         if (added > 0) {
+            renumberTopicsSeq(topics);
             saveTopics(topics);
         }
     }
@@ -1822,6 +1920,7 @@ window._dste = {
     moveMilestoneRow,
     updateMilestoneMoveButtons,
     saveTopic,
+    moveTopicRow,
     saveTopicLinks,
     applyAiMatches,
     openImportModal,

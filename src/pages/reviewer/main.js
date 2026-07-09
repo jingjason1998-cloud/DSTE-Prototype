@@ -1334,9 +1334,9 @@ import { icon } from '../../../assets/js/icons.js';
             if (totalMatch) totalScore = parseFloat(totalMatch[1]);
 
             let passed = null;
-            // 精确匹配判定结果，避免在"通过标准"段落误匹配
-            if (/判定[：:]\s*\s*通过/.test(reportText)) passed = true;
-            else if (/判定[：:]\s*\s*待修改/.test(reportText)) passed = false;
+            // 精确匹配判定结果，允许 colon 与结论之间有 emoji/图标/空白
+            if (/判定[：:]\s*.*?通过/.test(reportText)) passed = true;
+            else if (/判定[：:]\s*.*?待修改/.test(reportText)) passed = false;
 
             return { scores, totalScore, passed };
         }
@@ -2512,6 +2512,28 @@ import { icon } from '../../../assets/js/icons.js';
         window._testParseHighlights = parseHighlights;
         window._testParseConclusion = parseConclusion;
         window._testGetDimensionConfig = getDimensionConfig;
+
+        // 暴露供 HTML 内联事件处理器调用的函数（模块作用域默认不挂载到 window）
+        window.clearReviewHistory = clearReviewHistory;
+        window.closeCompareMatrixModal = closeCompareMatrixModal;
+        window.closeCompareModal = closeCompareModal;
+        window.copyPrompt = copyPrompt;
+        window.copyReport = copyReport;
+        window.directReview = directReview;
+        window.exportReportToPDF = exportReportToPDF;
+        window.generateSummary = generateSummary;
+        window.loadConfig = loadConfig;
+        window.renderCompareMatrix = renderCompareMatrix;
+        window.renderHistoryPanel = renderHistoryPanel;
+        window.resetForm = resetForm;
+        window.sanitizeUrl = sanitizeUrl;
+        window.saveConfig = saveConfig;
+        window.showCompareMatrix = showCompareMatrix;
+        window.startBatchReview = startBatchReview;
+        window.toggleBatchInput = toggleBatchInput;
+        window.toggleConfig = toggleConfig;
+        window.toggleFactCheck = toggleFactCheck;
+        window.toggleRawReport = toggleRawReport;
 
         // 移动端汉堡菜单切换
         (function() {

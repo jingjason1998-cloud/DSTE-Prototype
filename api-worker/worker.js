@@ -42,6 +42,7 @@ function errorResponse(message, status = 500, request) {
 // KV key 常量
 const KEYS = {
   topics: 'dste_topics_v2',
+  strategyTopics: 'dste_strategy_topics_v2',
   issues: 'dste_issues_v1',
   meetings: 'dste_meetings_v1',
   // 需求池
@@ -317,6 +318,7 @@ async function validateCasTicket(ticket, service) {
 // 默认数据（首次使用）
 const DEFAULTS = {
   topics: '[]',
+  strategyTopics: '[]',
   issues: '[]',
   meetings: '[]',
   requirements: '[]',
@@ -843,11 +845,11 @@ export default {
       }
 
       // --- 单条 CRUD 端点（新增）---
-      const itemMatch = path.match(/^\/api\/(topics|issues|meetings|employees|org-units|requirements)\/([^\/]+)$/);
+      const itemMatch = path.match(/^\/api\/(topics|strategy-topics|issues|meetings|employees|org-units|requirements)\/([^\/]+)$/);
       if (itemMatch) {
         const entity = itemMatch[1];
         const id = decodeURIComponent(itemMatch[2]);
-        const key = KEYS[entity === 'org-units' ? 'orgUnits' : entity];
+        const key = KEYS[entity === 'org-units' ? 'orgUnits' : entity === 'strategy-topics' ? 'strategyTopics' : entity];
         const auth = await requireAuth(request, env);
         // GET 保持开放与全量接口一致；写操作需认证
         const user = auth.valid ? auth.user : null;
@@ -950,6 +952,24 @@ export default {
           const normalized = normalizeArrayItems(body, auth.user);
           await env.DSTE_KV.put(KEYS.topics, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'topics saved' }, 200, request);
+        }
+      }
+
+      // --- 战略专题 API ---
+      if (path === '/api/strategy-topics') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.strategyTopics) || DEFAULTS.strategyTopics;
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.strategyTopics, JSON.stringify(normalized));
+          return jsonResponse({ success: true, message: 'strategy topics saved' }, 200, request);
         }
       }
 
@@ -1129,7 +1149,7 @@ export default {
           }
           const body = await request.json();
           const members = Array.isArray(body.members) ? body.members : [];
-          const kvKey = getUserKey(auth, KEYS.tasks);
+          const kvKey = KEYS.tasks;
           const raw = await env.DSTE_KV.get(kvKey) || DEFAULTS.tasks || '[]';
           let tasks;
           try { tasks = JSON.parse(raw); } catch (e) { tasks = []; }
@@ -1156,7 +1176,7 @@ export default {
           if (!Array.isArray(orders) || orders.length === 0) {
             return errorResponse('Invalid request body', 400, request);
           }
-          const kvKey = getUserKey(auth, KEYS.tasks);
+          const kvKey = KEYS.tasks;
           const raw = await env.DSTE_KV.get(kvKey) || DEFAULTS.tasks || '[]';
           let tasks;
           try { tasks = JSON.parse(raw); } catch (e) { tasks = []; }

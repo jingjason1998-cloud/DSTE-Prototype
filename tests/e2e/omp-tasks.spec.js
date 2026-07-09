@@ -444,4 +444,63 @@ test.describe('OMP 重点工作管理', () => {
       expect(errors).toEqual([]);
     });
   });
+
+  test('重点工作变更触发 per-record 云端同步', async ({ page }) => {
+    const putUrls = [];
+
+    // Mock 云端 OMP tasks 为空，使 ompSyncFromApi 触发首次上传
+    await page.route('/api/omp/tasks', route => {
+      if (route.request().method() === 'GET') {
+        route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: [] }) });
+      } else {
+        route.continue();
+      }
+    });
+    await page.route(/\/api\/omp\/tasks\/[^/]+$/, route => {
+      if (route.request().method() === 'PUT') {
+        putUrls.push(route.request().url());
+        route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: {} }) });
+      } else {
+        route.continue();
+      }
+    });
+
+    await page.goto('/src/cockpit.html');
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('dste_omp_data_version', 'canvas-v18');
+      localStorage.setItem('dste_omp_tasks_v1', JSON.stringify([
+        {
+          id: 'sync_test_task',
+          cycleId: 'cycle_2026_marketing',
+          source: 'omp',
+          name: '云端同步测试任务',
+          description: '',
+          type: 'strategic',
+          status: 'active',
+          progress: 30,
+          owner: '测试人',
+          members: [],
+          dept: '测试部',
+          startDate: '2026-01-01',
+          endDate: '2026-12-31',
+          kpiAssociations: [],
+          budget: 0,
+          actualCost: 0,
+          version: 1,
+          lastModified: Date.now(),
+        },
+      ]));
+      // 避免其它 OMP 实体的同步请求干扰
+      localStorage.setItem('dste_omp_indicators_v1', '[]');
+      localStorage.setItem('dste_omp_kpi_instances_v1', '[]');
+      localStorage.setItem('dste_omp_milestones_v1', '[]');
+      localStorage.setItem('dste_omp_progress_v1', '[]');
+    });
+    await page.goto(OMP_URL);
+    await page.waitForTimeout(2000);
+
+    // 验证发起了 /api/omp/tasks/sync_test_task 的 PUT
+    expect(putUrls.some(url => url.includes('/api/omp/tasks/sync_test_task'))).toBe(true);
+  });
 });

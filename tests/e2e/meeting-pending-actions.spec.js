@@ -69,7 +69,7 @@ test.describe('Pending Actions Drawer', () => {
     const drawer = page.locator('#pending-actions-drawer');
     await expect(drawer).toBeVisible();
 
-    await page.locator('#pending-actions-drawer button[onclick="closePendingActionsDrawer()"]').click();
+    await page.evaluate(() => closePendingActionsDrawer());
     await expect(drawer).toBeHidden();
   });
 

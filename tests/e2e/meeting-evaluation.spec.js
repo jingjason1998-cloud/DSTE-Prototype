@@ -19,7 +19,7 @@ test.describe('Meeting Evaluation', () => {
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
     // Left panel should show eval button
-    const evalBtn = page.locator('#meeting-detail-overlay button:has-text("⭐ 评估会议"), #meeting-detail-overlay button:has-text("⭐ 重新评估")').first();
+    const evalBtn = page.locator('#meeting-detail-overlay button:has-text("评估会议"), #meeting-detail-overlay button:has-text("重新评估")').first();
     await expect(evalBtn).toBeVisible();
   });
 
@@ -28,7 +28,7 @@ test.describe('Meeting Evaluation', () => {
     await expect(card).toBeVisible();
     await card.click();
     await expect(page.locator('#meeting-detail-overlay')).toBeVisible();
-    const evalBtn = page.locator('#meeting-detail-overlay button:has-text("⭐ 评估会议")');
+    const evalBtn = page.locator('#meeting-detail-overlay button:has-text("评估会议")');
     await expect(evalBtn).toHaveCount(0);
   });
 
@@ -36,7 +36,7 @@ test.describe('Meeting Evaluation', () => {
     const card = page.locator('.meeting-card').filter({ hasText: /已完成/ }).first();
     await card.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
-    await page.locator('#meeting-detail-overlay button:has-text("⭐ 评估会议"), #meeting-detail-overlay button:has-text("⭐ 重新评估")').first().click();
+    await page.locator('#meeting-detail-overlay button:has-text("评估会议"), #meeting-detail-overlay button:has-text("重新评估")').first().click();
     await expect(page.locator('#meeting-eval-overlay')).toBeVisible();
     // Should show overall score
     const scoreDisplay = page.locator('#eval-overall-display');
@@ -53,7 +53,7 @@ test.describe('Meeting Evaluation', () => {
     const card = page.locator('.meeting-card').filter({ hasText: /已完成/ }).first();
     await card.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
-    await page.locator('#meeting-detail-overlay button:has-text("⭐ 评估会议"), #meeting-detail-overlay button:has-text("⭐ 重新评估")').first().click();
+    await page.locator('#meeting-detail-overlay button:has-text("评估会议"), #meeting-detail-overlay button:has-text("重新评估")').first().click();
     await page.locator('#meeting-eval-overlay').waitFor({ state: 'visible' });
 
     // Adjust the first slider (会前, max 35)
@@ -78,7 +78,7 @@ test.describe('Meeting Evaluation', () => {
   test('eval tab shows score with progress bars when evaluated', async ({ page }) => {
     // This test depends on a meeting that already has effectiveness in mock data
     // Find a completed meeting card that shows a score (e.g. 92)
-    const card = page.locator('.meeting-card').filter({ hasText: /综合评分\s*9/ }).first();
+    const card = page.locator('.meeting-card').filter({ hasText: /已完成/ }).filter({ hasText: /(92|88)/ }).first();
     await card.click();
     await page.locator('#meeting-detail-overlay').waitFor({ state: 'visible' });
     // Eval section should be visible directly (no tab needed in detail view)

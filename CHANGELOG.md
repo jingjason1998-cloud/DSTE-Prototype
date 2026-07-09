@@ -7,6 +7,21 @@
 
 ---
 
+## [v0.6.7] - 2026-07-09
+
+### Added
+- **OMP 重点工作云端同步**：重点工作管理（`exe/tasks`）从仅本地存储升级为 per-record 云端同步。
+  - 前端 `src/cockpit.html` 中 `omp_save('tasks', ...)` 改为通过 `enqueuePerRecordSync` 发送 `PUT /api/omp/tasks/{id}`（新增/更新）与 `DELETE /api/omp/tasks/{id}`（删除）。
+  - `ompSyncFromApi()` 在检测到当前用户云端重点工作为空、但本地有数据时，自动将本地任务推送到云端。
+  - `omp_initData()` 升级 `DATA_VERSION` 到 `canvas-v18`，为老任务补齐 `version` 字段，支撑冲突判断。
+  - 新增/更新 E2E 测试：`tests/e2e/omp-tasks.spec.js` 增加「重点工作变更触发 per-record 云端同步」用例；`tests/e2e/omp-migration-safety.spec.js` 增加 version 字段回填断言。
+
+### Changed
+- **OMP 数据共享存储**：`api-worker/worker.js` 中 `/api/omp/{entity}`、`/api/omp/{entity}/{id}`、`/api/omp/tasks/{id}/members`、`/api/omp/tasks/reorder` 统一使用共享 KV key，确保所有登录用户看到同一份 OMP 数据。
+- **SonarQube 版本号**：`sonar-project.properties` 的 `sonar.projectVersion` 从 `0.6.6` 更新为 `0.6.7`。
+
+---
+
 ## [v0.6.6] - 2026-07-08
 
 ### Added

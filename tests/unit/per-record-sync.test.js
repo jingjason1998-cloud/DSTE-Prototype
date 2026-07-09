@@ -152,5 +152,19 @@ describe('per-record-sync', () => {
       expect(items[0].method).toBe('DELETE');
       expect(items[0].endpoint).toBe('/api/topics/1');
     });
+    it('supports nested entity names like omp/tasks', async () => {
+      const queue = new SyncQueue();
+      const executor = vi.fn().mockResolvedValue();
+      const oldArr = [];
+      const newArr = [{ id: 'task_1', name: 'Task', version: 1, lastModified: 100 }];
+      const diff = computeEntityDiff(oldArr, newArr);
+
+      enqueuePerRecordSync('omp/tasks', diff, executor, queue);
+
+      const items = queue.loadQueue();
+      expect(items).toHaveLength(1);
+      expect(items[0].endpoint).toBe('/api/omp/tasks/task_1');
+      expect(items[0].method).toBe('PUT');
+    });
   });
 });

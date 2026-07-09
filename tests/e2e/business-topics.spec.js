@@ -106,21 +106,21 @@ test.describe('Business Topics - Search', () => {
 // ===================== Sorting =====================
 test.describe('Business Topics - Sorting', () => {
   test('clicking priority header sorts table', async ({ page }) => {
-    const firstPriorityBefore = await page.locator('#topicTableBody tr:first-child td:nth-child(2)').textContent();
+    const firstPriorityBefore = await page.locator('#topicTableBody tr:first-child td:nth-child(3)').textContent();
 
     await page.locator('[data-sort-field="priority"]').click();
     await page.waitForTimeout(500);
 
-    const firstPriorityAfter = await page.locator('#topicTableBody tr:first-child td:nth-child(2)').textContent();
+    const firstPriorityAfter = await page.locator('#topicTableBody tr:first-child td:nth-child(3)').textContent();
 
-    const indicator = await page.locator('[data-sort-field="priority"] .sort-indicator').textContent();
-    expect(indicator.trim()).toMatch(/[↑↓]/);
+    const indicator = await page.locator('[data-sort-field="priority"] .sort-indicator').innerHTML();
+    expect(indicator.trim()).toContain('<svg');
 
     // Click again to reverse
     await page.locator('[data-sort-field="priority"]').click();
     await page.waitForTimeout(500);
 
-    const firstPriorityDesc = await page.locator('#topicTableBody tr:first-child td:nth-child(2)').textContent();
+    const firstPriorityDesc = await page.locator('#topicTableBody tr:first-child td:nth-child(3)').textContent();
 
     if (firstPriorityBefore !== firstPriorityDesc) {
       expect(firstPriorityAfter).not.toEqual(firstPriorityDesc);
@@ -131,8 +131,8 @@ test.describe('Business Topics - Sorting', () => {
     await page.locator('[data-sort-field="progress"]').click();
     await page.waitForTimeout(500);
 
-    const indicator = await page.locator('[data-sort-field="progress"] .sort-indicator').textContent();
-    expect(indicator.trim()).toMatch(/[↑↓]/);
+    const indicator = await page.locator('[data-sort-field="progress"] .sort-indicator').innerHTML();
+    expect(indicator.trim()).toContain('<svg');
   });
 });
 
@@ -185,7 +185,7 @@ test.describe('Business Topics - Create', () => {
 // ===================== Edit =====================
 test.describe('Business Topics - Edit', () => {
   test('edit first topic and verify update', async ({ page }) => {
-    const firstTopicName = await page.locator('#topicTableBody tr:first-child td:first-child div').first().textContent();
+    const firstTopicName = await page.locator('#topicTableBody tr:first-child td:nth-child(2) div').first().textContent();
 
     await page.locator('#topicTableBody tr').first().locator('[data-action="edit"]').click();
     await page.waitForTimeout(300);
@@ -211,7 +211,7 @@ test.describe('Business Topics - Edit', () => {
     await page.waitForTimeout(500);
 
     // First row should now show P0 tag
-    const firstPriority = await page.locator('#topicTableBody tr:first-child td:nth-child(2)').textContent();
+    const firstPriority = await page.locator('#topicTableBody tr:first-child td:nth-child(3)').textContent();
     expect(firstPriority.trim()).toBe('P0');
   });
 });
@@ -232,7 +232,7 @@ test.describe('Business Topics - Detail View', () => {
   });
 
   test('detail modal shows correct topic info', async ({ page }) => {
-    const firstTopicName = await page.locator('#topicTableBody tr:first-child td:first-child div').first().textContent();
+    const firstTopicName = await page.locator('#topicTableBody tr:first-child td:nth-child(2) div').first().textContent();
 
     await page.locator('#topicTableBody tr').first().click();
     await page.waitForTimeout(500);
@@ -248,7 +248,7 @@ test.describe('Business Topics - Delete', () => {
   test('delete topic and verify removal', async ({ page }) => {
     const initialCount = await page.locator('#topicTableBody tr').count();
     const firstRow = page.locator('#topicTableBody tr').first();
-    const firstTopicName = await firstRow.locator('td:first-child div').first().textContent();
+    const firstTopicName = await firstRow.locator('td:nth-child(2) div').first().textContent();
 
     await firstRow.locator('[data-action="delete"]').click();
     await page.waitForTimeout(300);
@@ -343,7 +343,7 @@ test.describe('Business Topics - Filters', () => {
 
     // 如果表格有数据，验证部门列都匹配
     if (count > 0) {
-      const depts = await page.locator('#topicTableBody tr td:nth-child(4)').allTextContents();
+      const depts = await page.locator('#topicTableBody tr td:nth-child(5)').allTextContents();
       for (const d of depts) {
         expect(d.trim()).toBe(firstOrgName.trim());
       }
@@ -360,7 +360,7 @@ test.describe('Business Topics - Filters', () => {
 
     // All visible rows should have P0 tag
     if (count > 0) {
-      const priorities = await page.locator('#topicTableBody tr td:nth-child(2)').allTextContents();
+      const priorities = await page.locator('#topicTableBody tr td:nth-child(3)').allTextContents();
       for (const p of priorities) {
         expect(p.trim()).toBe('P0');
       }
@@ -471,6 +471,69 @@ test.describe('Business Topics - AI Report', () => {
     await page.locator('#aiReportModal .modal-close').first().click();
     await page.waitForTimeout(300);
     await expect(page.locator('#aiReportModal')).not.toBeVisible();
+  });
+});
+
+// ===================== Sequence & Reordering =====================
+test.describe('Business Topics - Sequence & Reordering', () => {
+  test('seq column is visible and numbered 1..N in default view', async ({ page }) => {
+    const cells = await page.locator('#topicTableBody tr td:first-child').allTextContents();
+    const seqs = cells.map(t => Number(t.trim())).filter(n => !isNaN(n));
+    expect(seqs.length).toBeGreaterThan(0);
+    for (let i = 0; i < seqs.length; i++) {
+      expect(seqs[i]).toBe(i + 1);
+    }
+  });
+
+  test('move down button swaps seq with next row', async ({ page }) => {
+    const firstSeqBefore = await page.locator('#topicTableBody tr:first-child td:first-child').textContent();
+    const firstNameBefore = await page.locator('#topicTableBody tr:first-child td:nth-child(2) div').first().textContent();
+    const secondNameBefore = await page.locator('#topicTableBody tr:nth-child(2) td:nth-child(2) div').first().textContent();
+    expect(Number(firstSeqBefore.trim())).toBe(1);
+
+    await page.locator('#topicTableBody tr').first().locator('.seq-move[title="下移"]').click();
+    await page.waitForTimeout(500);
+
+    const firstSeqAfter = await page.locator('#topicTableBody tr:first-child td:first-child').textContent();
+    const secondSeqAfter = await page.locator('#topicTableBody tr:nth-child(2) td:first-child').textContent();
+    const firstNameAfter = await page.locator('#topicTableBody tr:first-child td:nth-child(2) div').first().textContent();
+    const secondNameAfter = await page.locator('#topicTableBody tr:nth-child(2) td:nth-child(2) div').first().textContent();
+    expect(Number(firstSeqAfter.trim())).toBe(1);
+    expect(Number(secondSeqAfter.trim())).toBe(2);
+    expect(firstNameAfter).toBe(secondNameBefore);
+    expect(secondNameAfter).toBe(firstNameBefore);
+  });
+
+  test('move up button disabled on first row', async ({ page }) => {
+    const btn = page.locator('#topicTableBody tr').first().locator('.seq-move[title="上移"]');
+    await expect(btn).toBeDisabled();
+  });
+
+  test('move down button disabled on last row', async ({ page }) => {
+    const rows = page.locator('#topicTableBody tr');
+    const count = await rows.count();
+    const btn = rows.nth(count - 1).locator('.seq-move[title="下移"]');
+    await expect(btn).toBeDisabled();
+  });
+
+  test('sorting by priority hides move buttons', async ({ page }) => {
+    await page.locator('[data-sort-field="priority"]').click();
+    await page.waitForTimeout(300);
+    const buttons = page.locator('#topicTableBody .seq-move');
+    await expect(buttons).toHaveCount(0);
+  });
+
+  test('deleting a topic renumbers remaining rows', async ({ page }) => {
+    const before = await page.locator('#topicTableBody tr td:first-child').allTextContents();
+    await page.locator('#topicTableBody tr').first().locator('[data-action="delete"]').click();
+    await page.locator('button:has-text("确认删除")').click();
+    await page.waitForTimeout(500);
+    const after = await page.locator('#topicTableBody tr td:first-child').allTextContents();
+    const seqs = after.map(t => Number(t.trim())).filter(n => !isNaN(n));
+    expect(seqs.length).toBe(before.length - 1);
+    for (let i = 0; i < seqs.length; i++) {
+      expect(seqs[i]).toBe(i + 1);
+    }
   });
 });
 

@@ -23,7 +23,7 @@ test.describe('OMP migration safety', () => {
 
     // Verify version was migrated but data was not wiped
     const version = await page.evaluate(() => localStorage.getItem('dste_omp_data_version'));
-    expect(version).toBe('canvas-v17');
+    expect(version).toBe('canvas-v18');
 
     const indicators = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_omp_indicators_v1') || '[]'));
     expect(indicators).toEqual(expect.arrayContaining([
@@ -76,5 +76,24 @@ test.describe('OMP migration safety', () => {
       { kpiInstanceId: 'kpi_1', relationType: 'primary' },
     ]);
     expect(task.relatedKpiIds).toBeUndefined();
+  });
+
+  test('tasks get version field backfilled on version bump', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('dste_omp_data_version', 'canvas-v17');
+      localStorage.setItem('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'task_no_version', name: 'Task Without Version', status: 'active' },
+        { id: 'task_with_version', name: 'Task With Version', status: 'active', version: 3 },
+      ]));
+    });
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+
+    const tasks = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_omp_tasks_v1') || '[]'));
+    const noVersion = tasks.find(t => t.id === 'task_no_version');
+    const withVersion = tasks.find(t => t.id === 'task_with_version');
+    expect(noVersion.version).toBe(1);
+    expect(withVersion.version).toBe(3);
   });
 });

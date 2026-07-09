@@ -416,7 +416,7 @@
     import { hydrateIcons, icon } from '../assets/js/icons.js';
     import { EXTERNAL_PAGES } from './lib/config.js';
     import { createBackup, restoreFromBackup, cleanupOldBackups, getBackupKeys } from './lib/migration-utils.js';
-    import { createOmpRepository } from './lib/repository.js';
+    import { Repository, createOmpRepository } from './lib/repository.js';
     import { enhancePersonInput, getPersonInputValue } from './components/person-input.js';
     import { renderPerson, normalizePerson, getEmployees, getEmployeeById, getOrgTree, buildOrgHierarchy, searchEmployees } from './lib/employee-directory.js';
     import { createOrgSelector } from './components/org-selector.js';
@@ -1149,7 +1149,7 @@
 
       function omp_initData() {
         // 版本号检测：代码更新时尝试非破坏性迁移与备份
-        const DATA_VERSION = 'canvas-v17'; // 重点工作关联 KPI 由 relatedKpiIds 升级为 kpiAssociations（主指标 + 相关指标）
+        const DATA_VERSION = 'canvas-v18'; // 重点工作接入 per-record 云端同步，补齐 version 字段
         const storedVersion = DSTE.Storage.getString('dste_omp_data_version');
         if (storedVersion !== DATA_VERSION) {
           // 1) 备份整个 OMP 数据快照（保留最近 5 份）
@@ -1261,6 +1261,22 @@
             const tasks3 = omp_load('tasks');
             if (migrateTaskKpiAssociations(tasks3)) {
               omp_save('tasks', tasks3);
+            }
+
+            // 10) 为重点工作补齐 version 字段，支持 per-record 云端同步的冲突判断
+            const tasks4 = omp_load('tasks');
+            let versionChanged = false;
+            tasks4.forEach(t => {
+              if (t && typeof t === 'object' && t.version === undefined) {
+                t.version = 1;
+                versionChanged = true;
+              }
+            });
+            if (versionChanged) {
+              const repo = omp_getRepo('tasks');
+              if (repo) repo.set(tasks4);
+              window._ompApiCache['tasks'] = tasks4;
+              console.log('[OMP] Backfilled version field for tasks');
             }
           }
         }
@@ -1459,6 +1475,12 @@
               : remote;
             if (repo) repo.set(merged);
             window._ompApiCache[entity] = merged;
+
+            // 若当前用户云端重点工作为空，且本地有数据，将本地数据作为来源推送到云端
+            if (entity === 'tasks' && remote.length === 0 && merged.length > 0) {
+              console.log('[OMP] Remote tasks empty, uploading local tasks to cloud');
+              enqueuePerRecordSync('omp/tasks', { created: merged, updated: [], deleted: [] }, ompPerItemExecutor, ompSyncQueue);
+            }
           }
         }
         const cycles = await apiLoadOmp('cycles');
@@ -1488,14 +1510,13 @@
           const ok = repo.set(data);
           if (!ok) console.warn('[OMP] local save failed');
 
-          // 3. per-record 单条同步（非 cycles、非 tasks）
-          // tasks 后端暂无 PUT/DELETE per-record 接口，仍走批量 POST /api/omp/tasks
+          // 3. per-record 单条同步（cycles 除外）
           const entityName = omp_getApiEntityName(key);
-          if (entityName.startsWith('omp/') && key !== 'tasks') {
+          if (entityName.startsWith('omp/')) {
             const { created, updated, deleted } = computeEntityDiff(oldData, data);
             enqueuePerRecordSync(entityName, { created, updated, deleted }, ompPerItemExecutor, ompSyncQueue);
           } else {
-            // cycles / tasks 等仍走批量
+            // cycles 仍走批量
             apiSaveOmp(key, data);
           }
         } else {
@@ -3634,31 +3655,6 @@
           }
         });
 
-        // ===== 战略洞察与专题事件委托 =====
-        container.addEventListener('click', (e) => {
-          const btn = e.target.closest('.edit-insight-btn, .delete-insight-btn, .generate-topic-btn, .view-topic-btn, .edit-topic-btn, .delete-topic-btn, #btn-new-insight, #btn-new-topic');
-          if (!btn) return;
-
-          const insightId = btn.dataset.insightId;
-          const topicId = btn.dataset.topicId;
-
-          if (btn.id === 'btn-new-insight' || btn.classList.contains('edit-insight-btn')) {
-            window.openInsightEdit(insightId);
-          } else if (btn.classList.contains('delete-insight-btn')) {
-            window.confirmDeleteInsight(insightId);
-          } else if (btn.classList.contains('generate-topic-btn')) {
-            window.generateTopicFromInsight(insightId);
-          } else if (btn.id === 'btn-new-topic') {
-            window.openTopicCreate();
-          } else if (btn.classList.contains('view-topic-btn')) {
-            window.viewTopicDetail(topicId);
-          } else if (btn.classList.contains('edit-topic-btn')) {
-            window.openTopicEdit(topicId);
-          } else if (btn.classList.contains('delete-topic-btn')) {
-            window.confirmDeleteTopic(topicId);
-          }
-        });
-
         // 重点工作人员配置台：拖拽分配（PRD v1.8：从通讯录拖拽人员到任务卡片）
         container.addEventListener('dragstart', (e) => {
           const memberChip = e.target.closest('[data-drag="member-chip"]');
@@ -5662,6 +5658,29 @@
       const SI_STORAGE_KEY_TOPICS = 'dste_strategy_topics_v2';
       const SI_STORAGE_KEY_TOPICS_LEGACY = 'dste_strategy_topics_v1';
 
+      // 战略专题 Repository 与同步基础设施
+      const strategyTopicsRepo = new Repository('strategyTopics', {
+        storageKey: SI_STORAGE_KEY_TOPICS,
+        schema: 'array',
+        version: 3,
+        backupNamespace: 'strategyTopics',
+        migrators: {
+          3: (topics) => {
+            const now = Date.now();
+            return topics.map(t => ({
+              ...t,
+              version: t.version || 1,
+              lastModified: t.lastModified || (t.updatedAt ? new Date(t.updatedAt).getTime() || now : now),
+            }));
+          }
+        }
+      });
+      const strategyTopicsSyncQueue = getDefaultSyncQueue();
+      const strategyTopicsExecutor = createPerItemExecutor();
+      if (typeof window !== 'undefined') {
+        strategyTopicsSyncQueue.bindAutoProcess(strategyTopicsExecutor);
+      }
+
       function siEscapeHtml(text) {
         if (text == null) return '';
         const div = document.createElement('div');
@@ -5734,6 +5753,7 @@
           DSTE.Storage.set(SI_STORAGE_KEY_INSIGHTS, insights);
         } catch (e) {
           console.error('[SI] save insights failed:', e);
+          showToast('数据保存失败，可能是存储空间不足', 'error');
         }
       }
 
@@ -5744,22 +5764,51 @@
       function siLoadTopics() {
         siMigrateTopicsFromV1();
         try {
-          const data = DSTE.Storage.getString(SI_STORAGE_KEY_TOPICS);
-          if (data) {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed)) return parsed.filter(t => siSafeTopicId(t.id));
+          const topics = strategyTopicsRepo.get().filter(t => siSafeTopicId(t.id));
+          const { topics: cleaned, changed } = siCleanupOrphanTopicChainLinks(topics);
+          if (changed) {
+            strategyTopicsRepo.set(cleaned);
           }
+          return cleaned;
         } catch (e) {
           console.error('[SI] load topics failed:', e);
+          return [];
         }
-        return [];
       }
 
       function siSaveTopics(topics) {
         try {
-          DSTE.Storage.set(SI_STORAGE_KEY_TOPICS, topics);
+          strategyTopicsRepo.set(topics);
         } catch (e) {
           console.error('[SI] save topics failed:', e);
+          showToast('数据保存失败，可能是存储空间不足', 'error');
+        }
+      }
+
+      function siPersistTopics(topics) {
+        const oldTopics = strategyTopicsRepo.getRaw();
+        ensureLastModified(topics);
+        topics.forEach(t => { if (t.version === undefined) t.version = 1; });
+        siSaveTopics(topics);
+        try {
+          const { created, updated, deleted } = computeEntityDiff(oldTopics, topics);
+          if (created.length || updated.length || deleted.length) {
+            enqueuePerRecordSync('strategy-topics', { created, updated, deleted }, strategyTopicsExecutor, strategyTopicsSyncQueue);
+          }
+        } catch (e) {
+          console.error('[SI] sync topics failed:', e);
+        }
+      }
+
+      async function siLoadRemoteTopics() {
+        try {
+          const remote = await apiLoadArray('/api/strategy-topics');
+          if (!remote || !Array.isArray(remote)) return;
+          const local = strategyTopicsRepo.get();
+          const merged = mergeEntities(local, remote);
+          strategyTopicsRepo.set(merged);
+        } catch (e) {
+          console.warn('[SI] load remote topics failed:', e.message);
         }
       }
 
@@ -5797,6 +5846,170 @@
         if (typeof text !== 'string') return [];
         return text.split(/\n|\r\n/).map(s => s.trim()).filter(s => s.length > 0);
       }
+
+      // ===== 战略专题 AI 助手（规则引擎，降低外部 LLM 依赖）=====
+      function siAnalyzeTopicQuality(topic) {
+        const suggestions = [];
+        let score = 100;
+
+        const obj = String(topic.researchObjectives || '').trim();
+        if (obj.length < 20) {
+          suggestions.push('研究目标过于简短，建议补充背景、范围与预期产出。');
+          score -= 15;
+        } else if (!/[0-9一二三四五六七八九十百千万]|指标|目标|产出|交付/.test(obj)) {
+          suggestions.push('研究目标可加入更具体的衡量指标或关键产出。');
+          score -= 8;
+        }
+
+        const deliverables = topic.deliverables || [];
+        if (deliverables.length === 0) {
+          suggestions.push('尚未定义交付件，建议列出至少 1-2 个可验收的产出物。');
+          score -= 15;
+        } else if (deliverables.some(d => String(d).length < 4)) {
+          suggestions.push('部分交付件描述过短，建议写清交付件内容与验收标准。');
+          score -= 5;
+        }
+
+        const milestones = topic.milestones || [];
+        if (milestones.length === 0) {
+          suggestions.push('缺少里程碑，建议按阶段拆解关键节点以跟踪进度。');
+          score -= 12;
+        } else {
+          const withDate = milestones.filter(m => m.date);
+          if (withDate.length < milestones.length) {
+            suggestions.push('部分里程碑未设定日期，建议补全日期便于甘特图展示。');
+            score -= 6;
+          }
+        }
+
+        const summary = String(topic.summary || '').trim();
+        if (topic.status === 'closed' && summary.length < 20) {
+          suggestions.push('已闭环专题的结项总结较短，建议沉淀核心结论与可复用经验。');
+          score -= 10;
+        }
+
+        const hasKms = String(topic.kmsUrl || '').trim().length > 0;
+        if (!hasKms) {
+          suggestions.push('未填写 KMS 链接，建议关联知识库页面便于查阅背景资料。');
+          score -= 5;
+        }
+
+        const insights = topic.insights || [];
+        if (insights.length === 0) {
+          suggestions.push('未关联战略洞察，建议关联至少一条相关洞察以体现输入来源。');
+          score -= 8;
+        }
+
+        return {
+          score: Math.max(0, Math.min(100, score)),
+          suggestions,
+          details: {
+            objectiveLength: obj.length,
+            deliverableCount: deliverables.length,
+            milestoneCount: milestones.length,
+            linkedInsights: insights.length,
+            hasSummary: summary.length > 0,
+            hasKms
+          }
+        };
+      }
+
+      function siSuggestNextYearObjectives(topic) {
+        const objectives = String(topic.researchObjectives || '').trim();
+        const deliverables = (topic.deliverables || []).join('、');
+        const milestones = (topic.milestones || []).map(m => m.title).join('、');
+        const year = (topic.year || new Date().getFullYear()) + 1;
+
+        const lines = [
+          `基于「${topic.name}」的${topic.year || ''}年研究成果，${year}年重点深化以下内容：`,
+          ''
+        ];
+
+        if (objectives) {
+          lines.push(`1. 延续上一年研究目标，将「${objectives.slice(0, 40)}${objectives.length > 40 ? '…' : ''}」从试点/规划阶段推进到规模化落地；`);
+        }
+        if (deliverables) {
+          lines.push(`2. 围绕已产出交付件（${deliverables.slice(0, 50)}${deliverables.length > 50 ? '…' : ''}）建立长效机制，形成可复用的标准方案；`);
+        }
+        if (milestones) {
+          lines.push(`3. 针对关键节点（${milestones.slice(0, 50)}${milestones.length > 50 ? '…' : ''}）开展复盘，输出下一年度行动计划与风险预案。`);
+        }
+        if (lines.length <= 3) {
+          lines.push(`2. 明确${year}年的关键假设、验证路径与阶段性产出，确保专题可衡量、可闭环。`);
+        }
+        lines.push('', '建议补充量化指标、责任人与验收标准后保存。');
+        return lines.join('\n');
+      }
+
+      function siRecommendInsightsForTopic(topic) {
+        const insights = siLoadInsights();
+        if (!insights.length) return [];
+        const topicText = `${topic.name} ${topic.researchObjectives} ${topic.dimension}`.toLowerCase();
+        return insights
+          .filter(i => !(topic.insights || []).includes(i.id))
+          .map(i => {
+            const text = `${i.title} ${i.content} ${i.source}`.toLowerCase();
+            let score = 0;
+            const topicWords = topicText.split(/\s+|\p{P}/u).filter(w => w.length >= 2);
+            topicWords.forEach(w => { if (text.includes(w)) score += 1; });
+            if (i.impact === 'high') score += 3;
+            if (i.impact === 'medium') score += 1;
+            return { insight: i, score };
+          })
+          .filter(item => item.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3)
+          .map(item => item.insight.id);
+      }
+
+      window.siShowTopicQualityAnalysis = function(topicId) {
+        if (!siSafeTopicId(topicId)) return;
+        const topic = siGetActiveTopics().find(t => t.id === topicId);
+        if (!topic) return;
+        const result = siAnalyzeTopicQuality(topic);
+        const suggestionsHtml = result.suggestions.length
+          ? `<ul style="margin:0;padding-left:18px;font-size:13px;color:var(--text-secondary);line-height:1.8;">${result.suggestions.map(s => `<li>${siEscapeHtml(s)}</li>`).join('')}</ul>`
+          : '<p style="font-size:13px;color:var(--success);margin:0;">✓ 当前专题内容完整，暂无改进建议。</p>';
+        const scoreColor = result.score >= 80 ? 'var(--success)' : result.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+
+        const panel = document.createElement('div');
+        panel.id = 'topic-ai-quality-panel';
+        panel.className = 'omp-modal-overlay';
+        panel.style.zIndex = '100001';
+        panel.innerHTML = `
+          <div class="omp-modal" style="background:var(--bg-card);border-radius:12px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 style="margin:0;font-size:16px;">AI 报告质量分析</h3>
+              <button onclick="document.getElementById('topic-ai-quality-panel').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">×</button>
+            </div>
+            <div style="text-align:center;margin-bottom:20px;">
+              <div style="font-size:48px;font-weight:700;color:${scoreColor};">${result.score}</div>
+              <div style="font-size:13px;color:var(--text-secondary);">综合质量评分</div>
+            </div>
+            <div style="margin-bottom:16px;">
+              <div style="font-size:14px;font-weight:600;margin-bottom:8px;">改进建议</div>
+              ${suggestionsHtml}
+            </div>
+            <div style="display:flex;justify-content:flex-end;">
+              <button class="btn btn-secondary" onclick="document.getElementById('topic-ai-quality-panel').remove()">关闭</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(panel);
+        panel.addEventListener('click', (e) => { if (e.target === panel) panel.remove(); });
+      };
+
+      window.siFillAiNextYearObjectives = function(topicId) {
+        if (!siSafeTopicId(topicId)) return;
+        const topic = siGetActiveTopics().find(t => t.id === topicId);
+        if (!topic) return;
+        const suggestion = siSuggestNextYearObjectives(topic);
+        const textarea = document.getElementById('edit-topic-researchObjectives');
+        if (textarea) {
+          textarea.value = suggestion;
+          showToast('已生成下一年研究目标建议，请根据实际调整', 'success');
+        }
+      };
 
       // 默认洞察数据（首次加载无数据时使用）
       function siDefaultInsights() {
@@ -5837,10 +6050,13 @@
         }
         const topics = siLoadTopics();
         if (topics.length === 0) {
-          siSaveTopics(siDefaultTopics());
+          const defaults = ensureLastModified(siDefaultTopics());
+          defaults.forEach(t => { if (t.version === undefined) t.version = 1; });
+          siSaveTopics(defaults);
         } else {
           // 合并缺失的默认历史专题
-          const defaults = siDefaultTopics();
+          const defaults = ensureLastModified(siDefaultTopics());
+          defaults.forEach(t => { if (t.version === undefined) t.version = 1; });
           const existingIds = new Set(topics.map(t => t.id));
           const missing = defaults.filter(t => !existingIds.has(t.id));
           if (missing.length > 0) {
@@ -5852,6 +6068,9 @@
 
       // 调用一次以确保默认数据存在（幂等）
       siEnsureDefaultData();
+
+      // 启动时尝试拉取远程战略专题并合并
+      siLoadRemoteTopics();
 
       // ===== 战略洞察页面 =====
       function renderInsightsPage() {
@@ -5960,22 +6179,130 @@
         `;
       }
 
+      // ===== 战略专题管理页面辅助函数 =====
+      function siGetFilterArray(key) {
+        const raw = window[key];
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === 'string' && raw) return [raw];
+        return [];
+      }
+
+      function siTopicMatchesSearch(t, query) {
+        if (!query) return true;
+        const q = query.toLowerCase();
+        const fields = [
+          t.name,
+          t.dimension,
+          t.researchObjectives,
+          Array.isArray(t.deliverables) ? t.deliverables.join(' ') : '',
+          siRenderPerson(t.owner)
+        ];
+        return fields.some(f => String(f || '').toLowerCase().includes(q));
+      }
+
+      function siTopicMatchesFilters(t) {
+        const statusFilter = siGetFilterArray('_strategyStatusFilter');
+        const typeFilter = siGetFilterArray('_strategyTypeFilter');
+        const dimensionFilter = siGetFilterArray('_strategyDimensionFilter');
+        const searchQuery = window._strategySearchQuery || '';
+        if (!siTopicMatchesSearch(t, searchQuery)) return false;
+        if (statusFilter.length > 0 && !statusFilter.includes(t.status)) return false;
+        if (typeFilter.length > 0 && !typeFilter.includes(t.type)) return false;
+        if (dimensionFilter.length > 0 && !dimensionFilter.includes(String(t.dimension))) return false;
+        return true;
+      }
+
+      function siApplyTopicSort(topics) {
+        const key = window._strategySortKey || 'updatedAt';
+        const dir = window._strategySortDir || 'desc';
+        const statusOrder = { insight: 0, planning: 1, execution: 2, closed: 3 };
+        const typeOrder = { breakthrough: 0, incremental: 1, maintenance: 2 };
+        const sorted = [...topics];
+        sorted.sort((a, b) => {
+          let va, vb;
+          switch (key) {
+            case 'name': va = a.name || ''; vb = b.name || ''; break;
+            case 'dimension': va = a.dimension || ''; vb = b.dimension || ''; break;
+            case 'type': va = typeOrder[a.type] ?? 99; vb = typeOrder[b.type] ?? 99; break;
+            case 'owner': va = siRenderPerson(a.owner); vb = siRenderPerson(b.owner); break;
+            case 'status': va = statusOrder[a.status] ?? 99; vb = statusOrder[b.status] ?? 99; break;
+            case 'progress': va = a.progress || 0; vb = b.progress || 0; break;
+            case 'startDate': va = a.startDate || ''; vb = b.startDate || ''; break;
+            case 'updatedAt': va = a.updatedAt || ''; vb = b.updatedAt || ''; break;
+            default: va = a.updatedAt || ''; vb = b.updatedAt || '';
+          }
+          if (typeof va === 'string') {
+            return dir === 'asc' ? va.localeCompare(vb, 'zh-CN') : vb.localeCompare(va, 'zh-CN');
+          }
+          return dir === 'asc' ? va - vb : vb - va;
+        });
+        return sorted;
+      }
+
+      window.siSetSearch = function(query) {
+        window._strategySearchQuery = query;
+      };
+
+      window.siCommitSearch = function() {
+        navigate('sp/strategy-topics');
+      };
+
+      window.siSetFilter = function(kind, value) {
+        const key = kind === 'status' ? '_strategyStatusFilter' : kind === 'type' ? '_strategyTypeFilter' : '_strategyDimensionFilter';
+        window[key] = value;
+        navigate('sp/strategy-topics');
+      };
+
+      window.siSetSort = function(key) {
+        const currentKey = window._strategySortKey || 'updatedAt';
+        const currentDir = window._strategySortDir || 'desc';
+        if (currentKey === key) {
+          window._strategySortDir = currentDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          window._strategySortKey = key;
+          window._strategySortDir = 'asc';
+        }
+        navigate('sp/strategy-topics');
+      };
+
+      window.siExportTopics = function() {
+        const topics = siGetActiveTopics();
+        const blob = new Blob([JSON.stringify(topics, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `strategy-topics-export-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('已导出战略专题 JSON 备份', 'success');
+      };
+
       // ===== 战略专题管理页面 =====
       function renderStrategyTopicsPage() {
         const allTopics = siGetActiveTopics();
         const currentYear = new Date().getFullYear();
         const selectedYear = window._strategySelectedYear || 'all';
-        const topics = selectedYear === 'all' ? allTopics : allTopics.filter(t => t.year == selectedYear);
 
-        // 统计
+        // 1. 年份筛选
+        const yearFiltered = selectedYear === 'all' ? allTopics : allTopics.filter(t => t.year == selectedYear);
+
+        // 2. 搜索 + 状态/类型/维度筛选
+        const filteredTopics = yearFiltered.filter(siTopicMatchesFilters);
+
+        // 3. 排序
+        const topics = siApplyTopicSort(filteredTopics);
+
+        // 统计（基于筛选后结果）
         const activeTopics = topics.filter(t => t.status !== 'closed' && t.status !== 'insight');
         const completedTopics = topics.filter(t => t.status === 'closed');
         const avgProgress = topics.length > 0 ? Math.round(topics.reduce((sum, t) => sum + (t.progress || 0), 0) / topics.length) : 0;
         const highRiskTopics = topics.filter(t => (t.progress || 0) < 50 && t.status === 'execution').length;
 
-        // 按年份分组
+        // 按年份分组（基于筛选+排序后结果）
         const yearGroups = {};
-        allTopics.forEach(t => {
+        topics.forEach(t => {
           const y = t.year || currentYear;
           if (!yearGroups[y]) yearGroups[y] = [];
           yearGroups[y].push(t);
@@ -5986,6 +6313,8 @@
         const statusLabel = { insight: '洞察阶段', planning: '规划阶段', execution: '执行阶段', closed: '已闭环' };
         const typeLabel = { breakthrough: '突破型', incremental: '增量型', maintenance: '维持型' };
         const viewMode = window._strategyViewMode || 'list';
+        const sortKey = window._strategySortKey || 'updatedAt';
+        const sortDir = window._strategySortDir || 'desc';
 
         window.siFilterTopicsByYear = function(year) {
           window._strategySelectedYear = year === 'all' ? 'all' : parseInt(year, 10);
@@ -5996,6 +6325,68 @@
           window._strategyViewMode = mode;
           navigate('sp/strategy-topics');
         };
+
+        // 收集当前存在的维度值
+        const allDimensions = Array.from(new Set(allTopics.map(t => String(t.dimension || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+
+        const searchQuery = window._strategySearchQuery || '';
+        const statusFilter = siGetFilterArray('_strategyStatusFilter');
+        const typeFilter = siGetFilterArray('_strategyTypeFilter');
+        const dimensionFilter = siGetFilterArray('_strategyDimensionFilter');
+
+        const searchHtml = `
+          <input type="text" id="strategy-topic-search" value="${siEscapeHtml(searchQuery)}" placeholder="搜索名称、负责人、维度、交付件..."
+            oninput="siSetSearch(this.value)" onchange="siCommitSearch()"
+            style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-width:220px;"
+          />
+        `;
+
+        const statusOptions = [
+          { value: 'insight', label: '洞察阶段' },
+          { value: 'planning', label: '规划阶段' },
+          { value: 'execution', label: '执行阶段' },
+          { value: 'closed', label: '已闭环' }
+        ];
+        const typeOptions = [
+          { value: 'breakthrough', label: '突破型' },
+          { value: 'incremental', label: '增量型' },
+          { value: 'maintenance', label: '维持型' }
+        ];
+
+        function multiSelectHtml(options, selected, kind) {
+          const optionsHtml = options.map(o => `<option value="${o.value}" ${selected.includes(o.value) ? 'selected' : ''}>${o.label}</option>`).join('');
+          return `
+            <select multiple onchange="siSetFilter('${kind}', Array.from(this.selectedOptions).map(o => o.value))"
+              style="padding:4px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-height:34px;min-width:110px;"
+            >${optionsHtml}</select>
+          `;
+        }
+
+        const dimensionOptionsHtml = allDimensions.map(d => `<option value="${siEscapeHtml(d)}" ${dimensionFilter.includes(d) ? 'selected' : ''}>${siEscapeHtml(d)}</option>`).join('');
+        const dimensionSelectHtml = allDimensions.length > 0 ? `
+          <select multiple onchange="siSetFilter('dimension', Array.from(this.selectedOptions).map(o => o.value))"
+            style="padding:4px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-height:34px;min-width:110px;"
+          >${dimensionOptionsHtml}</select>
+        ` : '';
+
+        const filterBarHtml = `
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            ${searchHtml}
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;color:var(--text-secondary);">状态</span>
+              ${multiSelectHtml(statusOptions, statusFilter, 'status')}
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;color:var(--text-secondary);">类型</span>
+              ${multiSelectHtml(typeOptions, typeFilter, 'type')}
+            </div>
+            ${allDimensions.length > 0 ? `
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;color:var(--text-secondary);">维度</span>
+              ${dimensionSelectHtml}
+            </div>` : ''}
+          </div>
+        `;
 
         const yearSelectorHtml = `
           <div style="display:flex;align-items:center;gap:8px;">
@@ -6040,6 +6431,11 @@
             </div>
           </div>
         `;
+
+        function sortIndicator(key) {
+          if (sortKey !== key) return '⇅';
+          return sortDir === 'asc' ? '↑' : '↓';
+        }
 
         const topicRows = (yearTopics) => yearTopics.map(t => {
           const hasNext = !!t.nextTopicId;
@@ -6088,7 +6484,17 @@
               <div class="table-scroll-wrapper">
                 <table class="data-table">
                   <thead>
-                    <tr><th>专题名称</th><th>战略维度</th><th>类型</th><th>负责人</th><th>成员</th><th>阶段</th><th>进度</th><th>更新</th><th>操作</th></tr>
+                    <tr>
+                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('name')">专题名称 ${sortIndicator('name')}</th>
+                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('dimension')">战略维度 ${sortIndicator('dimension')}</th>
+                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('type')">类型 ${sortIndicator('type')}</th>
+                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('owner')">负责人 ${sortIndicator('owner')}</th>
+                      <th>成员</th>
+                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('status')">阶段 ${sortIndicator('status')}</th>
+                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('progress')">进度 ${sortIndicator('progress')}</th>
+                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('updatedAt')">更新 ${sortIndicator('updatedAt')}</th>
+                      <th>操作</th>
+                    </tr>
                   </thead>
                   <tbody>${topicRows(yearTopics) || '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
                 </table>
@@ -6102,13 +6508,15 @@
           <div class="page-header">
             <h1 class="page-title">战略专题管理</h1>
             <div class="page-actions" style="display:flex;gap:10px;align-items:center;">
+              <button class="btn btn-secondary" onclick="siExportTopics()" title="导出 JSON 备份">导出</button>
               ${viewToggleHtml}
               <button class="btn btn-primary" id="btn-new-topic">+ 新建专题</button>
             </div>
           </div>
 
           <div id="strategy-topics-container">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+              ${filterBarHtml}
               ${yearSelectorHtml}
             </div>
 
@@ -6333,6 +6741,7 @@
 
               <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border-color);">
                 <button class="btn btn-secondary" onclick="document.getElementById('topic-detail-overlay').remove()">关闭</button>
+                <button class="btn btn-info" onclick="window.siShowTopicQualityAnalysis('${topic.id}')">AI 质量分析</button>
                 ${showDeepen ? `<button class="btn btn-primary next-year-deepening-btn" data-topic-id="${topic.id}">${deepenText}</button>` : ''}
                 ${topic.nextTopicId ? `<button class="btn btn-primary view-chain-topic-btn" data-topic-id="${topic.nextTopicId}">查看下一年深化专题</button>` : ''}
                 <button class="btn btn-primary" onclick="document.getElementById('topic-detail-overlay').remove(); window.siOpenTopicEdit('${topic.id}')">编辑</button>
@@ -6614,7 +7023,7 @@
           updatedAt: new Date().toISOString().slice(0, 10)
         };
 
-        siSaveTopics(topics);
+        siPersistTopics(topics);
 
         // 同步关联洞察的 linkedTopicId
         const allInsights = siLoadInsights();
@@ -6683,7 +7092,7 @@
           topics[idx].previousTopicId = null;
           topics[idx].nextTopicId = null;
 
-          siSaveTopics(topics);
+          siPersistTopics(topics);
 
           // 清理关联洞察的 linkedTopicId
           const insights = siLoadInsights();
@@ -6812,7 +7221,10 @@
               </div>
 
               <div style="margin-bottom:16px;">
-                <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">研究目标 <span style="color:var(--danger)">*</span></label>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                  <label style="font-size:12px;color:var(--text-tertiary);">研究目标 <span style="color:var(--danger)">*</span></label>
+                  ${prefill.previousTopicId ? `<button type="button" class="btn btn-sm btn-secondary" onclick="window.siFillAiNextYearObjectives('${prefill.previousTopicId}')">✨ AI 生成研究目标</button>` : ''}
+                </div>
                 <textarea id="edit-topic-researchObjectives" rows="3" placeholder="描述专题的研究目标" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);resize:vertical;">${siEscapeHtml(topic.researchObjectives)}</textarea>
               </div>
 
@@ -6949,7 +7361,7 @@
           }
         }
 
-        siSaveTopics(topics);
+        siPersistTopics(topics);
 
         // 回写 linkedTopicId
         selectedInsights.forEach(insightId => {
@@ -7145,7 +7557,7 @@
           if (topicIdx > -1) {
             topics[topicIdx].insights = (topics[topicIdx].insights || []).filter(id => id !== insightId);
             topics[topicIdx].updatedAt = new Date().toISOString().slice(0, 10);
-            siSaveTopics(topics);
+            siPersistTopics(topics);
           }
         }
 

@@ -1,6 +1,25 @@
 {
   "versions": [
     {
+      "version": "v0.6.7",
+      "date": "2026-07-09",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**OMP 重点工作云端同步**：重点工作管理（`exe/tasks`）从仅本地存储升级为 per-record 云端同步。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**OMP 数据共享存储**：`api-worker/worker.js` 中 `/api/omp/{entity}`、`/api/omp/{entity}/{id}`、`/api/omp/tasks/{id}/members`、`/api/omp/tasks/reorder` 统一使用共享 KV key，确保所有登录用户看到同一份 OMP 数据。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**SonarQube 版本号**：`sonar-project.properties` 的 `sonar.projectVersion` 从 `0.6.6` 更新为 `0.6.7`。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.6",
       "date": "2026-07-08",
       "status": "released",
