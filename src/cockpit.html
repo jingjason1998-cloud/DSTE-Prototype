@@ -136,6 +136,56 @@
       min-width: 600px;
     }
 
+    /* ===== 战略专题管理：紧凑表格 + 内容区滚动 ===== */
+    .st-compact-table {
+      font-size: 12px;
+    }
+    .st-compact-table th {
+      padding: 6px 10px;
+      font-size: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg-page);
+    }
+    .st-compact-table td {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .st-compact-table .status-badge {
+      font-size: 11px;
+      padding: 1px 6px;
+    }
+    .st-compact-table .chain-badge {
+      font-size: 10px;
+      padding: 0 4px;
+    }
+    .st-action-link {
+      background: none;
+      border: none;
+      padding: 0 4px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .st-action-link:hover {
+      text-decoration: underline;
+    }
+    .st-action-link.danger {
+      color: var(--danger);
+    }
+    .st-year-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .st-year-card .table-scroll-wrapper {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
     /* ===== 全局弹窗样式 ===== */
     .omp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .omp-modal { background: var(--bg-card); border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -453,13 +503,20 @@
         if (!window.enhancePersonInput) return;
         const input = document.getElementById(inputId);
         if (!input) return;
-        if (!window._personInputApis[inputId]) {
-          window._personInputApis[inputId] = window.enhancePersonInput(input, {
+        let api = window._personInputApis[inputId];
+        // 弹窗每次打开都会创建新的 input DOM，需检测 input 是否与缓存 API 关联；
+        // 若不一致，销毁旧 API 并重新增强，否则人员选择器不会绑定到新 input。
+        if (!api || input._personInputApi !== api) {
+          if (api && typeof api.destroy === 'function') {
+            try { api.destroy(); } catch (e) {}
+          }
+          api = window.enhancePersonInput(input, {
             placeholder: input.getAttribute('placeholder') || '',
             allowFreeText: true,
           });
+          window._personInputApis[inputId] = api;
         }
-        window._personInputApis[inputId].setValue(value);
+        api.setValue(value);
       };
       window.getPersonValue = function(inputId) {
         const api = window._personInputApis[inputId];
@@ -754,6 +811,7 @@
         tasks: 'dste_omp_tasks_v1',
         milestones: 'dste_omp_milestones_v1',
         progressRecords: 'dste_omp_progress_v1',
+        cycles: 'dste_cycles_v1',
       };
 
       const ompRepos = {
@@ -762,6 +820,7 @@
         tasks: createOmpRepository('tasks', OMP_STORAGE.tasks),
         milestones: createOmpRepository('milestones', OMP_STORAGE.milestones),
         progressRecords: createOmpRepository('progressRecords', OMP_STORAGE.progressRecords),
+        cycles: createOmpRepository('cycles', OMP_STORAGE.cycles),
       };
 
       function omp_getRepo(key) {
@@ -1298,8 +1357,8 @@
           ];
           omp_getRepo('indicators').set(indicators);
         }
-        if (!DSTE.Storage.getString('dste_cycles_v1')) {
-          DSTE.Storage.set('dste_cycles_v1', [2025, 2026, 2027].map(year => omp_buildYearSeed(year).cycle));
+        if (!omp_getRepo('cycles').getRaw().length) {
+          omp_save('cycles', [2025, 2026, 2027].map(year => omp_buildYearSeed(year).cycle));
         }
         if (!omp_getRepo('kpiInstances').getRaw().length) {
           const allKpis = [];
@@ -1417,6 +1476,7 @@
         tasks: 'omp/tasks',
         milestones: 'omp/milestones',
         progressRecords: 'omp/progressRecords',
+        cycles: 'omp/cycles',
       };
 
       function omp_getApiEntityName(key) {
@@ -1427,44 +1487,9 @@
         return apiLoadArray('/api/omp/' + entity);
       }
 
-      async function apiSaveOmp(entity, data) {
-        // 保留给 cycles 等仍走批量 POST 的实体使用
-        const apiBase = (() => {
-          const host = window.location.hostname;
-          if (host === 'localhost' || host === '127.0.0.1') {
-            return DSTE.Storage.getString('dste_api_base') || '';
-          }
-          return ''; // OMP 批量同步端点尚未部署到 Worker，生产环境暂不同步
-        })();
-        if (!apiBase) return false;
-        try {
-          const token = DSTE.Storage.getString('dste-token');
-          const resp = await fetch(apiBase + '/api/omp/' + entity, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
-            },
-            body: JSON.stringify(data),
-          });
-          if (!resp.ok) {
-            if (resp.status === 401) {
-              console.warn('[OMP] Save rejected: token expired or unauthorized');
-              showToast('登录已过期，请刷新页面重新登录后再保存', 'error');
-            } else {
-              console.warn('[OMP] Save failed:', resp.status, await resp.text().catch(() => ''));
-              showToast('数据同步到服务端失败，请检查网络后重试', 'warning');
-            }
-            return false;
-          }
-          return true;
-        } catch (err) { console.warn('[OMP] API save failed:', err); }
-        return false;
-      }
-
       async function ompSyncFromApi() {
         console.log('[OMP] Syncing from API...');
-        const entities = ['indicators', 'kpiInstances', 'tasks', 'milestones', 'progressRecords'];
+        const entities = ['indicators', 'kpiInstances', 'tasks', 'milestones', 'progressRecords', 'cycles'];
         for (const entity of entities) {
           const remote = await apiLoadOmp(entity);
           if (remote !== null) {
@@ -1482,10 +1507,6 @@
               enqueuePerRecordSync('omp/tasks', { created: merged, updated: [], deleted: [] }, ompPerItemExecutor, ompSyncQueue);
             }
           }
-        }
-        const cycles = await apiLoadOmp('cycles');
-        if (cycles !== null) {
-          try { DSTE.Storage.set('dste_cycles_v1', cycles); } catch(e) {}
         }
         console.log('[OMP] Sync complete');
       }
@@ -1510,18 +1531,14 @@
           const ok = repo.set(data);
           if (!ok) console.warn('[OMP] local save failed');
 
-          // 3. per-record 单条同步（cycles 除外）
+          // 3. per-record 单条同步
           const entityName = omp_getApiEntityName(key);
           if (entityName.startsWith('omp/')) {
             const { created, updated, deleted } = computeEntityDiff(oldData, data);
             enqueuePerRecordSync(entityName, { created, updated, deleted }, ompPerItemExecutor, ompSyncQueue);
-          } else {
-            // cycles 仍走批量
-            apiSaveOmp(key, data);
           }
         } else {
           try { DSTE.Storage.set(OMP_STORAGE[key], data); } catch(e) { console.warn('[OMP] local save failed:', e); }
-          apiSaveOmp(key, data);
         }
       }
       // 暴露给外部模块（如战略指标库）
@@ -2771,11 +2788,11 @@
 
       window.ap_publishToExecution = function() {
         if (!confirm('确定要发布到执行阶段吗？发布后KPI树结构将冻结，并将年度计划中的重点工作与KPI同步到OMP执行工作台。')) return;
-        const cycles = JSON.parse(DSTE.Storage.getString('dste_cycles_v1') || '[]');
+        const cycles = omp_load('cycles');
         const idx = cycles.findIndex(c => c.id === window._dsteState.currentCycleId);
         if (idx === -1) { showToast('周期数据异常', 'error'); return; }
         cycles[idx] = { ...cycles[idx], phase: 'execution' };
-        DSTE.Storage.set('dste_cycles_v1', cycles);
+        omp_save('cycles', cycles);
 
         // 同步年度计划重点工作与 KPI 到 OMP 执行侧
         omp_syncAnnualPlanTasksToExecution(window._dsteState.currentCycleId);
@@ -3323,7 +3340,7 @@
               organization: '营销线',
               parentCycleId: null
             }));
-            DSTE.Storage.set('dste_cycles_v1', cycles);
+            omp_save('cycles', cycles);
           }
           const currentId = window._dsteState.currentCycleId;
           select.replaceChildren();
@@ -3516,6 +3533,8 @@
                 case 'omp-restore-auto-progress': window.omp_restoreAutoProgress(actionBtn.dataset.id); break;
                 case 'omp-toggle-task-expand': window.omp_toggleTaskExpand(actionBtn.dataset.id); break;
                 case 'omp-export': window.omp_exportData(); break;
+                case 'omp-edit-monthly-progress': window.omp_openMonthlyProgressModal(actionBtn.dataset.taskId, actionBtn.dataset.month); break;
+                case 'omp-delete-monthly-progress': window.omp_deleteMonthlyProgress(actionBtn.dataset.recordId); break;
                 case 'omp-toggle-view':
                   window._ompState.kpiViewMode = actionBtn.dataset.view;
                   navigate('exe/kpi');
@@ -4204,6 +4223,8 @@
         let tabContent = '';
         if (viewMode === 'matrix') {
           tabContent = omp_renderMatrixTab();
+        } else if (viewMode === 'monthly') {
+          tabContent = omp_renderMonthlyProgressTab();
         } else {
           tabContent = viewMode === 'gantt' ? omp_renderGanttTab() : omp_renderTaskTab();
         }
@@ -4223,6 +4244,7 @@
               <span style="font-size:13px;color:var(--text-tertiary);margin-right:12px;">周期: ${getCurrentCycle().year} — ${getCurrentCycle().organization}</span>
               <button class="btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="list" style="margin-right:8px;"><span class="icon" data-icon="clipboard-text" data-icon-size="14"></span> 列表</button>
               <button class="btn ${viewMode === 'gantt' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="gantt" style="margin-right:8px;"><span class="icon" data-icon="calendar" data-icon-size="14"></span> 甘特图</button>
+              <button class="btn ${viewMode === 'monthly' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="monthly" style="margin-right:8px;"><span class="icon" data-icon="chart-bar" data-icon-size="14"></span> 月度进展</button>
               <button class="btn ${viewMode === 'matrix' ? 'btn-primary' : 'btn-secondary'}" data-action="omp-switch-task-view" data-view="matrix" style="margin-right:8px;"><span class="icon" data-icon="users" data-icon-size="14"></span> 人员配置</button>
               <button class="btn btn-secondary" data-action="omp-export"><span class="icon" data-icon="download" data-icon-size="14"></span> 导出</button>
             </div>
@@ -4794,6 +4816,56 @@
           </div>`;
       }
 
+      // ===== 月度关键进展工具函数 =====
+      function omp_getCycleMonths() {
+        const year = getCurrentCycle().year;
+        // 业务年度从 4 月起，展示 4 月 ~ 12 月
+        return Array.from({ length: 9 }, (_, i) => {
+          const n = i + 4;
+          const month = String(n).padStart(2, '0');
+          return { key: `${year}-${month}`, label: `${n}月` };
+        });
+      }
+
+      function omp_isSummaryMonth(key) {
+        return key === 'H1' || key === 'YEAR';
+      }
+
+      function omp_getSummaryColumns() {
+        return [
+          { key: 'H1', label: 'H1 总结', summary: true },
+          { key: 'YEAR', label: '年终总结', summary: true },
+        ];
+      }
+
+      function omp_formatMonth(dateStr) {
+        if (!dateStr || dateStr.length < 7) return '';
+        return dateStr.slice(0, 7);
+      }
+
+      function omp_getMonthlyRecord(taskId, month) {
+        return omp_load('progressRecords')
+          .filter(r => r.taskId === taskId && r.month === month)
+          .sort((a, b) => b.date.localeCompare(a.date))[0];
+      }
+
+      function omp_getLastDayOfMonth(year, month) {
+        const d = new Date(year, month, 0);
+        return `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+
+      function omp_syncTaskProgressFromRecords(taskId) {
+        // 仅聚合逐月记录（YYYY-MM），忽略 H1/年终总结，避免总结覆盖逐月进度
+        const records = omp_load('progressRecords').filter(r => r.taskId === taskId && !omp_isSummaryMonth(r.month));
+        if (!records.length) return;
+        const latest = records.sort((a, b) => b.date.localeCompare(a.date))[0];
+        const tasks = omp_load('tasks');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task || task.progress === latest.progress) return;
+        task.progress = latest.progress;
+        omp_save('tasks', tasks);
+      }
+
       // ===== Tab 4: 甘特图 =====
       function omp_renderGanttTab() {
         const cycleId = window._dsteState.currentCycleId;
@@ -4838,6 +4910,91 @@
               <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--warning);border-radius:2px;"></span>有风险</span>
               <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--danger);border-radius:2px;"></span>已延期</span>
               <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--success);border-radius:2px;"></span>已完成</span>
+            </div>
+          </div>`;
+      }
+
+      // ===== Tab 4.x: 月度关键进展 =====
+      function omp_renderMonthlyProgressCell(task, month, record) {
+        const isSummary = !!month.summary;
+        const hasProblems = record && record.problems && record.problems.trim();
+        const problemDot = hasProblems
+          ? `<span style="position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--danger);"></span>`
+          : '';
+        const placeholder = isSummary ? '+ 记录总结' : '+ 记录进展';
+        const content = record
+          ? `<span style="font-size:13px;font-weight:700;color:var(--primary);display:block;margin-bottom:2px;">${record.progress}%</span>
+             <span style="font-size:12px;color:var(--text-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;">${escapeHtml(record.content)}</span>`
+          : `<span style="font-size:12px;color:var(--text-tertiary);display:block;padding-top:4px;">${placeholder}</span>`;
+        const summaryStyle = isSummary ? 'background:var(--bg-page);border-style:dashed;' : 'background:var(--bg-card);';
+        return `
+          <div class="omp-month-cell" data-action="omp-edit-monthly-progress" data-task-id="${task.id}" data-month="${month.key}"
+               style="padding:8px;min-height:48px;${summaryStyle}border:1px solid var(--border-light);border-radius:6px;cursor:pointer;position:relative;transition:all 0.15s;"
+               title="${record ? escapeHtml(record.content) : (isSummary ? '点击记录总结' : '点击记录进展')}">
+            ${problemDot}
+            ${content}
+          </div>`;
+      }
+
+      function omp_renderMonthlyProgressTab() {
+        const cycleId = window._dsteState.currentCycleId;
+        const tasks = omp_load('tasks').filter(t => t.cycleId === cycleId && t.source === 'omp' && !t.parentId);
+        const allMonths = omp_getCycleMonths();
+        const year = getCurrentCycle().year;
+        const filter = (window._ompState && window._ompState.monthlyFilter) || 'all';
+        const visibleMonths = filter === 'all' ? allMonths : allMonths.filter(m => m.key === filter);
+        const columns = [...visibleMonths, ...omp_getSummaryColumns()];
+        const headerCols = `180px repeat(${columns.length}, 1fr)`;
+        const filterOptions = [`<option value="all" ${filter === 'all' ? 'selected' : ''}>全部月份</option>`]
+          .concat(allMonths.map(m => `<option value="${m.key}" ${filter === m.key ? 'selected' : ''}>${m.label}</option>`))
+          .join('');
+        const filterSelect = `<select id="omp-monthly-filter" onchange="window.omp_setMonthlyFilter(this.value)" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;">${filterOptions}</select>`;
+
+        if (tasks.length === 0) {
+          return `
+            <div class="card">
+              <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="card-title"><span class="icon" data-icon="chart-bar" data-icon-size="16"></span> 重点工作月度关键进展 (${year})</div>
+                ${filterSelect}
+              </div>
+              <div style="padding:60px;text-align:center;color:var(--text-tertiary);">
+                <div style="font-size:14px;margin-bottom:8px;">暂无重点工作</div>
+                <div style="font-size:13px;">请先新建重点工作，再录入月度关键进展</div>
+              </div>
+            </div>`;
+        }
+
+        const rows = tasks.map((t, idx) => {
+          return `
+            <div style="display:grid;grid-template-columns:${headerCols};gap:4px;align-items:stretch;padding:4px 0;border-bottom:1px solid ${idx % 2 === 0 ? 'transparent' : 'var(--border-light)'};">
+              <div style="font-size:13px;font-weight:500;color:var(--text-primary);padding:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">${escapeHtml(t.name)}</div>
+              ${columns.map(m => {
+                const record = omp_getMonthlyRecord(t.id, m.key);
+                return `<div style="padding:2px;">${omp_renderMonthlyProgressCell(t, m, record)}</div>`;
+              }).join('')}
+            </div>`;
+        }).join('');
+
+        return `
+          <div class="card">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="card-title"><span class="icon" data-icon="chart-bar" data-icon-size="16"></span> 重点工作月度关键进展 (${year})</div>
+              ${filterSelect}
+            </div>
+            <div style="overflow-x:auto;">
+              <div style="min-width:900px;">
+                <div style="display:grid;grid-template-columns:${headerCols};gap:4px;border-bottom:1px solid var(--border-light);padding-bottom:8px;margin-bottom:4px;">
+                  <div style="font-size:12px;color:var(--text-tertiary);font-weight:600;padding:8px;">工作名称</div>
+                  ${columns.map(m => `<div style="font-size:12px;color:var(--text-tertiary);font-weight:600;padding:8px;text-align:center;">${m.label}</div>`).join('')}
+                </div>
+                <div style="display:flex;flex-direction:column;">${rows}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:16px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-light);flex-wrap:wrap;">
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--primary);border-radius:2px;"></span>已记录进展</span>
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:var(--danger);border-radius:50%;"></span>存在问题</span>
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border:1px solid var(--border-light);border-radius:2px;background:var(--bg-card);"></span>未记录</span>
+              <span style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border:1px dashed var(--border-light);border-radius:2px;background:var(--bg-page);"></span>H1/年终总结</span>
             </div>
           </div>`;
       }
@@ -5681,6 +5838,12 @@
         strategyTopicsSyncQueue.bindAutoProcess(strategyTopicsExecutor);
       }
 
+      const insightsSyncQueue = getDefaultSyncQueue();
+      const insightsExecutor = createPerItemExecutor();
+      if (typeof window !== 'undefined') {
+        insightsSyncQueue.bindAutoProcess(insightsExecutor);
+      }
+
       function siEscapeHtml(text) {
         if (text == null) return '';
         const div = document.createElement('div');
@@ -5724,6 +5887,8 @@
             delete item.priority;
             delete item.budget;
             delete item.actualCost;
+            delete item.dimension;
+            delete item.progress;
             return item;
           });
           DSTE.Storage.set(SI_STORAGE_KEY_TOPICS, migrated);
@@ -5755,6 +5920,26 @@
         }
       }
 
+      // 清理已废弃字段（dimension 战略维度、progress 进度）
+      function siMigrateRemoveDeprecatedFields() {
+        try {
+          const topics = strategyTopicsRepo.get();
+          if (!Array.isArray(topics)) return;
+          let changed = false;
+          const migrated = topics.map(t => {
+            if ('dimension' in t || 'progress' in t) {
+              changed = true;
+              const { dimension, progress, ...rest } = t;
+              return rest;
+            }
+            return t;
+          });
+          if (changed) strategyTopicsRepo.set(migrated);
+        } catch (e) {
+          console.warn('[SI] deprecated field migration failed:', e);
+        }
+      }
+
       function siLoadInsights() {
         try {
           const data = DSTE.Storage.getString(SI_STORAGE_KEY_INSIGHTS);
@@ -5777,6 +5962,42 @@
         }
       }
 
+      function siPersistInsights(insights) {
+        let oldInsights = [];
+        try {
+          const raw = DSTE.Storage.getString(SI_STORAGE_KEY_INSIGHTS);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) oldInsights = parsed;
+          }
+        } catch (e) {
+          console.warn('[SI] read old insights failed:', e);
+        }
+        ensureLastModified(insights);
+        insights.forEach(i => { if (i.version === undefined) i.version = 1; });
+        siSaveInsights(insights);
+        try {
+          const { created, updated, deleted } = computeEntityDiff(oldInsights, insights, item => String(item.id));
+          if (created.length || updated.length || deleted.length) {
+            enqueuePerRecordSync('insights', { created, updated, deleted }, insightsExecutor, insightsSyncQueue);
+          }
+        } catch (e) {
+          console.error('[SI] sync insights failed:', e);
+        }
+      }
+
+      async function siLoadRemoteInsights() {
+        try {
+          const remote = await apiLoadArray('/api/insights');
+          if (!remote || !Array.isArray(remote)) return;
+          const local = siLoadInsights();
+          const merged = mergeEntities(local, remote, item => String(item.id));
+          siSaveInsights(merged);
+        } catch (e) {
+          console.warn('[SI] load remote insights failed:', e.message);
+        }
+      }
+
       function siGenerateInsightId() {
         return 'ins_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
       }
@@ -5784,6 +6005,7 @@
       function siLoadTopics() {
         siMigrateTopicsFromV1();
         siMigrateTopicTypes();
+        siMigrateRemoveDeprecatedFields();
         try {
           const topics = strategyTopicsRepo.get().filter(t => siSafeTopicId(t.id));
           const { topics: cleaned, changed } = siCleanupOrphanTopicChainLinks(topics);
@@ -5855,12 +6077,6 @@
           }
         });
         return { topics, changed };
-      }
-
-      function siTopicProgressFromMilestones(milestones) {
-        if (!Array.isArray(milestones) || milestones.length === 0) return 0;
-        const completed = milestones.filter(m => m.completed).length;
-        return Math.round((completed / milestones.length) * 100);
       }
 
       function siParseDeliverablesBatch(text) {
@@ -5965,7 +6181,7 @@
       function siRecommendInsightsForTopic(topic) {
         const insights = siLoadInsights();
         if (!insights.length) return [];
-        const topicText = `${topic.name} ${topic.researchObjectives} ${topic.dimension}`.toLowerCase();
+        const topicText = `${topic.name} ${topic.researchObjectives}`.toLowerCase();
         return insights
           .filter(i => !(topic.insights || []).includes(i.id))
           .map(i => {
@@ -6046,21 +6262,21 @@
       // 默认专题数据（首次加载无数据时使用，含 2025 历史专题）
       function siDefaultTopics() {
         return [
-          { id: 'st_17173000001_1', name: '海外市场拓展战略研究', year: 2026, type: 'macro', dimension: '财务', status: 'execution', owner: '陈总监', members: [], kmsUrl: '', researchObjectives: '研究东南亚及海外市场的进入策略与本地化路径', deliverables: ['市场调研报告','试点方案'], startDate: '2026-01-01', endDate: '2026-12-31', progress: 65, milestones: [{title:'市场调研',date:'2026-03-01',completed:true},{title:'试点验证',date:'2026-06-01',completed:true},{title:'全面推广',date:'2026-09-01',completed:false},{title:'成果验收',date:'2026-12-01',completed:false}], insights: ['ins_171720000005_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-20' },
-          { id: 'st_17173000002_1', name: '核心产品技术路线规划', year: 2026, type: 'macro', dimension: '流程', status: 'planning', owner: '王总监', members: [], kmsUrl: '', researchObjectives: '明确未来三年核心产品技术路线与关键能力建设', deliverables: ['技术路线图','架构设计文档'], startDate: '2026-03-01', endDate: '2026-09-30', progress: 40, milestones: [{title:'技术选型',date:'2026-04-01',completed:true},{title:'架构设计',date:'2026-05-15',completed:true},{title:'原型验证',date:'2026-07-01',completed:false}], insights: ['ins_171720000001_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-03-01', updatedAt: '2026-05-18' },
-          { id: 'st_17173000003_1', name: '客户成功体系重构', year: 2026, type: 'customer', dimension: '客户', status: 'insight', owner: '赵经理', members: [], kmsUrl: '', researchObjectives: '重构客户成功体系，提升大客户满意度与续费率', deliverables: [], startDate: '', endDate: '', progress: 0, milestones: [], insights: ['ins_171720000002_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-05-18', updatedAt: '2026-05-18' },
-          { id: 'st_17173000004_1', name: '供应链韧性提升专项', year: 2026, type: 'customer', dimension: '流程', status: 'execution', owner: '张总监', members: [], kmsUrl: '', researchObjectives: '提升供应链韧性，建立关键物料备选方案', deliverables: ['供应商评估报告','备选方案'], startDate: '2026-02-01', endDate: '2026-08-31', progress: 80, milestones: [{title:'供应商评估',date:'2026-03-01',completed:true},{title:'备选方案',date:'2026-05-01',completed:true},{title:'切换实施',date:'2026-07-01',completed:false}], insights: [], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-02-01', updatedAt: '2026-05-15' },
-          { id: 'st_17173000005_1', name: '人才梯队与组织能力升级', year: 2025, type: 'macro', dimension: '学习成长', status: 'closed', owner: '李HRD', members: [], kmsUrl: '', researchObjectives: '建立面向未来的数字化人才梯队与能力模型', deliverables: ['能力模型','培养体系方案'], startDate: '2025-06-01', endDate: '2026-03-31', progress: 100, milestones: [{title:'能力模型',date:'2025-09-01',completed:true},{title:'培养体系',date:'2025-12-01',completed:true},{title:'评估验收',date:'2026-03-01',completed:true}], insights: [], summary: '完成全员能力评估，建立三级培养体系', previousTopicId: null, nextTopicId: null, createdAt: '2025-06-01', updatedAt: '2026-03-31' },
-          { id: 'st_17173000006_1', name: '数字化转型顶层规划', year: 2026, type: 'macro', dimension: '流程', status: 'execution', owner: '刘CTO', members: [], kmsUrl: '', researchObjectives: '制定公司数字化转型顶层规划与分阶段实施路径', deliverables: ['数字化转型蓝图','实施方案'], startDate: '2026-01-01', endDate: '2026-10-31', progress: 55, milestones: [{title:'现状诊断',date:'2026-02-01',completed:true},{title:'蓝图设计',date:'2026-04-01',completed:true},{title:'方案评审',date:'2026-06-01',completed:false},{title:'分步实施',date:'2026-08-01',completed:false}], insights: ['ins_171720000001_1','ins_171720000004_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-12' },
+          { id: 'st_17173000001_1', name: '海外市场拓展战略研究', year: 2026, type: 'macro', status: 'execution', owner: '陈总监', members: [], kmsUrl: '', researchObjectives: '研究东南亚及海外市场的进入策略与本地化路径', deliverables: ['市场调研报告','试点方案'], startDate: '2026-01-01', endDate: '2026-12-31', milestones: [{title:'市场调研',date:'2026-03-01',completed:true},{title:'试点验证',date:'2026-06-01',completed:true},{title:'全面推广',date:'2026-09-01',completed:false},{title:'成果验收',date:'2026-12-01',completed:false}], insights: ['ins_171720000005_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-20' },
+          { id: 'st_17173000002_1', name: '核心产品技术路线规划', year: 2026, type: 'macro', status: 'planning', owner: '王总监', members: [], kmsUrl: '', researchObjectives: '明确未来三年核心产品技术路线与关键能力建设', deliverables: ['技术路线图','架构设计文档'], startDate: '2026-03-01', endDate: '2026-09-30', milestones: [{title:'技术选型',date:'2026-04-01',completed:true},{title:'架构设计',date:'2026-05-15',completed:true},{title:'原型验证',date:'2026-07-01',completed:false}], insights: ['ins_171720000001_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-03-01', updatedAt: '2026-05-18' },
+          { id: 'st_17173000003_1', name: '客户成功体系重构', year: 2026, type: 'customer', status: 'insight', owner: '赵经理', members: [], kmsUrl: '', researchObjectives: '重构客户成功体系，提升大客户满意度与续费率', deliverables: [], startDate: '', endDate: '', milestones: [], insights: ['ins_171720000002_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-05-18', updatedAt: '2026-05-18' },
+          { id: 'st_17173000004_1', name: '供应链韧性提升专项', year: 2026, type: 'customer', status: 'execution', owner: '张总监', members: [], kmsUrl: '', researchObjectives: '提升供应链韧性，建立关键物料备选方案', deliverables: ['供应商评估报告','备选方案'], startDate: '2026-02-01', endDate: '2026-08-31', milestones: [{title:'供应商评估',date:'2026-03-01',completed:true},{title:'备选方案',date:'2026-05-01',completed:true},{title:'切换实施',date:'2026-07-01',completed:false}], insights: [], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-02-01', updatedAt: '2026-05-15' },
+          { id: 'st_17173000005_1', name: '人才梯队与组织能力升级', year: 2025, type: 'macro', status: 'closed', owner: '李HRD', members: [], kmsUrl: '', researchObjectives: '建立面向未来的数字化人才梯队与能力模型', deliverables: ['能力模型','培养体系方案'], startDate: '2025-06-01', endDate: '2026-03-31', milestones: [{title:'能力模型',date:'2025-09-01',completed:true},{title:'培养体系',date:'2025-12-01',completed:true},{title:'评估验收',date:'2026-03-01',completed:true}], insights: [], summary: '完成全员能力评估，建立三级培养体系', previousTopicId: null, nextTopicId: null, createdAt: '2025-06-01', updatedAt: '2026-03-31' },
+          { id: 'st_17173000006_1', name: '数字化转型顶层规划', year: 2026, type: 'macro', status: 'execution', owner: '刘CTO', members: [], kmsUrl: '', researchObjectives: '制定公司数字化转型顶层规划与分阶段实施路径', deliverables: ['数字化转型蓝图','实施方案'], startDate: '2026-01-01', endDate: '2026-10-31', milestones: [{title:'现状诊断',date:'2026-02-01',completed:true},{title:'蓝图设计',date:'2026-04-01',completed:true},{title:'方案评审',date:'2026-06-01',completed:false},{title:'分步实施',date:'2026-08-01',completed:false}], insights: ['ins_171720000001_1','ins_171720000004_1'], summary: '', previousTopicId: null, nextTopicId: null, createdAt: '2026-01-01', updatedAt: '2026-05-12' },
           // 2025-2027 SP 历史专题（来自 KMS 营销线 SP823 规划）
-          { id: 'st_17173000007_1', name: '帆软大客户拓展工作的三年业务规划', year: 2025, type: 'macro', dimension: '客户', status: 'closed', owner: '销售总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333002613', researchObjectives: '制定大客户拓展三年规划，明确分层标准与作战机制', deliverables: ['大客户分层标准','铁三角机制','标杆案例库'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'大客户画像',date:'2025-03-01',completed:true},{title:'铁三角机制',date:'2025-06-01',completed:true},{title:'标杆客户打造',date:'2025-09-01',completed:true},{title:'方法论沉淀',date:'2025-12-01',completed:true}], insights: [], summary: '完成大客户分层标准制定，建立铁三角作战机制，沉淀大客户拓展方法论与标杆案例库', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000008_1', name: '帆软年度经常性收入（ARR）三年规划', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '财务总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318263189', researchObjectives: '明确 ARR 统计口径，优化合同结构，建立可持续性收入机制', deliverables: ['ARR口径定义','合同结构优化方案','续费机制'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'ARR口径定义',date:'2025-03-01',completed:true},{title:'合同结构优化',date:'2025-06-01',completed:true},{title:'续费机制设计',date:'2025-09-01',completed:true},{title:'目标达成复盘',date:'2025-12-01',completed:true}], insights: [], summary: '明确 ARR 统计口径，优化新签与续费合同结构，建立可持续性收入跟踪与激励机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000009_1', name: '财务域的市场分析与三年业务规划', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '解决方案总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333004071', researchObjectives: '完成财务域市场洞察，输出财务数字化解决方案', deliverables: ['财务场景调研报告','行业解决方案','标杆客户验证'], startDate: '2025-02-01', endDate: '2025-11-30', progress: 100, milestones: [{title:'财务场景调研',date:'2025-04-01',completed:true},{title:'行业解决方案',date:'2025-06-01',completed:true},{title:'标杆客户验证',date:'2025-09-01',completed:true},{title:'规模化复制',date:'2025-11-01',completed:true}], insights: [], summary: '完成财务域市场洞察，输出财务数字化解决方案，验证并复制标杆客户，支撑业务破圈', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-11-30' },
-          { id: 'st_17173000010_1', name: '数字人才市场分析与三年业务规划', year: 2025, type: 'macro', dimension: '学习成长', status: 'closed', owner: '培训总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1336578837', researchObjectives: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系', deliverables: ['人才需求调研','课程体系','认证机制'], startDate: '2025-03-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'人才需求调研',date:'2025-05-01',completed:true},{title:'课程体系搭建',date:'2025-07-01',completed:true},{title:'认证机制上线',date:'2025-10-01',completed:true},{title:'生态合作落地',date:'2025-12-01',completed:true}], insights: [], summary: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系，建立生态合作培养机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-03-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000011_1', name: '烟草体系客户市场分析与三年业务规划', year: 2025, type: 'customer', dimension: '客户', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333003592', researchObjectives: '完成烟草行业市场洞察与客户分析，培育标杆客户', deliverables: ['行业洞察报告','标杆客户培育','场景方案沉淀'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'行业洞察',date:'2025-03-01',completed:true},{title:'标杆客户培育',date:'2025-06-01',completed:true},{title:'场景方案沉淀',date:'2025-09-01',completed:true},{title:'规模化推广',date:'2025-12-01',completed:true}], insights: [], summary: '完成烟草行业市场洞察与客户分析，培育标杆客户，沉淀行业化解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000012_1', name: '汽车制造行业客户市场分析与三年业务规划', year: 2025, type: 'customer', dimension: '客户', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318268670', researchObjectives: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', deliverables: ['行业研究报告','头部客户突破','方案打磨'], startDate: '2025-02-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'行业研究',date:'2025-04-01',completed:true},{title:'头部客户突破',date:'2025-07-01',completed:true},{title:'方案打磨',date:'2025-10-01',completed:true},{title:'成果复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000013_1', name: '上海战区SP三年业务规划和讨论', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '上海战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1321880717', researchObjectives: '完成上海战区三年战略规划，明确增长目标与关键举措', deliverables: ['战区三年规划','年度作战计划'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'现状诊断',date:'2025-03-01',completed:true},{title:'三年目标制定',date:'2025-05-01',completed:true},{title:'关键举措落地',date:'2025-09-01',completed:true},{title:'年度复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成上海战区三年战略规划，明确增长目标与关键举措，形成可执行的年度作战计划', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
-          { id: 'st_17173000014_1', name: '华南战区SP三年业务规划和讨论', year: 2025, type: 'macro', dimension: '财务', status: 'closed', owner: '华南战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1220673571', researchObjectives: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配', deliverables: ['战区三年规划','资源配置方案'], startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, milestones: [{title:'市场洞察',date:'2025-03-01',completed:true},{title:'目标分解',date:'2025-05-01',completed:true},{title:'资源配置',date:'2025-08-01',completed:true},{title:'复盘验收',date:'2025-12-01',completed:true}], insights: [], summary: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配与复盘验收', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' }
+          { id: 'st_17173000007_1', name: '帆软大客户拓展工作的三年业务规划', year: 2025, type: 'macro', status: 'closed', owner: '销售总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333002613', researchObjectives: '制定大客户拓展三年规划，明确分层标准与作战机制', deliverables: ['大客户分层标准','铁三角机制','标杆案例库'], startDate: '2025-01-01', endDate: '2025-12-31', milestones: [{title:'大客户画像',date:'2025-03-01',completed:true},{title:'铁三角机制',date:'2025-06-01',completed:true},{title:'标杆客户打造',date:'2025-09-01',completed:true},{title:'方法论沉淀',date:'2025-12-01',completed:true}], insights: [], summary: '完成大客户分层标准制定，建立铁三角作战机制，沉淀大客户拓展方法论与标杆案例库', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000008_1', name: '帆软年度经常性收入（ARR）三年规划', year: 2025, type: 'macro', status: 'closed', owner: '财务总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318263189', researchObjectives: '明确 ARR 统计口径，优化合同结构，建立可持续性收入机制', deliverables: ['ARR口径定义','合同结构优化方案','续费机制'], startDate: '2025-01-01', endDate: '2025-12-31', milestones: [{title:'ARR口径定义',date:'2025-03-01',completed:true},{title:'合同结构优化',date:'2025-06-01',completed:true},{title:'续费机制设计',date:'2025-09-01',completed:true},{title:'目标达成复盘',date:'2025-12-01',completed:true}], insights: [], summary: '明确 ARR 统计口径，优化新签与续费合同结构，建立可持续性收入跟踪与激励机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000009_1', name: '财务域的市场分析与三年业务规划', year: 2025, type: 'macro', status: 'closed', owner: '解决方案总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333004071', researchObjectives: '完成财务域市场洞察，输出财务数字化解决方案', deliverables: ['财务场景调研报告','行业解决方案','标杆客户验证'], startDate: '2025-02-01', endDate: '2025-11-30', milestones: [{title:'财务场景调研',date:'2025-04-01',completed:true},{title:'行业解决方案',date:'2025-06-01',completed:true},{title:'标杆客户验证',date:'2025-09-01',completed:true},{title:'规模化复制',date:'2025-11-01',completed:true}], insights: [], summary: '完成财务域市场洞察，输出财务数字化解决方案，验证并复制标杆客户，支撑业务破圈', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-11-30' },
+          { id: 'st_17173000010_1', name: '数字人才市场分析与三年业务规划', year: 2025, type: 'macro', status: 'closed', owner: '培训总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1336578837', researchObjectives: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系', deliverables: ['人才需求调研','课程体系','认证机制'], startDate: '2025-03-01', endDate: '2025-12-31', milestones: [{title:'人才需求调研',date:'2025-05-01',completed:true},{title:'课程体系搭建',date:'2025-07-01',completed:true},{title:'认证机制上线',date:'2025-10-01',completed:true},{title:'生态合作落地',date:'2025-12-01',completed:true}], insights: [], summary: '完成数字人才市场分析，搭建 FinBI 人才认证与培训体系，建立生态合作培养机制', previousTopicId: null, nextTopicId: null, createdAt: '2025-03-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000011_1', name: '烟草体系客户市场分析与三年业务规划', year: 2025, type: 'customer', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1333003592', researchObjectives: '完成烟草行业市场洞察与客户分析，培育标杆客户', deliverables: ['行业洞察报告','标杆客户培育','场景方案沉淀'], startDate: '2025-01-01', endDate: '2025-12-31', milestones: [{title:'行业洞察',date:'2025-03-01',completed:true},{title:'标杆客户培育',date:'2025-06-01',completed:true},{title:'场景方案沉淀',date:'2025-09-01',completed:true},{title:'规模化推广',date:'2025-12-01',completed:true}], insights: [], summary: '完成烟草行业市场洞察与客户分析，培育标杆客户，沉淀行业化解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000012_1', name: '汽车制造行业客户市场分析与三年业务规划', year: 2025, type: 'customer', status: 'closed', owner: '行业总监', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1318268670', researchObjectives: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', deliverables: ['行业研究报告','头部客户突破','方案打磨'], startDate: '2025-02-01', endDate: '2025-12-31', milestones: [{title:'行业研究',date:'2025-04-01',completed:true},{title:'头部客户突破',date:'2025-07-01',completed:true},{title:'方案打磨',date:'2025-10-01',completed:true},{title:'成果复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成汽车行业市场分析，突破头部客户，形成制造行业数据应用解决方案', previousTopicId: null, nextTopicId: null, createdAt: '2025-02-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000013_1', name: '上海战区SP三年业务规划和讨论', year: 2025, type: 'macro', status: 'closed', owner: '上海战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1321880717', researchObjectives: '完成上海战区三年战略规划，明确增长目标与关键举措', deliverables: ['战区三年规划','年度作战计划'], startDate: '2025-01-01', endDate: '2025-12-31', milestones: [{title:'现状诊断',date:'2025-03-01',completed:true},{title:'三年目标制定',date:'2025-05-01',completed:true},{title:'关键举措落地',date:'2025-09-01',completed:true},{title:'年度复盘',date:'2025-12-01',completed:true}], insights: [], summary: '完成上海战区三年战略规划，明确增长目标与关键举措，形成可执行的年度作战计划', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' },
+          { id: 'st_17173000014_1', name: '华南战区SP三年业务规划和讨论', year: 2025, type: 'macro', status: 'closed', owner: '华南战区总', members: [], kmsUrl: 'https://kms.fineres.com/pages/viewpage.action?pageId=1220673571', researchObjectives: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配', deliverables: ['战区三年规划','资源配置方案'], startDate: '2025-01-01', endDate: '2025-12-31', milestones: [{title:'市场洞察',date:'2025-03-01',completed:true},{title:'目标分解',date:'2025-05-01',completed:true},{title:'资源配置',date:'2025-08-01',completed:true},{title:'复盘验收',date:'2025-12-01',completed:true}], insights: [], summary: '完成华南战区三年战略规划，细化区域增长目标，完成资源匹配与复盘验收', previousTopicId: null, nextTopicId: null, createdAt: '2025-01-01', updatedAt: '2025-12-31' }
         ];
       }
 
@@ -6092,6 +6308,9 @@
 
       // 启动时尝试拉取远程战略专题并合并
       siLoadRemoteTopics();
+
+      // 启动时尝试拉取远程战略洞察并合并
+      siLoadRemoteInsights();
 
       // ===== 战略洞察页面 =====
       function renderInsightsPage() {
@@ -6213,7 +6432,6 @@
         const q = query.toLowerCase();
         const fields = [
           t.name,
-          t.dimension,
           t.researchObjectives,
           Array.isArray(t.deliverables) ? t.deliverables.join(' ') : '',
           siRenderPerson(t.owner)
@@ -6224,12 +6442,10 @@
       function siTopicMatchesFilters(t) {
         const statusFilter = siGetFilterArray('_strategyStatusFilter');
         const typeFilter = siGetFilterArray('_strategyTypeFilter');
-        const dimensionFilter = siGetFilterArray('_strategyDimensionFilter');
         const searchQuery = window._strategySearchQuery || '';
         if (!siTopicMatchesSearch(t, searchQuery)) return false;
         if (statusFilter.length > 0 && !statusFilter.includes(t.status)) return false;
         if (typeFilter.length > 0 && !typeFilter.includes(t.type)) return false;
-        if (dimensionFilter.length > 0 && !dimensionFilter.includes(String(t.dimension))) return false;
         return true;
       }
 
@@ -6243,11 +6459,9 @@
           let va, vb;
           switch (key) {
             case 'name': va = a.name || ''; vb = b.name || ''; break;
-            case 'dimension': va = a.dimension || ''; vb = b.dimension || ''; break;
             case 'type': va = typeOrder[a.type] ?? 99; vb = typeOrder[b.type] ?? 99; break;
             case 'owner': va = siRenderPerson(a.owner); vb = siRenderPerson(b.owner); break;
             case 'status': va = statusOrder[a.status] ?? 99; vb = statusOrder[b.status] ?? 99; break;
-            case 'progress': va = a.progress || 0; vb = b.progress || 0; break;
             case 'startDate': va = a.startDate || ''; vb = b.startDate || ''; break;
             case 'updatedAt': va = a.updatedAt || ''; vb = b.updatedAt || ''; break;
             default: va = a.updatedAt || ''; vb = b.updatedAt || '';
@@ -6269,7 +6483,8 @@
       };
 
       window.siSetFilter = function(kind, value) {
-        const key = kind === 'status' ? '_strategyStatusFilter' : kind === 'type' ? '_strategyTypeFilter' : '_strategyDimensionFilter';
+        const key = kind === 'status' ? '_strategyStatusFilter' : kind === 'type' ? '_strategyTypeFilter' : null;
+        if (!key) return;
         window[key] = value;
         navigate('sp/strategy-topics');
       };
@@ -6315,12 +6530,6 @@
         // 3. 排序
         const topics = siApplyTopicSort(filteredTopics);
 
-        // 统计（基于筛选后结果）
-        const activeTopics = topics.filter(t => t.status !== 'closed' && t.status !== 'insight');
-        const completedTopics = topics.filter(t => t.status === 'closed');
-        const avgProgress = topics.length > 0 ? Math.round(topics.reduce((sum, t) => sum + (t.progress || 0), 0) / topics.length) : 0;
-        const highRiskTopics = topics.filter(t => (t.progress || 0) < 50 && t.status === 'execution').length;
-
         // 按年份分组（基于筛选+排序后结果）
         const yearGroups = {};
         topics.forEach(t => {
@@ -6347,16 +6556,12 @@
           navigate('sp/strategy-topics');
         };
 
-        // 收集当前存在的维度值
-        const allDimensions = Array.from(new Set(allTopics.map(t => String(t.dimension || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-
         const searchQuery = window._strategySearchQuery || '';
         const statusFilter = siGetFilterArray('_strategyStatusFilter');
         const typeFilter = siGetFilterArray('_strategyTypeFilter');
-        const dimensionFilter = siGetFilterArray('_strategyDimensionFilter');
 
         const searchHtml = `
-          <input type="text" id="strategy-topic-search" value="${siEscapeHtml(searchQuery)}" placeholder="搜索名称、负责人、维度、交付件..."
+          <input type="text" id="strategy-topic-search" value="${siEscapeHtml(searchQuery)}" placeholder="搜索名称、负责人、研究目标、交付件..."
             oninput="siSetSearch(this.value)" onchange="siCommitSearch()"
             style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-width:220px;"
           />
@@ -6375,38 +6580,30 @@
           { value: 'competition', label: '看竞争' }
         ];
 
-        function multiSelectHtml(options, selected, kind) {
-          const optionsHtml = options.map(o => `<option value="${o.value}" ${selected.includes(o.value) ? 'selected' : ''}>${o.label}</option>`).join('');
+        function singleSelectHtml(options, selected, kind, allLabel) {
+          const current = selected[0] || '';
+          const optionsHtml = [
+            `<option value="" ${current === '' ? 'selected' : ''}>${allLabel || '全部'}</option>`,
+            ...options.map(o => `<option value="${o.value}" ${current === o.value ? 'selected' : ''}>${o.label}</option>`)
+          ].join('');
           return `
-            <select multiple onchange="siSetFilter('${kind}', Array.from(this.selectedOptions).map(o => o.value))"
-              style="padding:4px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-height:34px;min-width:110px;"
+            <select onchange="siSetFilter('${kind}', this.value ? [this.value] : [])"
+              style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-width:120px;cursor:pointer;"
             >${optionsHtml}</select>
           `;
         }
-
-        const dimensionOptionsHtml = allDimensions.map(d => `<option value="${siEscapeHtml(d)}" ${dimensionFilter.includes(d) ? 'selected' : ''}>${siEscapeHtml(d)}</option>`).join('');
-        const dimensionSelectHtml = allDimensions.length > 0 ? `
-          <select multiple onchange="siSetFilter('dimension', Array.from(this.selectedOptions).map(o => o.value))"
-            style="padding:4px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-height:34px;min-width:110px;"
-          >${dimensionOptionsHtml}</select>
-        ` : '';
 
         const filterBarHtml = `
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             ${searchHtml}
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:13px;color:var(--text-secondary);">状态</span>
-              ${multiSelectHtml(statusOptions, statusFilter, 'status')}
+              ${singleSelectHtml(statusOptions, statusFilter, 'status', '全部状态')}
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:13px;color:var(--text-secondary);">类型</span>
-              ${multiSelectHtml(typeOptions, typeFilter, 'type')}
+              ${singleSelectHtml(typeOptions, typeFilter, 'type', '全部类型')}
             </div>
-            ${allDimensions.length > 0 ? `
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:13px;color:var(--text-secondary);">维度</span>
-              ${dimensionSelectHtml}
-            </div>` : ''}
           </div>
         `;
 
@@ -6426,31 +6623,6 @@
           <div style="display:flex;gap:0;border:1px solid var(--border-color);border-radius:6px;overflow:hidden;">
             <button class="btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}" onclick="siSwitchTopicView('list')" style="border-radius:0;border:none;padding:6px 14px;font-size:13px;">列表视图</button>
             <button class="btn btn-sm ${viewMode === 'gantt' ? 'btn-primary' : 'btn-secondary'}" onclick="siSwitchTopicView('gantt')" style="border-radius:0;border:none;padding:6px 14px;font-size:13px;">甘特图</button>
-          </div>
-        `;
-
-        const statsHtml = `
-          <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
-            <div class="kpi-card">
-              <div class="kpi-label">进行中</div>
-              <div class="kpi-value" style="color: var(--primary);">${activeTopics.length}</div>
-              <div class="kpi-trend"><span>活跃专题</span></div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">已完成</div>
-              <div class="kpi-value" style="color: var(--success);">${completedTopics.length}</div>
-              <div class="kpi-trend"><span>已闭环</span></div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">平均进度</div>
-              <div class="kpi-value" style="color: var(--warning);">${avgProgress}%</div>
-              <div class="kpi-trend"><span>目标 70%</span></div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">高风险</div>
-              <div class="kpi-value" style="color: var(--danger);">${highRiskTopics}</div>
-              <div class="kpi-trend"><span>需重点关注</span></div>
-            </div>
           </div>
         `;
 
@@ -6474,28 +6646,24 @@
               <td style="text-align:center;">
                 ${t.kmsUrl && t.kmsUrl !== '#' ? `<a href="${siEscapeHtml(t.kmsUrl)}" target="_blank" rel="noopener noreferrer" title="打开 KMS 页面" style="font-size:13px;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;background:var(--primary-bg);" onmouseover="this.style.background='var(--primary-light)'" onmouseout="this.style.background='var(--primary-bg)'"><span class="icon" data-icon="link" data-icon-size="14"></span>KMS</a>` : '—'}
               </td>
-              <td><span style="padding:2px 8px;border-radius:4px;background:var(--bg-page);font-size:12px;">${siEscapeHtml(t.dimension)}</span></td>
               <td>${typeLabel[t.type] || t.type}</td>
               <td>${siEscapeHtml(siRenderPerson(t.owner))}</td>
-              <td>${Array.isArray(t.members) && t.members.length > 0 ? t.members.map(m => siEscapeHtml(siRenderPerson(m))).join('、') : '—'}</td>
               <td><span class="status-badge ${statusClass[t.status]}">${statusLabel[t.status]}</span></td>
-              <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${(t.progress || 0) < 50 && (t.progress || 0) > 0 ? 'warning' : ''}" style="width:${t.progress || 0}%"></div></div><span style="font-size:12px">${t.progress || 0}%</span></div></td>
-              <td style="font-size:12px;color:var(--text-tertiary)">${t.updatedAt}</td>
-              <td>
-                <button class="btn btn-sm btn-secondary view-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">查看</button>
-                <button class="btn btn-sm btn-primary edit-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">编辑</button>
-                <button class="btn btn-sm btn-danger delete-topic-btn" data-topic-id="${t.id}" style="padding:4px 8px;font-size:12px;">删除</button>
+              <td style="white-space:nowrap;">
+                <button class="st-action-link view-topic-btn" data-topic-id="${t.id}">查看</button><span style="color:var(--border-color);">|</span><button class="st-action-link edit-topic-btn" data-topic-id="${t.id}">编辑</button><span style="color:var(--border-color);">|</span><button class="st-action-link danger delete-topic-btn" data-topic-id="${t.id}">删除</button>
               </td>
             </tr>
           `;
         }).join('');
 
-        const listHtml = (selectedYear === 'all' ? sortedYears : sortedYears.filter(y => y == selectedYear)).map(year => {
+        const visibleYears = (selectedYear === 'all' ? sortedYears : sortedYears.filter(y => y == selectedYear));
+        const singleYearMode = visibleYears.length === 1;
+        const listCardsHtml = visibleYears.map(year => {
           const yearTopics = yearGroups[year];
           const yearActive = yearTopics.filter(t => t.status !== 'closed' && t.status !== 'insight').length;
           const yearCompleted = yearTopics.filter(t => t.status === 'closed').length;
           return `
-            <div class="card" style="margin-bottom:16px;">
+            <div class="card st-year-card" style="${singleYearMode ? 'grid-column: 1 / -1;' : ''}">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border-color);">
                 <div style="display:flex;align-items:center;gap:10px;">
                   <h3 style="margin:0;font-size:16px;">${year}年专题</h3>
@@ -6507,27 +6675,27 @@
                 </div>
               </div>
               <div class="table-scroll-wrapper">
-                <table class="data-table">
+                <table class="data-table st-compact-table">
                   <thead>
                     <tr>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('name')">专题名称 ${sortIndicator('name')}</th>
                       <th style="white-space:nowrap;">KMS</th>
-                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('dimension')">战略维度 ${sortIndicator('dimension')}</th>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('type')">类型 ${sortIndicator('type')}</th>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('owner')">负责人 ${sortIndicator('owner')}</th>
-                      <th>成员</th>
                       <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('status')">阶段 ${sortIndicator('status')}</th>
-                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('progress')">进度 ${sortIndicator('progress')}</th>
-                      <th style="cursor:pointer;white-space:nowrap;" onclick="siSetSort('updatedAt')">更新 ${sortIndicator('updatedAt')}</th>
-                      <th>操作</th>
+                      <th style="white-space:nowrap;">操作</th>
                     </tr>
                   </thead>
-                  <tbody>${topicRows(yearTopics) || '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
+                  <tbody>${topicRows(yearTopics) || '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</td></tr>'}</tbody>
                 </table>
               </div>
             </div>
           `;
         }).join('');
+
+        const listHtml = visibleYears.length === 0
+          ? '<div class="card" style="text-align:center;padding:40px;color:var(--text-tertiary);">暂无专题</div>'
+          : `<div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:16px;align-items:start;">${listCardsHtml}</div>`;
 
         return `
           ${renderBreadcrumb('战略专题管理')}
@@ -6545,8 +6713,6 @@
               ${filterBarHtml}
               ${yearSelectorHtml}
             </div>
-
-            ${statsHtml}
 
             <div id="strategy-topics-content">
               ${viewMode === 'list' ? listHtml : siRenderGanttChart(topics, { year: selectedYear })}
@@ -6627,7 +6793,7 @@
               <div style="width:180px;flex-shrink:0;padding:8px 12px;font-size:13px;font-weight:500;" title="${siEscapeHtml(t.name)}">${siEscapeHtml(t.name)}</div>
               <div style="width:80px;flex-shrink:0;padding:8px 12px;font-size:12px;color:var(--text-secondary);">${siEscapeHtml(siRenderPerson(t.owner))}</div>
               <div style="flex:1;position:relative;height:40px;margin:0 12px;">
-                <div class="gantt-bar" data-topic-id="${t.id}" style="position:absolute;left:${startPct}%;width:${widthPct}%;top:10px;height:18px;background:${statusColor[t.status] || 'var(--primary)'};border-radius:4px;opacity:0.85;cursor:pointer;" title="${siEscapeHtml(t.name)}: ${t.startDate || '?'} ~ ${t.endDate || '?'}, ${t.progress || 0}%"></div>
+                <div class="gantt-bar" data-topic-id="${t.id}" style="position:absolute;left:${startPct}%;width:${widthPct}%;top:10px;height:18px;background:${statusColor[t.status] || 'var(--primary)'};border-radius:4px;opacity:0.85;cursor:pointer;" title="${siEscapeHtml(t.name)}: ${t.startDate || '?'} ~ ${t.endDate || '?'}"></div>
                 ${milestones}
               </div>
             </div>
@@ -6735,9 +6901,7 @@
               <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:16px;margin-bottom:20px;">
                 <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">负责人</div><div style="font-size:14px;font-weight:500;">${siEscapeHtml(siRenderPerson(topic.owner))}</div></div>
                 <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">成员</div><div style="font-size:14px;font-weight:500;">${Array.isArray(topic.members) && topic.members.length > 0 ? topic.members.map(m => siEscapeHtml(siRenderPerson(m))).join('、') : '—'}</div></div>
-                <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度</div><div style="font-size:14px;font-weight:500;">${siEscapeHtml(topic.dimension)}</div></div>
                 <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">阶段</div><div style="font-size:14px;font-weight:500;">${statusLabel[topic.status] || topic.status}</div></div>
-                <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度</div><div style="font-size:14px;font-weight:500;">${topic.progress || 0}%</div></div>
                 <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">KMS 链接</div><div style="font-size:14px;font-weight:500;">${kmsLinkHtml}</div></div>
                 <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</div><div style="font-size:14px;font-weight:500;">${siEscapeHtml(topic.startDate)}</div></div>
                 <div><div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">结束日期</div><div style="font-size:14px;font-weight:500;">${siEscapeHtml(topic.endDate)}</div></div>
@@ -6823,7 +6987,6 @@
         const insightsData = siLoadInsights();
         const typeOptions = [['macro','看宏观'],['customer','看客户'],['self','看自己'],['competition','看竞争']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
         const statusOptions = [['insight','洞察阶段'],['planning','规划阶段'],['execution','执行阶段'],['closed','已闭环']].map(([v,l]) => `<option value="${v}" ${topic.status === v ? 'selected' : ''}>${l}</option>`).join('');
-        const dimensionOptions = [['财务','财务'],['客户','客户'],['流程','流程'],['学习成长','学习成长']].map(([v,l]) => `<option value="${v}" ${topic.dimension === v ? 'selected' : ''}>${l}</option>`).join('');
 
         const milestoneRows = (topic.milestones || []).map((m, idx) => `
           <div class="milestone-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
@@ -6866,15 +7029,14 @@
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">成员（多人用逗号分隔）</label>
-                  <input type="text" id="edit-topic-members" value="${siEscapeHtml(membersValue)}" placeholder="例如：张三, 李四" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="text" id="edit-topic-members" value="${siEscapeHtml(membersValue)}" placeholder="例如：张三, 李四" style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="window.siPickPersonToAddMember()" title="从人员目录选择成员" style="white-space:nowrap;">⊕ 选择</button>
+                  </div>
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">KMS 链接</label>
                   <input type="url" id="edit-topic-kmsUrl" value="${siEscapeHtml(topic.kmsUrl || '')}" placeholder="https://kms.fineres.com/pages/..." style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
-                </div>
-                <div>
-                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度 <span style="color:var(--danger)">*</span></label>
-                  <select id="edit-topic-dimension" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${dimensionOptions}</select>
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型</label>
@@ -6883,10 +7045,6 @@
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">阶段</label>
                   <select id="edit-topic-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${statusOptions}</select>
-                </div>
-                <div>
-                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度 (%)</label>
-                  <input type="number" id="edit-topic-progress" value="${topic.progress || 0}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label>
@@ -6978,6 +7136,55 @@
         container.appendChild(row);
       };
 
+      // 弹出人员选择浮层，选中后将人员姓名追加到成员 input（逗号分隔）
+      window.siPickPersonToAddMember = function() {
+        const membersInput = document.getElementById('edit-topic-members');
+        if (!membersInput) return;
+        // 已存在临时选择器则直接聚焦
+        if (document.getElementById('si-member-picker-overlay')) return;
+        const overlay = document.createElement('div');
+        overlay.id = 'si-member-picker-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10001;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+          <div style="background:var(--bg-card);border-radius:10px;padding:20px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px;">选择成员</div>
+            <input type="text" id="si-member-picker-input" placeholder="搜索姓名、英文名、工号..." style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+              <button class="btn btn-secondary" onclick="document.getElementById('si-member-picker-overlay').remove();">取消</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        const pickerInput = document.getElementById('si-member-picker-input');
+        if (window.enhancePersonInput && pickerInput) {
+          const api = window.enhancePersonInput(pickerInput, {
+            placeholder: '搜索姓名、英文名、工号...',
+            allowFreeText: true,
+            onChange: (person) => {
+              if (!person) return;
+              const name = person.displayName || person.name || '';
+              if (!name) return;
+              const current = membersInput.value.trim();
+              const existing = current ? current.split(/,|，/).map(s => s.trim()).filter(Boolean) : [];
+              if (!existing.includes(name)) {
+                membersInput.value = existing.concat(name).join(', ');
+              }
+              try { api.destroy(); } catch (e) {}
+              overlay.remove();
+            }
+          });
+          pickerInput.focus();
+          // 浮层关闭时一并清理临时 person-input，避免 dropdown 残留
+          const cleanup = () => { try { api.destroy(); } catch (e) {} };
+          overlay.addEventListener('remove', cleanup);
+          const cancelBtn = overlay.querySelector('.btn-secondary');
+          if (cancelBtn) cancelBtn.addEventListener('click', cleanup);
+        } else if (pickerInput) {
+          pickerInput.focus();
+        }
+      };
+
       window.siToggleBatchDeliverables = function() {
         const area = document.getElementById('batch-deliverables-area');
         if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
@@ -7026,14 +7233,9 @@
         const membersRaw = document.getElementById('edit-topic-members').value;
         const members = membersRaw.split(/,|，/).map(s => s.trim()).filter(Boolean);
 
-        const progressInput = document.getElementById('edit-topic-progress').value;
-        const autoProgress = siTopicProgressFromMilestones(milestones);
-        const progress = progressInput ? (parseInt(progressInput, 10) || 0) : autoProgress;
-
         topics[idx] = {
           ...topics[idx],
           name,
-          dimension: document.getElementById('edit-topic-dimension').value.trim() || topics[idx].dimension,
           type: document.getElementById('edit-topic-type').value,
           owner: (window.getPersonValue ? window.getPersonValue('edit-topic-owner') : null) || document.getElementById('edit-topic-owner').value.trim() || topics[idx].owner,
           members,
@@ -7043,7 +7245,6 @@
           kmsUrl: document.getElementById('edit-topic-kmsUrl').value.trim(),
           researchObjectives,
           deliverables,
-          progress,
           milestones,
           insights: selectedInsights,
           summary: document.getElementById('edit-topic-summary').value.trim(),
@@ -7065,7 +7266,7 @@
             insightsChanged = true;
           }
         });
-        if (insightsChanged) siSaveInsights(allInsights);
+        if (insightsChanged) siPersistInsights(allInsights);
 
         window._siTopicEditId = null;
         const overlay = document.getElementById('topic-edit-overlay');
@@ -7130,7 +7331,7 @@
               insightsChanged = true;
             }
           });
-          if (insightsChanged) siSaveInsights(insights);
+          if (insightsChanged) siPersistInsights(insights);
         }
         const overlay = document.getElementById('delete-confirm-overlay');
         if (overlay) overlay.remove();
@@ -7145,7 +7346,6 @@
           summary: prefill.summary || '',
           researchObjectives: prefill.researchObjectives || '',
           type: prefill.type || 'macro',
-          dimension: prefill.dimension || '流程',
           status: prefill.status || 'insight',
           owner: prefill.owner || '',
           members: prefill.members || [],
@@ -7163,7 +7363,6 @@
         const insightsData = siLoadInsights();
         const typeOptions = [['macro','看宏观'],['customer','看客户'],['self','看自己'],['competition','看竞争']].map(([v,l]) => `<option value="${v}" ${topic.type === v ? 'selected' : ''}>${l}</option>`).join('');
         const statusOptions = [['insight','洞察阶段'],['planning','规划阶段'],['execution','执行阶段'],['closed','已闭环']].map(([v,l]) => `<option value="${v}" ${topic.status === v ? 'selected' : ''}>${l}</option>`).join('');
-        const dimensionOptions = [['财务','财务'],['客户','客户'],['流程','流程'],['学习成长','学习成长']].map(([v,l]) => `<option value="${v}" ${topic.dimension === v ? 'selected' : ''}>${l}</option>`).join('');
 
         const milestoneRows = (topic.milestones || []).map((m, idx) => `
           <div class="milestone-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
@@ -7211,15 +7410,14 @@
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">成员（多人用逗号分隔）</label>
-                  <input type="text" id="edit-topic-members" value="${siEscapeHtml(membersValue)}" placeholder="例如：张三, 李四" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="text" id="edit-topic-members" value="${siEscapeHtml(membersValue)}" placeholder="例如：张三, 李四" style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="window.siPickPersonToAddMember()" title="从人员目录选择成员" style="white-space:nowrap;">⊕ 选择</button>
+                  </div>
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">KMS 链接</label>
                   <input type="url" id="edit-topic-kmsUrl" value="${siEscapeHtml(topic.kmsUrl)}" placeholder="https://kms.fineres.com/pages/..." style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
-                </div>
-                <div>
-                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">战略维度 <span style="color:var(--danger)">*</span></label>
-                  <select id="edit-topic-dimension" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${dimensionOptions}</select>
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">类型</label>
@@ -7228,10 +7426,6 @@
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">阶段</label>
                   <select id="edit-topic-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">${statusOptions}</select>
-                </div>
-                <div>
-                  <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">进度 (%)</label>
-                  <input type="number" id="edit-topic-progress" value="${topic.progress}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
                 </div>
                 <div>
                   <label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">开始日期</label>
@@ -7336,10 +7530,6 @@
         const membersRaw = document.getElementById('edit-topic-members').value;
         const members = membersRaw.split(/,|，/).map(s => s.trim()).filter(Boolean);
 
-        const progressInput = document.getElementById('edit-topic-progress').value;
-        const autoProgress = siTopicProgressFromMilestones(milestones);
-        const progress = progressInput ? (parseInt(progressInput, 10) || 0) : autoProgress;
-
         const fromInsightId = window._siTopicCreateFromInsightId;
         const fromChainId = window._siTopicCreateFromChainId;
         let summary = document.getElementById('edit-topic-summary').value.trim();
@@ -7355,7 +7545,6 @@
         const newTopic = {
           id: siGenerateTopicId(),
           name,
-          dimension: document.getElementById('edit-topic-dimension').value.trim() || '流程',
           type: document.getElementById('edit-topic-type').value,
           owner: (window.getPersonValue ? window.getPersonValue('edit-topic-owner') : null) || document.getElementById('edit-topic-owner').value.trim() || '',
           members,
@@ -7365,7 +7554,6 @@
           kmsUrl: document.getElementById('edit-topic-kmsUrl').value.trim(),
           researchObjectives,
           deliverables,
-          progress,
           year,
           milestones,
           insights: selectedInsights,
@@ -7397,7 +7585,7 @@
           const idx = insights.findIndex(i => i.id === insightId);
           if (idx > -1) {
             insights[idx].linkedTopicId = newTopic.id;
-            siSaveInsights(insights);
+            siPersistInsights(insights);
           }
         });
 
@@ -7421,7 +7609,6 @@
           researchObjectives: topic.researchObjectives,
           members: topic.members,
           kmsUrl: topic.kmsUrl,
-          dimension: topic.dimension,
           type: topic.type,
           year: topic.year + 1,
           status: 'planning',
@@ -7536,7 +7723,7 @@
           });
         }
 
-        siSaveInsights(insights);
+        siPersistInsights(insights);
         window._siInsightEditId = null;
         const overlay = document.getElementById('insight-edit-overlay');
         if (overlay) overlay.remove();
@@ -7590,7 +7777,7 @@
         }
 
         insights = insights.filter(i => i.id !== insightId);
-        siSaveInsights(insights);
+        siPersistInsights(insights);
 
         const overlay = document.getElementById('insight-delete-confirm-overlay');
         if (overlay) overlay.remove();
@@ -8085,6 +8272,126 @@
       }
       window.omp_openModal = omp_openModal;
       window.omp_viewKpi = omp_viewKpiModal;
+
+      function omp_openMonthlyProgressModal(taskId, month) {
+        const tasks = omp_load('tasks');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        const year = getCurrentCycle().year;
+        const isSummary = omp_isSummaryMonth(month);
+        const monthNum = isSummary ? null : parseInt(month.split('-')[1], 10);
+        const monthLabel = month === 'H1' ? `${year} 上半年 (H1)` : month === 'YEAR' ? `${year} 年终` : `${year}年${monthNum}月`;
+        const existing = omp_getMonthlyRecord(taskId, month);
+        window._ompState.editingMonthlyTaskId = taskId;
+        window._ompState.editingMonthlyMonth = month;
+        window._ompState.editingMonthlyRecordId = existing ? existing.id : null;
+
+        const summaryDefaultDate = month === 'H1' ? `${year}-09-30` : `${year}-12-31`;
+        const defaultDate = existing ? existing.date : (isSummary ? summaryDefaultDate : omp_getLastDayOfMonth(year, monthNum));
+        const defaultProgress = existing ? existing.progress : (task.progress || 0);
+        const defaultContent = existing ? existing.content : '';
+        const defaultProblems = existing ? existing.problems : '';
+        const defaultNextPlan = existing ? existing.nextPlan : '';
+        const defaultReporter = existing ? existing.reporter : (task.owner || '');
+
+        const deleteBtn = existing
+          ? `<button class="btn btn-danger" onclick="window.omp_deleteMonthlyProgress('${existing.id}')" style="margin-right:auto;">删除</button>`
+          : '';
+
+        const progressLabel = isSummary ? '整体进度 (%)' : '进度 (%)';
+        const contentLabel = isSummary ? '总结内容 *' : '关键进展 *';
+        const contentRows = isSummary ? 6 : 3;
+        const topRow = isSummary
+          ? `<input type="hidden" id="omp-monthly-date" value="${defaultDate}"><div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">${progressLabel}</label><input type="number" id="omp-monthly-progress" value="${defaultProgress}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>`
+          : `<div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">记录日期 *</label><input type="date" id="omp-monthly-date" value="${defaultDate}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div><div><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">${progressLabel}</label><input type="number" id="omp-monthly-progress" value="${defaultProgress}" min="0" max="100" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>`;
+        const nextPlanField = isSummary ? '' : `<div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">下月计划</label><textarea id="omp-monthly-next-plan" rows="2" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${escapeHtml(defaultNextPlan)}</textarea></div>`;
+
+        omp_openModal(`${escapeHtml(task.name)} — ${monthLabel} 关键进展${isSummary ? '总结' : ''}`, `
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+            ${topRow}
+            <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">${contentLabel}</label><textarea id="omp-monthly-content" rows="${contentRows}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${escapeHtml(defaultContent)}</textarea></div>
+            <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">存在问题</label><textarea id="omp-monthly-problems" rows="2" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;resize:vertical;">${escapeHtml(defaultProblems)}</textarea></div>
+            ${nextPlanField}
+            <div style="grid-column:1 / -1;"><label style="display:block;font-size:12px;color:var(--text-tertiary);margin-bottom:4px;">记录人</label><input type="text" id="omp-monthly-reporter" value="${escapeHtml(defaultReporter)}" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;"></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
+            ${deleteBtn}
+            <button class="btn btn-secondary" data-modal-action="modal-close">取消</button>
+            <button class="btn btn-primary" onclick="window.omp_saveMonthlyProgress()">保存</button>
+          </div>
+        `);
+      }
+
+      function omp_saveMonthlyProgress() {
+        const taskId = window._ompState.editingMonthlyTaskId;
+        const month = window._ompState.editingMonthlyMonth;
+        const existingId = window._ompState.editingMonthlyRecordId;
+        if (!taskId || !month) return;
+        const isSummary = omp_isSummaryMonth(month);
+
+        const date = document.getElementById('omp-monthly-date')?.value;
+        const progress = parseInt(document.getElementById('omp-monthly-progress')?.value, 10) || 0;
+        const content = document.getElementById('omp-monthly-content')?.value?.trim() || '';
+        const problems = document.getElementById('omp-monthly-problems')?.value?.trim() || '';
+        const nextPlan = document.getElementById('omp-monthly-next-plan')?.value?.trim() || '';
+        const reporter = document.getElementById('omp-monthly-reporter')?.value?.trim() || '';
+
+        if (!date || !content) {
+          showToast(isSummary ? '请填写总结内容' : '请填写记录日期和关键进展', 'warning');
+          return;
+        }
+
+        const records = omp_load('progressRecords');
+        const recordMonth = isSummary ? month : omp_formatMonth(date);
+        const recordId = existingId || `rec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const newRecord = {
+          id: recordId,
+          taskId,
+          month: recordMonth,
+          date,
+          progress: Math.min(100, Math.max(0, progress)),
+          content,
+          problems,
+          nextPlan,
+          reporter,
+        };
+
+        // 覆盖同 taskId + month 的记录（业务语义：每月/每总结一条）
+        const filtered = records.filter(r => !(r.taskId === taskId && r.month === month));
+        filtered.push(newRecord);
+        omp_save('progressRecords', filtered);
+
+        // 联动更新任务总进度（总结记录不参与聚合）
+        omp_syncTaskProgressFromRecords(taskId);
+
+        document.getElementById('omp-active-modal')?.remove();
+        showToast(isSummary ? '总结已保存' : '月度进展已保存', 'success');
+        navigate('exe/tasks');
+      }
+
+      function omp_deleteMonthlyProgress(recordId) {
+        if (!confirm('确定要删除这条月度进展记录吗？')) return;
+        const records = omp_load('progressRecords');
+        const record = records.find(r => r.id === recordId);
+        if (!record) return;
+        const taskId = record.taskId;
+        const filtered = records.filter(r => r.id !== recordId);
+        omp_save('progressRecords', filtered);
+        omp_syncTaskProgressFromRecords(taskId);
+        document.getElementById('omp-active-modal')?.remove();
+        showToast('月度进展已删除', 'success');
+        navigate('exe/tasks');
+      }
+
+      function omp_setMonthlyFilter(value) {
+        window._ompState.monthlyFilter = value || 'all';
+        navigate('exe/tasks');
+      }
+
+      window.omp_openMonthlyProgressModal = function(taskId, month) { omp_openMonthlyProgressModal(taskId, month); };
+      window.omp_saveMonthlyProgress = function() { omp_saveMonthlyProgress(); };
+      window.omp_deleteMonthlyProgress = function(recordId) { omp_deleteMonthlyProgress(recordId); };
+      window.omp_setMonthlyFilter = function(v) { omp_setMonthlyFilter(v); };
 
       function omp_viewKpiModal(kpiId) {
         const kpis = omp_load('kpiInstances');

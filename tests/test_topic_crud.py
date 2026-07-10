@@ -51,7 +51,7 @@ def test_view_modal_shows_topic_info():
     """详情弹窗应展示专题完整信息"""
     insights_section = _strategy_section()
     # 弹窗内容应包含以下字段（v1.2 字段增强后）
-    required_fields = ["专题名称", "负责人", "成员", "战略维度", "类型", "阶段", "进度", "KMS 链接", "开始日期", "结束日期", "研究目标"]
+    required_fields = ["专题名称", "负责人", "成员", "类型", "阶段", "KMS 链接", "开始日期", "结束日期", "研究目标"]
     for field in required_fields:
         assert field in insights_section, f"详情弹窗缺少字段: {field}"
 
@@ -91,9 +91,9 @@ def test_edit_form_has_required_fields():
     insights_section = _strategy_section()
     # 可编辑字段（不含年份）
     editable_fields = [
-        "edit-topic-name", "edit-topic-dimension", "edit-topic-type",
+        "edit-topic-name", "edit-topic-type",
         "edit-topic-owner", "edit-topic-status", "edit-topic-startDate",
-        "edit-topic-endDate", "edit-topic-progress", "edit-topic-members",
+        "edit-topic-endDate", "edit-topic-members",
         "edit-topic-kmsUrl", "edit-topic-researchObjectives", "edit-topic-deliverables",
         "edit-topic-summary"
     ]

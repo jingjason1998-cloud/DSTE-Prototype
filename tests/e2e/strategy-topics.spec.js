@@ -94,28 +94,14 @@ test.describe('战略专题管理 - 搜索与筛选', () => {
     }
   });
 
-  test('维度筛选仅展示选中维度专题', async ({ page }) => {
-    const dimSelect = page.locator('select[onchange*="siSetFilter(\'dimension\'"]').first();
-    const hasOptions = await dimSelect.evaluate(el => el.options.length > 0);
-    test.skip(!hasOptions, '当前默认数据没有维度选项');
-
-    await dimSelect.evaluate((el) => {
-      Array.from(el.options).forEach(o => { o.selected = o.value === '财务'; });
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    await page.waitForTimeout(500);
-
-    await expect(page.locator('#strategy-topics-container')).toContainText('财务');
-  });
-
   test('表头排序可切换升降序', async ({ page }) => {
-    const progressHeader = page.locator('th:has-text("进度")').first();
-    await progressHeader.click();
+    const nameHeader = page.locator('th:has-text("专题名称")').first();
+    await nameHeader.click();
     await page.waitForTimeout(300);
 
     // 第一次点击后应显示升序或降序指示器
-    const text = await progressHeader.textContent();
-    expect(text).toMatch(/进度 [↑↓⇅]/);
+    const text = await nameHeader.textContent();
+    expect(text).toMatch(/专题名称 [↑↓⇅]/);
   });
 
   test('导出按钮可下载 JSON 备份', async ({ page }) => {

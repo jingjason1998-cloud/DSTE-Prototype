@@ -157,8 +157,8 @@ def test_insights_tab_not_affected_by_year():
 def test_existing_topic_fields_preserved():
     """现有专题字段应完整保留，year 是新增字段"""
     topics_section = _topics_section()
-    # 检查原有字段仍然存在（v1.2 移除 priority/budget/actualCost）
-    required_fields = ["id:", "name:", "type:", "dimension:", "status:", "owner:", "progress:"]
+    # 检查原有字段仍然存在（v1.2 移除 priority/budget/actualCost，v1.3 移除 dimension/progress）
+    required_fields = ["id:", "name:", "type:", "status:", "owner:"]
     for field in required_fields:
         assert field in topics_section, f"专题数据缺少原有字段 {field}"
 
