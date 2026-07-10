@@ -148,7 +148,12 @@ function renderMessage(msg) {
     return renderWelcomeMessage();
   }
   const cls = msg.role === 'user' ? 'user' : 'assistant';
-  return `<div class="ai-message ${cls}">${nl2br(escapeHtmlLocal(msg.content))}</div>`;
+  // 用户消息：纯文本，转义 HTML 防注入。
+  // 助手消息：视为可信 HTML（允许 icon() 嵌入的 SVG），动态片段在生成 content 时已逐一 escape。
+  const body = msg.role === 'user'
+    ? nl2br(escapeHtmlLocal(msg.content))
+    : nl2br(msg.content || '');
+  return `<div class="ai-message ${cls}">${body}</div>`;
 }
 
 function renderAiTabBar() {
@@ -290,33 +295,35 @@ function closeMeetingAiAssistant() {
 
 function buildResponse(text) {
   const ctx = _currentMeetingForAi;
+  const e = escapeHtmlLocal;
   if (!ctx) {
     return `${icon('lightbulb', {size: 14})} 当前为经营分析会全局视图。我已收到你的问题，但网络请求失败，无法调用 AI。请稍后重试，或尝试打开具体会议详情后再提问。`;
   }
 
+  const safeTitle = e(ctx.title);
   const t = text.toLowerCase();
 
   if (t.includes('议程') || t.includes('议题')) {
     const meetingId = getCurrentMeetingId();
     const meeting = getSafeFindMeeting()(meetingId);
     const items = Array.isArray(meeting?.agenda_items) ? meeting.agenda_items : [];
-    if (items.length === 0) return `${icon('clipboardText', {size: 14})} 「${ctx.title}」暂未设置议程项。`;
+    if (items.length === 0) return `${icon('clipboardText', {size: 14})} 「${safeTitle}」暂未设置议程项。`;
     const list = items
-      .map((a, i) => `${i + 1}. ${a.title || '未命名议题'}（${parseInt(a.duration, 10) || 0} 分钟）`)
+      .map((a, i) => `${i + 1}. ${e(a.title || '未命名议题')}（${parseInt(a.duration, 10) || 0} 分钟）`)
       .join('\n');
-    return `${icon('clipboardText', {size: 14})} 「${ctx.title}」共有 ${items.length} 个议程项，总时长 ${ctx.agendaTotalMinutes} 分钟：\n\n${list}`;
+    return `${icon('clipboardText', {size: 14})} 「${safeTitle}」共有 ${items.length} 个议程项，总时长 ${ctx.agendaTotalMinutes} 分钟：\n\n${list}`;
   }
 
   if (t.includes('纪要') || t.includes('总结') || t.includes('要点')) {
-    if (!ctx.minutesContent) return `${icon('fileText', {size: 14})} 「${ctx.title}」暂时还没有会议纪要内容。你可以在编辑页面补充纪要后再来问我。`;
+    if (!ctx.minutesContent) return `${icon('fileText', {size: 14})} 「${safeTitle}」暂时还没有会议纪要内容。你可以在编辑页面补充纪要后再来问我。`;
     const lines = ctx.minutesContent
       .split(/\n|。/)
       .map(s => s.trim())
       .filter(Boolean)
       .slice(0, 5);
-    if (lines.length === 0) return `${icon('fileText', {size: 14})} 「${ctx.title}」纪要内容较简短，建议补充更多细节。`;
-    const summary = lines.map((l, i) => `${i + 1}. ${l}`).join('\n');
-    return `${icon('fileText', {size: 14})} 「${ctx.title}」纪要要点提炼如下：\n\n${summary}\n\n（以上为基于纪要文本的简要梳理）`;
+    if (lines.length === 0) return `${icon('fileText', {size: 14})} 「${safeTitle}」纪要内容较简短，建议补充更多细节。`;
+    const summary = lines.map((l, i) => `${i + 1}. ${e(l)}`).join('\n');
+    return `${icon('fileText', {size: 14})} 「${safeTitle}」纪要要点提炼如下：\n\n${summary}\n\n（以上为基于纪要文本的简要梳理）`;
   }
 
   if (t.includes('行动项') || t.includes('todo') || t.includes('待办')) {
@@ -324,25 +331,25 @@ function buildResponse(text) {
     const meeting = getSafeFindMeeting()(meetingId);
     const actions = Array.isArray(meeting?.actions) ? meeting.actions : [];
     const pending = actions.filter(a => a && a.status !== 'completed');
-    if (pending.length === 0) return `${icon('check', {size: 14})} 「${ctx.title}」当前没有未闭环的行动项，干得好！`;
+    if (pending.length === 0) return `${icon('check', {size: 14})} 「${safeTitle}」当前没有未闭环的行动项，干得好！`;
     const list = pending
-      .map((a, i) => `${i + 1}. ${a.content || '未描述'} — 负责人：${a.owner || '待定'}，截止：${a.deadline || '待定'}`)
+      .map((a, i) => `${i + 1}. ${e(a.content || '未描述')} — 负责人：${e(a.owner || '待定')}，截止：${e(a.deadline || '待定')}`)
       .join('\n');
-    return `${icon('notification', {size: 14})} 「${ctx.title}」还有 ${pending.length} 项未闭环行动项：\n\n${list}`;
+    return `${icon('notification', {size: 14})} 「${safeTitle}」还有 ${pending.length} 项未闭环行动项：\n\n${list}`;
   }
 
   if (t.includes('决议') || t.includes('决策')) {
     const meetingId = getCurrentMeetingId();
     const meeting = getSafeFindMeeting()(meetingId);
     const decisions = Array.isArray(meeting?.decisions) ? meeting.decisions : [];
-    if (decisions.length === 0) return `${icon('pushPin', {size: 14})} 「${ctx.title}」暂未记录任何决议。`;
+    if (decisions.length === 0) return `${icon('pushPin', {size: 14})} 「${safeTitle}」暂未记录任何决议。`;
     const list = decisions
-      .map((d, i) => `${i + 1}. ${d.content || '未描述'} — 负责人：${d.owner || '待定'}，状态：${d.status || '待定'}`)
+      .map((d, i) => `${i + 1}. ${e(d.content || '未描述')} — 负责人：${e(d.owner || '待定')}，状态：${e(d.status || '待定')}`)
       .join('\n');
-    return `${icon('pushPin', {size: 14})} 「${ctx.title}」共有 ${decisions.length} 项决议：\n\n${list}`;
+    return `${icon('pushPin', {size: 14})} 「${safeTitle}」共有 ${decisions.length} 项决议：\n\n${list}`;
   }
 
-  return `${icon('lightbulb', {size: 14})} 收到你的问题：「${text}」。\n\n你可以尝试问我：\n• 总结本次会议议程\n• 生成会议纪要要点\n• 列出未闭环行动项\n• 本次会议有哪些决议？`;
+  return `${icon('lightbulb', {size: 14})} 收到你的问题：「${e(text)}」。\n\n你可以尝试问我：\n• 总结本次会议议程\n• 生成会议纪要要点\n• 列出未闭环行动项\n• 本次会议有哪些决议？`;
 }
 
 function buildMeetingSystemPrompt() {
@@ -401,7 +408,8 @@ async function streamAiResponse(text) {
     });
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
-      lastMsg.content = result.content || 'AI 未返回有效回复';
+      // AI 返回为纯文本，转义后渲染（保留 \n，由 renderMessage 的 nl2br 换行）
+      lastMsg.content = result.content ? escapeHtmlLocal(result.content) : 'AI 未返回有效回复';
     }
 
     // 收集需要用户确认的草案
@@ -421,7 +429,7 @@ async function streamAiResponse(text) {
     console.error('AI chat error:', err);
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
-      lastMsg.content = `${icon('x', {size: 14})} AI 请求失败：${err.message || '网络错误'}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
+      lastMsg.content = `${icon('x', {size: 14})} AI 请求失败：${escapeHtmlLocal(err.message || '网络错误')}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
     }
   } finally {
     _aiLoading = false;
