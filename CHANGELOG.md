@@ -57,7 +57,7 @@
 - 战略洞察与专题年份筛选支持「全部年份」，切换后同时影响列表统计与分组展示。
 - `public/roadmap-data.json` 与 `src/data/roadmap-data.json` 更新开发路线图数据。
 - AI 助手迭代：`src/lib/ai-client.js`、`src/meetings/components/MeetingAiAssistant.js`、`api-worker/worker.js` 同步更新。
-- 设计文档 `docs/01-Product产品/战略洞察与专题-完整设计方案.md` 更新。
+- 设计文档 `docs/01-Product产品/战略洞察与专题-完整设计方案.md` 拆分为 `战略洞察-完整设计方案.md` 与 `战略专题管理-完整设计方案.md`。
 
 ### Fixed
 - 清理 OMP 历史上因后端无 per-record 接口而失败的 `omp/tasks` 同步队列残留项，避免页面加载时继续弹出「已达最大重试次数」红条。

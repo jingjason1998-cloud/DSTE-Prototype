@@ -2,6 +2,25 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-10
+- **主题**：推进「全部数据云端同步」—— 业务专题议题修复 + 战略洞察/评审评分/OMP cycles 接入 + 年度计划源数据确认
+- **操作**：
+  - 业务专题议题（issues）：修复 `issue-import.js` 调用未定义 `window.apiSave` 的 bug，改为 `enqueuePerRecordSync('issues', ...)` per-record 同步；新增 `loadRemoteIssues()` 合并；Worker `handleEntityItem` 系列支持 `idField`，议题端点按 `issueId` 查找
+  - 战略洞察（insights）：Worker 新增 `/api/insights` 批量 + `/api/insights/{id}` 单条端点；前端 `src/cockpit.html` 新增 `siPersistInsights`/`siLoadRemoteInsights`，6 处 `siSaveInsights` 改为 persist
+  - 会议材料审核评分（review scores）：Worker 新增 `/api/review-scores` map 端点；前端 `reviewer.js` 新增 `persistReviewScores`/`loadRemoteReviewScores`，`meeting-editor.js` 3 处、`pages/reviewer/main.js` 1 处改为 persist；`meetings.html` init 调用 loadRemote
+  - OMP cycles：加入 `OMP_STORAGE`/`ompRepos`/`OMP_API_ENTITY_NAMES`，删除已无人调用的 `apiSaveOmp`（约 35 行死代码），3 处直接读写 `dste_cycles_v1` 改 `omp_load`/`omp_save`
+  - 年度计划源数据：核查后确认已随 OMP per-record 同步覆盖（cycles/kpiInstances/tasks，`source: 'annual_plan'`），无需新增代码
+- **修改文件**：
+  - `api-worker/worker.js`（insights + review-scores 端点，handleEntityItem idField 支持）
+  - `src/cockpit.html`（insights persist + cycles per-record）
+  - `src/meetings.html`、`src/meetings/utils/reviewer.js`、`src/meetings/renderers/meeting-editor.js`、`src/pages/reviewer/main.js`
+  - `src/pages/business-topics/issue-import.js`、`src/pages/business-topics/main.js`
+  - `tests/unit/issue-import.test.js`、`tests/unit/reviewer.test.js`
+- **验证**：`npx vitest run` → 414 passed；`npx eslint` 修改文件 0 error
+- **部署提示**：Worker 必须先于前端部署，否则 `/api/insights`、`/api/review-scores`、`/api/issues/{id}` 会 404
+- **状态**：complete
+- **下一步**：用户隔离方案（`user:{id}:{key}`）→ AI 助手会话历史 → 业务专题 AI 报告缓存 → 版本审计前端接入
+
 ## 2026-07-08
 - **主题**：继续 UI/UX 设计系统升级（承接前序会话已创建的 Phase 0 基线）
 - **操作**：
