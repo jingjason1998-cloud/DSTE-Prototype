@@ -59,6 +59,26 @@ describe('issue-import Repository', () => {
     expect(issuesAtRepo.options.schema).toBe('array');
   });
 
+  it('buildIssueFromRow sets id equal to issueId', () => {
+    const row = {
+      '议题主题': '测试议题',
+      '议题描述': '描述',
+      '片联议题类型': '经营',
+      '提交人姓名': '张三',
+    };
+    const issue = buildIssueFromRow(row, 'ST', 0);
+    expect(issue.id).toBe(issue.issueId);
+    expect(issue.id).toBeTruthy();
+  });
+
+  it('saveIssues normalizes id and adds lastModified', () => {
+    const issues = [{ issueId: 'ST-2024-Q1-001', issueTitle: 'Test' }];
+    saveIssues(issues, 'ST');
+    const loaded = loadIssues('ST');
+    expect(loaded[0].id).toBe('ST-2024-Q1-001');
+    expect(loaded[0].lastModified).toBeDefined();
+  });
+
   it('validateIssueRow rejects empty row', () => {
     const result = validateIssueRow({}, 'ST');
     expect(result.isValid).toBe(false);

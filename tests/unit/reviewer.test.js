@@ -5,6 +5,7 @@ import {
   getMaterialReviewInfo,
   reviewMaterial,
   getBatchReviewResults,
+  persistReviewScores,
   reviewScoresRepo,
 } from '../../src/meetings/utils/reviewer.js';
 
@@ -152,5 +153,31 @@ describe('getBatchReviewResults', () => {
     expect(getMaterialReviewInfo('https://kms.example.com/a').score).toBe(70);
     expect(getMaterialReviewInfo('https://kms.example.com/b').score).toBe(88);
     expect(getMaterialReviewInfo('https://kms.example.com/c')).toBeNull();
+  });
+});
+
+describe('persistReviewScores', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('saves the map to the repository', () => {
+    const map = {
+      'https://kms.example.com/page1': { maxScore: 77, lastReviewAt: 1000 },
+      'https://kms.example.com/page2': { maxScore: 91, lastReviewAt: 2000 },
+    };
+    persistReviewScores(map);
+    const stored = reviewScoresRepo.get();
+    expect(stored['https://kms.example.com/page1'].maxScore).toBe(77);
+    expect(stored['https://kms.example.com/page2'].maxScore).toBe(91);
+  });
+
+  it('round-trips through getMaterialReviewInfo', () => {
+    persistReviewScores({
+      'https://kms.example.com/x': { maxScore: 66, lastReviewAt: 1234, issues: ['a'] },
+    });
+    const info = getMaterialReviewInfo('https://kms.example.com/x');
+    expect(info.score).toBe(66);
+    expect(info.issues).toEqual(['a']);
   });
 });

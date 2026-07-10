@@ -43,6 +43,7 @@ function errorResponse(message, status = 500, request) {
 const KEYS = {
   topics: 'dste_topics_v2',
   strategyTopics: 'dste_strategy_topics_v2',
+  insights: 'dste_insights_v1',
   issues: 'dste_issues_v1',
   meetings: 'dste_meetings_v1',
   // 需求池
@@ -51,6 +52,7 @@ const KEYS = {
   employees: 'dste_employees_v1',
   orgUnits: 'dste_org_units_v1',
   employeeImportMeta: 'dste_employee_import_meta_v1',
+  reviewScores: 'dste_review_scores',
   // OMP 数据层
   indicators: 'dste_omp_indicators_v1',
   kpiInstances: 'dste_omp_kpi_instances_v1',
@@ -127,22 +129,22 @@ async function getKvData(env, key, defaultValue) {
   }
 }
 
-function findItemById(items, id) {
+function findItemById(items, id, { idField = 'id' } = {}) {
   if (!Array.isArray(items)) return undefined;
-  return items.find(item => item && String(item.id) === String(id));
+  return items.find(item => item && String(item[idField]) === String(id));
 }
 
-function getItem(data, id, lookupMode) {
+function getItem(data, id, { lookupMode = 'array', idField = 'id' } = {}) {
   if (lookupMode === 'map') {
     return data && typeof data === 'object' ? data[id] : undefined;
   }
   if (lookupMode === 'object') {
-    return data && String(data.id) === String(id) ? data : undefined;
+    return data && String(data[idField]) === String(id) ? data : undefined;
   }
-  return findItemById(data, id);
+  return findItemById(data, id, { idField });
 }
 
-function setItem(data, id, item, lookupMode) {
+function setItem(data, id, item, { lookupMode = 'array', idField = 'id' } = {}) {
   if (lookupMode === 'map') {
     data[id] = item;
     return data;
@@ -150,7 +152,7 @@ function setItem(data, id, item, lookupMode) {
   if (lookupMode === 'object') {
     return item;
   }
-  const index = data.findIndex(i => i && String(i.id) === String(id));
+  const index = data.findIndex(i => i && String(i[idField]) === String(id));
   if (index >= 0) {
     data[index] = item;
   }
@@ -191,7 +193,7 @@ function checkIfMatch(request, item) {
 }
 
 async function handleEntityItem(request, env, options = {}) {
-  const { key, id, user, lookupMode = 'array' } = options;
+  const { key, id, user, lookupMode = 'array', idField = 'id' } = options;
   if (!user) {
     return errorResponse('Unauthorized', 401, request);
   }
@@ -200,7 +202,7 @@ async function handleEntityItem(request, env, options = {}) {
   const data = await getKvData(env, key, defaultValue);
 
   if (request.method === 'GET') {
-    const item = getItem(data, id, lookupMode);
+    const item = getItem(data, id, { lookupMode, idField });
     if (item === undefined) {
       return errorResponse('Not found', 404, request);
     }
@@ -209,7 +211,7 @@ async function handleEntityItem(request, env, options = {}) {
 
   if (request.method === 'PUT' || request.method === 'PATCH') {
     const body = await request.json();
-    const item = getItem(data, id, lookupMode);
+    const item = getItem(data, id, { lookupMode, idField });
     const isCreate = !item;
 
     // 无 If-Match 时接受写操作（当前阶段不做冲突拦截）
@@ -221,10 +223,10 @@ async function handleEntityItem(request, env, options = {}) {
     }
 
     const updated = request.method === 'PUT'
-      ? { ...body, id }
+      ? { ...body, [idField]: id }
       : isCreate
-        ? { ...body, id }
-        : { ...item, ...body, id };
+        ? { ...body, [idField]: id }
+        : { ...item, ...body, [idField]: id };
     applyAuditFields(updated, user, isCreate);
 
     let newData;
@@ -232,14 +234,14 @@ async function handleEntityItem(request, env, options = {}) {
       data.push(updated);
       newData = data;
     } else {
-      newData = setItem(data, id, updated, lookupMode);
+      newData = setItem(data, id, updated, { lookupMode, idField });
     }
     await env.DSTE_KV.put(key, JSON.stringify(newData));
     return jsonResponse({ success: true, data: updated }, isCreate ? 201 : 200, request);
   }
 
   if (request.method === 'DELETE') {
-    const item = getItem(data, id, lookupMode);
+    const item = getItem(data, id, { lookupMode, idField });
     if (!item) {
       return errorResponse('Not found', 404, request);
     }
@@ -259,7 +261,7 @@ async function handleEntityItem(request, env, options = {}) {
       await env.DSTE_KV.delete(key);
       return jsonResponse({ success: true, data: item }, 200, request);
     } else {
-      newData = data.filter(i => i && String(i.id) !== String(id));
+      newData = data.filter(i => i && String(i[idField]) !== String(id));
       await env.DSTE_KV.put(key, JSON.stringify(newData));
     }
     return jsonResponse({ success: true, data: item }, 200, request);
@@ -319,12 +321,14 @@ async function validateCasTicket(ticket, service) {
 const DEFAULTS = {
   topics: '[]',
   strategyTopics: '[]',
+  insights: '[]',
   issues: '[]',
   meetings: '[]',
   requirements: '[]',
   employees: '[]',
   orgUnits: '{}',
   employeeImportMeta: 'null',
+  reviewScores: '{}',
   indicators: '[]',
   kpiInstances: '[]',
   tasks: '[]',
@@ -845,7 +849,7 @@ export default {
       }
 
       // --- 单条 CRUD 端点（新增）---
-      const itemMatch = path.match(/^\/api\/(topics|strategy-topics|issues|meetings|employees|org-units|requirements)\/([^\/]+)$/);
+      const itemMatch = path.match(/^\/api\/(topics|strategy-topics|insights|issues|meetings|employees|org-units|requirements)\/([^\/]+)$/);
       if (itemMatch) {
         const entity = itemMatch[1];
         const id = decodeURIComponent(itemMatch[2]);
@@ -861,6 +865,7 @@ export default {
           id,
           user,
           lookupMode: entity === 'org-units' ? 'map' : 'array',
+          idField: entity === 'issues' ? 'issueId' : 'id',
         });
       }
 
@@ -970,6 +975,24 @@ export default {
           const normalized = normalizeArrayItems(body, auth.user);
           await env.DSTE_KV.put(KEYS.strategyTopics, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'strategy topics saved' }, 200, request);
+        }
+      }
+
+      // --- 战略洞察 API ---
+      if (path === '/api/insights') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.insights) || DEFAULTS.insights;
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.insights, JSON.stringify(normalized));
+          return jsonResponse({ success: true, message: 'insights saved' }, 200, request);
         }
       }
 
@@ -1118,6 +1141,28 @@ export default {
           }
           await env.DSTE_KV.put(KEYS.orgUnits, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'org units saved' }, 200, request);
+        }
+      }
+
+      if (path === '/api/review-scores') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.reviewScores) || DEFAULTS.reviewScores;
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const normalized = {};
+          if (body && typeof body === 'object') {
+            for (const [k, v] of Object.entries(body)) {
+              normalized[k] = v && typeof v === 'object' ? applyAuditFields({ ...v }, auth.user, v.version === undefined) : v;
+            }
+          }
+          await env.DSTE_KV.put(KEYS.reviewScores, JSON.stringify(normalized));
+          return jsonResponse({ success: true, message: 'review scores saved' }, 200, request);
         }
       }
 

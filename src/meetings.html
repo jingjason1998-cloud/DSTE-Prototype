@@ -407,6 +407,7 @@
       addMeeting, updateMeeting, deleteMeetingByIndex, persistMeetings,
       migrateMeetingsData, loadRemoteMeetings, getMockMeetings
     } from './meetings/data-store.js';
+    import { loadRemoteReviewScores } from './meetings/utils/reviewer.js';
     import {
       openPostponeTargetSelector, closePostponeTargetSelector,
       selectPostponeTarget, confirmPostponeAgenda
@@ -2115,6 +2116,7 @@
 
         initDataStore();
         const hadRemote = await loadRemoteMeetings();
+        await loadRemoteReviewScores();
         const cleanedAny = migrateMeetingsData();
         if (cleanedAny || hadRemote) {
           persistMeetings();

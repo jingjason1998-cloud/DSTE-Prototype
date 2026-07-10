@@ -468,7 +468,11 @@ import { icon } from '../../../assets/js/icons.js';
                 const current = map[url];
                 if (!current || (record.total_score || 0) > current.maxScore) {
                     map[url] = { maxScore: record.total_score || 0, lastReviewAt: record.timestamp };
-                    DSTE.reviewScoresRepo.set(map);
+                    if (typeof DSTE.persistReviewScores === 'function') {
+                        DSTE.persistReviewScores(map);
+                    } else {
+                        DSTE.reviewScoresRepo.set(map);
+                    }
                 }
             } catch (e) { /* ignore 本地存储 errors */ }
             return data;

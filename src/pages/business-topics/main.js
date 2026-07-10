@@ -19,7 +19,7 @@ import {
     checkStorageCapacity, parseCSV, buildIssueFromRow, importIssuesFromPaste,
     openImportModal, handleDragOver, handleDragLeave, handleFileDrop,
     handleFileSelect, processImportFile, isIssueClosed, importIssuesFromRows,
-    updateImportPreview, confirmImport, loadAllIssues,
+    updateImportPreview, confirmImport, loadAllIssues, loadRemoteIssues,
     issuesStRepo, issuesAtRepo
 } from './issue-import.js';
 
@@ -1573,15 +1573,8 @@ async function init() {
 
     _cachedTopics = topics;
 
-    // 同步加载云端议题数据
-    const remoteIssues = await apiLoadArray('/api/issues');
-    if (remoteIssues && remoteIssues.length > 0) {
-        // 按 sourceSystem 分组保存
-        const stIssues = remoteIssues.filter(i => i.sourceSystem === 'ST');
-        const atIssues = remoteIssues.filter(i => i.sourceSystem === 'AT');
-        issuesStRepo.set(stIssues);
-        issuesAtRepo.set(atIssues);
-    }
+    // 同步加载云端议题数据并与本地合并
+    await loadRemoteIssues();
 
     renderTable();
     renderStats();

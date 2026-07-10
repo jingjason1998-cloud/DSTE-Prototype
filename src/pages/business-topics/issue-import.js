@@ -1,6 +1,15 @@
 import { showToast, Storage } from '../../lib/utils.js';
 import { icon } from '../../../assets/js/icons.js';
 import { Repository } from '../../lib/repository.js';
+import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
+import { ensureLastModified } from '../../lib/conflict-resolver.js';
+import {
+  computeEntityDiff,
+  mergeEntities,
+  enqueuePerRecordSync,
+  createPerItemExecutor,
+  apiLoadArray,
+} from '../../lib/per-record-sync.js';
 
 // 被 main.js 导入，请勿删除 export
 export const ISSUE_STORAGE_KEY = 'dste_issues_v1';
@@ -19,17 +28,25 @@ export const issuesAtRepo = new Repository('businessTopics/issuesAT', {
   backupNamespace: 'businessTopics',
 });
 
+const issueSyncQueue = getDefaultSyncQueue();
+const issuePerItemExecutor = createPerItemExecutor();
+
+if (typeof window !== 'undefined') {
+  issueSyncQueue.bindAutoProcess(issuePerItemExecutor);
+}
+
 // 局部工具函数（避免跨模块依赖）
 function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function apiSave(endpoint, data) {
-    if (typeof window !== 'undefined' && window.apiSave) {
-        return window.apiSave(endpoint, data);
+function normalizeIssueId(issue) {
+    if (!issue || typeof issue !== 'object') return issue;
+    if (!issue.id && issue.issueId) {
+        issue.id = issue.issueId;
     }
-    // 静默失败，保持离线兼容
+    return issue;
 }
 
 function openModal(id) {
@@ -51,19 +68,50 @@ let _importRows = null;
 let _importFileName = null;
 export function loadIssues(sourceSystem) {
     const repo = sourceSystem === 'ST' ? issuesStRepo : issuesAtRepo;
-    return repo.get();
+    return repo.get().map(normalizeIssueId);
 }
 
 export function saveIssues(issues, sourceSystem) {
     const repo = sourceSystem === 'ST' ? issuesStRepo : issuesAtRepo;
-    repo.set(issues || []);
-    // 同步到云端（合并 ST + AT）
-    const allIssues = [...issuesStRepo.get(), ...issuesAtRepo.get()];
-    apiSave('/api/issues', allIssues);
+    const otherRepo = sourceSystem === 'ST' ? issuesAtRepo : issuesStRepo;
+
+    const oldIssues = (repo.getRaw() || []).map(normalizeIssueId);
+    const otherOldIssues = (otherRepo.getRaw() || []).map(normalizeIssueId);
+    const allOld = [...oldIssues, ...otherOldIssues];
+
+    const newIssues = (issues || []).map(normalizeIssueId);
+    ensureLastModified(newIssues);
+    repo.set(newIssues);
+
+    const allNew = [...repo.get(), ...otherRepo.get()].map(normalizeIssueId);
+    const { created, updated, deleted } = computeEntityDiff(allOld, allNew, item => String(item.id || item.issueId));
+    enqueuePerRecordSync('issues', { created, updated, deleted }, issuePerItemExecutor, issueSyncQueue);
 }
 
 export function loadAllIssues() {
     return [...loadIssues('ST'), ...loadIssues('AT')];
+}
+
+export async function loadRemoteIssues() {
+    const remote = await apiLoadArray('/api/issues');
+    if (!remote || remote.length === 0) return false;
+
+    const normalizedRemote = remote.map(normalizeIssueId);
+    const localSt = issuesStRepo.get().map(normalizeIssueId);
+    const localAt = issuesAtRepo.get().map(normalizeIssueId);
+
+    const merged = mergeEntities(
+        [...localSt, ...localAt],
+        normalizedRemote,
+        item => String(item.id || item.issueId)
+    );
+
+    const stIssues = merged.filter(i => i.sourceSystem === 'ST');
+    const atIssues = merged.filter(i => i.sourceSystem === 'AT');
+
+    issuesStRepo.set(stIssues);
+    issuesAtRepo.set(atIssues);
+    return true;
 }
 
 export function validateIssueRow(row, sourceSystem) {
@@ -237,6 +285,7 @@ export function buildIssueFromRow(row, sourceSystem, index) {
     }
 
     return {
+        id: issueId,
         issueId: issueId,
         sourceSystem: sourceSystem,
         meetingName: row['会议名称'] || '未指定',

@@ -7,7 +7,7 @@ import {
   getAgendaPostponeWarning,
   getActionStatusConfig,
 } from '../utils/helpers.js';
-import { getMaterialReviewInfo } from '../utils/reviewer.js';
+import { getMaterialReviewInfo, persistReviewScores } from '../utils/reviewer.js';
 import { getResolutionStatusConfig, normalizeResolution } from '../utils/resolution-helpers.js';
 import { renderPerson } from '../../lib/employee-directory.js';
 
@@ -518,7 +518,7 @@ async function reviewSingleAgenda(idx) {
       const cur = map[url];
       if (!cur || (data.total_score || 0) > cur.maxScore) {
         map[url] = { maxScore: data.total_score || 0, lastReviewAt: Date.now() };
-        DSTE.Storage.set('dste_review_scores', map);
+        persistReviewScores(map);
       }
       syncAgendaItemReviewStatus(item, url, 'reviewed');
     } else {
@@ -603,7 +603,7 @@ async function startBatchReview() {
                   urlToResult.set(r.url, { success: false });
                 }
               }
-              DSTE.Storage.set('dste_review_scores', map);
+              persistReviewScores(map);
               // G2: 同步批量评审结果到议程项
               indices.forEach(idx => {
                 const item = d.agenda_items[idx];
@@ -678,7 +678,7 @@ async function reReviewAgendaMaterial() {
       const cur = map[url];
       if (!cur || (data.total_score || 0) > cur.maxScore) {
         map[url] = { maxScore: data.total_score || 0, lastReviewAt: Date.now(), dimensionScores: data.dimension_scores || {}, issues: (data.issues || []).slice(0, 5), report: data.report || '' };
-        DSTE.Storage.set('dste_review_scores', map);
+        persistReviewScores(map);
       }
       // 刷新弹窗内容
       openAgendaReviewDetail(url);

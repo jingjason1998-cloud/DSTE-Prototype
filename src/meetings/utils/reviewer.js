@@ -1,5 +1,7 @@
 import { Storage } from '../../lib/utils.js';
 import { Repository } from '../../lib/repository.js';
+import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
+import { getApiBase } from '../../lib/per-record-sync.js';
 
 /**
  * 会议材料评审 API 封装
@@ -17,10 +19,91 @@ export const reviewScoresRepo = new Repository('reviewer/scores', {
   backupNamespace: 'reviewer',
 });
 
+const REVIEW_SCORES_ENDPOINT = '/api/review-scores';
+const reviewScoresSyncQueue = getDefaultSyncQueue();
+
+function createReviewScoresExecutor() {
+  return async (operation) => {
+    const apiBase = getApiBase();
+    const token = Storage.getString('dste-token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const resp = await fetch(apiBase + REVIEW_SCORES_ENDPOINT, {
+      method: operation.method || 'POST',
+      headers,
+      body: JSON.stringify(operation.payload),
+    });
+    if (resp.status === 401) {
+      console.warn('[reviewer] review scores save returned 401');
+      return;
+    }
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+  };
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  reviewScoresSyncQueue.bindAutoProcess(createReviewScoresExecutor());
+}
+
+function syncReviewScoresToCloud(map) {
+  reviewScoresSyncQueue.enqueue({
+    endpoint: REVIEW_SCORES_ENDPOINT,
+    method: 'POST',
+    payload: map,
+    executor: createReviewScoresExecutor(),
+  });
+}
+
+export function persistReviewScores(map) {
+  reviewScoresRepo.set(map);
+  syncReviewScoresToCloud(map);
+}
+
+export async function loadRemoteReviewScores() {
+  try {
+    const apiBase = getApiBase();
+    const token = Storage.getString('dste-token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const resp = await fetch(apiBase + REVIEW_SCORES_ENDPOINT, { headers });
+    if (resp.status === 401) {
+      console.warn('[reviewer] review scores load returned 401');
+      return false;
+    }
+    const json = await resp.json();
+    if (!json.success || !json.data || typeof json.data !== 'object') return false;
+
+    const remote = json.data;
+    const local = reviewScoresRepo.get() || {};
+    const merged = { ...remote };
+    for (const [url, localEntry] of Object.entries(local)) {
+      const remoteEntry = remote[url];
+      if (!remoteEntry) {
+        merged[url] = localEntry;
+      } else {
+        const localScore = localEntry?.maxScore || 0;
+        const remoteScore = remoteEntry?.maxScore || 0;
+        const localTime = localEntry?.lastModified || localEntry?.lastReviewAt || 0;
+        const remoteTime = remoteEntry?.lastModified || remoteEntry?.lastReviewAt || 0;
+        if (localScore > remoteScore || (localScore === remoteScore && localTime > remoteTime)) {
+          merged[url] = localEntry;
+        }
+      }
+    }
+    reviewScoresRepo.set(merged);
+    return true;
+  } catch (e) {
+    console.warn('[reviewer] load remote review scores failed:', e.message);
+    return false;
+  }
+}
+
 // 供 reviewer.html 内联脚本使用（该页面非 ES module）
 if (typeof window !== 'undefined') {
   window.DSTE = window.DSTE || {};
   window.DSTE.reviewScoresRepo = reviewScoresRepo;
+  window.DSTE.persistReviewScores = persistReviewScores;
 }
 
 /** 会议场景 → 评审场景映射 */
@@ -77,7 +160,7 @@ export async function reviewMaterial(url, sceneId) {
           issues: (data.issues || []).slice(0, 5),
           report: data.report || '',
         };
-        reviewScoresRepo.set(map);
+        persistReviewScores(map);
       }
       return { success: true, score: data.total_score, data };
     }
@@ -155,7 +238,7 @@ export async function getBatchReviewResults(taskId) {
           }
         }
       }
-      reviewScoresRepo.set(map);
+      persistReviewScores(map);
       return { success: true, results: data.results };
     }
     return { success: false, error: data.error || '获取结果失败' };
