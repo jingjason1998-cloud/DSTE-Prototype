@@ -36,9 +36,10 @@ mkdir -p "$BACKUP_DIR"
 cp "$CONFIG_FILE" "$BACKUP_DIR/$(basename "$CONFIG_FILE").bak.$(date +%Y%m%d%H%M%S)"
 
 # 通过命令行参数把配置文件路径传给 Python，避免 heredoc 引号导致变量不展开。
-# 注意：heredoc 分隔符必须加引号（<<'PY'），否则远端 bash 会把 nginx 变量
-# $remote_addr / $proxy_add_x_forwarded_for / $scheme 展开为空，写出非法配置。
-python3 - "$CONFIG_FILE" <<'PY'
+# 注意：本远端脚本整体被外层单引号包裹传给 ssh，不能用 <<'PY'（其单引号会提前
+# 闭合外层引号）。因此 heredoc 保持 <<PY，并把 nginx 变量写成 \$remote_addr 形式——
+# 远端 bash 处理未加引号 heredoc 时会把 \$ 转成字面 $，Python 收到正确的 $ 变量。
+python3 - "$CONFIG_FILE" <<PY
 import re
 import sys
 
@@ -54,9 +55,9 @@ WORKER_DOMAIN = "api.dste.jasonxspace.cc"
 api_block = f"""    location /api/ {{
         proxy_pass https://{WORKER_DOMAIN}/api/;
         proxy_set_header Host {WORKER_DOMAIN};
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_ssl_server_name on;
         proxy_ssl_protocols TLSv1.2 TLSv1.3;
     }}
