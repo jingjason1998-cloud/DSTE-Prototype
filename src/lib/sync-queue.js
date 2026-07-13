@@ -210,6 +210,29 @@ export class SyncQueue {
   }
 
   /**
+   * 将失败项重置为 pending 并重新触发处理（用于"重试同步"）。
+   * 重置 retryCount 让其重新获得完整重试预算。
+   * @param {Function} executor
+   * @returns {number} 重置的数量
+   */
+  retryFailed(executor) {
+    const queue = this.loadQueue();
+    let n = 0;
+    for (const op of queue) {
+      if (op.status === 'failed') {
+        op.status = 'pending';
+        op.retryCount = 0;
+        op.nextRetry = null;
+        op.error = null;
+        n++;
+      }
+    }
+    this.saveQueue(queue);
+    if (n > 0 && executor) this.processQueue(executor);
+    return n;
+  }
+
+  /**
    * 重置队列（谨慎使用）
    */
   clear() {

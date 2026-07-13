@@ -64,8 +64,9 @@ const syncQueue = getDefaultSyncQueue();
 
 function createPerItemExecutor() {
   return async (operation) => {
+    // 生产环境 apiBase 为 ''（同域 /api/ 代理），是相对路径而非"未配置"，
+    // 绝不能像旧代码那样 if(!apiBase) return，否则生产上推送被静默禁用。
     const apiBase = getApiBase();
-    if (!apiBase) return;
     const token = Storage.getString('dste-token');
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -78,8 +79,10 @@ function createPerItemExecutor() {
       body: operation.payload ? JSON.stringify(operation.payload) : undefined,
     });
     if (resp.status === 401) {
-      console.warn('API save returned 401');
-      return;
+      // 登录过期：抛出而非静默 return，避免队列误判"完成"导致变更被悄悄丢弃。
+      const err = new Error('登录已过期，数据未能同步到云端');
+      err.authExpired = true;
+      throw err;
     }
     if (!resp.ok) {
       throw new Error(`HTTP ${resp.status}`);
@@ -279,30 +282,43 @@ function mergeMeetings(local, remote) {
   return Array.from(map.values());
 }
 
+// 记录最近一次云端拉取的原始结果，供"本地未同步对账"使用。
+// { ok: boolean, data: Array|null, authExpired: boolean }
+let _lastCloudFetch = { ok: false, data: null, authExpired: false };
+
 async function _apiLoad(endpoint) {
   let apiData = null;
   const apiBase = getApiBase();
-  if (apiBase) {
-    try {
-      const token = Storage.getString('dste-token');
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const resp = await fetch(apiBase + endpoint, { headers });
-      if (resp.status === 401) {
-        console.warn('API load returned 401');
-        return null;
-      }
-      const json = await resp.json();
-      if (json.success && json.data) apiData = json.data;
-    } catch (e) {
-      console.warn('API load failed:', e.message);
+  // 生产 apiBase 为 ''（相对路径，走同域 /api/ 代理），不是"未配置"，
+  // 必须照常 fetch；旧代码 if(apiBase) 守卫导致生产上从不拉取云端。
+  try {
+    const token = Storage.getString('dste-token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const resp = await fetch(apiBase + endpoint, { headers });
+    if (resp.status === 401) {
+      console.warn('API load returned 401');
+      if (endpoint === '/api/meetings') _lastCloudFetch = { ok: false, data: null, authExpired: true };
+      return null;
     }
+    const json = await resp.json();
+    if (json.success && json.data) apiData = json.data;
+  } catch (e) {
+    console.warn('API load failed:', e.message);
   }
 
   if (endpoint === '/api/meetings') {
     const local = meetingsRepo.getRaw();
+    // 云端可达（即便为空数组）才算权威；记录原始云端快照供对账。
+    const cloudReachable = apiData !== null;
+    _lastCloudFetch = { ok: cloudReachable, data: cloudReachable ? apiData : null, authExpired: false };
     if (apiData && apiData.length > 0) {
       return mergeMeetings(local, apiData);
     }
+    if (cloudReachable) {
+      // 云端可达但为空：以云端为准（本地视为未同步，交给对账提示）。
+      return mergeMeetings(local, apiData);
+    }
+    // 云端不可达：退回本地，不覆盖。
     if (local && local.length > 0) return local;
   } else if (apiData && apiData.length > 0) {
     return apiData;
@@ -473,6 +489,61 @@ export async function loadRemoteMeetings() {
     return true;
   }
   return false;
+}
+
+/**
+ * 计算"仅存在本机、云端没有"的会议（未同步记录）。
+ * 仅在最近一次云端拉取成功时才有意义。
+ * @returns {{reachable:boolean, authExpired:boolean, unsynced:Array}}
+ */
+export function getUnsyncedLocalMeetings() {
+  if (!_lastCloudFetch.ok) {
+    return { reachable: false, authExpired: !!_lastCloudFetch.authExpired, unsynced: [] };
+  }
+  const cloudIds = new Set((_lastCloudFetch.data || []).map(m => String(m.id)));
+  const unsynced = getMeetings().filter(m => !cloudIds.has(String(m.id)));
+  return { reachable: true, authExpired: false, unsynced };
+}
+
+/**
+ * 将本地未同步的会议逐条上传到云端（PUT upsert）。
+ * @returns {Promise<{uploaded:number, failed:number, authExpired:boolean}>}
+ */
+export async function uploadUnsyncedMeetings() {
+  const { reachable, unsynced } = getUnsyncedLocalMeetings();
+  if (!reachable || !unsynced.length) return { uploaded: 0, failed: 0, authExpired: false };
+  const apiBase = getApiBase();
+  const token = Storage.getString('dste-token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  let uploaded = 0, failed = 0, authExpired = false;
+  for (const m of unsynced) {
+    try {
+      const resp = await fetch(apiBase + '/api/meetings/' + encodeURIComponent(m.id), {
+        method: 'PUT', headers, body: JSON.stringify(m),
+      });
+      if (resp.status === 401) { authExpired = true; failed++; continue; }
+      if (!resp.ok) { failed++; continue; }
+      uploaded++;
+    } catch (e) {
+      failed++;
+    }
+  }
+  return { uploaded, failed, authExpired };
+}
+
+/**
+ * 会议同步队列状态摘要（pending/failed），用于页面可见化。
+ */
+export function getMeetingSyncStatus() {
+  return syncQueue.getStatus();
+}
+
+/**
+ * 将同步失败的会议变更重置为 pending 并重新触发同步（供"重试"按钮）。
+ */
+export function retryFailedMeetingSync() {
+  return syncQueue.retryFailed(createPerItemExecutor());
 }
 
 /**

@@ -1,6 +1,29 @@
 {
   "versions": [
     {
+      "version": "v0.6.9",
+      "date": "2026-07-13",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复经营分析会在生产环境云端同步被静默禁用的严重 bug**：`src/meetings/data-store.js` 自带的 executor 与 `_apiLoad` 把「生产环境 `apiBase` 为空字符串（同域 `/api/` 代理）」误判为「未配置」，分别在 `if (!apiBase) return` / `if (apiBase)` 处直接跳过，导致会议模块在生产上**从不真正推送/拉取云端**，各设备仅凭 localStorage 各自为政（表现为同一类会议不同设备条数不一致）。改为与其它模块共享的 `per-record-sync.js` 一致：空 `apiBase` 视为相对路径照常 `fetch`。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**401 不再静默丢弃**：executor 收到 401（登录过期）时改为抛出错误，使变更保留在同步队列重试并在页面可见，而非被队列误判「完成」后悄悄丢弃。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**会议加载与云端对账**：`loadRemoteMeetings` 记录云端快照，新增「本地未同步」检测——本地存在而云端没有的会议会在页面顶部提示「N 条会议仅保存在本机、未同步到云端」，可一键上传到云端，避免换设备丢失；云端不可达/登录过期有明确提示。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**同步状态可见化 + 重试**：会议页顶部显示同步队列 pending/failed 状态；`SyncQueue` 新增 `retryFailed()`，失败项可一键重置重试。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.8",
       "date": "2026-07-13",
       "status": "released",
