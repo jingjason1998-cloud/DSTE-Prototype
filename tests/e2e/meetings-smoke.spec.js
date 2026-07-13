@@ -75,7 +75,7 @@ test.describe('Meetings Page Smoke Test', () => {
     await expect(drawer).toBeVisible();
     await expect(drawer.locator('[data-pending-action]').first()).toBeVisible();
 
-    await page.evaluate(() => closePendingActionsDrawer());
+    await page.evaluate(() => window.closePendingActionsDrawer());
     await expect(drawer).toBeHidden();
   });
 
