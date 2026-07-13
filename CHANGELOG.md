@@ -7,6 +7,32 @@
 
 ---
 
+## [v0.6.8] - 2026-07-13
+
+### Added
+- **议题/洞察/评审评分接入 per-record 云端同步**：
+  - `api-worker/worker.js` 新增 KV `dste_insights_v1` / `dste_review_scores`；新增 `/api/insights`（bulk+item）与 `/api/review-scores`（map）端点；`handleEntityItem/findItemById/getItem/setItem` 增加 `idField`，议题单条路由按 `issueId` 解析；item 路由正则加入 `insights`。
+  - 议题导入（`issue-import.js`）新增 `loadRemoteIssues()` 启动合并，归一化 `id`↔`issueId`，`buildIssueFromRow` 写入 `id = issueId` 并确保 `lastModified`。
+  - 评审（`reviewer.js`）新增 `persistReviewScores`/`loadRemoteReviewScores` 并接入 sync-queue；`meeting-editor`/`reviewer-page` 写库统一走 `persistReviewScores`；`meetings.html` 启动调用 `loadRemoteReviewScores()`。
+- **OMP 重点工作「月度关键进展」视图**（`src/cockpit.html`）：顶部新增「月度进展」页签；按当前周期年份取 4–12 月网格，末尾含「H1 总结」「年终总结」列；月份筛选、弹窗 CRUD、复用 `progressRecords` store 并联动 `omp_syncTaskProgressFromRecords`（总结记录不覆盖逐月聚合）。新增 E2E `tests/e2e/omp-monthly-progress.spec.js`。
+- **战略专题成员从人员目录选择**：`siPickPersonToAddMember` 覆盖层 +「⊕ 选择」按钮，替代手工输入。
+
+### Changed
+- **战略专题移除 `dimension`/`progress` 字段**：`siMigrateRemoveDeprecatedFields` 迁移老数据；从 14 个种子专题及筛选/列/排序/搜索/统计/详情/编辑/创建/甘特全链路清除；筛选由多选改单选，列表由 1 列改 2 列。
+- **OMP `cycles` 纳入 per-record 同步**；`insights` 接入 `siPersistInsights`/`siLoadRemoteInsights`（6 处 `siSaveInsights`→`siPersistInsights`）；删除已无调用的 `apiSaveOmp`。
+- **战略专题管理表格 UI 优化**：操作列由文字改为图标按钮（eye/edit/delete），表格更紧凑（padding/行高/字重/垂直居中），年份卡片内容区限高滚动 + 表头 sticky。
+- **SonarQube 版本号**：`sonar-project.properties` 的 `sonar.projectVersion` 从 `0.6.7` 更新为 `0.6.8`。
+
+### Fixed
+- 修复会议 AI 助手消息整段转义导致内联 `icon('...')` SVG 被显示为文本的问题：`renderMessage` 改为按角色渲染（用户消息仍转义防注入，助手消息按可信 HTML 渲染），`buildResponse` 动态片段逐一 escape 后再拼接。
+- 修复议题导入调用未定义的 `window.apiSave`：改用 `enqueuePerRecordSync('issues', …)`。
+- 修复人员选择器重开弹窗未绑定新 input：当缓存 api ≠ `input._personInputApi` 时重新增强。
+
+### Docs
+- 拆分战略洞察与专题设计文档：删除 `战略洞察与专题-完整设计方案.md`，拆为 `战略洞察-完整设计方案.md` 与 `战略专题管理-完整设计方案.md`，并更新相关引用与 `[[...]]` 链接。
+
+---
+
 ## [v0.6.7] - 2026-07-09
 
 ### Added
