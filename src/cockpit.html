@@ -139,18 +139,21 @@
     /* ===== 战略专题管理：紧凑表格 + 内容区滚动 ===== */
     .st-compact-table {
       font-size: 12px;
+      line-height: 1.35;
     }
     .st-compact-table th {
-      padding: 6px 10px;
+      padding: 4px 8px;
       font-size: 12px;
+      font-weight: 600;
       position: sticky;
       top: 0;
       z-index: 2;
       background: var(--bg-page);
     }
     .st-compact-table td {
-      padding: 6px 10px;
+      padding: 4px 8px;
       font-size: 12px;
+      vertical-align: middle;
     }
     .st-compact-table .status-badge {
       font-size: 11px;
@@ -161,18 +164,25 @@
       padding: 0 4px;
     }
     .st-action-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: none;
       border: none;
-      padding: 0 4px;
-      font-size: 12px;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border-radius: 6px;
       cursor: pointer;
-      color: var(--primary);
+      color: var(--text-secondary);
       text-decoration: none;
     }
     .st-action-link:hover {
-      text-decoration: underline;
+      background: var(--bg-page);
+      color: var(--primary);
+      text-decoration: none;
     }
-    .st-action-link.danger {
+    .st-action-link.danger:hover {
       color: var(--danger);
     }
     .st-year-card {
@@ -181,9 +191,14 @@
       min-height: 0;
     }
     .st-year-card .table-scroll-wrapper {
-      flex: 1;
+      flex: 1 1 auto;
       min-height: 0;
+      max-height: min(58vh, 560px);
       overflow-y: auto;
+    }
+    .st-year-card .st-compact-table {
+      min-width: 0;
+      width: 100%;
     }
 
     /* ===== 全局弹窗样式 ===== */
@@ -6650,7 +6665,7 @@
               <td>${siEscapeHtml(siRenderPerson(t.owner))}</td>
               <td><span class="status-badge ${statusClass[t.status]}">${statusLabel[t.status]}</span></td>
               <td style="white-space:nowrap;">
-                <button class="st-action-link view-topic-btn" data-topic-id="${t.id}">查看</button><span style="color:var(--border-color);">|</span><button class="st-action-link edit-topic-btn" data-topic-id="${t.id}">编辑</button><span style="color:var(--border-color);">|</span><button class="st-action-link danger delete-topic-btn" data-topic-id="${t.id}">删除</button>
+                <span style="display:inline-flex;align-items:center;gap:2px;"><button class="st-action-link view-topic-btn" data-topic-id="${t.id}" title="查看" aria-label="查看"><span class="icon" data-icon="eye" data-icon-size="15"></span></button><button class="st-action-link edit-topic-btn" data-topic-id="${t.id}" title="编辑" aria-label="编辑"><span class="icon" data-icon="edit" data-icon-size="15"></span></button><button class="st-action-link danger delete-topic-btn" data-topic-id="${t.id}" title="删除" aria-label="删除"><span class="icon" data-icon="delete" data-icon-size="15"></span></button></span>
               </td>
             </tr>
           `;

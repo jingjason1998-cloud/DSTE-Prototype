@@ -3,6 +3,18 @@
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
 ## 2026-07-10
+- **主题**：战略专题管理列表展示密度与操作优化（承接 `0b177d4`「移除维度/进度」后的进一步精简）
+- **操作**：
+  - 确认列表已不含「战略维度/进度/更新/成员」列、筛选区仅状态/类型下拉（继承自 `0b177d4`），新建/编辑表单亦无维度/进度字段
+  - 紧凑化：`.st-compact-table` padding `6px 10px` → `4px 8px`、`line-height:1.35`
+  - 内容区滚动：年份卡片表身 `max-height:min(58vh,560px)` + `overflow-y:auto`、表头 sticky，页头/筛选条不动
+  - 操作列简洁化：查看/编辑/删除由文字链接改为 Phosphor 图标按钮（eye / pencil-simple / trash），保留 `view/edit/delete-topic-btn` class 与 `data-topic-id`
+- **修改文件**：`src/cockpit.html`
+- **验证**：`npm run build` / `check:scope` ✅；`tests/e2e/strategy-topics.spec.js` 8 passed / 1 skipped（既有「下一年深化」用例）；实测每行 3 按钮齐全（14×3=42 个 SVG 全部 hydrate）、2025 卡片 `scrollHeight 953 > clientHeight 522` 可内部滚动
+- **状态**：complete（改动未提交，待用户浏览器确认）
+- **下一步**：用户确认是否连详情/表单也去掉成员；决定是否 commit（另有一个非本次的 `vite.config.js` `/api/ai` 本地代理改动悬而未决）
+
+## 2026-07-10
 - **主题**：推进「全部数据云端同步」—— 业务专题议题修复 + 战略洞察/评审评分/OMP cycles 接入 + 年度计划源数据确认
 - **操作**：
   - 业务专题议题（issues）：修复 `issue-import.js` 调用未定义 `window.apiSave` 的 bug，改为 `enqueuePerRecordSync('issues', ...)` per-record 同步；新增 `loadRemoteIssues()` 合并；Worker `handleEntityItem` 系列支持 `idField`，议题端点按 `issueId` 查找
