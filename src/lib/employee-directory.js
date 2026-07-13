@@ -81,8 +81,10 @@ function createBulkExecutor(endpoint) {
       body: JSON.stringify(operation.payload),
     });
     if (resp.status === 401) {
-      console.warn(`[employee-directory] API save returned 401 for ${endpoint}`);
-      return;
+      // 登录过期：抛出而非静默 return，避免变更被队列误判完成后丢弃。
+      const err = new Error('登录已过期，人员/组织数据未能同步到云端');
+      err.authExpired = true;
+      throw err;
     }
     if (!resp.ok) {
       throw new Error(`HTTP ${resp.status}`);

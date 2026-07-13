@@ -32,6 +32,7 @@ export class SyncQueue {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this._processing = false;
     this._listenersBound = false;
+    this._authToastShown = false;
   }
 
   loadQueue() {
@@ -120,7 +121,20 @@ export class SyncQueue {
         await executor(op);
         op.status = 'completed';
         processed++;
+        this._authToastShown = false; // 成功后重置，便于下次过期再提示
       } catch (e) {
+        // 登录过期：不消耗重试次数、保持 pending，待重新登录后由
+        // bindAutoProcess（可见性/在线）或 nextRetry 自动补传；只提示一次。
+        if (e && e.authExpired) {
+          op.error = e.message || 'auth expired';
+          op.nextRetry = now + 60000; // 1 分钟后再试（届时若已重新登录则成功）
+          if (!this._authToastShown) {
+            showToast('登录已过期，数据未同步到云端。请重新登录，数据将自动补传。', 'error');
+            this._authToastShown = true;
+          }
+          failed++;
+          continue;
+        }
         op.retryCount++;
         op.error = e.message || String(e);
         if (op.retryCount >= this.options.maxRetries) {

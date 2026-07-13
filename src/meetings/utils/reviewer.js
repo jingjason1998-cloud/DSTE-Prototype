@@ -34,8 +34,10 @@ function createReviewScoresExecutor() {
       body: JSON.stringify(operation.payload),
     });
     if (resp.status === 401) {
-      console.warn('[reviewer] review scores save returned 401');
-      return;
+      // 登录过期：抛出而非静默 return，避免变更被队列误判完成后丢弃。
+      const err = new Error('登录已过期，评审评分未能同步到云端');
+      err.authExpired = true;
+      throw err;
     }
     if (!resp.ok) {
       throw new Error(`HTTP ${resp.status}`);

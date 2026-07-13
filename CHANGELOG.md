@@ -7,6 +7,16 @@
 
 ---
 
+## [v0.6.10] - 2026-07-13
+
+### Fixed
+- **统一收尾「401 静默丢数据」隐患（全部云端同步模块）**：将共享 `per-record-sync.js` 的 `createPerItemExecutor`、`reviewer.js`（评审评分）、`employee-directory.js`（人员/组织 bulk）中 401（登录过期）时的「静默 return」统一改为抛出 `authExpired` 错误。此前 token 过期会导致 topics/OMP/洞察/议题/评审/人员组织等模块的变更被同步队列误判「完成」后悄悄丢弃（与 v0.6.9 会议模块同类问题）。
+- **`SyncQueue` 识别登录过期**：`processQueue` 对 `authExpired` 错误不消耗重试次数、保持 `pending`，一次性提示「登录已过期，请重新登录，数据将自动补传」；重新登录后由 `bindAutoProcess`（可见性/在线）或 `nextRetry` 自动补传，无需手动干预。其余错误维持原有指数退避 + 达上限标记 failed + `retryFailed()` 重试。
+
+> 说明：各模块的「读取」路径（`apiLoadArray` 等）401 仍返回 null（读失败不丢数据），本次只统一「写入」路径。cockpit.html 的 `apiSave` 经确认为无调用的死代码，未改动。
+
+---
+
 ## [v0.6.9] - 2026-07-13
 
 ### Fixed

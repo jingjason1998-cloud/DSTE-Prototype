@@ -34,8 +34,11 @@ export function createPerItemExecutor() {
       body: operation.payload ? JSON.stringify(operation.payload) : undefined,
     });
     if (resp.status === 401) {
-      console.warn('API save returned 401');
-      return;
+      // 登录过期：抛出而非静默 return，避免队列误判"完成"导致变更被悄悄丢弃。
+      // SyncQueue 会识别 authExpired 并保持 pending，待重新登录后自动补传。
+      const err = new Error('登录已过期，数据未能同步到云端');
+      err.authExpired = true;
+      throw err;
     }
     if (!resp.ok) {
       throw new Error(`HTTP ${resp.status}`);
