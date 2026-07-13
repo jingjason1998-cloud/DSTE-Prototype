@@ -50,7 +50,8 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/dste-v042/
+          # --exclude 保留服务器端的 OMP 恢复工具脚本（不在仓库/dist 中，--delete 会误删）
+          rsync -avz --delete --exclude=list-omp-tasks.js --exclude=recover-omp-subtasks.js -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/dste-v042/
 
       - name: Restart nginx
         run: |

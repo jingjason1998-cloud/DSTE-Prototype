@@ -35,8 +35,10 @@ BACKUP_DIR="/etc/nginx/backups"
 mkdir -p "$BACKUP_DIR"
 cp "$CONFIG_FILE" "$BACKUP_DIR/$(basename "$CONFIG_FILE").bak.$(date +%Y%m%d%H%M%S)"
 
-# 通过命令行参数把配置文件路径传给 Python，避免 heredoc 引号导致变量不展开
-python3 - "$CONFIG_FILE" <<PY
+# 通过命令行参数把配置文件路径传给 Python，避免 heredoc 引号导致变量不展开。
+# 注意：heredoc 分隔符必须加引号（<<'PY'），否则远端 bash 会把 nginx 变量
+# $remote_addr / $proxy_add_x_forwarded_for / $scheme 展开为空，写出非法配置。
+python3 - "$CONFIG_FILE" <<'PY'
 import re
 import sys
 
