@@ -4216,11 +4216,9 @@
       function renderTasks() {
         omp_initData();
         const cycleId = window._dsteState.currentCycleId;
-        // 若当前周期没有任何 OMP 执行任务，自动把年度计划重点工作同步过来（首次进入/老数据补偿）。
-        // 这样新用户或只有旧年度计划数据的用户能直接看到重点工作，同时保留「发布到执行」的显式流程。
-        const tasksRaw = omp_load('tasks') || [];
-        const hasOmpTasks = tasksRaw.some(t => t.cycleId === cycleId && t.source === 'omp');
-        if (!hasOmpTasks && omp_syncAnnualPlanTasksToExecution(cycleId)) {
+        // 幂等补齐：把当前周期中尚未派生的年度计划重点工作同步为 OMP 执行任务。
+        // 这样无论是否已发布、是否已有其他 OMP 任务，新增的年度计划重点工作都能自动出现在战略执行侧。
+        if (omp_syncAnnualPlanTasksToExecution(cycleId)) {
           // 若新增 OMP 任务，立即把里程碑/进度记录关联过来
           omp_syncMilestonesAndRecordsToOmpTasks();
         }
