@@ -485,7 +485,24 @@ export async function loadRemoteMeetings() {
   const remote = await _apiLoad('/api/meetings');
   if (remote && remote.length > 0) {
     window._meetingsData = remote;
-    persistMeetings();
+    // 只把"本地比云端新"的既有记录推上去；不要把刚从云端拉下来的数据
+    // 反向重新推送（否则每次加载都产生大量 pending，横幅一直挂着）。
+    // 本地独有（created）的记录留给"未同步"横幅由用户确认上传，避免误复活。
+    if (_lastCloudFetch.ok) {
+      const { updated } = computeMeetingDiff(_lastCloudFetch.data || [], remote);
+      if (updated.length) {
+        const executor = createPerItemExecutor();
+        for (const m of updated) {
+          syncQueue.enqueue({
+            endpoint: `/api/meetings/${encodeURIComponent(m.id)}`,
+            method: 'PUT', payload: m, version: m.version, executor,
+          }, { autoProcess: false });
+        }
+        syncQueue.processQueue(executor);
+      }
+    }
+    // 仅落本地存储，不再调用 persistMeetings（它会用 localStorage 做基线反推云端数据）。
+    meetingsRepo.set(remote);
     return true;
   }
   return false;

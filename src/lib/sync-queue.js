@@ -120,6 +120,7 @@ export class SyncQueue {
       try {
         await executor(op);
         op.status = 'completed';
+        op.authPending = false;
         processed++;
         this._authToastShown = false; // 成功后重置，便于下次过期再提示
       } catch (e) {
@@ -127,6 +128,7 @@ export class SyncQueue {
         // bindAutoProcess（可见性/在线）或 nextRetry 自动补传；只提示一次。
         if (e && e.authExpired) {
           op.error = e.message || 'auth expired';
+          op.authPending = true;
           op.nextRetry = now + 60000; // 1 分钟后再试（届时若已重新登录则成功）
           if (!this._authToastShown) {
             showToast('登录已过期，数据未同步到云端。请重新登录，数据将自动补传。', 'error');
@@ -188,6 +190,7 @@ export class SyncQueue {
     return {
       total: queue.length,
       pending: queue.filter(op => op.status === 'pending').length,
+      authPending: queue.filter(op => op.status === 'pending' && op.authPending).length,
       failed: queue.filter(op => op.status === 'failed').length,
     };
   }

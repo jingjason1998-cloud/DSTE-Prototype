@@ -817,29 +817,7 @@
         const actionDone = allActions.filter(a => a.status === 'completed').length;
         const actionTotal = allActions.length;
 
-        // ---- 决议执行趋势（按会议月份统计决议闭环率）----
-        const isDecisionClosed = d => d.status === 'closed' || d.status === 'approved' || d.status === 'implemented';
-        const monthlyResolutionStats = {};
-        meetings.forEach(m => {
-          if (!m.month) return;
-          if (!monthlyResolutionStats[m.month]) monthlyResolutionStats[m.month] = { total: 0, closed: 0 };
-          (m.decisions || []).forEach(d => {
-            monthlyResolutionStats[m.month].total += 1;
-            if (isDecisionClosed(d)) monthlyResolutionStats[m.month].closed += 1;
-          });
-        });
-        const resolutionTrendMonths = Object.keys(monthlyResolutionStats).sort();
-        const resolutionTrendData = resolutionTrendMonths.slice(-6).map(month => {
-          const stats = monthlyResolutionStats[month];
-          return {
-            month,
-            label: parseInt(month.split('-')[1], 10) + '月',
-            rate: stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0
-          };
-        });
-        const avgResolutionClosureRate = allDecisions.length > 0
-          ? Math.round((allDecisions.filter(isDecisionClosed).length / allDecisions.length) * 100)
-          : 0;
+        // ---- 决议执行趋势已迁移至 resolution-helpers.js（renderResolutionTrend），在决议中心抽屉内展示 ----
 
         const thisMonth = new Date().toISOString().slice(0, 7);
         const thisMonthMeetings = meetings.filter(m => m.month === thisMonth).length;
@@ -1648,27 +1626,7 @@
                 </div>
               </div>
             <div style="display: flex; flex-direction: column; gap: 16px;">
-              <!-- 执行概览已合并到顶部 KPI 栏 -->
-              <div class="card">
-                <div class="card-header"><div class="card-title">${icon('chartLineUp', {size: 14})} 决议执行趋势</div></div>
-                <div style="padding: 8px 0;">
-                  <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
-                    <span>月度闭环率</span>
-                    <span style="color: var(--success);">平均闭环率 ${avgResolutionClosureRate}%</span>
-                  </div>
-                  ${resolutionTrendData.length > 0 ? `
-                  <div style="display: flex; align-items: flex-end; gap: 6px; height: 60px;">
-                    ${resolutionTrendData.map((item, idx) => {
-                      const isLast = idx === resolutionTrendData.length - 1;
-                      return `<div title="${item.month} 闭环率 ${item.rate}%" style="flex: 1; background: ${isLast ? 'var(--primary)' : 'var(--primary-light)'}; border-radius: 3px; height: ${Math.max(item.rate, 4)}%;"></div>`;
-                    }).join('')}
-                  </div>
-                  <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
-                    <span>${resolutionTrendData[0].label}</span><span>${resolutionTrendData[resolutionTrendData.length - 1].label}</span>
-                  </div>
-                  ` : '<div style="text-align: center; color: var(--text-tertiary); font-size: 12px; padding: 20px 0;">暂无决议数据</div>'}
-                </div>
-              </div>
+              <!-- 决议执行趋势已合并到决议中心抽屉（点击顶部「决议总数」查看） -->
               <div class="card">
                 <div class="card-header"><div class="card-title">${icon('notification', {size: 14})} 待办提醒</div></div>
                 <div>${todoListHtml}</div>
@@ -2103,7 +2061,9 @@
 
       // ===== 独立页面初始化 =====
       // ===== 云端同步状态可见化 =====
+      let _syncBannerTimer = null;
       function refreshMeetingSyncBanner() {
+        if (_syncBannerTimer) { clearTimeout(_syncBannerTimer); _syncBannerTimer = null; }
         const content = document.getElementById('page-content');
         if (!content) return;
         // 移除旧横幅
@@ -2126,21 +2086,31 @@
           </div>`);
         }
 
-        if (sync.failed > 0) {
+        const authN = sync.authPending || 0;
+        const syncing = sync.pending - authN;
+        if (authN > 0) {
+          parts.push(`<div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">
+            <strong>登录已过期</strong>：有 ${authN} 条变更暂未同步到云端。请重新登录，数据将自动补传（本地不会丢失）。</div>`);
+        } else if (sync.failed > 0) {
           parts.push(`<div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
             <span>有 ${sync.failed} 条变更同步到云端失败（已达最大重试次数）。</span>
             <button onclick="retryMeetingSync()" style="background:#dc2626;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap;">重试同步</button>
           </div>`);
-        } else if (sync.pending > 0) {
+        } else if (syncing > 0) {
           parts.push(`<div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">
-            有 ${sync.pending} 条变更正在同步到云端…</div>`);
+            有 ${syncing} 条变更正在同步到云端…</div>`);
         }
 
-        if (parts.length === 0) return;
-        const banner = document.createElement('div');
-        banner.id = 'meeting-sync-banner';
-        banner.innerHTML = parts.join('');
-        content.insertBefore(banner, content.firstChild);
+        if (parts.length > 0) {
+          const banner = document.createElement('div');
+          banner.id = 'meeting-sync-banner';
+          banner.innerHTML = parts.join('');
+          content.insertBefore(banner, content.firstChild);
+        }
+        // 有正在进行的同步时轮询刷新，同步完成后自动清除横幅
+        if (syncing > 0) {
+          _syncBannerTimer = setTimeout(refreshMeetingSyncBanner, 3000);
+        }
       }
 
       window.uploadUnsyncedMeetingsToCloud = async function () {
