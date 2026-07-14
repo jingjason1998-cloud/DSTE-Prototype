@@ -14,6 +14,14 @@
 - **状态**：complete（已发布生产）
 - **下一步**：回到并行开发线 —— 设计系统 JS 模块残留 emoji 清理、督办中心阶段 2、决议中心可选优化
 
+## 2026-07-14（续）
+- **主题**：设计系统 JS 模块残留 emoji 清理（设计系统 emoji 迁移收尾）
+- **操作**：扫描 `src/lib`/`src/meetings`/`src/pages`/`assets/js`，仅象形状态 emoji 需清——6 文件 14 处：⏳→hourglass（pending-actions/meeting-editor/meeting-detail/AiAgendaDrawer/reviewer）、⏸→pause（meeting-prep/meeting-detail）、⏱→timer（AiAgendaDrawer）。顺手修：meeting-editor 重评按钮 textContent→innerHTML；reviewer 局部变量 icon→statusIcon（消除对导入 icon() 的遮蔽）。**刻意保留 →/↔**（行文流程箭头/注释/正则字符类 `[→\-\~]`/data-link-id，非 emoji）
+- **修改文件**：`src/meetings/renderers/{pending-actions,meeting-editor,meeting-detail,meeting-prep}.js`、`src/meetings/components/AiAgendaDrawer.js`、`src/pages/reviewer/main.js`
+- **验证**：build/check:scope ✅；unit 414 passed；meetings E2E 28、reviewer E2E 39 全过；hourglass/pause/timer 确认在 sprite 且 SVG 数据非空
+- **状态**：complete（已提交本地 `1ed5536`，**未发布**——用户决定攒着，等下一批一起发）
+- **下一步**：本地领先 origin 两个提交（emoji 清理 + checkpoint），生产仍 v0.6.13；下次发布时一并带上。可继续督办中心阶段 2 / 决议中心可选优化
+
 ## 2026-07-10
 - **主题**：战略专题管理列表展示密度与操作优化（承接 `0b177d4`「移除维度/进度」后的进一步精简）
 - **操作**：

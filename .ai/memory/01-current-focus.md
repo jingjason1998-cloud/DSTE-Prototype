@@ -1,6 +1,6 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-10 21:33
+> 更新时间: 2026-07-14 11:52
 
 ## 状态
 **新增高优先级开发线：UI/UX 设计系统升级（Phase 0~2 进行中）**。已建立设计 token、组件基线、Phosphor 图标体系，完成 Shell 统一与全部独立 HTML 页面的 emoji 清除，下一步清理 JS 模块中的残留 emoji。
@@ -18,8 +18,9 @@
 - 完成设计文档：`docs/07-DesignSystem/` 全套 token / 组件 / 图标 / shell / a11y / 迁移 / 视觉回归规范
 - 完成 Phase 1 Shell 统一收尾：修复 `config.js` 残留 emoji、补齐 sidebar group icon key 映射，`shell.js`/`shell-injector.js` 全部渲染 SVG 图标
 - 完成 Phase 2 独立页面 emoji 替换：`src/business-topics.html`、`src/meetings.html`、`src/reviewer.html`、`src/requirement-pool.html`、`src/employee-directory.html`、`src/st-issue-tracking.html`、`src/at-issue-tracking.html`、`src/strategy-map-list.html`、`src/strategy-map.html` 全部清除 emoji
-- 验证：`npm run build` 通过，`npm run check:scope` 通过，`npm run test:unit` 396 passed；核心 E2E（navigation + business-topics + meetings-smoke + strategy-map-list + strategy-map + reviewer-embed）86 passed
-- 下一步：继续清理 JS 模块（`src/lib/*`、`src/meetings/**/*`、`src/pages/**/*`、`assets/js/main.js`）中的残留 emoji
+- ✅ 完成 JS 模块 emoji 收尾（2026-07-14，commit `1ed5536`）：`src/meetings/**`、`src/pages/reviewer` 等 6 文件象形状态 emoji（⏳/⏸/⏱）→ Phosphor；`→`/`↔` 为行文箭头/注释/正则/data-id 予以保留。设计系统 emoji 迁移基本完成
+- 验证：`npm run build` 通过，`npm run check:scope` 通过，`npm run test:unit` 414 passed；meetings/reviewer E2E 全过
+- 下一步：设计系统 emoji 迁移已收尾；本地该改动未发布（攒着），生产 v0.6.13
 
 ### 经分会-督办中心（新增 / 阶段 1 完成）
 - 行动项 3 状态配置：`pending` / `in_progress` / `completed`
