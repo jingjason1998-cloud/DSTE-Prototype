@@ -4,7 +4,7 @@
 
 ## UI/UX 设计系统升级 — Phase 0~2 HTML 页面完成
 
-- **当前步骤**：全部 `src/*.html` 页面 emoji 已替换为 Phosphor 图标，待继续清理 JS 模块（`src/lib/*`、`src/meetings/**/*`、`src/pages/**/*`、`assets/js/main.js`）
+- **当前步骤**：✅ 全部 `src/*.html` 页面 + JS 模块象形 emoji 均已替换为 Phosphor 图标（2026-07-14 完成 JS 模块收尾，commit `1ed5536`）。设计系统 emoji 迁移基本完成。注：`→`/`↔` 为行文流程箭头/注释/正则字符类/data-id，予以保留。
 - **代码位置**：
   - 设计系统：`assets/css/tokens.css`、`assets/css/components.css`、`assets/css/main.css`
   - 图标体系：`assets/js/icon-mapping.js`、`assets/js/icons.js`、`assets/js/phosphor-icons.js`、`scripts/build-icon-sprite.js`
