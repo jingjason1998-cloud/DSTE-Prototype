@@ -2,6 +2,18 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-14
+- **主题**：发布 v0.6.13 —— 纳入上一会话遗留的 AI 改动并修复 4 个过期 E2E
+- **操作**：
+  - 纳入 4 组 AI 改动并发布：①决议中心「决议执行趋势」月度闭环率迷你柱状图+点击柱联动筛选（resolution-helpers.js + DecisionsDrawer.js）；②meetings.html 场景图标 ⚠️/⏰→Phosphor、场景卡片改用 icon()；③移除会议详情「原则」tab、议程编辑器 status 下拉；④vite.config.js 本地代理 /api/ai 到生产 Worker
+  - 版本号 0.6.12→0.6.13，CHANGELOG 新增 v0.6.13，roadmap-data.json 由 build 自动再生成
+  - 修复 4 个过期 E2E（非本次回归，历史 stale test 卡住 release.sh 全量门禁）：roadmap.spec.js 硬编码 v0.6.7→动态读 versions[0]；calendar-view.spec.js 移除已并入抽屉的「决议执行趋势」侧栏断言；omp-tasks.spec.js DATA_VERSION canvas-v11→canvas-v18 + 源头任务断言改 v0.6.12 派生语义（恰好一行无重复）
+  - `backups/` 加入 .gitignore（本地 OMP 数据快照，不入库）；新增 docs↔Obsidian 单向同步脚本
+- **修改文件**：`src/meetings.html`、`src/meetings/utils/resolution-helpers.js`、`src/meetings/components/DecisionsDrawer.js`、`src/meetings/renderers/meeting-editor.js`、`vite.config.js`、`package.json`、`CHANGELOG.md`、`tests/e2e/{roadmap,calendar-view,omp-tasks}.spec.js`、`.gitignore`、`scripts/sync-docs-*.sh`
+- **验证**：pytest 184 passed；全量 E2E 350 passed / 25 skipped（修复后 0 failed）；build/check:scope ✅；release.sh 全门禁通过并打 tag v0.6.13 推送；GitHub Actions deploy success；生产 4 个 URL 全 200、roadmap-data.json 最新版本 v0.6.13
+- **状态**：complete（已发布生产）
+- **下一步**：回到并行开发线 —— 设计系统 JS 模块残留 emoji 清理、督办中心阶段 2、决议中心可选优化
+
 ## 2026-07-10
 - **主题**：战略专题管理列表展示密度与操作优化（承接 `0b177d4`「移除维度/进度」后的进一步精简）
 - **操作**：
