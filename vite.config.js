@@ -50,6 +50,13 @@ export default defineConfig({
         changeOrigin: true, // 改写 Host，命中 Worker 自定义域名路由
         secure: true,
       },
+      // CAS 登录 / 会话校验：代理到真实 Worker，避免隧道域名下相对 /api/auth 落到 vite
+      // HTML fallback 导致 resp.json() 抛错、登录静默失败。仅鉴权端点，不含业务数据写操作。
+      '/api/auth': {
+        target: 'https://api.dste.jasonxspace.cc',
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
   preview: {
