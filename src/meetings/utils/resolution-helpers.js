@@ -430,13 +430,81 @@ export function renderResolutionCard(d, actionsMap = {}) {
 }
 
 /**
- * 渲染决议抽屉完整列表 HTML
+ * 计算决议执行趋势（按会议月份统计闭环率）
  * @param {Object[]} meetings
- * @param {string} filter
- * @param {string} search
+ * @returns {{trendData: Object[], avgClosureRate: number}}
+ */
+export function computeResolutionTrend(meetings) {
+  const isDecisionClosed = d => d.status === 'closed' || d.status === 'approved' || d.status === 'implemented';
+  const monthlyStats = {};
+  (meetings || []).forEach(m => {
+    if (!m || !m.month) return;
+    if (!monthlyStats[m.month]) monthlyStats[m.month] = { total: 0, closed: 0 };
+    (m.decisions || []).forEach(d => {
+      monthlyStats[m.month].total += 1;
+      if (isDecisionClosed(d)) monthlyStats[m.month].closed += 1;
+    });
+  });
+  const months = Object.keys(monthlyStats).sort();
+  const trendData = months.slice(-6).map(month => {
+    const stats = monthlyStats[month];
+    return {
+      month,
+      label: parseInt(month.split('-')[1], 10) + '月',
+      rate: stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0,
+    };
+  });
+  const all = [];
+  (meetings || []).forEach(m => (m.decisions || []).forEach(d => all.push(d)));
+  const avgClosureRate = all.length > 0
+    ? Math.round((all.filter(isDecisionClosed).length / all.length) * 100)
+    : 0;
+  return { trendData, avgClosureRate };
+}
+
+/**
+ * 渲染决议执行趋势 HTML（迷你柱状图，点击柱联动过滤下方明细）
+ * @param {Object[]} meetings
+ * @param {string} [activeMonth] - 当前选中的月份（YYYY-MM），用于高亮
  * @returns {string}
  */
-export function renderResolutionsList(meetings, filter, search) {
+export function renderResolutionTrend(meetings, activeMonth = '') {
+  const { trendData, avgClosureRate } = computeResolutionTrend(meetings);
+  const chart = trendData.length > 0 ? `
+    <div style="display: flex; align-items: flex-end; gap: 6px; height: 60px;">
+      ${trendData.map((item) => {
+        const isActive = activeMonth && item.month === activeMonth;
+        const dim = activeMonth && !isActive;
+        return `<div onclick="filterDecisionsByMonth('${item.month}')" title="${item.month} 闭环率 ${item.rate}%（点击筛选该月决议）" style="flex: 1; cursor: pointer; background: ${isActive ? 'var(--primary)' : 'var(--primary-light)'}; opacity: ${dim ? '0.35' : '1'}; border-radius: 3px; height: ${Math.max(item.rate, 4)}%; transition: opacity 0.15s, transform 0.15s; ${isActive ? 'box-shadow: 0 0 0 2px var(--primary);' : ''}" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''"></div>`;
+      }).join('')}
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+      <span>${trendData[0].label}</span><span>${trendData[trendData.length - 1].label}</span>
+    </div>
+  ` : '<div style="text-align: center; color: var(--text-tertiary); font-size: 12px; padding: 12px 0;">暂无决议数据</div>';
+  const clearBtn = activeMonth
+    ? `<span onclick="filterDecisionsByMonth('')" style="margin-left: 8px; cursor: pointer; color: var(--primary); font-size: 11px;">${icon('x', {size: 12})} 清除月份</span>`
+    : '';
+  return `
+    <div style="margin-bottom: 12px; padding: 12px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-light);">
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px;">
+        <span style="font-weight: 600; color: var(--text-secondary);">${icon('chartLineUp', {size: 14})} 决议执行趋势 · 月度闭环率${clearBtn}</span>
+        <span style="color: var(--success);">平均闭环率 ${avgClosureRate}%</span>
+      </div>
+      ${chart}
+    </div>
+  `;
+}
+
+/**
+ * 渲染决议抽屉完整列表 HTML
+ * @param {Object[]} meetings
+ * @param {string} filter - 状态过滤
+ * @param {string} search - 搜索关键字
+ * @param {string} [month] - 月份过滤（YYYY-MM），来自趋势柱点击
+ * @returns {string}
+ */
+export function renderResolutionsList(meetings, filter, search, month = '') {
   const actionsMap = {};
   (meetings || []).forEach(m => {
     (m.actions || []).forEach(a => { if (a && a.id) actionsMap[a.id] = a; });
@@ -446,11 +514,13 @@ export function renderResolutionsList(meetings, filter, search) {
     (m.decisions || []).forEach(d => {
       const normalized = normalizeResolution(d, m);
       normalized.progress = computeResolutionProgress(normalized, actionsMap);
+      normalized._month = m.month || '';
       allItems.push(normalized);
     });
   });
 
-  const filtered = filterResolutions(allItems, filter, search);
+  let filtered = filterResolutions(allItems, filter, search);
+  if (month) filtered = filtered.filter(d => d._month === month);
   const stats = computeResolutionStats(allItems);
   const filterButtons = [
     { key: 'all', label: '全部' },
@@ -464,6 +534,7 @@ export function renderResolutionsList(meetings, filter, search) {
   const cards = filtered.map(d => renderResolutionCard(d, actionsMap)).join('');
 
   return `
+    ${renderResolutionTrend(meetings, month)}
     <div style="margin-bottom: 12px;">
       <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
         ${filterPills}

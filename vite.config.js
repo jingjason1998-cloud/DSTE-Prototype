@@ -41,6 +41,16 @@ export default defineConfig({
     open: '/src/cockpit.html',
     hmr: false,
     allowedHosts: ['dste.jasonxspace.cc'],
+    // 本地开发：仅代理 AI 端点到生产 Worker（已修复），便于本地走真实 Kimi。
+    // 限定 /api/ai 是为了避免本地会议/议题等写操作误打到生产 KV。
+    // 全量本地开发仍走 cloudflare tunnel（dste.jasonxspace.cc）方案。
+    proxy: {
+      '/api/ai': {
+        target: 'https://api.dste.jasonxspace.cc',
+        changeOrigin: true, // 改写 Host，命中 Worker 自定义域名路由
+        secure: true,
+      },
+    },
   },
   preview: {
     port: 3456,

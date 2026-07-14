@@ -7,6 +7,21 @@
 
 ---
 
+## [v0.6.13] - 2026-07-14
+
+### Added
+- **决议中心「决议执行趋势」**：决议抽屉顶部新增月度闭环率迷你柱状图（最近 6 个月），展示各月决议闭环率与整体平均闭环率；点击柱子可联动筛选下方决议明细，再次点击「清除月份」恢复。新增 `computeResolutionTrend` / `renderResolutionTrend`（`resolution-helpers.js`），`renderResolutionsList` 增加可选 `month` 过滤参数，`DecisionsDrawer.js` 增加 `_decisionsMonth` 状态与 `filterDecisionsByMonth`。
+- **本地开发 AI 代理**：`vite.config.js` 开发服务器新增 `/api/ai` 代理到生产 Worker（`api.dste.jasonxspace.cc`），便于本地走真实 Kimi；仅代理 AI 端点，避免本地会议/议题等写操作误打到生产 KV。全量本地开发仍走 cloudflare tunnel 方案。
+
+### Changed
+- **设计系统 emoji 收尾（会议模块）**：`meetings.html` 会议场景图标（落后垂直客群 ⚠️、待办 ⏰ 等）与场景卡片徽标统一替换为 Phosphor 图标（`warning` / `clock`），场景卡片渲染改用 `icon()` 并着色，消除残留 emoji。
+
+### Removed
+- **会议详情「原则」tab**：移除会议详情页固定的「原则」页签及其 4 条静态原则文案。
+- **议程编辑器 status 下拉**：移除议程行的「未开始/已完成/已顺延」状态下拉（顺延改由「顺延 →」操作驱动，状态在详情页以徽章展示）。
+
+---
+
 ## [v0.6.12] - 2026-07-13
 
 ### Fixed

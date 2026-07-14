@@ -17,6 +17,7 @@ import {
 
 let _decisionsFilter = 'all';
 let _decisionsSearch = '';
+let _decisionsMonth = '';
 
 function openDecisionsDrawer() {
   const overlay = document.getElementById('decisions-overlay');
@@ -25,6 +26,7 @@ function openDecisionsDrawer() {
   if (drawer) drawer.style.display = 'flex';
   _decisionsFilter = 'all';
   _decisionsSearch = '';
+  _decisionsMonth = '';
   renderDecisionsList();
 }
 
@@ -45,10 +47,15 @@ function searchDecisions(keyword) {
   renderDecisionsList();
 }
 
+function filterDecisionsByMonth(month) {
+  _decisionsMonth = month || '';
+  renderDecisionsList();
+}
+
 function renderDecisionsList() {
   const container = document.getElementById('decisions-list');
   if (!container) return;
-  container.innerHTML = renderResolutionsList(getMeetings(), _decisionsFilter, _decisionsSearch);
+  container.innerHTML = renderResolutionsList(getMeetings(), _decisionsFilter, _decisionsSearch, _decisionsMonth);
 }
 
 function advanceResolution(id) {
@@ -84,9 +91,11 @@ function gotoSourceMeeting(id) {
 // ---- window shim ----
 window._decisionsFilter = _decisionsFilter;
 window._decisionsSearch = _decisionsSearch;
+window._decisionsMonth = _decisionsMonth;
 window.openDecisionsDrawer = openDecisionsDrawer;
 window.closeDecisionsDrawer = closeDecisionsDrawer;
 window.filterDecisions = filterDecisions;
+window.filterDecisionsByMonth = filterDecisionsByMonth;
 window.searchDecisions = searchDecisions;
 window.advanceResolution = advanceResolution;
 window.gotoSourceMeeting = gotoSourceMeeting;
@@ -95,6 +104,7 @@ export {
   openDecisionsDrawer,
   closeDecisionsDrawer,
   filterDecisions,
+  filterDecisionsByMonth,
   searchDecisions,
   renderDecisionsList,
   advanceResolution,

@@ -321,11 +321,6 @@ function renderAgendaList() {
             <select onchange="updateAgendaType(${idx}, this.value)" style="padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); width: 110px; flex-shrink: 0;">
               ${Object.entries(window.AGENDA_TYPE_LABELS).map(([k, v]) => `<option value="${k}" ${item.type === k ? 'selected' : ''}>${v}</option>`).join('')}
             </select>
-            <select onchange="updateAgendaStatus(${idx}, this.value)" style="padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary); width: 90px; flex-shrink: 0;">
-              <option value="planned" ${item.status === 'planned' ? 'selected' : ''}>未开始</option>
-              <option value="completed" ${item.status === 'completed' ? 'selected' : ''}>已完成</option>
-              <option value="postponed" ${item.status === 'postponed' ? 'selected' : ''}>已顺延</option>
-            </select>
             <input type="text" value="${item.title}" onchange="updateAgendaTitle(${idx}, this.value)" placeholder="议程标题" style="flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
             <input type="number" value="${item.duration}" onchange="updateAgendaDuration(${idx}, this.value)" placeholder="分钟" min="1" style="width: 60px; flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />
             <input type="text" value="${item.material_link || ''}" onchange="updateAgendaMaterialLink(${idx}, this.value)" placeholder="材料链接" style="width: 120px; flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--bg-card); color: var(--text-primary);" />

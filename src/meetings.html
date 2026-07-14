@@ -871,7 +871,6 @@
             decisions: `${icon('clipboardText', {size: 14})} 决策`,
             actions: `${icon('check', {size: 14})} 行动项 (${actionDone}/${actionTotal})`,
             eval: `${icon('star', {size: 14})} 评估`,
-            principles: `${icon('ruler', {size: 14})} 原则`,
             chain: `${icon('link', {size: 14})} 会议链`
           };
           const tabContents = {
@@ -952,12 +951,6 @@
                     ${m.status === 'completed' ? `<button type="button" onclick="openMeetingEvalModal('${m.id}')" style="padding: 6px 14px; font-size: 12px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">${icon('star', {size: 14})} 评估会议</button>` : '<div style="font-size: 11px;">会议完成后可评估</div>'}
                   </div>
                 </div>`,
-            principles: `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
-              <div style="margin-bottom: 4px;">1. 会前材料提前 48h 分发</div>
-              <div style="margin-bottom: 4px;">2. 决议必须有负责人和截止日期</div>
-              <div style="margin-bottom: 4px;">3. 纪要 24h 内发出</div>
-              <div>4. 行动项下次会议必须复盘</div>
-            </div>`,
             chain: `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
               ${m.upstreamMeeting ? `<div style="margin-bottom: 4px;">${icon('arrowUp', {size: 14})} 上游：<a href="javascript:void(0)" onclick="openMeetingDetail('${m.upstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.upstreamMeeting)?.title || m.upstreamMeeting}</a></div>` : `<div style="margin-bottom: 4px;">${icon('arrowUp', {size: 14})} 上游：无</div>`}
               ${m.downstreamMeeting ? `<div>${icon('arrowDown', {size: 14})} 下游：<a href="javascript:void(0)" onclick="openMeetingDetail('${m.downstreamMeeting}')" style="color: var(--primary); text-decoration: none;">${meetings.find(x => x.id === m.downstreamMeeting)?.title || m.downstreamMeeting}</a></div>` : `<div>${icon('arrowDown', {size: 14})} 下游：无</div>`}
@@ -975,7 +968,6 @@
               <div class="mtab-content-${m.id} mtab-panel-decisions" style="display: none;">${tabContents.decisions}</div>
               <div class="mtab-content-${m.id} mtab-panel-actions" style="display: none;">${tabContents.actions}</div>
               <div class="mtab-content-${m.id} mtab-panel-eval" style="display: none;">${tabContents.eval}</div>
-              <div class="mtab-content-${m.id} mtab-panel-principles" style="display: none;">${tabContents.principles}</div>
               <div class="mtab-content-${m.id} mtab-panel-chain" style="display: none;">${tabContents.chain}</div>
             </div>
           `;
@@ -1050,7 +1042,7 @@
           { key: 'hq_routine', label: '营销本部月/双周会', icon: 'calendar', color: '#3b82f6' },
           { key: 'region_routine', label: '战区月度经营分析会', icon: 'mapTrifold', color: '#0ea5e9' },
           { key: 'lagging_region', label: '落后战区业绩承诺会', icon: 'siren', color: '#dc2626' },
-          { key: 'lagging_vertical', label: '落后垂直客群经分会', icon: '⚠️', color: '#ef4444' }
+          { key: 'lagging_vertical', label: '落后垂直客群经分会', icon: 'warning', color: '#ef4444' }
         ];
         const KNOWN_SCENES = ['union_quarterly', 'hq_routine', 'region_routine', 'lagging_region', 'lagging_vertical'];
 
@@ -1058,7 +1050,7 @@
           const count = meetings.filter(m => m.scenario === s.key).length;
           const isActive = window._meetingsFilterScene === s.key;
           return `<div class="scene-card" data-scene="${s.key}" onclick="filterByScene('${s.key}')" style="flex:1;min-width:0;padding:8px 6px;background:var(--bg-card);border-radius:8px;border:1.5px solid ${isActive ? s.color : 'var(--border-light)'};text-align:center;cursor:pointer;transition:all 0.2s ease;${isActive ? `background:linear-gradient(180deg, ${s.color}08 0%, var(--bg-card) 100%);box-shadow:0 2px 6px ${s.color}20;` : ''}">
-            <div style="font-size:16px;margin-bottom:4px;">${s.icon}</div>
+            <div style="font-size:16px;margin-bottom:4px;color:${s.color};">${icon(s.icon, {size: 18})}</div>
             <div style="font-size:11px;font-weight:600;color:var(--text-primary);line-height:1.3;margin-bottom:2px;">${s.label}</div>
             <div style="font-size:16px;font-weight:700;color:${s.color};">${count}</div>
           </div>`;
@@ -1106,7 +1098,7 @@
               <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <div style="font-size: 15px; font-weight: 600;">${m.title}</div>
-                  <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: ${sc.color}18; color: ${sc.color};">${sc.icon} ${sc.label}</span>
+                  <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: ${sc.color}18; color: ${sc.color}; display: inline-flex; align-items: center; gap: 3px;">${icon(sc.icon, {size: 12})} ${sc.label}</span>
                   <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: var(--bg-card); color: var(--text-tertiary);">${m.level}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -1188,12 +1180,12 @@
         });
         allActions.filter(a => a.status === 'pending' || a.status === 'in_progress').forEach(a => {
           const daysLeft = Math.ceil((new Date(a.deadline) - new Date('2026-04-15')) / (1000 * 60 * 60 * 24));
-          if (daysLeft <= 7 && daysLeft > 0) todoItems.push({ icon: '⏰', text: `${a.content} 即将到期（${daysLeft} 天）`, color: 'var(--warning)' });
+          if (daysLeft <= 7 && daysLeft > 0) todoItems.push({ icon: 'clock', text: `${a.content} 即将到期（${daysLeft} 天）`, color: 'var(--warning)' });
         });
         if (todoItems.length === 0) todoItems.push({ icon: 'check', text: '当前暂无待办事项', color: 'var(--success)' });
         const todoListHtml = todoItems.map(t => `
           <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 12px; color: var(--text-secondary);">
-            <span style="color: ${t.color};">${t.icon}</span>
+            <span style="color: ${t.color}; display: inline-flex;">${icon(t.icon, {size: 14})}</span>
             <span style="flex: 1;">${t.text}</span>
             ${t.link ? `<a href="${t.link}" style="color: var(--primary); font-size: 11px; text-decoration: none;">去处理 →</a>` : ''}
           </div>
