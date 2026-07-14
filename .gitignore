@@ -22,6 +22,9 @@ venv/
 scripts/kv-backup-*/
 scripts/.tmp-kv-*.json
 
+# 本地数据快照备份
+backups/
+
 # 临时生成物
 *.pptx
 generate_ppt.py
