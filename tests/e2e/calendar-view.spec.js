@@ -19,7 +19,7 @@ test('calendar view replaces only meeting list panel', async ({ page }) => {
   await expect(listPanel).not.toBeVisible();
 
   // Right sidebar modules should still be visible
-  await expect(page.locator('text=决议执行趋势').first()).toBeVisible();
+  // 注：「决议执行趋势」已并入决议中心抽屉（由下方「决议总数」卡片打开），主侧栏仅保留待办提醒
   await expect(page.locator('text=待办提醒').first()).toBeVisible();
 
   // KPI bar should still be visible

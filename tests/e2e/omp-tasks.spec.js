@@ -14,16 +14,16 @@ async function acceptConfirms(page) {
 
 test.describe('OMP 重点工作管理', () => {
 
-  test('OMP 任务列表按当前周期过滤，且不显示年度计划源头任务', async ({ page }) => {
+  test('OMP 任务列表按当前周期过滤，年度计划源头任务派生为执行任务且不重复', async ({ page }) => {
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 
-    // 注入一个 OMP 本地任务和一个年度计划源头任务，验证过滤
+    // 注入一个 OMP 本地任务和一个年度计划源头任务，验证派生与去重
     await page.goto('/src/cockpit.html');
     await page.evaluate(() => {
       localStorage.clear();
       localStorage.setItem('dste_api_base', '');
-      localStorage.setItem('dste_omp_data_version', 'canvas-v11');
+      localStorage.setItem('dste_omp_data_version', 'canvas-v18');
       const tasks = [];
       tasks.push({
         id: 'omp_local_task_1',
@@ -64,8 +64,10 @@ test.describe('OMP 重点工作管理', () => {
     // 应显示 OMP 本地任务
     await expect(page.locator('.data-table tbody')).toContainText('OMP本地任务');
 
-    // 不应显示年度计划源头任务
-    await expect(page.locator('.data-table tbody')).not.toContainText('年度计划源头任务（不应显示）');
+    // v0.6.12 起：年度计划源头任务会幂等派生为 OMP 执行任务（source='omp'），
+    // 在执行列表中可见；源头行（source='annual_plan'）被过滤，同名任务应只出现一次（无重复行）。
+    const derivedRows = page.locator('.data-table tbody tr', { hasText: '年度计划源头任务（不应显示）' });
+    await expect(derivedRows).toHaveCount(1);
 
     expect(errors).toEqual([]);
   });
