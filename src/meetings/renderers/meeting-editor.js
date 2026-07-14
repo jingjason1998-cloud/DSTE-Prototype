@@ -292,7 +292,7 @@ function renderAgendaList() {
     const reviewing = window._agendaReviewing.has(idx) || item.reviewStatus === 'reviewing';
     let scoreHtml = '';
     if (reviewing) {
-      scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--primary-light); color: var(--primary); white-space: nowrap;">⏳ 评审中...</span>`;
+      scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--primary-light); color: var(--primary); white-space: nowrap;">${icon('hourglass', {size: 12})} 评审中...</span>`;
     } else if (!url) {
       scoreHtml = `<span style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: var(--bg-page); color: var(--text-tertiary); white-space: nowrap; border: 1px solid var(--border-light);">${icon('search', {size: 14})} 送审</span>`;
     } else {
@@ -661,7 +661,7 @@ async function reReviewAgendaMaterial() {
   const scene = getReviewerScene(d?.scenario);
   const proxyUrl = getReviewerProxyUrl();
   const btn = document.getElementById('agenda-review-detail-rereview-btn');
-  if (btn) { btn.textContent = '⏳ 评审中...'; btn.disabled = true; }
+  if (btn) { btn.innerHTML = icon('hourglass', {size: 14}) + ' 评审中...'; btn.disabled = true; }
   try {
     const resp = await fetch(proxyUrl + '/api/review', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

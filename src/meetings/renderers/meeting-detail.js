@@ -267,7 +267,7 @@ function renderActionItem(m, a, idx, arr) {
     <div style="padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
-        <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? `${icon('check', {size: 14})}` : a.status === 'in_progress' ? '⏳' : '⏸️'}</span>
+        <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? `${icon('check', {size: 14})}` : a.status === 'in_progress' ? `${icon('hourglass', {size: 14})}` : `${icon('pause', {size: 14})}`}</span>
         <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.content || '')}</span>
         <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${renderPersonSafe(a.owner)} · ${escapeHtml(a.deadline || '未定')}</span>
         <button type="button" onclick="event.stopPropagation(); window.pushTodoReminder('${m.id}', ${idx})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0;">${icon('clock', {size: 14})} 提醒</button>
@@ -300,7 +300,7 @@ function renderDecisionItem(m, d, idx, arr) {
   return `
     <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
       <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
-      <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? `${icon('check', {size: 14})}` : '⏳'}</span>
+      <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? `${icon('check', {size: 14})}` : `${icon('hourglass', {size: 14})}`}</span>
       <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.content}</span>
       ${d.kmsUrl ? `<a href="${d.kmsUrl}" target="_blank" onclick="event.stopPropagation()" title="打开 KMS 文档" style="font-size: 12px; color: var(--primary); text-decoration: none; flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--primary-light); border-radius: 4px; background: var(--primary-light);">${icon('link', {size: 14})} KMS</a>` : ''}
       <span style="font-size: 11px; color: var(--text-secondary); flex-shrink: 0;">${renderPersonSafe(d.owner || d.decider)} · ${d.deadline || d.decision_date || '未定'}</span>

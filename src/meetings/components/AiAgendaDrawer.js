@@ -244,7 +244,7 @@ function renderPanelBody(meetingTitle) {
     <div style="margin-bottom: 14px;">
       <button type="button" onclick="generateAiAgendaCandidates()" ${ _isLoading ? 'disabled' : '' }
         style="width: 100%; padding: 7px 10px; font-size: 12px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500; opacity: ${ _isLoading ? '0.7' : '1' };">
-        ${_isLoading ? '⏳ AI 分析中...' : `${icon('robot', {size: 14})} 生成候选议程`}
+        ${_isLoading ? `${icon('hourglass', {size: 14})} AI 分析中...` : `${icon('robot', {size: 14})} 生成候选议程`}
       </button>
     </div>
     ${_isLoading ? renderLoading() : ''}
@@ -327,7 +327,7 @@ function renderCandidateCard(candidate) {
           <label for="ai-cb-${id}" style="display: block; font-weight: 600; font-size: 12px; color: var(--text-primary); cursor: pointer; margin-bottom: 3px;">${title}</label>
           <div style="display: flex; flex-wrap: wrap; gap: 4px; font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">
             <span style="padding: 1px 5px; border-radius: 3px; background: var(--primary-light); color: var(--primary);">${typeLabel}</span>
-            <span style="padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border-light);">⏱️ ${duration} 分钟</span>
+            <span style="padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border-light);">${icon('timer', {size: 12})} ${duration} 分钟</span>
             <span style="padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border-light);">${icon('userPlain', {size: 14})} ${owner}</span>
             <span style="padding: 1px 5px; border-radius: 3px; background: rgba(34,197,94,0.08); color: var(--success);">置信度 ${confidence}%</span>
           </div>

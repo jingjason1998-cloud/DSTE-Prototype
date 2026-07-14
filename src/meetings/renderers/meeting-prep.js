@@ -34,7 +34,7 @@ function renderMeetingPreparation(m) {
   const statusLabel = readiness.status === 'ready' ? '已就绪' : readiness.status === 'in_progress' ? '准备中' : '未开始';
 
   const checkRows = readiness.checks.map(c => {
-    const checkIcon = c.passed ? icon('check', {size: 14}) : c.optional ? '⏸️' : icon('x', {size: 14});
+    const checkIcon = c.passed ? icon('check', {size: 14}) : c.optional ? icon('pause', {size: 14}) : icon('x', {size: 14});
     const color = c.passed ? 'var(--success)' : c.optional ? 'var(--text-tertiary)' : 'var(--danger)';
     const badge = c.passed
       ? '<span class="status-badge status-success">已通过</span>'

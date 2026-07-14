@@ -733,7 +733,7 @@ import { icon } from '../../../assets/js/icons.js';
         
         function renderIssueCard(issue, type) {
             const colors = {'致命': '#ff5555', '严重': '#ff5555', '警告': '#ffcc00', '建议': '#00ff88'};
-            const icons = {'resolved': '', 'new': '', 'persistent': '⏳'};
+            const icons = {'resolved': '', 'new': '', 'persistent': `${icon('hourglass', {size: 12})}`};
             const labels = {'resolved': `${icon('caretRight', {size: 12})} 已修复`, 'new': `${icon('caretLeft', {size: 12})} 新增`, 'persistent': '仍遗留'};
             const color = colors[issue.level] || '#888';
             return `
@@ -842,7 +842,7 @@ import { icon } from '../../../assets/js/icons.js';
                     
                     ${compareResult.issues.persistent.length > 0 ? `
                         <div style="background:rgba(255,204,0,0.03);padding:12px 16px;border-radius:8px;border:1px solid rgba(255,204,0,0.1);">
-                            <div style="font-size:0.85em;color:#ffcc00;font-weight:600;margin-bottom:8px;">⏳ 遗留的问题 (${compareResult.issues.persistent.length})</div>
+                            <div style="font-size:0.85em;color:#ffcc00;font-weight:600;margin-bottom:8px;">${icon('hourglass', {size: 14})} 遗留的问题 (${compareResult.issues.persistent.length})</div>
                             ${compareResult.issues.persistent.map(p => renderIssueCard(p.v2, 'persistent')).join('')}
                         </div>
                     ` : ''}
@@ -1020,12 +1020,12 @@ import { icon } from '../../../assets/js/icons.js';
                 if (rdata.success && rdata.results) {
                     let html = '';
                     rdata.results.forEach(function(res) {
-                        const icon = res.status === 'completed' ? '' : (res.status === 'failed' ? '' : '⏳');
+                        const statusIcon = res.status === 'completed' ? '' : (res.status === 'failed' ? '' : icon('hourglass', {size: 12}));
                         const score = res.total_score ? ' · <strong style="color:' + (res.total_score >= 80 ? '#16a34a' : (res.total_score >= 60 ? '#ca8a04' : '#dc2626')) + ';">' + res.total_score + '分</strong>' : '';
                         const titleColor = res.status === 'failed' ? '#dc2626' : '#374151';
                         const rawTitle = res.title || res.url || '';
                         const displayTitle = escapeHtml(rawTitle.length > 40 ? rawTitle.substring(0, 40) + '...' : rawTitle);
-                        html += '<div style="margin-bottom:4px;color:#6b7280;">' + icon + ' <span style="color:' + titleColor + ';">' + displayTitle + '</span>' + score + '</div>';
+                        html += '<div style="margin-bottom:4px;color:#6b7280;">' + statusIcon + ' <span style="color:' + titleColor + ';">' + displayTitle + '</span>' + score + '</div>';
                     });
                     progressList.innerHTML = html;
                 }

@@ -66,9 +66,9 @@ function renderPendingActionsList(meetingsData, filter = 'pending') {
       const _daysLeft = Math.ceil((new Date(a.deadline + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
       if (_daysLeft < 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">${icon('warning', {size: 14})} 已逾期 ${Math.abs(_daysLeft)} 天</span>`;
       else if (_daysLeft === 0) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--danger); color: #fff; font-weight: 500;">${icon('fire', {size: 14})} 今天到期</span>`;
-      else if (_daysLeft <= 3) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,34,45,0.12); color: var(--danger); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
-      else if (_daysLeft <= 7) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,158,11,0.12); color: var(--warning); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
-      else _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(34,197,94,0.12); color: var(--success); font-weight: 500;">⏳ 剩余 ${_daysLeft} 天</span>`;
+      else if (_daysLeft <= 3) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,34,45,0.12); color: var(--danger); font-weight: 500;">${icon('hourglass', {size: 12})} 剩余 ${_daysLeft} 天</span>`;
+      else if (_daysLeft <= 7) _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(245,158,11,0.12); color: var(--warning); font-weight: 500;">${icon('hourglass', {size: 12})} 剩余 ${_daysLeft} 天</span>`;
+      else _timeTag = `<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(34,197,94,0.12); color: var(--success); font-weight: 500;">${icon('hourglass', {size: 12})} 剩余 ${_daysLeft} 天</span>`;
     }
 
     const _statusCfg = getActionStatusConfig(a.status);
