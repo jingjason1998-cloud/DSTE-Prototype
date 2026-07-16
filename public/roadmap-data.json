@@ -1,6 +1,29 @@
 {
   "versions": [
     {
+      "version": "v0.6.14",
+      "date": "2026-07-16",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**战略专题管理 KMS AI 问答**：在战略专题详情页为带有 `kmsUrl` 的专题新增「AI 问答」入口，基于关联 KMS 页面内容进行对话式问答。"
+        },
+        {
+          "type": "Added",
+          "desc": "**驾驶舱站内标签栏**：`src/cockpit.html` 内容区新增页签栏，侧边栏点击在新标签页打开，支持切换/关闭；当前标签内跳转替换当前页，不影响其他标签。"
+        },
+        {
+          "type": "Added",
+          "desc": "**全局 AI 战略助手右侧抽屉**：将原先独立全屏的 `cockpit.html#ai` 改为右侧抽屉，与当前页面并排显示，顶部导航 \"AI\" 变为抽屉开关。"
+        },
+        {
+          "type": "Added",
+          "desc": "**清理旧 AI 全屏页代码**：删除 `src/cockpit.html` 中的 `renderAI()`、`sendAIMessage()`、`initAIClient()` 及相关事件监听；删除 `src/styles/shell.css` 中 `.ai-fullscreen`、`.ai-sidebar`、`.ai-chat-area`、`.ai-input-bar`、`.ai-quick-actions` 等全屏专用样式，保留 `.ai-message` 等会议助手/专题 AI 复用的气泡样式。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.13",
       "date": "2026-07-14",
       "status": "released",
@@ -1239,23 +1262,7 @@
       "targetVersion": "v1.0.0"
     }
   ],
-  "upcoming": [
-    {
-      "name": "KPI 详情下钻",
-      "priority": "中",
-      "eta": "待定"
-    },
-    {
-      "name": "用户权限系统（替换当前模拟登录）",
-      "priority": "中",
-      "eta": "待定"
-    },
-    {
-      "name": "ST/AT 议题 Excel 模板下载",
-      "priority": "中",
-      "eta": "待定"
-    }
-  ],
+  "upcoming": [],
   "plans": [
     {
       "id": "PLAN-001",

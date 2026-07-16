@@ -45,6 +45,9 @@ import { hydrateIcons } from '../../assets/js/icons.js';
 
   const phase = getPhaseFromPage(pageId);
 
+  // 暴露当前页面 ID，供全局 AI 抽屉识别
+  window.__dsteCurrentPageId = pageId;
+
   // 渲染统一导航（外部页面模式：生成真实文件链接）
   renderTopNav(phase, null, { external: true });
   renderSidebar(phase, pageId, null, { external: true });

@@ -3,6 +3,8 @@
  * 数据同步后端：业务专题、议题、经营分析会
  */
 
+import { cleanConfluenceHtml, truncateText } from './kms-utils.js';
+
 const ALLOWED_ORIGINS = [
   'http://localhost:3456',
   'http://localhost:3457',
@@ -628,6 +630,100 @@ async function searchKms(query, limit = 3, env) {
   }
 }
 
+/**
+ * 获取单个 KMS 页面内容，支持 Worker KV 版本缓存。
+ */
+async function getKmsPage(pageId, env) {
+  const token = env.KMS_PAT_TOKEN;
+  if (!token) {
+    return { success: false, error: 'KMS not configured' };
+  }
+
+  const baseUrl = (env.KMS_BASE_URL || 'https://kms.fineres.com').replace(/\/$/, '');
+  const pageUrl = `${baseUrl}/pages/viewpage.action?pageId=${pageId}`;
+  const cacheKey = `kms_page:${pageId}`;
+  const KV_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 天兜底
+
+  try {
+    // 1. 先拿元数据（版本、标题），作为缓存校验依据
+    const metaResp = await fetch(`${baseUrl}/rest/api/content/${pageId}?expand=version,space`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!metaResp.ok) {
+      console.error('KMS meta fetch failed:', metaResp.status);
+      return { success: false, error: `KMS meta fetch failed: ${metaResp.status}` };
+    }
+
+    const meta = await metaResp.json();
+    const title = String(meta.title || '');
+    const version = Number(meta.version?.number || 0);
+
+    // 2. 尝试命中缓存
+    const cachedRaw = await env.DSTE_KV.get(cacheKey);
+    if (cachedRaw) {
+      try {
+        const cached = JSON.parse(cachedRaw);
+        if (cached && cached.version === version && cached.text) {
+          return {
+            success: true,
+            pageId,
+            title: cached.title || title,
+            url: cached.url || pageUrl,
+            version: cached.version,
+            text: cached.text,
+            charCount: cached.text.length,
+            truncated: false,
+            cached: true,
+          };
+        }
+      } catch (e) {
+        // 缓存损坏，继续重新拉取
+      }
+    }
+
+    // 3. 缓存未命中或版本变更，拉取正文并清洗
+    const bodyResp = await fetch(`${baseUrl}/rest/api/content/${pageId}?expand=body.storage,version,space`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!bodyResp.ok) {
+      console.error('KMS body fetch failed:', bodyResp.status);
+      return { success: false, error: `KMS body fetch failed: ${bodyResp.status}` };
+    }
+
+    const bodyData = await bodyResp.json();
+    const html = String(bodyData.body?.storage?.value || '');
+    const cleaned = cleanConfluenceHtml(html);
+    const { text, truncated } = truncateText(cleaned, 8000);
+
+    const result = {
+      pageId,
+      title: String(bodyData.title || title || ''),
+      url: pageUrl,
+      version: Number(bodyData.version?.number || version || 1),
+      text,
+      charCount: text.length,
+      truncated,
+      fetchedAt: new Date().toISOString(),
+    };
+
+    // 4. 写入 KV（按版本号校验，无需 TTL 也能幂等；加 TTL 防止脏数据永久驻留）
+    await env.DSTE_KV.put(cacheKey, JSON.stringify(result), { expirationTtl: KV_TTL_SECONDS });
+
+    return { success: true, ...result, cached: false };
+  } catch (err) {
+    console.error('getKmsPage error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 async function executeTool(name, args, context, env) {
   // 查询类工具：依赖前端传入的 context.meeting
   if (name === 'queryMeetingAgenda') {
@@ -728,6 +824,10 @@ async function executeTool(name, args, context, env) {
 
   if (name === 'searchKms') {
     return searchKms(args.query || '', args.limit || 3, env);
+  }
+
+  if (name === 'getKmsPage') {
+    return getKmsPage(String(args.pageId || ''), env);
   }
 
   if (name === 'navigateTo') {

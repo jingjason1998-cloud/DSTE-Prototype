@@ -9,6 +9,17 @@
 import { TOP_NAV, SIDEBAR_CONFIG, PAGE_NAMES, EXTERNAL_PAGES } from './config.js';
 import { icon } from '../../assets/js/icons.js';
 
+let globalAiDrawerModule = null;
+
+async function toggleGlobalAiDrawer() {
+  if (!globalAiDrawerModule) {
+    globalAiDrawerModule = await import('../components/GlobalAiDrawer.js');
+  }
+  if (globalAiDrawerModule?.toggleGlobalAiDrawer) {
+    globalAiDrawerModule.toggleGlobalAiDrawer();
+  }
+}
+
 /**
  * 渲染图标到元素中
  * @param {HTMLElement} el
@@ -57,24 +68,48 @@ export function renderTopNav(activePhase, onNavigate, options = {}) {
   container.innerHTML = '';
   TOP_NAV.forEach(item => {
     const li = document.createElement('li');
-    const a = document.createElement('a');
-    a.href = getTopNavHref(item, external);
-    a.dataset.phase = item.id;
-    a.className = 'top-nav-item';
 
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'top-nav-icon';
-    renderIcon(iconSpan, item.icon, 18);
-    const labelSpan = document.createElement('span');
-    labelSpan.textContent = item.label;
-    const fullSpan = document.createElement('span');
-    fullSpan.className = 'nav-full-label';
-    fullSpan.textContent = item.full;
+    if (item.type === 'drawer') {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'top-nav-item top-nav-drawer-toggle';
+      btn.dataset.phase = item.id;
+      btn.dataset.drawer = 'true';
 
-    a.appendChild(iconSpan);
-    a.appendChild(labelSpan);
-    a.appendChild(fullSpan);
-    li.appendChild(a);
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'top-nav-icon';
+      renderIcon(iconSpan, item.icon, 18);
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = item.label;
+      const fullSpan = document.createElement('span');
+      fullSpan.className = 'nav-full-label';
+      fullSpan.textContent = item.full;
+
+      btn.appendChild(iconSpan);
+      btn.appendChild(labelSpan);
+      btn.appendChild(fullSpan);
+      li.appendChild(btn);
+    } else {
+      const a = document.createElement('a');
+      a.href = getTopNavHref(item, external);
+      a.dataset.phase = item.id;
+      a.className = 'top-nav-item';
+
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'top-nav-icon';
+      renderIcon(iconSpan, item.icon, 18);
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = item.label;
+      const fullSpan = document.createElement('span');
+      fullSpan.className = 'nav-full-label';
+      fullSpan.textContent = item.full;
+
+      a.appendChild(iconSpan);
+      a.appendChild(labelSpan);
+      a.appendChild(fullSpan);
+      li.appendChild(a);
+    }
+
     container.appendChild(li);
   });
 
@@ -92,6 +127,16 @@ export function renderTopNav(activePhase, onNavigate, options = {}) {
     });
   }
 
+  // 绑定 AI 抽屉开关（SPA 与独立页面都生效）
+  const aiToggle = container.querySelector('[data-drawer="true"]');
+  if (aiToggle) {
+    aiToggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleGlobalAiDrawer();
+    });
+  }
+
   updateTopNavActive(activePhase);
 }
 
@@ -103,6 +148,17 @@ export function updateTopNavActive(phase) {
   document.querySelectorAll('.top-nav-item').forEach(link => {
     link.classList.toggle('active', link.dataset.phase === phase);
   });
+  updateAiDrawerToggleActive();
+}
+
+/**
+ * 根据抽屉开关状态高亮 AI 按钮
+ */
+export function updateAiDrawerToggleActive() {
+  const toggle = document.querySelector('.top-nav-drawer-toggle[data-phase="ai"]');
+  if (toggle) {
+    toggle.classList.toggle('active', document.body.classList.contains('ai-drawer-open'));
+  }
 }
 
 /**

@@ -7,6 +7,26 @@
 
 ---
 
+## [Unreleased]
+
+## [v0.6.14] - 2026-07-16
+
+### Added
+- **战略专题管理 KMS AI 问答**：在战略专题详情页为带有 `kmsUrl` 的专题新增「AI 问答」入口，基于关联 KMS 页面内容进行对话式问答。
+  - 后端：`api-worker/worker.js` 新增 `getKmsPage` 工具，通过 Confluence REST API 拉取页面正文，使用 `api-worker/kms-utils.js` 清洗 HTML/截断文本，并基于版本号写入 `DSTE_KV` 缓存 30 天。
+  - 前端：`src/cockpit.html` 新增 `siOpenTopicAiChat` / `siSendTopicAiMessage`，弹出 AI 问答浮层，预置「核心结论 / 里程碑 / 风险与应对 / 经营影响」快捷问题，流式渲染回答。
+  - 测试：新增 `tests/unit/kms-clean.test.js`（10 例）验证 HTML 清洗；新增 `tests/e2e/strategy-topics-ai-chat.spec.js`（3 例）覆盖有/无 KMS 链接及快捷问题芯片。
+- **驾驶舱站内标签栏**：`src/cockpit.html` 内容区新增页签栏，侧边栏点击在新标签页打开，支持切换/关闭；当前标签内跳转替换当前页，不影响其他标签。
+- **全局 AI 战略助手右侧抽屉**：将原先独立全屏的 `cockpit.html#ai` 改为右侧抽屉，与当前页面并排显示，顶部导航 "AI" 变为抽屉开关。
+  - 新增 `src/components/GlobalAiDrawer.js`：固定 420px 右侧面板，挤压 `.content-area` 主内容区，支持流式输出、快捷问题、会话切换/新建、`Esc` 关闭。
+  - 页面识别：`cockpit.html` 在 `_renderPage()` 写入 `window.__dsteCurrentPageId`；独立页面由 `src/lib/shell-injector.js` 写入。
+  - 上下文注入：`src/lib/ai-context.js` 新增 `registerAiContextProvider` 注册表，`cockpit.html` 为驾驶舱/战略专题/重点工作/KPI/指标体系/年度经营计划注册 provider；未注册页面回退到 `gatherBusinessContext()` 全局快照。
+  - 入口改造：`src/lib/shell.js` 将 `TOP_NAV` 中 `type: 'drawer'` 的 AI 项渲染为按钮，`click` 动态导入 GlobalAiDrawer 并 toggle；抽屉打开时按钮高亮。
+  - 测试：重写 `tests/e2e/ai-assistant.spec.js` 为抽屉交互（6 例），覆盖打开、聊天、快捷问题、新建会话、页面识别、关闭抽屉；全量 E2E 359 passed / 25 skipped。
+- **清理旧 AI 全屏页代码**：删除 `src/cockpit.html` 中的 `renderAI()`、`sendAIMessage()`、`initAIClient()` 及相关事件监听；删除 `src/styles/shell.css` 中 `.ai-fullscreen`、`.ai-sidebar`、`.ai-chat-area`、`.ai-input-bar`、`.ai-quick-actions` 等全屏专用样式，保留 `.ai-message` 等会议助手/专题 AI 复用的气泡样式。
+
+---
+
 ## [v0.6.13] - 2026-07-14
 
 ### Added

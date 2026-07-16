@@ -9,7 +9,7 @@ export const TOP_NAV = [
   { id: 'bp', icon: 'bp', label: 'BP', full: '战略解码', defaultPage: 'bp/kpi' },
   { id: 'exe', icon: 'exe', label: '执行', full: '战略执行', defaultPage: 'exe/tasks' },
   { id: 'rev', icon: 'rev', label: '评估', full: '战略评估', defaultPage: 'rev/performance' },
-  { id: 'ai', icon: 'ai', label: 'AI', full: 'AI 助手', defaultPage: 'ai' }
+  { id: 'ai', icon: 'ai', label: 'AI', full: 'AI 助手', type: 'drawer' }
 ];
 
 export const SIDEBAR_CONFIG = {

@@ -6,6 +6,75 @@
 
 import { Storage } from './utils.js';
 
+// ========== 页面级 AI 上下文提供者注册表 ==========
+
+const aiContextProviders = new Map();
+
+/**
+ * 注册某个页面的 AI 上下文提供者
+ * @param {string} pageId - 页面 ID，如 'sp/strategy-topics'
+ * @param {Object} provider
+ * @param {string} provider.name - 页面名称
+ * @param {Function} provider.getContext - 返回该页上下文对象
+ * @param {Function} [provider.getSuggestions] - 返回该页快捷问题数组
+ */
+export function registerAiContextProvider(pageId, provider) {
+  if (!pageId || typeof provider?.getContext !== 'function') {
+    console.warn('[AI Context] Invalid provider for pageId:', pageId);
+    return;
+  }
+  aiContextProviders.set(pageId, {
+    name: provider.name || pageId,
+    getContext: provider.getContext,
+    getSuggestions: typeof provider.getSuggestions === 'function' ? provider.getSuggestions : () => [],
+  });
+}
+
+/**
+ * 获取某个页面的 AI 上下文提供者
+ * @param {string} pageId
+ * @returns {Object|null}
+ */
+export function getAiContextProvider(pageId) {
+  return aiContextProviders.get(pageId) || null;
+}
+
+/**
+ * 列出所有已注册的 AI 上下文提供者
+ * @returns {Array<{pageId:string,name:string}>}
+ */
+export function listAiContextProviders() {
+  return Array.from(aiContextProviders.entries()).map(([pageId, p]) => ({ pageId, name: p.name }));
+}
+
+/**
+ * 构建当前页面的上下文摘要文本
+ * @param {string} pageId
+ * @param {Object} [options]
+ */
+export function buildPageContext(pageId, options = {}) {
+  const provider = getAiContextProvider(pageId);
+  if (!provider) {
+    const globalCtx = gatherBusinessContext(options);
+    return {
+      pageId,
+      pageName: '全局视图',
+      context: globalCtx,
+      text: formatContextForAI(globalCtx),
+      suggestions: [],
+    };
+  }
+
+  const ctx = provider.getContext(options);
+  return {
+    pageId,
+    pageName: provider.name,
+    context: ctx,
+    text: typeof ctx === 'string' ? ctx : formatContextForAI(ctx),
+    suggestions: provider.getSuggestions(),
+  };
+}
+
 /**
  * 构建系统提示词
  */
