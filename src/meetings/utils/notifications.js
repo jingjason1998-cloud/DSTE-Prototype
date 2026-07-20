@@ -106,12 +106,12 @@ export function renderNotificationMessage(type, data) {
         `${i + 1}. 【${a.type || '其他'}】${a.title}（${a.duration || 0}min）— 负责人：${renderPerson(a.owner)}`
       ).join('\n');
       return (
-        `## ${icon('clipboardText', {size: 14})} 会议议程总览\n` +
+        `## 会议议程总览\n` +
         `**会议：**${data.meetingTitle}\n` +
         `**日期：**${data.meetingDate || '待定'}\n` +
         (data.location ? `**地点：**${data.location}\n` : '') +
         `\n**议程列表：**\n${items || '> 暂无议程'}\n\n` +
-        `> ${icon('pushPin', {size: 14})} 合计 ${data.totalDuration || 0} 分钟，共 ${(data.agendaItems || []).length} 项议程`
+        `> 合计 ${data.totalDuration || 0} 分钟，共 ${(data.agendaItems || []).length} 项议程`
       );
     }
 
