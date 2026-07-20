@@ -3,9 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <title>DSTE 战略管理平台</title>
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="./styles/shell.css">
@@ -538,9 +535,9 @@
     </div>
   </div>
 
-  <script src="../assets/js/main.js"></script>
-  <script src="../pages/dashboard/roadmap.js"></script>
-  <script src="../pages/dashboard/version-audit.js"></script>
+  <script src="../assets/js/main.js" defer></script>
+  <script src="../pages/dashboard/roadmap.js" defer></script>
+  <script src="../pages/dashboard/version-audit.js" defer></script>
   <script type="module">
     import { renderTopNav, renderSidebar as shellRenderSidebar, getPhaseFromPage } from './lib/shell.js';
     import { hydrateIcons, icon } from '../assets/js/icons.js';
@@ -569,6 +566,7 @@
       ensureLastModified,
     } from './lib/per-record-sync.js';
     import { getDefaultSyncQueue } from './lib/sync-queue.js';
+    import { createSwrSync } from './lib/swr-local.js';
 
     (function() {
       'use strict';
@@ -2310,27 +2308,6 @@
           });
         }
 
-        // 加载会议数据：优先 API，其次 本地存储（由 apiLoad 处理），最后由 renderMeetings 创建 mock
-        const remoteMeetings = await apiLoad('/api/meetings');
-        if (remoteMeetings && remoteMeetings.length > 0) {
-          window._meetingsData = remoteMeetings;
-        }
-
-        // 同步 OMP 数据（指标库 / KPI / 重点工作等）
-        await ompSyncFromApi();
-
-        // 注册 cockpit 各页面的 AI 上下文提供者
-        registerCockpitAiProviders();
-
-        // 预加载路线图数据，避免 renderDevTimeline 使用硬编码旧数据
-        try {
-          const roadmapRes = await fetch('/roadmap-data.json');
-          window._roadmapData = roadmapRes.ok ? await roadmapRes.json() : null;
-        } catch (e) {
-          console.warn('无法加载 roadmap-data.json:', e);
-          window._roadmapData = null;
-        }
-
         const hash = window.location.hash.slice(1) || 'dashboard';
         // 初始化第一个 tab 为当前 hash 页面
         appTabs[0].pageId = hash;
@@ -2338,6 +2315,44 @@
         renderTabs();
         navigate(hash, false);
         window.addEventListener('hashchange', () => navigate(window.location.hash.slice(1), false));
+
+        // 非关键数据与远程同步放到首屏渲染之后后台执行，避免阻塞 strategy-topics 等页面打开
+        void (async () => {
+          try {
+            // 加载会议数据：优先 API，其次本地存储（由 apiLoad 处理），最后由 renderMeetings 创建 mock
+            const remoteMeetings = await apiLoad('/api/meetings');
+            if (remoteMeetings && remoteMeetings.length > 0) {
+              window._meetingsData = remoteMeetings;
+            }
+          } catch (e) {
+            console.warn('[init] meetings load failed:', e.message);
+          }
+
+          try {
+            // 同步 OMP 数据（指标库 / KPI / 重点工作等）
+            await ompSyncFromApi();
+          } catch (e) {
+            console.warn('[init] OMP sync failed:', e.message);
+          }
+
+          try {
+            // 预加载路线图数据，避免 renderDevTimeline 使用硬编码旧数据
+            const roadmapRes = await fetch('/roadmap-data.json');
+            window._roadmapData = roadmapRes.ok ? await roadmapRes.json() : null;
+          } catch (e) {
+            console.warn('[init] roadmap data load failed:', e);
+            window._roadmapData = null;
+          }
+
+          // 后台刷新战略专题与战略洞察数据
+          await Promise.allSettled([
+            siLoadRemoteTopics(),
+            siLoadRemoteInsights(),
+          ]);
+
+          // 注册 cockpit 各页面的 AI 上下文提供者
+          registerCockpitAiProviders();
+        })();
 
         // 标签栏事件：切换 / 关闭
         const tabsEl = document.getElementById('page-tabs');
@@ -6172,20 +6187,42 @@
         }
       }
 
-      async function siLoadRemoteInsights() {
+      const topicsSwr = createSwrSync({
+        key: 'strategy-topics',
+        loadLocal: () => strategyTopicsRepo.get(),
+        save: (data) => strategyTopicsRepo.set(data),
+        fetchRemote: () => apiLoadArray('/api/strategy-topics'),
+        merge: (local, remote) => mergeEntities(local, remote),
+      });
+
+      const insightsSwr = createSwrSync({
+        key: 'insights',
+        loadLocal: siLoadInsights,
+        save: siSaveInsights,
+        fetchRemote: () => apiLoadArray('/api/insights'),
+        merge: (local, remote) => mergeEntities(local, remote, item => String(item.id)),
+      });
+
+      async function siLoadRemoteInsights(force = false) {
         try {
-          const remote = await apiLoadArray('/api/insights');
-          if (!remote || !Array.isArray(remote)) return;
-          const local = siLoadInsights();
-          const merged = mergeEntities(local, remote, item => String(item.id));
-          siSaveInsights(merged);
+          const { updated } = await insightsSwr(force);
+          if (updated && currentPage === 'sp/insights') {
+            navigate('sp/insights', false);
+          }
         } catch (e) {
           console.warn('[SI] load remote insights failed:', e.message);
         }
       }
 
-      function siGenerateInsightId() {
-        return 'ins_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      async function siLoadRemoteTopics(force = false) {
+        try {
+          const { updated } = await topicsSwr(force);
+          if (updated && currentPage === 'sp/strategy-topics') {
+            navigate('sp/strategy-topics', false);
+          }
+        } catch (e) {
+          console.warn('[SI] load remote topics failed:', e.message);
+        }
       }
 
       function siLoadTopics() {
@@ -6226,18 +6263,6 @@
           }
         } catch (e) {
           console.error('[SI] sync topics failed:', e);
-        }
-      }
-
-      async function siLoadRemoteTopics() {
-        try {
-          const remote = await apiLoadArray('/api/strategy-topics');
-          if (!remote || !Array.isArray(remote)) return;
-          const local = strategyTopicsRepo.get();
-          const merged = mergeEntities(local, remote);
-          strategyTopicsRepo.set(merged);
-        } catch (e) {
-          console.warn('[SI] load remote topics failed:', e.message);
         }
       }
 
@@ -6715,12 +6740,6 @@
 
       // 调用一次以确保默认数据存在（幂等）
       siEnsureDefaultData();
-
-      // 启动时尝试拉取远程战略专题并合并
-      siLoadRemoteTopics();
-
-      // 启动时尝试拉取远程战略洞察并合并
-      siLoadRemoteInsights();
 
       // ===== 战略洞察页面 =====
       function renderInsightsPage() {
