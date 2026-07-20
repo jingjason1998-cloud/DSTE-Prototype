@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [v0.6.15] - 2026-07-20
+
+### Fixed
+- **会议议程总览推送移除 SVG 图标**：企业微信无法渲染内联 SVG，导致议程总览推送消息标题与合计行前出现 `<svg...>` 乱码。`src/meetings/utils/notifications.js` 已移除 `icon('clipboardText')` 与 `icon('pushPin')` 调用，改用纯文本标题。
+
 ## [v0.6.14] - 2026-07-16
 
 ### Added
