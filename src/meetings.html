@@ -371,7 +371,7 @@
     </div>
   </div>
 
-  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/main.js" defer></script>
   <script type="module">
     import { icon } from '../assets/js/icons.js';
     import { calculateAutoScore, getScoreColor, getScoreLabel } from './meetings/utils/scoring.js';
@@ -852,12 +852,12 @@
             </div>`;
           });
           return `
-            <div style="padding: 8px 10px; background: var(--bg-page); border-radius: 6px; margin-top: 10px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <div style="padding: 6px 10px; background: var(--bg-page); border-radius: 6px; margin-top: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                 <span style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">${icon('chartBar', {size: 14})} 一报一会</span>
                 <span style="font-size: 11px; color: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total} (${pct}%)</span>
               </div>
-              <div style="width: 100%; height: 4px; background: var(--border-light); border-radius: 2px; margin-bottom: 8px; overflow: hidden;">
+              <div style="width: 100%; height: 4px; background: var(--border-light); border-radius: 2px; margin-bottom: 6px; overflow: hidden;">
                 <div style="width: ${pct}%; height: 100%; background: ${pct === 100 ? 'var(--success)' : 'var(--primary)'}; border-radius: 2px; transition: width 0.3s ease;"></div>
               </div>
               <div style="display: flex; flex-wrap: wrap; gap: 6px;">${steps.join('')}</div>
@@ -958,10 +958,10 @@
           };
           const tabId = 'tabs-' + m.id;
           return `
-            <div style="margin-top: 12px;" class="meeting-tabs" data-meeting="${m.id}">
-              <div style="display: flex; gap: 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 8px;">
+            <div style="margin-top: 8px;" class="meeting-tabs" data-meeting="${m.id}">
+              <div style="display: flex; gap: 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 6px;">
                 ${Object.entries(tabLabels).map(([key, label]) => `
-                  <button type="button" onclick="switchMeetingCardTab('${m.id}', '${key}'); event.stopPropagation();" class="mtab-btn-${m.id} mtab-${key}" style="padding: 6px 12px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
+                  <button type="button" onclick="switchMeetingCardTab('${m.id}', '${key}'); event.stopPropagation();" class="mtab-btn-${m.id} mtab-${key}" style="padding: 4px 10px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
                 `).join('')}
               </div>
               <div class="mtab-content-${m.id} mtab-panel-minutes">${tabContents.minutes}</div>
@@ -1093,9 +1093,9 @@
           const pipelineStep = m.pipeline ? (Object.entries(m.pipeline).findLast(([k, v]) => v)?.[0] || 'none') : 'none';
           return `
             <div class="meeting-card" data-month="${m.month}" data-date="${m.date}" data-status="${m.status}" data-scenario="${m.scenario}" data-pipeline-step="${pipelineStep}"
-              style="padding: 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${sc.color}; transition: all 0.2s; cursor: pointer;"
+              style="padding: 10px 16px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${sc.color}; transition: all 0.2s; cursor: pointer;"
               onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'" data-open-meeting-detail data-meeting-id="${m.id}">
-              <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center; margin-bottom: 4px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <div style="font-size: 15px; font-weight: 600;">${m.title}</div>
                   <span style="padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: ${sc.color}18; color: ${sc.color}; display: inline-flex; align-items: center; gap: 3px;">${icon(sc.icon, {size: 12})} ${sc.label}</span>
@@ -1107,13 +1107,13 @@
                   <button type="button" data-edit-meeting data-edit-id="${m.id}" style="padding: 2px 8px; font-size: 11px; border: none; border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; font-weight: 500;">✏️ 编辑</button>
                 </div>
               </div>
-              <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;">
+              <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 4px;">
                 ${icon('calendar', {size: 14})} ${m.date} &nbsp;|&nbsp; ${icon('mapPin', {size: 14})} ${m.location} &nbsp;|&nbsp; ${icon('userPlain', {size: 14})} ${typeof window !== 'undefined' && window.renderPerson ? window.renderPerson(m.host) : (m.host || '待定')}
               </div>
               <div style="display: flex; justify-content: flex-end; align-items: center;">
                 ${m.effectiveness ? `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 14px; font-weight: 700; color: ${getScoreColor(m.effectiveness.overallScore)};">${icon('star', {size: 14})} ${m.effectiveness.overallScore}</span><span style="font-size: 10px; color: var(--text-tertiary);">${getScoreLabel(m.effectiveness.overallScore)}</span></div>` : (m.status === 'completed' ? `<div style="font-size: 11px; color: var(--text-tertiary); padding: 2px 6px; background: var(--bg-page); border-radius: 4px;">未评估</div>` : (() => { const r = computeMeetingReadiness(m); const color = r.status === 'ready' ? 'var(--success)' : r.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)'; const label = r.status === 'ready' ? '已就绪' : r.status === 'in_progress' ? '准备中' : '未开始'; return `<div style="display: flex; align-items: center; gap: 4px;"><span style="font-size: 12px; font-weight: 600; color: ${color};">${icon('clipboardText', {size: 14})} ${r.percentage}%</span><span style="font-size: 10px; color: ${color};">${label}</span></div>`; })())}
               </div>
-              ${agendaTags ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">${agendaTags}${moreAgenda}</div>` : ''}
+              ${agendaTags ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">${agendaTags}${moreAgenda}</div>` : ''}
               ${renderPipeline(m)}
               ${renderTabs(m)}
             </div>
@@ -1597,7 +1597,7 @@
                     <div class="card-title">${icon('clipboardText', {size: 14})} 会议列表</div>
                     <span class="meeting-list-count" style="font-size: 12px; color: var(--text-tertiary);">共 ${totalMeetings} 场</span>
                   </div>
-                  <div id="meeting-cards-container" style="display: flex; flex-direction: column; gap: 12px;">
+                  <div id="meeting-cards-container" style="display: flex; flex-direction: column; gap: 8px;">
                     ${meetingCards}
                   </div>
                 </div>
