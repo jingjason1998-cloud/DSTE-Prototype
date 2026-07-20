@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "v0.6.16",
+      "date": "2026-07-20",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复多处 SVG 图标显示为乱码**：将动态更新的标题/按钮从 `textContent` 改为 `innerHTML`，避免 `icon()` 返回的 SVG 字符串被当纯文本渲染。涉及待闭环行动抽屉标题、会前准备标题、批量送审按钮、议程重新送审按钮、需求池 AI 分析按钮、经营专题里程碑状态标签、OMP 分解行删除按钮。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.15",
       "date": "2026-07-20",
       "status": "released",
