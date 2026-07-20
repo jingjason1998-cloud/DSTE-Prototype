@@ -1,6 +1,21 @@
 {
   "versions": [
     {
+      "version": "v0.6.17",
+      "date": "2026-07-20",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复会议行动项进展说明刷新后丢失**：`src/meetings/data-store.js` 的 `migrateMeetingsData()` 在规范化 action 时遗漏 `progressNote`，每次刷新都会丢弃已保存的进展说明。"
+        },
+        {
+          "type": "Added",
+          "desc": "**会议行动项跟进记录**：保存进展说明时自动追加到 `progressLogs`；`pending-actions` 抽屉新增「跟进记录」列表，按时间倒序展示；`meeting-detail` 行动项展示跟进记录条数徽标。"
+        }
+      ]
+    },
+    {
       "version": "v0.6.16",
       "date": "2026-07-20",
       "status": "released",

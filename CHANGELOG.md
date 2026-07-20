@@ -9,6 +9,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **修复 AI 对话偶发 502/400 错误**：`api-worker/worker.js` 在转发消息给 Kimi 前增加 `sanitizeMessages`，过滤空/缺失 content 的 system/user/assistant 消息，并为带 tool_calls 的空 content assistant 消息补空格，避免 Kimi 返回 400。
+
 ## [v0.6.17] - 2026-07-20
 
 ### Fixed

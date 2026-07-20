@@ -41,6 +41,54 @@ function errorResponse(message, status = 500, request) {
   return jsonResponse({ error: message }, status, request);
 }
 
+/**
+ * 清理发送给 Kimi 的 messages 数组。
+ * Kimi 对空/缺失 content 的 system/user/assistant 消息会返回 400，
+ * 因此需要：过滤空内容、补全缺失字段、保留带 tool_calls 的 assistant 消息。
+ */
+function sanitizeMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .map((m) => {
+      if (!m || typeof m !== 'object') return null;
+      const role = String(m.role || '').trim();
+      if (!role) return null;
+
+      let content = m.content;
+      if (content === undefined || content === null) content = '';
+      content = String(content);
+
+      const hasToolCalls = Array.isArray(m.tool_calls) && m.tool_calls.length > 0;
+
+      // assistant 带 tool_calls 时允许空 content，但需补一个空格避免 400
+      if (role === 'assistant' && hasToolCalls && content.trim() === '') {
+        content = ' ';
+      }
+
+      // tool 消息允许空 content，但 content 必须是字符串
+      if (role === 'tool') {
+        return {
+          role,
+          content,
+          tool_call_id: String(m.tool_call_id || ''),
+        };
+      }
+
+      // 其余角色空内容直接丢弃
+      if (content.trim() === '') return null;
+
+      const sanitized = { role, content };
+      if (role === 'assistant' && hasToolCalls) {
+        sanitized.tool_calls = m.tool_calls;
+      }
+      if ((role === 'assistant' || role === 'user') && m.name) {
+        sanitized.name = String(m.name);
+      }
+      return sanitized;
+    })
+    .filter(Boolean);
+}
+
 // KV key 常量
 const KEYS = {
   topics: 'dste_topics_v2',
@@ -475,17 +523,17 @@ async function handleAiAgendaRecommend(request, env) {
         model: 'kimi-k2.7-code-highspeed',
         max_tokens: 2048,
         response_format: { type: 'json_object' },
-        messages: [
+        messages: sanitizeMessages([
           { role: 'system', content: AI_AGENDA_PROMPT },
           { role: 'user', content: userContent },
-        ],
+        ]),
       }),
     }, 29000, 3);
 
     if (!resp.ok) {
       const errorText = await resp.text();
       console.error('Kimi API error:', resp.status, errorText);
-      return errorResponse(`AI service error: ${resp.status}`, 502, request);
+      return errorResponse(`AI service error: ${resp.status} ${errorText}`, 502, request);
     }
 
     const aiData = await resp.json();
@@ -541,9 +589,9 @@ async function handleChat(request, env) {
     return errorResponse('Invalid JSON body', 400, request);
   }
 
-  const messages = body.messages || [];
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return errorResponse('Missing messages', 400, request);
+  const messages = sanitizeMessages(body.messages || []);
+  if (messages.length === 0) {
+    return errorResponse('Missing valid messages', 400, request);
   }
 
   const stream = !!body.stream;
@@ -569,7 +617,7 @@ async function handleChat(request, env) {
     if (!resp.ok) {
       const errorText = await resp.text();
       console.error('Kimi API error:', resp.status, errorText);
-      return errorResponse(`AI service error: ${resp.status}`, 502, request);
+      return errorResponse(`AI service error: ${resp.status} ${errorText}`, 502, request);
     }
 
     if (stream) {
