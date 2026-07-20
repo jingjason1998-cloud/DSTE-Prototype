@@ -460,7 +460,7 @@ function toggleAgendaReviewMode() {
     if (batchBtn) batchBtn.style.display = 'none';
     if (toggleBtn) toggleBtn.style.display = 'inline-block';
   }
-  if (batchBtn) batchBtn.textContent = `${icon('package', {size: 14})} 批量送审 (${window._agendaBatchSelections.size})`;
+  if (batchBtn) batchBtn.innerHTML = `${icon('package', {size: 14})} 批量送审 (${window._agendaBatchSelections.size})`;
   renderAgendaList();
 }
 function updateBatchReviewSelection(idx, checked) {
@@ -468,7 +468,7 @@ function updateBatchReviewSelection(idx, checked) {
   else window._agendaBatchSelections.delete(idx);
   const count = window._agendaBatchSelections.size;
   const btn = document.getElementById('batch-review-btn');
-  if (btn) btn.textContent = `${icon('package', {size: 14})} 批量送审 (${count})`;
+  if (btn) btn.innerHTML = `${icon('package', {size: 14})} 批量送审 (${count})`;
 }
 
 /**
@@ -686,7 +686,7 @@ async function reReviewAgendaMaterial() {
   } catch (e) {
     window.showToast('评审服务不可用，请检查 reviewer 后端是否启动', 'error');
   }
-  if (btn) { btn.textContent = `${icon('arrowsClockwise', {size: 14})} 重新送审`; btn.disabled = false; }
+  if (btn) { btn.innerHTML = `${icon('arrowsClockwise', {size: 14})} 重新送审`; btn.disabled = false; }
 }
 function showAgendaReviewSummary() {
   document.getElementById('agenda-review-detail-summary').style.display = 'block';

@@ -329,7 +329,7 @@ function analyzeWithAI(btn) {
     summaryEl.innerHTML = '<span class="req-ai-analyzing">AI 正在分析需求</span>';
   }
   btn.disabled = true;
-  btn.textContent = `${icon('robot', {size: 14})} 分析中...`;
+  btn.innerHTML = `${icon('robot', {size: 14})} 分析中...`;
 
   // 模拟 AI 分析耗时
   setTimeout(() => {
@@ -349,7 +349,7 @@ function analyzeWithAI(btn) {
       showToast('AI 分析失败', 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = `${icon('robot', {size: 14})} AI 分析`;
+      btn.innerHTML = `${icon('robot', {size: 14})} AI 分析`;
     }
   }, 600);
 }

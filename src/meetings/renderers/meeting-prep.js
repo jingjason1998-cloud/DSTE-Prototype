@@ -27,7 +27,7 @@ function renderMeetingPreparation(m) {
   const header = document.getElementById('meeting-preparation-header-title');
   const markBtn = document.getElementById('preparation-mark-done-btn');
   if (!content) return;
-  if (header) header.textContent = `${icon('clipboardText', {size: 14})} 会前准备 · ${m.title || '未命名会议'}`;
+  if (header) header.innerHTML = `${icon('clipboardText', {size: 14})} 会前准备 · ${m.title || '未命名会议'}`;
 
   const readiness = computeMeetingReadiness(m);
   const statusColor = readiness.status === 'ready' ? 'var(--success)' : readiness.status === 'in_progress' ? 'var(--warning)' : 'var(--danger)';

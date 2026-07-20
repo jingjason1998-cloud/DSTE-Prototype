@@ -9926,7 +9926,7 @@
         });
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
-        removeBtn.textContent = '<span class="icon" data-icon="x" data-icon-size="14"></span>';
+        removeBtn.innerHTML = '<span class="icon" data-icon="x" data-icon-size="14"></span>';
         removeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:16px;width:30px;';
         removeBtn.onclick = () => { row.remove(); window.omp_updateDecomposeValidation(); };
         row.appendChild(removeBtn);

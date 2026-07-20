@@ -135,7 +135,7 @@ function refreshPendingActionsList() {
   const filter = window._pendingActionsFilter || 'pending';
   const meetings = getMeetings();
   list.innerHTML = renderPendingActionsList(meetings, filter);
-  if (title) title.textContent = getPendingActionsTitle(filter, meetings);
+  if (title) title.innerHTML = getPendingActionsTitle(filter, meetings);
 }
 
 function switchPendingActionsTab(filter) {

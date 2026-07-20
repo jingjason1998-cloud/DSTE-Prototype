@@ -1164,7 +1164,7 @@ function toggleMsStatus(el) {
     el.classList.remove('completed', 'pending');
     if (isCompleted) {
         el.classList.add('pending');
-        el.textContent = `${icon('circle', {size: 10})} 未完成`;
+        el.innerHTML = `${icon('circle', {size: 10})} 未完成`;
     } else {
         el.classList.add('completed');
         el.innerHTML = `${icon('check', {size: 14})} 已完成`;
