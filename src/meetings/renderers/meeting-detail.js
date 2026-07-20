@@ -256,9 +256,11 @@ function renderActionItem(m, a, idx, arr) {
   if (sourceAgenda) sourceTags.push(`${icon('clipboardText', {size: 14})} ${escapeHtml((sourceAgenda.title || '议题').slice(0, 16))}`);
   if (sourceDecision) sourceTags.push(`${icon('clipboardText', {size: 14})} ${escapeHtml((sourceDecision.content || '决议').slice(0, 16))}`);
 
-  const progressRow = a.progressNote || sourceTags.length
+  const hasLogs = Array.isArray(a.progressLogs) && a.progressLogs.length > 0;
+  const progressRow = a.progressNote || sourceTags.length || hasLogs
     ? `<div style="margin-top: 4px; font-size: 11px; color: var(--text-tertiary); padding-left: 24px; display: flex; gap: 10px; flex-wrap: wrap;">
         ${a.progressNote ? `<span>${icon('fileText', {size: 14})} ${escapeHtml(a.progressNote)}</span>` : ''}
+        ${hasLogs ? `<span title="有跟进记录">${icon('arrowsClockwise', {size: 14})} ${a.progressLogs.length} 条记录</span>` : ''}
         ${sourceTags.map((t) => `<span>${t}</span>`).join('')}
       </div>`
     : '';

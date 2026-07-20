@@ -110,7 +110,7 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
         const raw = localStorage.getItem('dste_meetings');
         if (!raw) return;
         const meetings = JSON.parse(raw);
-        const prefixes = ['状态切换测试_', '进度说明测试_', '详情页进度测试_', '详情页进度说明_', '标签页已完成测试_', '标签页全部测试_', '逾期催办测试_'];
+        const prefixes = ['状态切换测试_', '进度说明测试_', '详情页进度测试_', '详情页进度说明_', '标签页已完成测试_', '标签页全部测试_', '逾期催办测试_', '刷新持久化测试_', '跟进记录测试_'];
         let changed = false;
         meetings.forEach(m => {
           if (!Array.isArray(m.actions)) return;
@@ -257,6 +257,61 @@ test.describe.serial('Pending Actions Drawer - Write Operations', () => {
     // 抽屉刷新后显示已催办徽章
     const refreshedCard = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
     await expect(refreshedCard).toContainText('已催办 1 次');
+  });
+
+  test('progress note persists after page refresh', async ({ page }) => {
+    const testContent = '刷新持久化测试_' + Date.now();
+    const testNote = '刷新后应仍存在_' + Date.now();
+    await createTestAction(page, testContent);
+
+    await page.locator('[data-stat="pending-actions"]').click();
+    const drawer = page.locator('#pending-actions-drawer');
+    await expect(drawer).toBeVisible();
+
+    const card = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
+    await expect(card).toBeVisible();
+
+    await card.locator('button[data-action-edit]').click();
+    await card.locator('textarea[data-action-note-input]').fill(testNote);
+    await card.locator('button[data-action-save]').click();
+    await expect(card.locator('[data-action-note]')).toContainText(testNote);
+
+    await card.locator('select[data-action-status]').selectOption('completed');
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(800);
+
+    await page.locator('[data-stat="pending-actions"]').click();
+    await drawer.locator('button:has-text("已完成")').click();
+    const completedCard = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
+    await expect(completedCard).toBeVisible();
+    await expect(completedCard).toContainText(testNote);
+    await expect(completedCard).toContainText('跟进记录');
+  });
+
+  test('progress logs show follow-up records after multiple edits', async ({ page }) => {
+    const testContent = '跟进记录测试_' + Date.now();
+    const note1 = '第一次跟进_' + Date.now();
+    const note2 = '第二次跟进_' + Date.now();
+    await createTestAction(page, testContent);
+
+    await page.locator('[data-stat="pending-actions"]').click();
+    const drawer = page.locator('#pending-actions-drawer');
+    const card = drawer.locator('[data-pending-action]').filter({ hasText: testContent }).first();
+    await expect(card).toBeVisible();
+
+    await card.locator('button[data-action-edit]').click();
+    await card.locator('textarea[data-action-note-input]').fill(note1);
+    await card.locator('button[data-action-save]').click();
+
+    await card.locator('button[data-action-edit]').click();
+    await card.locator('textarea[data-action-note-input]').fill(note2);
+    await card.locator('button[data-action-save]').click();
+
+    await expect(card).toContainText('跟进记录');
+    await expect(card).toContainText(note1);
+    await expect(card).toContainText(note2);
   });
 
   test.skip('canceling reminder does not change state', async ({ page }) => {

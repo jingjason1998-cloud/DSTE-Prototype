@@ -13,6 +13,10 @@ const FILTER_TABS = [
   { key: 'all', label: '全部' },
 ];
 
+function escapeHtml(s) {
+  return window.escapeHtml ? window.escapeHtml(s) : (s || '');
+}
+
 function matchesActionFilter(a, filter) {
   if (filter === 'all') return true;
   if (filter === 'completed') return a.status === 'completed';
@@ -30,6 +34,40 @@ function formatCompletedAt(iso) {
   }
 }
 
+function formatLogTime(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
+}
+
+function renderProgressLogs(a) {
+  const logs = Array.isArray(a.progressLogs) ? a.progressLogs : [];
+  const entries = logs.length > 0
+    ? [...logs].reverse()
+    : (a.progressNote ? [{ content: a.progressNote, createdAt: a.updatedAt || a.completedAt || '' }] : []);
+
+  if (entries.length === 0) return '';
+
+  return `
+    <div style="margin-top: 8px; border-top: 1px dashed var(--border-light); padding-top: 8px;">
+      <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 6px;">
+        ${icon('arrowsClockwise', {size: 12})} 跟进记录
+      </div>
+      ${entries.map(log => `
+        <div style="display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">
+          <span style="color: var(--text-tertiary); flex-shrink: 0;">${formatLogTime(log.createdAt)}</span>
+          <span style="flex: 1;">${escapeHtml(log.content)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderPendingActionsTabs(currentFilter) {
   return `
     <div style="display: flex; gap: 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 12px;">
@@ -45,7 +83,6 @@ function renderPendingActionsTabs(currentFilter) {
 
 function renderPendingActionsList(meetingsData, filter = 'pending') {
   const getActionStatusConfig = window.getActionStatusConfig || ((status) => ({ color: 'var(--text-tertiary)', label: status }));
-  const escapeHtml = window.escapeHtml || ((s) => s || '');
   const escapeJsString = window.escapeJsString || ((s) => String(s || '').replace(/'/g, "\\'").replace(/"/g, '\\"'));
 
   const items = (meetingsData || []).flatMap(m =>
@@ -110,6 +147,7 @@ function renderPendingActionsList(meetingsData, filter = 'pending') {
           <button type="button" data-action-save="${i}" onclick="saveActionProgressNote('${escapeJsString(a.meetingId)}', ${a.actionIdx})" style="font-size: 11px; padding: 3px 10px; border: none; border-radius: 4px; background: var(--primary); color: #fff; cursor: pointer;">保存</button>
         </div>
       </div>
+      ${renderProgressLogs(a)}
     </div>
   `;}).join('');
 }

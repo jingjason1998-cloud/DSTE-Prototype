@@ -437,6 +437,49 @@ describe('meetings data-store', () => {
       expect(a.riskLevel).toBe('normal');
     });
 
+    it('preserves progressNote and seeds progressLogs from existing note', () => {
+      window._meetingsData = [{
+        id: 'm1',
+        agenda_items: [],
+        decisions: [],
+        actions: [{
+          content: 'A1',
+          owner: 'O1',
+          progressNote: 'existing follow-up note',
+          updatedAt: '2026-01-15T08:00:00.000Z',
+        }],
+      }];
+
+      migrateMeetingsData();
+
+      const a = getMeetings()[0].actions[0];
+      expect(a.progressNote).toBe('existing follow-up note');
+      expect(a.progressLogs).toEqual([{
+        content: 'existing follow-up note',
+        createdAt: '2026-01-15T08:00:00.000Z',
+      }]);
+    });
+
+    it('preserves existing progressLogs', () => {
+      window._meetingsData = [{
+        id: 'm1',
+        agenda_items: [],
+        decisions: [],
+        actions: [{
+          content: 'A1',
+          owner: 'O1',
+          progressNote: 'latest note',
+          progressLogs: [{ content: 'older note', createdAt: '2026-01-01T00:00:00.000Z' }],
+        }],
+      }];
+
+      migrateMeetingsData();
+
+      const a = getMeetings()[0].actions[0];
+      expect(a.progressNote).toBe('latest note');
+      expect(a.progressLogs).toEqual([{ content: 'older note', createdAt: '2026-01-01T00:00:00.000Z' }]);
+    });
+
     it('normalizes empty placeholder actions and returns true', () => {
       window._meetingsData = [{
         id: 'm1',

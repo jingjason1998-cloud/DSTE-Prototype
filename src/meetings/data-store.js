@@ -600,28 +600,40 @@ export function migrateMeetingsData() {
       const beforeCount = m.actions.length;
       m.actions = m.actions
         .filter(a => (a.content || '').trim() || (a.owner || '').trim())
-        .map(a => ({
-          id: a.id || ('A' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
-          content: a.content || '',
-          owner: a.owner || '',
-          deadline: a.deadline || '',
-          status: a.status || 'pending',
-          progress: typeof a.progress === 'number' ? a.progress : 0,
-          sourceAgendaId: a.sourceAgendaId || '',
-          sourceDecisionId: a.sourceDecisionId || '',
-          sourceMeetingId: a.sourceMeetingId || m.id || '',
-          sourceMeetingTitle: a.sourceMeetingTitle || m.title || '',
-          assistants: Array.isArray(a.assistants) ? a.assistants : [],
-          acceptanceCriteria: a.acceptanceCriteria || '',
-          verificationView: a.verificationView || '',
-          progressLogs: Array.isArray(a.progressLogs) ? a.progressLogs : [],
-          riskLevel: a.riskLevel || 'normal',
-          reminderCount: a.reminderCount || 0,
-          lastRemindedAt: a.lastRemindedAt || null,
-          createdAt: a.createdAt || new Date().toISOString(),
-          updatedAt: a.updatedAt || new Date().toISOString(),
-          completedAt: a.completedAt || null,
-        }));
+        .map(a => {
+          const progressNote = a.progressNote || '';
+          const progressLogs = Array.isArray(a.progressLogs) ? [...a.progressLogs] : [];
+          // 将已有 progressNote 迁移为第一条跟进记录，避免历史数据丢失
+          if (progressNote && progressLogs.length === 0) {
+            progressLogs.push({
+              content: progressNote,
+              createdAt: a.updatedAt || a.createdAt || new Date().toISOString(),
+            });
+          }
+          return {
+            id: a.id || ('A' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
+            content: a.content || '',
+            owner: a.owner || '',
+            deadline: a.deadline || '',
+            status: a.status || 'pending',
+            progress: typeof a.progress === 'number' ? a.progress : 0,
+            progressNote,
+            sourceAgendaId: a.sourceAgendaId || '',
+            sourceDecisionId: a.sourceDecisionId || '',
+            sourceMeetingId: a.sourceMeetingId || m.id || '',
+            sourceMeetingTitle: a.sourceMeetingTitle || m.title || '',
+            assistants: Array.isArray(a.assistants) ? a.assistants : [],
+            acceptanceCriteria: a.acceptanceCriteria || '',
+            verificationView: a.verificationView || '',
+            progressLogs,
+            riskLevel: a.riskLevel || 'normal',
+            reminderCount: a.reminderCount || 0,
+            lastRemindedAt: a.lastRemindedAt || null,
+            createdAt: a.createdAt || new Date().toISOString(),
+            updatedAt: a.updatedAt || new Date().toISOString(),
+            completedAt: a.completedAt || null,
+          };
+        });
       if (m.actions.length !== beforeCount) cleanedAny = true;
     }
   });

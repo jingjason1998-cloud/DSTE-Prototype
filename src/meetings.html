@@ -1464,23 +1464,28 @@
           const textarea = document.getElementById('action-note-input-' + meetingId + '-' + actionIdx);
           const note = textarea ? textarea.value.trim() : '';
           const a = m.actions[actionIdx];
-          a.progressNote = note;
-          a.updatedAt = new Date().toISOString();
-          persistMeetings();
-          // 最小化更新展示区域，避免整页刷新
-          const display = document.getElementById('action-note-display-' + meetingId + '-' + actionIdx);
-          if (display) {
-            const noteDiv = display.querySelector('div');
-            if (noteDiv) {
-              if (note) {
-                noteDiv.textContent = note;
-                noteDiv.style.color = 'var(--text-secondary)';
-              } else {
-                noteDiv.textContent = '暂无更新说明';
-                noteDiv.style.color = 'var(--text-tertiary)';
-              }
-            }
+          const oldNote = a.progressNote || '';
+
+          if (note === oldNote) {
+            window.cancelActionNoteEdit(meetingId, actionIdx);
+            return;
           }
+
+          const now = new Date().toISOString();
+          if (!Array.isArray(a.progressLogs)) a.progressLogs = [];
+
+          // 将已有 progressNote 迁移为第一条跟进记录，避免历史数据丢失
+          if (a.progressLogs.length === 0 && oldNote) {
+            a.progressLogs.push({ content: oldNote, createdAt: a.updatedAt || a.createdAt || now });
+          }
+
+          a.progressLogs.push({ content: note, createdAt: now });
+          a.progressNote = note;
+          a.updatedAt = now;
+
+          persistMeetings();
+          // 重新渲染列表，使最新的跟进记录立即可见
+          window.refreshPendingActionsList();
           window.cancelActionNoteEdit(meetingId, actionIdx);
           showToast('已保存', 'success');
         };
