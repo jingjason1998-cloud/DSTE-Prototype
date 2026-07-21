@@ -174,6 +174,22 @@ function refreshPendingActionsList() {
   const meetings = getMeetings();
   list.innerHTML = renderPendingActionsList(meetings, filter);
   if (title) title.innerHTML = getPendingActionsTitle(filter, meetings);
+
+  const target = window._pendingActionsTarget;
+  if (target) {
+    const targetEl = list.querySelector(`[data-meeting-id="${target.meetingId}"][data-action-idx="${target.actionIdx}"]`);
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetEl.style.transition = 'background 0.3s, box-shadow 0.3s';
+      targetEl.style.background = 'var(--primary-light)';
+      targetEl.style.boxShadow = '0 0 0 2px var(--primary)';
+      setTimeout(() => {
+        targetEl.style.background = '';
+        targetEl.style.boxShadow = '';
+      }, 2000);
+    }
+    window._pendingActionsTarget = null;
+  }
 }
 
 function switchPendingActionsTab(filter) {

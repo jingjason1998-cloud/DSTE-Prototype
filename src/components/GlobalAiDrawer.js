@@ -10,6 +10,7 @@
 import { icon, hydrateIcons } from '../../assets/js/icons.js';
 import { AIClient, AITools } from '../lib/ai-client.js';
 import { buildSystemPrompt, buildPageContext, getContextSummary } from '../lib/ai-context.js';
+import { renderMarkdownLite } from '../lib/markdown-lite.js';
 import { updateAiDrawerToggleActive } from '../lib/shell.js';
 
 const DRAWER_WIDTH = 420;
@@ -151,72 +152,8 @@ function ensureDrawer() {
       flex-wrap: wrap;
       margin-bottom: 10px;
     }
-    .global-ai-drawer-quick button {
-      padding: 5px 10px;
-      border: 1px solid var(--border-color, var(--color-border-default));
-      border-radius: 12px;
-      background: var(--bg-page, var(--color-bg-page));
-      color: var(--text-secondary, var(--color-text-secondary));
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .global-ai-drawer-quick button:hover {
-      background: var(--bg-hover, var(--color-bg-hover));
-      color: var(--text-primary, var(--color-text-primary));
-    }
-    .global-ai-drawer-input-row {
-      display: flex;
-      gap: 8px;
-    }
-    .global-ai-drawer-input-row input {
-      flex: 1;
-      padding: 9px 12px;
-      border: 1px solid var(--border-color, var(--color-border-default));
-      border-radius: 6px;
-      background: var(--bg-card, var(--color-bg-surface));
-      color: var(--text-primary, var(--color-text-primary));
-      font-size: 13px;
-    }
-    .global-ai-drawer-input-row button {
-      padding: 9px 16px;
-      border: none;
-      border-radius: 6px;
-      background: var(--primary, var(--color-primary));
-      color: #fff;
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .global-ai-drawer-input-row button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .global-ai-message { display: flex; gap: 10px; margin-bottom: 16px; }
-    .global-ai-message.user { flex-direction: row-reverse; }
-    .global-ai-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: none;
-      background: var(--bg-hover, var(--color-bg-hover));
-      color: var(--text-secondary, var(--color-text-secondary));
-    }
-    .global-ai-message.assistant .global-ai-avatar { background: var(--primary-light, var(--color-primary-subtle)); color: var(--primary, var(--color-primary)); }
-    .global-ai-content {
-      max-width: calc(100% - 42px);
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: var(--bg-page, var(--color-bg-page));
-      color: var(--text-primary, var(--color-text-primary));
-      font-size: 13px;
-      line-height: 1.6;
-      word-break: break-word;
-    }
-    .global-ai-message.user .global-ai-content { background: var(--primary, var(--color-primary)); color: #fff; }
     .global-ai-welcome ul { margin: 8px 0; padding-left: 18px; }
-    .global-ai-thinking { display: flex; align-items: center; gap: 10px; color: var(--text-secondary, var(--color-text-secondary)); font-size: 12px; }
-    .global-ai-spin { width: 14px; height: 14px; border: 2px solid var(--border-color, var(--color-border-default)); border-top-color: var(--primary, var(--color-primary)); border-radius: 50%; animation: global-ai-spin 0.8s linear infinite; }
-    @keyframes global-ai-spin { to { transform: rotate(360deg); } }
 
     .ai-drawer-open .content-area { padding-right: ${DRAWER_WIDTH}px; }
     .ai-drawer-open #meeting-detail-overlay,
@@ -251,9 +188,9 @@ function ensureDrawer() {
       <div class="global-ai-drawer-messages" id="global-ai-messages"></div>
       <div class="global-ai-drawer-footer">
         <div class="global-ai-drawer-quick" id="global-ai-quick"></div>
-        <div class="global-ai-drawer-input-row">
+        <div class="global-ai-drawer-input-row dste-ai-composer">
           <input type="text" id="global-ai-input" placeholder="输入你的问题，例如：Q1 营收差距的根因是什么？" />
-          <button type="button" id="global-ai-send">发送</button>
+          <button type="button" id="global-ai-send" class="dste-ai-send-btn" aria-label="发送" disabled>${icon('arrowUp', { size: 16 })}</button>
         </div>
       </div>
     </div>
@@ -265,15 +202,15 @@ function ensureDrawer() {
 
 function bindDrawerEvents(drawer) {
   drawer.addEventListener('click', (e) => {
-    if (e.target.id === 'global-ai-close') {
+    if (e.target.id === 'global-ai-close' || e.target.closest('#global-ai-close')) {
       closeGlobalAiDrawer();
       return;
     }
-    if (e.target.id === 'global-ai-send') {
+    if (e.target.id === 'global-ai-send' || e.target.closest('#global-ai-send')) {
       sendMessage();
       return;
     }
-    if (e.target.id === 'global-ai-new-session') {
+    if (e.target.id === 'global-ai-new-session' || e.target.closest('#global-ai-new-session')) {
       createNewSession();
       return;
     }
@@ -292,6 +229,13 @@ function bindDrawerEvents(drawer) {
     if (e.target.id === 'global-ai-input' && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  });
+
+  drawer.addEventListener('input', (e) => {
+    if (e.target.id === 'global-ai-input') {
+      const sendBtn = document.getElementById('global-ai-send');
+      if (sendBtn) sendBtn.disabled = !e.target.value.trim() || _loading;
     }
   });
 
@@ -341,16 +285,16 @@ function renderQuickActions() {
   const container = document.getElementById('global-ai-quick');
   if (!container) return;
   container.innerHTML = suggestions.map((s) => `
-    <button type="button" data-ai-prompt="${escapeHtml(s)}">${escapeHtml(s)}</button>
+    <button type="button" class="dste-ai-chip" data-ai-prompt="${escapeHtml(s)}">${escapeHtml(s)}</button>
   `).join('');
 }
 
 function renderWelcome() {
   return `
-    <div class="global-ai-message assistant">
-      <div class="global-ai-avatar">${icon('robot', { size: 14 })}</div>
-      <div class="global-ai-content global-ai-welcome">
-        <strong>AI 战略助手</strong>
+    <div class="global-ai-message assistant dste-ai-msg assistant">
+      <div class="global-ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>
+      <div class="global-ai-content global-ai-welcome dste-ai-bubble dste-ai-md">
+        <p><strong>AI 战略助手</strong></p>
         <p>你好！我是 DSTE 战略助手，可以帮你：</p>
         <ul>
           <li>分析 KPI 达成情况与差距根因</li>
@@ -366,12 +310,13 @@ function renderWelcome() {
 function renderMessage(msg) {
   if (msg.role === 'welcome') return renderWelcome();
   const isUser = msg.role === 'user';
-  const avatar = isUser ? icon('user', { size: 14 }) : icon('robot', { size: 14 });
-  const content = nl2br(escapeHtml(msg.content || ''));
+  const content = isUser
+    ? nl2br(escapeHtml(msg.content || ''))
+    : renderMarkdownLite(msg.content || '');
   return `
-    <div class="global-ai-message ${isUser ? 'user' : 'assistant'}">
-      <div class="global-ai-avatar">${avatar}</div>
-      <div class="global-ai-content">${content}</div>
+    <div class="global-ai-message ${isUser ? 'user' : 'assistant'} dste-ai-msg ${isUser ? 'user' : 'assistant'}">
+      ${isUser ? '' : `<div class="global-ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>`}
+      <div class="global-ai-content dste-ai-bubble${isUser ? '' : ' dste-ai-md'}">${content}</div>
     </div>
   `;
 }
@@ -395,11 +340,10 @@ function renderMessages() {
 
   if (_loading) {
     html += `
-      <div class="global-ai-message assistant">
-        <div class="global-ai-avatar">${icon('robot', { size: 14 })}</div>
-        <div class="global-ai-content global-ai-thinking">
-          <span class="global-ai-spin"></span>
-          <span>AI 思考中…</span>
+      <div class="global-ai-message assistant dste-ai-msg assistant">
+        <div class="global-ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>
+        <div class="global-ai-content global-ai-thinking dste-ai-bubble">
+          <span class="dste-ai-thinking">正在思考…</span>
         </div>
       </div>
     `;
@@ -464,7 +408,7 @@ export async function sendMessage(text) {
     console.error('[GlobalAI] send message error:', err);
   } finally {
     _loading = false;
-    if (sendBtn) sendBtn.disabled = false;
+    if (sendBtn) sendBtn.disabled = !(input && input.value.trim());
     renderMessages();
   }
 }

@@ -97,11 +97,12 @@ test.describe('Page Content', () => {
     await expect(page.locator('.page-content')).toContainText('Road Map');
   });
 
-  test('rule engine placeholder accessible from sidebar', async ({ page }) => {
+  test('rule engine page accessible from sidebar', async ({ page }) => {
     await page.goto('/src/cockpit.html');
     await page.locator('.sidebar-item[data-page="admin/rule-engine"]').click();
-    await expect(page.locator('.page-content')).toContainText('规则引擎中心');
-    await expect(page.locator('.page-content')).toContainText('预算、基线、核算、薪酬激励与预警规则');
+    await page.waitForURL(/rule-engine\.html/);
+    await expect(page.locator('.re-page-title')).toContainText('规则引擎中心');
+    await expect(page.locator('.re-rule-grid')).toBeVisible();
   });
 
   test('alert hub placeholder accessible from sidebar', async ({ page }) => {

@@ -163,6 +163,39 @@ describe('employee-directory', () => {
       expect(ref.name).toBe('张三');
     });
 
+    it('resolves string employee id to PersonRef', () => {
+      saveEmployeeDirectory([
+        buildEmployeeFromRow({
+          '工号': '66041525', '姓名': '张三', '英文名': 'Zhang.San', '组织全称': '线-大区-A组',
+          '一级组织': '线', '一级团队': '大区', '二级团队': 'A组', '三级团队': '',
+          'ldap': '1,2,3', '直接负责人': '',
+        }),
+      ], { fileName: 'test.xlsx' });
+
+      const ref = normalizePerson('66041525');
+      expect(ref.id).toBe('66041525');
+      expect(ref.name).toBe('张三');
+    });
+
+    it('resolves numeric employee id to PersonRef when stored as number', () => {
+      saveEmployeeDirectory([
+        {
+          id: 57968473,
+          name: '李四',
+          displayName: '李四 (Li.Si)',
+          orgPath: '线 > 大区',
+          orgChain: [],
+          ldap: '',
+          searchTokens: [],
+        },
+      ], { fileName: 'test.xlsx' });
+
+      expect(getEmployeeById('57968473').name).toBe('李四');
+      expect(renderPerson('57968473')).toBe('李四 (Li.Si)');
+      const ref = normalizePerson('57968473');
+      expect(ref.name).toBe('李四');
+    });
+
     it('marks unknown string as legacy', () => {
       const ref = normalizePerson('不存在的人');
       expect(ref._legacy).toBe(true);

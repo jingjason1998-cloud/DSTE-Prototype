@@ -18,6 +18,7 @@ import { renderAiAgendaInto } from './AiAgendaDrawer.js';
 import { icon } from '../../../assets/js/icons.js';
 import { AIClient, AITools } from '../../lib/ai-client.js';
 import { gatherBusinessContext, formatContextForAI } from '../../lib/ai-context.js';
+import { renderMarkdownLite } from '../../lib/markdown-lite.js';
 
 let _aiMessages = [];
 let _aiLoading = false;
@@ -111,34 +112,40 @@ function renderWelcomeMessage() {
   const isGlobal = !_currentMeetingForAi;
   const suggestions = isGlobal ? GLOBAL_SUGGESTIONS : SUGGESTIONS;
   const chips = suggestions.map(
-    (s) => `<span class="meeting-ai-suggestion" onclick="askMeetingAi('${escapeHtmlLocal(s)}')">${escapeHtmlLocal(s)}</span>`
+    (s) => `<span class="meeting-ai-suggestion dste-ai-chip" onclick="askMeetingAi('${escapeHtmlLocal(s)}')">${escapeHtmlLocal(s)}</span>`
   ).join('');
 
   if (isGlobal) {
     return `
-      <div class="ai-message assistant">
-        <div>${icon('handWave', {size: 14})} 你好！我是你的经营分析会 AI 助手。当前为全局视图，我可以帮你：</div>
-        <ul style="margin: 8px 0; padding-left: 18px; line-height: 1.7;">
-          <li>了解会议整体情况与待办分布</li>
-          <li>汇总决议执行与行动项闭环</li>
-          <li>按场景/月份筛选会议并生成摘要</li>
-          <li>起草经营分析会周报或汇报材料</li>
-        </ul>
-        <div class="ai-suggestions">${chips}</div>
+      <div class="ai-message assistant dste-ai-msg assistant">
+        <div class="dste-ai-avatar">${icon('robot', {size: 14})}</div>
+        <div class="dste-ai-bubble dste-ai-md">
+          <p>${icon('handWave', {size: 14})} 你好！我是你的经营分析会 AI 助手。当前为全局视图，我可以帮你：</p>
+          <ul>
+            <li>了解会议整体情况与待办分布</li>
+            <li>汇总决议执行与行动项闭环</li>
+            <li>按场景/月份筛选会议并生成摘要</li>
+            <li>起草经营分析会周报或汇报材料</li>
+          </ul>
+          <div class="ai-suggestions">${chips}</div>
+        </div>
       </div>
     `;
   }
 
   return `
-    <div class="ai-message assistant">
-      <div>${icon('handWave', {size: 14})} 你好！我是你的会议 AI 助手。我可以帮你：</div>
-      <ul style="margin: 8px 0; padding-left: 18px; line-height: 1.7;">
-        <li>总结会议议程与重点</li>
-        <li>提炼纪要要点</li>
-        <li>追踪行动项闭环</li>
-        <li>梳理决议状态</li>
-      </ul>
-      <div class="ai-suggestions">${chips}</div>
+    <div class="ai-message assistant dste-ai-msg assistant">
+      <div class="dste-ai-avatar">${icon('robot', {size: 14})}</div>
+      <div class="dste-ai-bubble dste-ai-md">
+        <p>${icon('handWave', {size: 14})} 你好！我是你的会议 AI 助手。我可以帮你：</p>
+        <ul>
+          <li>总结会议议程与重点</li>
+          <li>提炼纪要要点</li>
+          <li>追踪行动项闭环</li>
+          <li>梳理决议状态</li>
+        </ul>
+        <div class="ai-suggestions">${chips}</div>
+      </div>
     </div>
   `;
 }
@@ -149,11 +156,15 @@ function renderMessage(msg) {
   }
   const cls = msg.role === 'user' ? 'user' : 'assistant';
   // 用户消息：纯文本，转义 HTML 防注入。
-  // 助手消息：视为可信 HTML（允许 icon() 嵌入的 SVG），动态片段在生成 content 时已逐一 escape。
+  // 助手消息：LLM 纯文本回复(msg.md)走 markdown-lite 渲染；
+  // 本地降级回复视为可信 HTML（允许 icon() 嵌入的 SVG），动态片段在生成 content 时已逐一 escape。
   const body = msg.role === 'user'
     ? nl2br(escapeHtmlLocal(msg.content))
-    : nl2br(msg.content || '');
-  return `<div class="ai-message ${cls}">${body}</div>`;
+    : (msg.md ? renderMarkdownLite(msg.content || '') : nl2br(msg.content || ''));
+  if (msg.role === 'user') {
+    return `<div class="ai-message user dste-ai-msg user"><div class="dste-ai-bubble">${body}</div></div>`;
+  }
+  return `<div class="ai-message assistant dste-ai-msg assistant"><div class="dste-ai-avatar">${icon('robot', {size: 14})}</div><div class="dste-ai-bubble${msg.md ? ' dste-ai-md' : ''}">${body}</div></div>`;
 }
 
 function renderAiTabBar() {
@@ -180,10 +191,9 @@ function renderChatMessages() {
 
   if (_aiLoading) {
     html += `
-      <div class="ai-message assistant" style="display: flex; align-items: center; gap: 10px;">
-        <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: meeting-ai-spin 0.8s linear infinite;"></span>
-        <span style="font-size: 12px; color: var(--text-secondary);">AI 思考中...</span>
-        <style>@keyframes meeting-ai-spin { to { transform: rotate(360deg); } }</style>
+      <div class="ai-message assistant dste-ai-msg assistant">
+        <div class="dste-ai-avatar">${icon('robot', {size: 14})}</div>
+        <div class="dste-ai-bubble"><span class="dste-ai-thinking">正在思考…</span></div>
       </div>
     `;
   }
@@ -212,6 +222,8 @@ function renderMessages() {
   } else if (_activeAiTab === 'agenda') {
     renderAiAgendaInto('meeting-ai-agenda-content');
   }
+
+  updateMeetingAiSendState();
 }
 
 function switchAiTab(tab) {
@@ -408,8 +420,9 @@ async function streamAiResponse(text) {
     });
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
-      // AI 返回为纯文本，转义后渲染（保留 \n，由 renderMessage 的 nl2br 换行）
-      lastMsg.content = result.content ? escapeHtmlLocal(result.content) : 'AI 未返回有效回复';
+      // AI 返回为纯文本，交由 renderMessage 的 markdown-lite 渲染（内部已 escape）
+      lastMsg.content = result.content || 'AI 未返回有效回复';
+      lastMsg.md = true;
     }
 
     // 收集需要用户确认的草案
@@ -534,7 +547,7 @@ function renderDraftCards() {
     if (draft.type === 'actionItem' && draft.data) {
       const item = draft.data;
       return `
-        <div class="ai-draft-card" style="margin: 10px 0; padding: 12px; border: 1px dashed var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 6%, transparent);">
+        <div class="ai-draft-card dste-ai-draft-card">
           <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">${icon('fileText', {size: 14})} AI 草拟行动项（待确认）</div>
           <div style="font-size: 12px; color: var(--text-primary); line-height: 1.6;">
             <div><strong>内容：</strong>${escapeHtmlLocal(item.content)}</div>
@@ -552,7 +565,7 @@ function renderDraftCards() {
     if (draft.type === 'meeting' && draft.data) {
       const m = draft.data;
       return `
-        <div class="ai-draft-card" style="margin: 10px 0; padding: 12px; border: 1px dashed var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 6%, transparent);">
+        <div class="ai-draft-card dste-ai-draft-card">
           <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">${icon('fileText', {size: 14})} AI 草拟会议（待确认）</div>
           <div style="font-size: 12px; color: var(--text-primary); line-height: 1.6;">
             <div><strong>标题：</strong>${escapeHtmlLocal(m.title)}</div>
@@ -601,6 +614,13 @@ function handleMeetingAiKey(e) {
   }
 }
 
+function updateMeetingAiSendState() {
+  const input = document.getElementById('meeting-ai-input');
+  const btn = document.querySelector('.meeting-ai-send');
+  if (!input || !btn) return;
+  btn.disabled = !input.value.trim() || _aiLoading;
+}
+
 function refreshMeetingAiAssistant() {
   if (!document.body.classList.contains('meeting-ai-open')) return;
   initMeetingAiState();
@@ -618,6 +638,7 @@ window.closeMeetingAiAssistant = closeMeetingAiAssistant;
 window.sendMeetingAiMessage = sendMeetingAiMessage;
 window.askMeetingAi = askMeetingAi;
 window.handleMeetingAiKey = handleMeetingAiKey;
+window.updateMeetingAiSendState = updateMeetingAiSendState;
 window.switchAiTab = switchAiTab;
 window.refreshMeetingAiAssistant = refreshMeetingAiAssistant;
 window.confirmAiDraft = confirmAiDraft;

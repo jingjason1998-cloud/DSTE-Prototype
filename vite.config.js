@@ -24,6 +24,7 @@ export default defineConfig({
         'strategy-map-list': resolve(__dirname, 'src/strategy-map-list.html'),
         'employee-directory': resolve(__dirname, 'src/employee-directory.html'),
         'requirement-pool': resolve(__dirname, 'src/requirement-pool.html'),
+        'rule-engine': resolve(__dirname, 'src/rule-engine.html'),
         'at-issue-tracking': resolve(__dirname, 'src/at-issue-tracking.html'),
         'st-issue-tracking': resolve(__dirname, 'src/st-issue-tracking.html'),
       },

@@ -326,7 +326,7 @@ function analyzeWithAI(btn) {
   // 显示分析中状态
   if (summaryEl) {
     summaryEl.style.display = 'block';
-    summaryEl.innerHTML = '<span class="req-ai-analyzing">AI 正在分析需求</span>';
+    summaryEl.innerHTML = '<span class="req-ai-analyzing dste-ai-thinking">AI 正在分析需求…</span>';
   }
   btn.disabled = true;
   btn.innerHTML = `${icon('robot', {size: 14})} 分析中...`;

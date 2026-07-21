@@ -125,7 +125,7 @@ describe('meetings data-store', () => {
       window.location.hostname = 'localhost';
       const result = initDataStore();
       expect(result).toEqual([{ id: 'old', title: 'Old', pre_report_id: '', minutes_report_id: '' }]);
-      expect(stored('dste_meetings_version')).toBe(5);
+      expect(stored('dste_meetings_version')).toBe(6);
     });
 
     it('v4 migrator normalizes person fields to PersonRef and chains to v5', () => {
@@ -154,7 +154,7 @@ describe('meetings data-store', () => {
       expect(m.agenda_items[0].reviewScore).toBe(0);
       expect(m.agenda_items[0].reviewReportUrl).toBe('');
       expect(m.agenda_items[0].lastReviewedAt).toBe('');
-      expect(stored('dste_meetings_version')).toBe(5);
+      expect(stored('dste_meetings_version')).toBe(6);
     });
 
     it('v5 migrator initializes material review fields on agenda items', () => {
@@ -169,13 +169,42 @@ describe('meetings data-store', () => {
       expect(a.reviewScore).toBe(0);
       expect(a.reviewReportUrl).toBe('');
       expect(a.lastReviewedAt).toBe('');
-      expect(stored('dste_meetings_version')).toBe(5);
+      expect(stored('dste_meetings_version')).toBe(6);
+    });
+
+    it('v6 migrator fills sourceTaskId/sourceTaskName with null on agenda items missing them', () => {
+      storageMap.set('dste_meetings', JSON.stringify([{
+        id: 'm1', title: 'M1', agenda_items: [{ title: 'G1' }, { title: 'G2', sourceTaskId: null }],
+      }]));
+      storageMap.set('dste_meetings_version', 5);
+      window.location.hostname = 'localhost';
+      const result = initDataStore();
+      const [a1, a2] = result[0].agenda_items;
+      expect(a1.sourceTaskId).toBeNull();
+      expect(a1.sourceTaskName).toBeNull();
+      expect(a2.sourceTaskId).toBeNull();
+      expect(a2.sourceTaskName).toBeNull();
+      expect(stored('dste_meetings_version')).toBe(6);
+    });
+
+    it('v6 migrator preserves existing sourceTaskId/sourceTaskName', () => {
+      storageMap.set('dste_meetings', JSON.stringify([{
+        id: 'm1', title: 'M1',
+        agenda_items: [{ title: 'G1', sourceTaskId: 'task_1', sourceTaskName: '大客户经营能力提升' }],
+      }]));
+      storageMap.set('dste_meetings_version', 5);
+      window.location.hostname = 'localhost';
+      const result = initDataStore();
+      const a = result[0].agenda_items[0];
+      expect(a.sourceTaskId).toBe('task_1');
+      expect(a.sourceTaskName).toBe('大客户经营能力提升');
+      expect(stored('dste_meetings_version')).toBe(6);
     });
 
     it('persists version key on persistMeetings', () => {
       window._meetingsData = [{ id: 'm1', title: 'M1', decisions: [], actions: [] }];
       persistMeetings();
-      expect(stored('dste_meetings_version')).toBe(5);
+      expect(stored('dste_meetings_version')).toBe(6);
     });
   });
 

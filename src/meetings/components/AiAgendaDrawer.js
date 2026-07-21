@@ -271,10 +271,9 @@ function renderPanelFooter() {
 
 function renderLoading() {
   return `
-    <div style="text-align: center; padding: 30px 0; color: var(--text-secondary);">
-      <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: ai-agenda-spin 0.8s linear infinite;"></div>
-      <div style="margin-top: 10px; font-size: 12px;">AI 正在分析会议上下文...</div>
-      <style>@keyframes ai-agenda-spin { to { transform: rotate(360deg); } }</style>
+    <div style="text-align: center; padding: 30px 0;">
+      <span class="dste-ai-thinking">AI 正在分析会议上下文...</span>
+      <div style="margin-top: 10px;"><span class="dste-ai-dots"><span></span><span></span><span></span></span></div>
     </div>
   `;
 }

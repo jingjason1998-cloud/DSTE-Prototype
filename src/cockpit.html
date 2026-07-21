@@ -6,6 +6,7 @@
   <title>DSTE 战略管理平台</title>
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="./styles/shell.css">
+  <link rel="stylesheet" href="./styles/ai-chat.css">
   <style>
     /* ===== cockpit.html 页面级响应式覆盖 ===== */
 
@@ -549,6 +550,7 @@
     import { createOrgSelector } from './components/org-selector.js';
     import { AIClient, AISession, AITools } from './lib/ai-client.js';
     import { buildSystemPrompt, gatherBusinessContext, getContextSummary, registerAiContextProvider } from './lib/ai-context.js';
+    import { renderMarkdownLite } from './lib/markdown-lite.js';
     import {
       isSubtask,
       getSubtasks,
@@ -2182,8 +2184,8 @@
       // ===== 页面内容 =====
       const PAGES = {
         'dashboard': renderDashboard,
-        'dashboard/roadmap': window.renderDevTimeline,
-        'dashboard/version-audit': window.renderVersionAudit,
+        'dashboard/roadmap': () => window.renderDevTimeline(),
+        'dashboard/version-audit': () => window.renderVersionAudit(),
         'sp/strategy-map': () => { window.location.href = 'strategy-map-list.html'; return ''; },
         'sp/insights': renderInsightsPage,
         'sp/strategy-topics': renderStrategyTopicsPage,
@@ -2201,7 +2203,7 @@
         'rev/cadre': () => renderPlaceholder(icon('rev/cadre', { size: 48 }), '干部管理', '干部梯队建设、能力评估、轮岗培养与继任计划。'),
         'rev/review': () => renderPlaceholder(icon('rev/review', { size: 48 }), '战略复盘', '定期战略复盘会议管理，差距分析、经验萃取与改进措施跟踪。'),
         'rev/gap-analysis': () => renderPlaceholder(icon('rev/gap-analysis', { size: 48 }), '差距分析', '战略目标与实际执行的差距分析，根因定位与改进建议。'),
-        'admin/rule-engine': () => renderPlaceholder(icon('admin/rule-engine', { size: 48 }), '规则引擎中心', '统一管理预算、基线、核算、薪酬激励与预警规则的配置、计算、版本与审批。'),
+        'admin/rule-engine': () => { window.location.href = 'rule-engine.html'; return ''; },
         'admin/alert-hub': () => renderPlaceholder(icon('admin/alert-hub', { size: 48 }), '预警中心', '统一接收规则引擎与业务模块的预警事件，进行分级、通知、工单跟踪与闭环管理。'),
         'admin/requirement-pool': () => renderPlaceholder(icon('admin/requirement-pool', { size: 48 }), '需求管理中心', '统一收集、评审、跟踪来自市场、客户、高管与部门的需求，为战略制定与年度经营计划提供输入。')
       };
@@ -2339,6 +2341,10 @@
             // 预加载路线图数据，避免 renderDevTimeline 使用硬编码旧数据
             const roadmapRes = await fetch('/roadmap-data.json');
             window._roadmapData = roadmapRes.ok ? await roadmapRes.json() : null;
+            // 若当前正在 Roadmap 页，用真实数据重新渲染，避免首次展示 fallback
+            if (window.__dsteCurrentPageId === 'dashboard/roadmap') {
+              navigate('dashboard/roadmap', false);
+            }
           } catch (e) {
             console.warn('[init] roadmap data load failed:', e);
             window._roadmapData = null;
@@ -6494,22 +6500,22 @@
               <button onclick="document.getElementById('topic-ai-chat-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);flex-shrink:0;">×</button>
             </div>
             <div id="topic-ai-chat-area" style="flex:1;overflow-y:auto;padding:16px 20px;min-height:260px;">
-              <div class="ai-message bot">
-                <div class="ai-avatar">${icon('robot', { size: 14 })}</div>
-                <div class="ai-message-content">正在从 KMS 提取《${siEscapeHtml(topic.name)}》页面内容，请稍候…</div>
+              <div class="ai-message bot dste-ai-msg assistant">
+                <div class="ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>
+                <div class="ai-message-content dste-ai-bubble"><span class="dste-ai-thinking">正在从 KMS 提取《${siEscapeHtml(topic.name)}》页面内容，请稍候…</span></div>
               </div>
             </div>
             <div style="padding:12px 20px;border-top:1px solid var(--border-color);flex-shrink:0;">
-              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;" id="topic-ai-status">${icon('hourglass', { size: 12 })} 正在提取 KMS 页面…</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;" id="topic-ai-status"><span class="dste-ai-thinking">正在提取 KMS 页面…</span></div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;" id="topic-ai-quick-actions">
-                <button class="btn btn-sm btn-secondary" data-ai-topic-prompt="这个专题的核心结论是什么？">核心结论</button>
-                <button class="btn btn-sm btn-secondary" data-ai-topic-prompt="关键里程碑与时间节点有哪些？">里程碑</button>
-                <button class="btn btn-sm btn-secondary" data-ai-topic-prompt="主要风险与应对措施是什么？">风险与应对</button>
-                <button class="btn btn-sm btn-secondary" data-ai-topic-prompt="这个专题对年度经营计划有什么影响？">经营影响</button>
+                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="这个专题的核心结论是什么？">核心结论</button>
+                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="关键里程碑与时间节点有哪些？">里程碑</button>
+                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="主要风险与应对措施是什么？">风险与应对</button>
+                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="这个专题对年度经营计划有什么影响？">经营影响</button>
               </div>
-              <div style="display:flex;gap:10px;">
-                <input type="text" id="topic-ai-chat-input" placeholder="输入关于该专题的问题，例如：关键举措有哪些？" style="flex:1;padding:10px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--bg-card);color:var(--text-primary);" onkeypress="if(event.key==='Enter') window.siSendTopicAiMessage()">
-                <button class="btn btn-primary" id="topic-ai-chat-send" onclick="window.siSendTopicAiMessage()">发送</button>
+              <div class="dste-ai-composer">
+                <input type="text" id="topic-ai-chat-input" placeholder="输入关于该专题的问题，例如：关键举措有哪些？" onkeypress="if(event.key==='Enter') window.siSendTopicAiMessage()" oninput="document.getElementById('topic-ai-chat-send').disabled=!this.value.trim()">
+                <button class="dste-ai-send-btn" id="topic-ai-chat-send" aria-label="发送" onclick="window.siSendTopicAiMessage()" disabled>${icon('arrowUp', { size: 16 })}</button>
               </div>
             </div>
           </div>
@@ -6548,9 +6554,9 @@
               if (statusEl) statusEl.innerHTML = `${icon('warning', { size: 12 })} KMS 提取失败：${siEscapeHtml(err)}`;
               if (area) {
                 area.innerHTML = `
-                  <div class="ai-message bot">
-                    <div class="ai-avatar">${icon('warning', { size: 14 })}</div>
-                    <div class="ai-message-content">无法提取 KMS 页面内容：${siEscapeHtml(err)}。你可以直接访问上方 KMS 链接查看原文。</div>
+                  <div class="ai-message bot dste-ai-msg assistant">
+                    <div class="ai-avatar dste-ai-avatar">${icon('warning', { size: 14 })}</div>
+                    <div class="ai-message-content dste-ai-bubble">无法提取 KMS 页面内容：${siEscapeHtml(err)}。你可以直接访问上方 KMS 链接查看原文。</div>
                   </div>
                 `;
               }
@@ -6572,11 +6578,11 @@
 
             if (area) {
               area.innerHTML = `
-                <div class="ai-message bot">
-                  <div class="ai-avatar">${icon('robot', { size: 14 })}</div>
-                  <div class="ai-message-content">
-                    已加载专题 <strong>${siEscapeHtml(topic.name)}</strong> 的 KMS 页面《${siEscapeHtml(kmsPage.title || '未命名')}》，共 ${kmsPage.charCount || 0} 字${siEscapeHtml(truncatedTag)}。你可以围绕该专题内容提问，例如：
-                    <ul style="margin:8px 0 0;padding-left:18px;">
+                <div class="ai-message bot dste-ai-msg assistant">
+                  <div class="ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>
+                  <div class="ai-message-content dste-ai-bubble dste-ai-md">
+                    <p>已加载专题 <strong>${siEscapeHtml(topic.name)}</strong> 的 KMS 页面《${siEscapeHtml(kmsPage.title || '未命名')}》，共 ${kmsPage.charCount || 0} 字${siEscapeHtml(truncatedTag)}。你可以围绕该专题内容提问，例如：</p>
+                    <ul>
                       <li>这个专题的核心结论是什么？</li>
                       <li>关键里程碑与时间节点有哪些？</li>
                       <li>主要风险与应对措施是什么？</li>
@@ -6677,7 +6683,7 @@
           console.error('[TopicAI] send message error:', err);
         } finally {
           input.disabled = false;
-          if (sendBtn) sendBtn.disabled = false;
+          if (sendBtn) sendBtn.disabled = !input.value.trim();
           input.focus();
         }
         area.scrollTop = area.scrollHeight;
@@ -8602,11 +8608,12 @@
 
       function appendMessage(area, role, content, options = {}) {
         const el = document.createElement('div');
-        el.className = `ai-message ${role}${options.streaming ? ' ai-streaming' : ''}`;
+        const isUser = role === 'user';
+        el.className = `ai-message ${role} dste-ai-msg ${isUser ? 'user' : 'assistant'}${options.streaming ? ' ai-streaming' : ''}`;
         if (options.id) el.id = options.id;
         el.innerHTML = `
-          <div class="ai-avatar">${role === 'user' ? '<span class="icon" data-icon="user" data-icon-size="14"></span>' : '<span class="icon" data-icon="robot" data-icon-size="14"></span>'}</div>
-          <div class="ai-message-content">${options.streaming ? '' : escapeHtml(content)}</div>
+          ${isUser ? '' : `<div class="ai-avatar dste-ai-avatar"><span class="icon" data-icon="robot" data-icon-size="14"></span></div>`}
+          <div class="ai-message-content dste-ai-bubble">${options.streaming ? '' : escapeHtml(content)}</div>
         `;
         area.appendChild(el);
         area.scrollTop = area.scrollHeight;
@@ -8616,11 +8623,11 @@
       function appendThinking(area) {
         const id = 'ai-thinking-' + Date.now();
         const el = document.createElement('div');
-        el.className = 'ai-message bot ai-thinking';
+        el.className = 'ai-message bot ai-thinking dste-ai-msg assistant';
         el.id = id;
         el.innerHTML = `
-          <div class="ai-avatar"><span class="icon" data-icon="robot" data-icon-size="14"></span></div>
-          <div class="ai-message-content">正在分析战略数据…</div>
+          <div class="ai-avatar dste-ai-avatar"><span class="icon" data-icon="robot" data-icon-size="14"></span></div>
+          <div class="ai-message-content dste-ai-bubble"><span class="dste-ai-thinking">正在分析战略数据…</span></div>
         `;
         area.appendChild(el);
         area.scrollTop = area.scrollHeight;
@@ -8645,7 +8652,10 @@
         if (!el) return;
         el.classList.remove('ai-streaming');
         const contentEl = el.querySelector('.ai-message-content');
-        if (contentEl) contentEl.textContent = content;
+        if (contentEl) {
+          contentEl.innerHTML = renderMarkdownLite(content);
+          contentEl.classList.add('dste-ai-md');
+        }
       }
 
       
@@ -9412,6 +9422,7 @@
         div.textContent = text;
         return div.innerHTML;
       }
+      window.escapeHtml = escapeHtml;
 
       // ===== OMP: 全局事件处理 =====
       window.omp_saveKpi = function() {
@@ -10327,8 +10338,8 @@
 
       ;
 
-      // 启动
-      init();
+      // 启动：等待 DOMContentLoaded，确保 defer 的 dashboard 渲染器脚本已定义 window 函数
+      window.addEventListener('DOMContentLoaded', init);
 
       // 显示版本号
       console.log('DSTE Platform v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'));

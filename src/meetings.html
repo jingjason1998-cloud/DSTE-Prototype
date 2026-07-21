@@ -6,6 +6,7 @@
   <title>DSTE 战略管理平台</title>
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="./styles/shell.css">
+  <link rel="stylesheet" href="./styles/ai-chat.css">
   <style>
     /* ===== cockpit.html 页面级响应式覆盖 ===== */
 
@@ -226,85 +227,11 @@
       flex-shrink: 0;
       background: var(--bg-page);
     }
-    .meeting-ai-input-wrap {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .meeting-ai-input {
-      flex: 1;
-      padding: 8px 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      font-size: 13px;
-      background: var(--bg-page);
-      color: var(--text-primary);
-      outline: none;
-      font-family: inherit;
-    }
-    .meeting-ai-input:focus {
-      border-color: var(--primary);
-    }
-    .meeting-ai-send {
-      padding: 8px 14px;
-      font-size: 13px;
-      border: none;
-      border-radius: 8px;
-      background: var(--primary);
-      color: #fff;
-      cursor: pointer;
-      font-weight: 500;
-    }
-    .meeting-ai-send:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .ai-message {
-      margin-bottom: 14px;
-      padding: 10px 13px;
-      border-radius: 12px;
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--text-primary);
-    }
-    .ai-message.user {
-      background: var(--primary-light);
-      color: var(--primary);
-      margin-left: 24px;
-    }
-    .ai-message.assistant {
-      background: var(--bg-page);
-      border: 1px solid var(--border-light);
-      margin-right: 24px;
-    }
-    .ai-message ul,
-    .ai-message ol {
-      margin: 6px 0;
-      padding-left: 18px;
-    }
-    .ai-message li {
-      margin-bottom: 3px;
-    }
     .ai-suggestions {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 10px;
-    }
-    .meeting-ai-suggestion {
-      padding: 5px 11px;
-      background: var(--bg-page);
-      border: 1px solid var(--border-color);
-      border-radius: 14px;
-      font-size: 12px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .meeting-ai-suggestion:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-      background: var(--primary-light);
     }
     @media (max-width: 520px) {
       .meeting-ai-open .meeting-ai-drawer {
@@ -424,6 +351,7 @@
     import './meetings/renderers/meeting-detail.js';
     import './meetings/renderers/meeting-editor.js';
     import './meetings/renderers/notification-system.js';
+    import './meetings/renderers/todo-panel.js';
     import { renderTopNav, renderSidebar } from './lib/shell.js';
     import { EXTERNAL_PAGES } from './lib/config.js';
     window.__dsteShell = { renderTopNav, renderSidebar, EXTERNAL_PAGES };
@@ -1169,27 +1097,8 @@
           </div>
         `).join('');
 
-        // ---- 待办提醒 ----
-        const todoItems = [];
-        meetings.filter(m => m.status === 'in_progress').forEach(m => {
-          if (!m.pipeline.preReviewDone) todoItems.push({ icon: 'eye', text: `${m.title} 待会前评审`, color: 'var(--warning)' });
-          if (m.pipeline.meetingHeld && !m.hasMinutes) todoItems.push({ icon: 'fileText', text: `${m.title} 待生成纪要`, color: 'var(--warning)' });
-        });
-        meetings.filter(m => m.status === 'planned').forEach(m => {
-          if (!m.pipeline.reportGenerated) todoItems.push({ icon: 'fileText', text: `${m.title} 待生成经营分析报告`, color: 'var(--danger)' });
-        });
-        allActions.filter(a => a.status === 'pending' || a.status === 'in_progress').forEach(a => {
-          const daysLeft = Math.ceil((new Date(a.deadline) - new Date('2026-04-15')) / (1000 * 60 * 60 * 24));
-          if (daysLeft <= 7 && daysLeft > 0) todoItems.push({ icon: 'clock', text: `${a.content} 即将到期（${daysLeft} 天）`, color: 'var(--warning)' });
-        });
-        if (todoItems.length === 0) todoItems.push({ icon: 'check', text: '当前暂无待办事项', color: 'var(--success)' });
-        const todoListHtml = todoItems.map(t => `
-          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 12px; color: var(--text-secondary);">
-            <span style="color: ${t.color}; display: inline-flex;">${icon(t.icon, {size: 14})}</span>
-            <span style="flex: 1;">${t.text}</span>
-            ${t.link ? `<a href="${t.link}" style="color: var(--primary); font-size: 11px; text-decoration: none;">去处理 →</a>` : ''}
-          </div>
-        `).join('');
+        // ---- 待办提醒：由 todo-panel.js 全局聚合 ----
+        const todoPanelHtml = window.renderTodoPanel ? window.renderTodoPanel(meetings) : '';
 
         window.openNewMeeting = function() {
           const newMeeting = {
@@ -1201,7 +1110,7 @@
             pipeline: { reportGenerated: false, preReviewDone: false, meetingHeld: false, minutesDrafted: false, minutesApproved: false, actionsTracked: false },
             meeting_link: '', upstreamMeeting: null, downstreamMeeting: null,
             pre_report_id: '', minutes_report_id: '',
-            agenda_items: [{ id: 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000), type: 'goal_management', title: '', duration: 30, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000), postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [] }],
+            agenda_items: [{ id: 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000), type: 'goal_management', title: '', duration: 30, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000), postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [], sourceTaskId: null, sourceTaskName: null }],
             actions: [], decisions: [], hasMinutes: false, minutesStatus: null, minutes_content: '',
             metrics: { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
             effectiveness: null
@@ -1294,6 +1203,61 @@
           const isHidden = el.style.display === 'none';
           el.style.display = isHidden ? 'block' : 'none';
           toggle.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+        };
+        window.openTodoMeeting = function(meetingId, section, subIndex) {
+          if (section === 'actions') {
+            window.openPendingActionsDrawer(meetingId, subIndex);
+            return;
+          }
+
+          const m = findMeetingById(meetingId);
+          if (!m) return;
+          window.openMeetingDetail(meetingId);
+
+          const detailSectionMap = {
+            minutes: 'detail-minutes',
+            decisions: 'detail-decisions',
+            eval: 'detail-eval',
+            chain: 'detail-chain',
+          };
+          const scrollTargetMap = {
+            prep: 'detail-info-panel',
+            report: 'detail-info-panel',
+            agenda: 'detail-agenda-section',
+            pipeline: 'detail-pipeline-steps',
+          };
+
+          requestAnimationFrame(() => {
+            if (section === 'eval') {
+              const evalEl = document.getElementById('detail-eval');
+              if (!evalEl && typeof window.openMeetingEvalModal === 'function') {
+                window.openMeetingEvalModal(meetingId);
+                return;
+              }
+            }
+
+            if (detailSectionMap[section]) {
+              const el = document.getElementById(detailSectionMap[section]);
+              if (el && el.style.display === 'none') {
+                window.toggleDetailSection(detailSectionMap[section]);
+              }
+            }
+
+            const targetId = detailSectionMap[section] || scrollTargetMap[section];
+            const targetEl = targetId ? document.getElementById(targetId) : null;
+            if (targetEl) {
+              targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            if (subIndex != null && targetEl) {
+              const subEl = targetEl.querySelector(`[data-todo-sub-index="${subIndex}"]`);
+              if (subEl) {
+                subEl.style.transition = 'background 0.3s';
+                subEl.style.background = 'var(--primary-light)';
+                setTimeout(() => { subEl.style.background = ''; }, 1500);
+              }
+            }
+          });
         };
         window.openEditorFromDetail = function() {
           const id = window._currentDetailMeetingId;
@@ -1411,7 +1375,8 @@
         // 抽屉标签页默认过滤状态
         window._pendingActionsFilter = window._pendingActionsFilter || 'pending';
 
-        window.openPendingActionsDrawer = function() {
+        window.openPendingActionsDrawer = function(targetMeetingId, targetActionIdx) {
+          window._pendingActionsTarget = targetMeetingId ? { meetingId: targetMeetingId, actionIdx: targetActionIdx } : null;
           const overlay = document.getElementById('pending-actions-overlay');
           const drawer = document.getElementById('pending-actions-drawer');
           if (overlay) overlay.style.display = 'block';
@@ -1626,7 +1591,7 @@
               <!-- 决议执行趋势已合并到决议中心抽屉（点击顶部「决议总数」查看） -->
               <div class="card">
                 <div class="card-header"><div class="card-title">${icon('notification', {size: 14})} 待办提醒</div></div>
-                <div>${todoListHtml}</div>
+                <div id="global-todo-panel">${todoPanelHtml}</div>
               </div>
             </div>
           </div>
@@ -2472,9 +2437,9 @@
         <!-- 由 AiAgendaDrawer.js 渲染 -->
       </div>
       <div class="meeting-ai-drawer-footer" id="meeting-ai-chat-footer">
-        <div class="meeting-ai-input-wrap">
-          <input type="text" id="meeting-ai-input" class="meeting-ai-input" placeholder="输入你的问题，例如：总结本次会议议程" onkeydown="handleMeetingAiKey(event)" />
-          <button type="button" class="meeting-ai-send" onclick="sendMeetingAiMessage()">发送</button>
+        <div class="meeting-ai-input-wrap dste-ai-composer">
+          <input type="text" id="meeting-ai-input" class="meeting-ai-input" placeholder="输入你的问题，例如：总结本次会议议程" onkeydown="handleMeetingAiKey(event)" oninput="updateMeetingAiSendState()" />
+          <button type="button" class="meeting-ai-send dste-ai-send-btn" aria-label="发送" onclick="sendMeetingAiMessage()" disabled><span class="icon" data-icon="arrowUp" data-icon-size="16"></span></button>
         </div>
       </div>
     </div>

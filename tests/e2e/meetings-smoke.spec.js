@@ -30,6 +30,10 @@ test.describe('Meetings Page Smoke Test', () => {
     await expect(page.locator('text=效果评分').first()).toBeVisible();
     await expect(page.locator('button:has-text("新建会议")')).toBeVisible();
 
+    const todoPanel = page.locator('#global-todo-panel');
+    await expect(todoPanel).toBeVisible();
+    await expect(todoPanel.locator('.todo-item').first()).toBeVisible();
+
     expect(errors).toEqual([]);
   });
 

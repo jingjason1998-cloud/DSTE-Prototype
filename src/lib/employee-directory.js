@@ -326,7 +326,8 @@ export function getOrgTree() {
 
 export function getEmployeeById(id) {
   if (!id) return null;
-  return getEmployees().find(emp => emp.id === String(id));
+  const target = String(id);
+  return getEmployees().find(emp => String(emp.id) === target) || null;
 }
 
 export function getEmployeeByName(name) {
@@ -572,7 +573,19 @@ export function normalizePerson(value) {
   }
 
   if (typeof value === 'string') {
-    const emp = getEmployeeByName(value) || fuzzyFindEmployeeByDisplayName(value);
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    // 优先按工号查找（兼容成员拖拽后存的是 emp.id）
+    const byId = getEmployeeById(trimmed);
+    if (byId) {
+      return {
+        id: byId.id,
+        name: byId.name,
+        displayName: byId.displayName,
+        orgPath: byId.orgPath,
+      };
+    }
+    const emp = getEmployeeByName(trimmed) || fuzzyFindEmployeeByDisplayName(trimmed);
     if (emp) {
       return {
         id: emp.id,
@@ -848,7 +861,13 @@ export async function rebuildPersonRefs() {
  */
 export function renderPerson(personRef) {
   if (!personRef) return '待定';
-  if (typeof personRef === 'string') return personRef;
+  if (typeof personRef === 'string') {
+    const trimmed = personRef.trim();
+    if (!trimmed) return '待定';
+    const emp = getEmployeeById(trimmed);
+    if (emp) return emp.displayName || emp.name || trimmed;
+    return personRef;
+  }
   if (personRef._legacy) return personRef.name;
   if (personRef._stale) return `${personRef.name || '未知'} (已离职)`;
   return personRef.displayName || personRef.name || '未知';

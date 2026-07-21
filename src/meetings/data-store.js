@@ -16,7 +16,7 @@ import { normalizePersonField } from '../lib/employee-directory.js';
 import { normalizeResolution, syncResolutionsToStore } from './utils/resolution-helpers.js';
 
 const meetingsRepo = createMeetingsRepository({
-  version: 5,
+  version: 6,
   migrators: {
     3: (data) => {
       window._meetingsData = data;
@@ -44,6 +44,15 @@ const meetingsRepo = createMeetingsRepository({
           if (typeof a.reviewScore !== 'number') a.reviewScore = 0;
           if (typeof a.reviewStatus !== 'string') a.reviewStatus = 'pending';
           if (typeof a.lastReviewedAt !== 'string') a.lastReviewedAt = '';
+        });
+      });
+      return data;
+    },
+    6: (data) => {
+      data.forEach(m => {
+        (m.agenda_items || []).forEach(a => {
+          if (a.sourceTaskId === undefined) a.sourceTaskId = null;
+          if (a.sourceTaskName === undefined) a.sourceTaskName = null;
         });
       });
       return data;
@@ -381,6 +390,39 @@ export function findMeetingById(id) {
 }
 
 /**
+ * 查找规则引擎生成的落后战区业绩承诺会（确定性 ID + 元数据回退）。
+ * @param {string} period - 考核月份，如 2026-06
+ * @param {string} theater - 战区名
+ * @param {string} indicatorId - 指标 ID
+ * @param {string} ruleId - 规则 ID
+ * @returns {Object|null}
+ */
+export function findExistingLaggingMeeting(period, theater, indicatorId, ruleId) {
+  const meetings = getMeetings();
+  if (!meetings) return null;
+
+  const normalizedTheater = String(theater || '')
+    .replace(/[\s\-_]/g, '')
+    .replace(/[（(].*?[)）]/g, '')
+    .replace(/大区$/, '')
+    .toLowerCase();
+  const safePeriod = String(period || '').replace(/-/g, '');
+  const safeIndicator = String(indicatorId || '').replace(/[^a-zA-Z0-9]/g, '');
+  const safeRule = String(ruleId || '').replace(/[^a-zA-Z0-9]/g, '');
+  const deterministicId = `lg_${safePeriod}_${safeIndicator}_${normalizedTheater}_${safeRule}`;
+
+  const byId = meetings.find(m => m.id === deterministicId);
+  if (byId) return byId;
+
+  return meetings.find(m => {
+    if (m.scenario !== 'lagging_region') return false;
+    if (m.month !== period) return false;
+    const title = String(m.title || '');
+    return title.includes(theater) && title.includes(indicatorId);
+  }) || null;
+}
+
+/**
  * 替换整个会议数组并持久化。
  */
 export function setMeetings(meetings) {
@@ -476,6 +518,11 @@ export function persistMeetings() {
     console.error('[meetings] Failed to persist meetings data');
   }
   syncResolutionsToStore(meetings);
+
+  // 全局待办面板刷新：由面板自己聚合，不维护独立数据
+  if (typeof window.refreshTodoPanel === 'function') {
+    window.refreshTodoPanel();
+  }
 }
 
 /**
@@ -503,6 +550,9 @@ export async function loadRemoteMeetings() {
     }
     // 仅落本地存储，不再调用 persistMeetings（它会用 localStorage 做基线反推云端数据）。
     meetingsRepo.set(remote);
+    if (typeof window.refreshTodoPanel === 'function') {
+      window.refreshTodoPanel();
+    }
     return true;
   }
   return false;
@@ -588,6 +638,9 @@ export function migrateMeetingsData() {
       if (typeof a.reviewScore !== 'number') a.reviewScore = 0;
       if (typeof a.reviewStatus !== 'string') a.reviewStatus = 'pending';
       if (typeof a.lastReviewedAt !== 'string') a.lastReviewedAt = '';
+      // G3: 重点工作关联（additive，null = 未关联）
+      if (a.sourceTaskId === undefined) a.sourceTaskId = null;
+      if (a.sourceTaskName === undefined) a.sourceTaskName = null;
     });
     if (Array.isArray(m.decisions)) {
       m.decisions = m.decisions.map(d => normalizeResolution(d, m));

@@ -206,6 +206,34 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
     await expect(panel.locator('text=AI service unavailable')).toBeVisible();
   });
 
+  test('writes sourceTaskId/sourceTaskName when adopting a key_work candidate', async ({ page }) => {
+    await openFirstMeetingEditor(page);
+    // 种子重点工作，使 key_work 候选能解析出任务名称
+    await page.evaluate(() => {
+      localStorage.setItem('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'kw_001', name: '华东区客户满意度整改', status: 'in_progress', owner: '客户成功部' },
+      ]));
+    });
+    await openAiAgendaPanel(page);
+
+    const panel = getAgendaPanel(page);
+    await panel.locator('button:has-text("生成候选议程")').click();
+
+    await expect(panel.locator('#ai-cb-ai_c2')).toBeVisible();
+    // 只采纳 key_work 候选（ai_c1 默认勾选，先取消）
+    await panel.locator('#ai-cb-ai_c1').uncheck();
+    await panel.locator('#ai-cb-ai_c2').check();
+    await panel.locator('button:has-text("采纳选中")').click();
+
+    const adopted = await page.evaluate(() => {
+      const items = window._meetingEditData?.agenda_items || [];
+      return items.find(a => a.title === '华东区客户满意度整改') || null;
+    });
+    expect(adopted).toBeTruthy();
+    expect(adopted.sourceTaskId).toBe('kw_001');
+    expect(adopted.sourceTaskName).toBe('华东区客户满意度整改');
+  });
+
   test('no JavaScript errors during interaction', async ({ page }) => {
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));

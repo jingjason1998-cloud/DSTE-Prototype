@@ -9,8 +9,28 @@
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-07-21
+
+### Added
+- **规则引擎中心（Rule Engine Center）**：新增独立规则引擎模块，支持基于 KPI/指标定义落后/达成规则、手动执行、预览落后战区、生成会议草案、执行日志与通知。
+  - 核心文件：`src/rule-engine.html`、`src/pages/rule-engine/rule-engine-engine.js`、`src/pages/rule-engine/rule-engine-store.js`、`src/pages/rule-engine/rule-engine-renderer.js`、`src/pages/rule-engine/rule-engine-notifications.js`。
+  - 导航集成：`src/lib/config.js` 侧边栏新增「规则引擎」入口；`vite.config.js` 注册 `rule-engine` 构建入口。
+  - 新增测试：`tests/e2e/rule-engine.spec.js`、`tests/unit/rule-engine-engine.test.js`、`tests/unit/rule-engine-store.test.js`。
+- **全局会议待办面板**：`src/meetings.html` 新增跨会议全局待办视图，聚合报告生成、会前评审、纪要、决议确认、行动项跟进、议程材料、会议评估、流程推进等 8 类待办。
+  - 核心文件：`src/meetings/utils/todo-aggregator.js`、`src/meetings/renderers/todo-panel.js`。
+  - 新增测试：`tests/e2e/meeting-todo-panel.spec.js`、`tests/unit/todo-aggregator.test.js`。
+- **会议议程-OMP 重点工作关联**：议程项可直接关联 OMP 重点任务；AI 议程推荐采纳 `key_work` 候选后自动回写 `sourceTaskId`/`sourceTaskName`；会议详情展示关联徽章。
+- **统一 Kimi 风格 AI 对话 UI**：新增 `src/styles/ai-chat.css` 与 `src/lib/markdown-lite.js`，重构全局 AI 战略助手、会议 AI 助手、业务专题 AI、需求池 AI 分析、战略专题 KMS AI 问答等对话界面，统一气泡、快捷问题、流式输出与 Markdown 轻量渲染。
+- **通知系统支持 rule-trigger 类型**：新增规则触发类通知的渲染与处理逻辑，规则命中后向相关战区负责人推送通知。
+
 ### Fixed
 - **修复 AI 对话偶发 502/400 错误**：`api-worker/worker.js` 在转发消息给 Kimi 前增加 `sanitizeMessages`，过滤空/缺失 content 的 system/user/assistant 消息，并为带 tool_calls 的空 content assistant 消息补空格，避免 Kimi 返回 400。
+- **修复重点工作成员解析失败**：`src/lib/employee-directory.js` 增强 `getEmployeeById`、`renderPerson`、`normalizePerson`，支持按工号/数字 ID 解析拖拽成员后存储的 `emp.id`，避免成员列显示原始数字。
+
+### Changed
+- **GlobalAiDrawer 交互优化**：调整流式输出、快捷问题、会话切换、关闭逻辑，与 Kimi 风格对话体验保持一致。
+- **会议 AI 助手重构**：基于 `ai-chat.css` 与 `markdown-lite.js` 重构消息渲染，提升代码复用性。
+- **构建配置更新**：`vite.config.js` 新增 `rule-engine` 入口；构建脚本继续从 CHANGELOG 自动生成路线图数据。
 
 ## [v0.6.17] - 2026-07-20
 

@@ -81,6 +81,29 @@ test.describe('Meeting Agenda Postponement', () => {
     await expect(page.locator('#meeting-detail-content')).toContainText('已顺延');
   });
 
+  test('preserves sourceTaskId/sourceTaskName when an agenda is postponed', async ({ page }) => {
+    // 给已完成会议的首条议程挂上重点工作关联
+    await page.evaluate(() => {
+      const target = (window._meetingsData || []).find(m => m.status === 'completed');
+      if (target && target.agenda_items?.[0]) {
+        target.agenda_items[0].sourceTaskId = 'task_e2e_1';
+        target.agenda_items[0].sourceTaskName = 'E2E 重点工作';
+        localStorage.setItem('dste_meetings', JSON.stringify(window._meetingsData));
+      }
+    });
+
+    await postponeFirstAgendaFromEditor(page);
+
+    // 顺延复制到目标会议的议程应保留重点工作关联
+    const carried = await page.evaluate(() => {
+      const meetings = JSON.parse(localStorage.getItem('dste_meetings') || '[]');
+      const target = meetings.find(m => m.title === '未来目标会议');
+      return target?.agenda_items?.find(a => a.sourceTaskId === 'task_e2e_1') || null;
+    });
+    expect(carried).toBeTruthy();
+    expect(carried.sourceTaskName).toBe('E2E 重点工作');
+  });
+
   test('shows warning when an agenda has been postponed 3 times', async ({ page }) => {
     // Seed the first completed meeting with an agenda that has already been postponed 3 times
     await page.evaluate(() => {

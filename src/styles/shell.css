@@ -162,22 +162,7 @@
 .placeholder-title { font-size: var(--text-lg); font-weight: var(--font-semibold); color: var(--color-text-primary); margin-bottom: var(--space-2); }
 .placeholder-desc { font-size: var(--text-base); color: var(--color-text-tertiary); max-width: 400px; }
 
-/* AI 消息气泡（会议助手、专题 AI 问答复用） */
-.ai-message { display: flex; gap: 12px; align-items: flex-start; max-width: 90%; }
-.ai-message .ai-avatar { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg-page); font-size: 16px; }
-.ai-message.user { align-self: flex-end; flex-direction: row-reverse; }
-.ai-message.user .ai-avatar { background: var(--primary); }
-.ai-message-content { padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
-.ai-message.user .ai-message-content { background: var(--primary); color: white; }
-.ai-message.bot .ai-message-content { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary); }
-.ai-message.bot.ai-thinking .ai-message-content { color: var(--text-tertiary); font-style: italic; }
-.ai-message.bot.ai-streaming .ai-message-content::after {
-  content: '|'; animation: ai-cursor 1s infinite; color: var(--primary); margin-left: 2px;
-}
-@keyframes ai-cursor {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
+/* AI 消息气泡样式已迁移至 ai-chat.css(dste-ai-* 类,Kimi 风格) */
 
 @media (max-width: 768px) {
   .ai-message { max-width: 95%; }

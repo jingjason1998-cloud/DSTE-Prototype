@@ -238,6 +238,14 @@ export function candidateToAgendaItem(candidate) {
   const rand = Math.random().toString(36).slice(2, 7);
   const rawDuration = Number(candidate.duration);
   const duration = Number.isFinite(rawDuration) ? rawDuration : 20;
+  // G3: 重点工作 → 议程关联回写（仅 key_work 候选携带任务 id）
+  let sourceTaskId = null;
+  let sourceTaskName = null;
+  if (candidate.sourceType === 'key_work' && candidate.sourceId) {
+    const task = getOmpKeyWorks().find(t => t.id === candidate.sourceId);
+    sourceTaskId = candidate.sourceId;
+    sourceTaskName = task ? task.title : (candidate.title || '').trim();
+  }
   return {
     id: candidate.id || `ag_${now}_${rand}`,
     type: ['goal_management', 'key_task_management', 'budget_finance', 'human_resources', 'business_special'].includes(candidate.type)
@@ -255,6 +263,8 @@ export function candidateToAgendaItem(candidate) {
     carriedFromAgendaId: candidate.sourceType === 'postponed_agenda' ? candidate.sourceId : null,
     carriedFromMeetingId: null,
     postponedHistory: [],
+    sourceTaskId,
+    sourceTaskName,
   };
 }
 

@@ -84,6 +84,7 @@ export const SIDEBAR_CONFIG = {
 export const EXTERNAL_PAGES = {
   'admin/employee-directory': 'employee-directory.html',
   'admin/requirement-pool': 'requirement-pool.html',
+  'admin/rule-engine': 'rule-engine.html',
   'exe/business-topics': 'business-topics.html',
   'exe/meetings': 'meetings.html',
   'exe/st-issue-tracking': 'st-issue-tracking.html',

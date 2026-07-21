@@ -289,6 +289,37 @@ describe('agenda-recommender', () => {
       const item = candidateToAgendaItem({ title: 'A', type: 'unknown' });
       expect(item.type).toBe('other');
     });
+
+    it('writes sourceTaskId/sourceTaskName for key_work candidates', () => {
+      storageMap.set('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'task_1', name: '大客户经营能力提升', status: 'in_progress' },
+      ]));
+      const item = candidateToAgendaItem({
+        title: '大客户经营能力提升月度复盘',
+        sourceType: 'key_work',
+        sourceId: 'task_1',
+      });
+      expect(item.sourceTaskId).toBe('task_1');
+      expect(item.sourceTaskName).toBe('大客户经营能力提升');
+    });
+
+    it('falls back to candidate title when the key_work task is not found locally', () => {
+      const item = candidateToAgendaItem({
+        title: 'AI 改写后的议题',
+        sourceType: 'key_work',
+        sourceId: 'task_missing',
+      });
+      expect(item.sourceTaskId).toBe('task_missing');
+      expect(item.sourceTaskName).toBe('AI 改写后的议题');
+    });
+
+    it('leaves sourceTaskId/sourceTaskName null for non key_work candidates', () => {
+      const item = candidateToAgendaItem({
+        title: 'A', sourceType: 'open_action', sourceId: 'ACT1',
+      });
+      expect(item.sourceTaskId).toBeNull();
+      expect(item.sourceTaskName).toBeNull();
+    });
   });
 
   describe('label helpers', () => {

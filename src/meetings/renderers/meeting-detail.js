@@ -112,7 +112,7 @@ function renderInfoPanel(m, st) {
       </div>`;
 
   return `
-    <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 12px; height: fit-content;">
+    <div id="detail-info-panel" data-section="info" style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 12px; height: fit-content;">
       ${rows.map(([icon, label, value]) => `
         <div style="display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--border-light);">
           <span style="font-size: 11px; color: var(--text-secondary); min-width: 40px; flex-shrink: 0;">${icon} ${label}</span>
@@ -133,7 +133,7 @@ function renderPipelineSteps(m) {
   const currentIdx = steps.findIndex((s) => !m.pipeline[s.key]);
 
   return `
-    <div style="padding: 12px 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light);">
+    <div id="detail-pipeline-steps" data-section="pipeline" style="padding: 12px 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light);">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
         <span style="font-size: 13px; font-weight: 600;">${icon('chartBar', {size: 14})} 一报一会流程</span>
         <span style="font-size: 11px; color: ${doneCount === total ? 'var(--success)' : 'var(--primary)'}; font-weight: 600;">${doneCount}/${total}</span>
@@ -159,6 +159,10 @@ function renderPipelineSteps(m) {
 function renderAgendaItem(m, a, i, time) {
   const warning = getAgendaPostponeWarning(a);
   const sourceHint = formatAgendaSourceHint(a, meetings());
+  // G3: 关联重点工作徽章，点击跳转驾驶舱重点工作列表
+  const sourceTaskBadge = a.sourceTaskId
+    ? `<span onclick="event.stopPropagation(); window.location.href='cockpit.html#exe/tasks'" title="查看关联的重点工作" style="color: var(--primary); cursor: pointer;">${icon('pushPin', {size: 14})} 关联：${escapeHtml(a.sourceTaskName || '重点工作')}</span>`
+    : '';
   const materialScore = getMaterialScore(a.material_link);
   const materialBadge = materialScore === null
     ? ''
@@ -173,7 +177,7 @@ function renderAgendaItem(m, a, i, time) {
     : '';
 
   return `
-    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${AGENDA_TYPE_COLORS()[a.type] || 'var(--text-secondary)'};">
+    <div data-todo-sub-index="${i}" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid ${AGENDA_TYPE_COLORS()[a.type] || 'var(--text-secondary)'};">
       <div style="display: flex; flex-direction: column; align-items: center; min-width: 52px;">
         <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${time.start}</span>
         <span style="font-size: 10px; color: var(--text-secondary);">~</span>
@@ -194,6 +198,7 @@ function renderAgendaItem(m, a, i, time) {
           ${a.purpose ? `<span>${icon('target', {size: 14})} ${a.purpose}</span>` : ''}
           <span style="color: var(--primary);">${a.duration}分钟</span>
           ${sourceHint ? `<span style="color: var(--warning);">${sourceHint}</span>` : ''}
+          ${sourceTaskBadge}
         </div>
       </div>
       <button type="button" onclick="event.stopPropagation(); window.pushAgenda('${m.id}', ${i})" style="padding: 2px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; flex-shrink: 0; white-space: nowrap;">${icon('broadcast', {size: 14})} 推送</button>
@@ -209,7 +214,7 @@ function renderAgendaSection(m) {
   const postponedHint = agendaCompletion.postponed > 0 ? `（顺延 ${agendaCompletion.postponed}）` : '';
 
   return `
-    <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 16px;">
+    <div id="detail-agenda-section" data-section="agenda" style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); padding: 16px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <div>
           <span style="font-size: 15px; font-weight: 700;">${icon('clipboardText', {size: 14})} 会议议程</span>
@@ -266,7 +271,7 @@ function renderActionItem(m, a, idx, arr) {
     : '';
 
   return `
-    <div style="padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
+    <div data-todo-sub-index="${idx}" style="padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
         <span style="font-size: 14px; flex-shrink: 0;">${a.status === 'completed' || a.status === 'implemented' ? `${icon('check', {size: 14})}` : a.status === 'in_progress' ? `${icon('hourglass', {size: 14})}` : `${icon('pause', {size: 14})}`}</span>
@@ -300,7 +305,7 @@ function renderActionsSection(m) {
 
 function renderDecisionItem(m, d, idx, arr) {
   return `
-    <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
+    <div data-todo-sub-index="${idx}" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; ${idx < arr.length - 1 ? 'border-bottom: 1px solid var(--border-light);' : ''}">
       <span style="font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; width: 20px;">${idx + 1}.</span>
       <span style="font-size: 14px; flex-shrink: 0;">${d.status === 'approved' || d.status === 'implemented' ? `${icon('check', {size: 14})}` : `${icon('hourglass', {size: 14})}`}</span>
       <span style="flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.content}</span>

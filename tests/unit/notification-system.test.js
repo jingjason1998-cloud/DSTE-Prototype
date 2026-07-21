@@ -46,7 +46,7 @@ describe('loadNotificationConfig', () => {
   it('returns default config when empty', () => {
     const cfg = ns.loadNotificationConfig();
     expect(cfg.webhooks).toEqual([]);
-    expect(cfg.enabledTypes).toEqual({ resolution: true, todo: true, alert: true, agenda: true });
+    expect(cfg.enabledTypes).toEqual({ resolution: true, todo: true, alert: true, agenda: true, rule: true });
     expect(cfg.mentionAll).toBe(false);
     expect(cfg.lastSent).toEqual([]);
   });

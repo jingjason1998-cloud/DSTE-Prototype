@@ -682,22 +682,8 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-secondary);
 }
-
-.req-ai-analyzing::after {
-  content: '';
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--border-color);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: req-spin 0.8s linear infinite;
-}
-
-@keyframes req-spin {
-  to { transform: rotate(360deg); }
-}
+/* 思考态动画由 ai-chat.css 的 dste-ai-thinking(shimmer)提供 */
 
 /* 详情 */
 .req-detail {

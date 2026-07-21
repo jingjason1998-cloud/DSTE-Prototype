@@ -1,0 +1,267 @@
+/**
+ * DSTE AI 对话 UI — Kimi 网页版风格共享样式
+ *
+ * 设计要点(对标 kimi.com):
+ * - AI 消息无气泡,直接排版在背景上,左侧小圆头像
+ * - 用户消息右侧浅灰气泡,大圆角
+ * - 思考态 shimmer 流光文字(不用旋转 spinner)
+ * - 大圆角输入卡 + 圆形发送按钮
+ * - 建议项统一 pill 样式
+ *
+ * 变量均带旧 token fallback,兼容各页面与暗色主题。
+ */
+
+/* ===== 消息流 ===== */
+.dste-ai-msg {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: flex-start;
+}
+.dste-ai-msg.user {
+  justify-content: flex-end;
+}
+
+.dste-ai-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-light, var(--color-primary-subtle));
+  color: var(--primary, var(--color-primary));
+}
+.dste-ai-msg.user .dste-ai-avatar {
+  background: var(--bg-hover, var(--color-bg-hover));
+  color: var(--text-secondary, var(--color-text-secondary));
+}
+
+.dste-ai-bubble {
+  min-width: 0;
+  max-width: calc(100% - 42px);
+  font-size: var(--text-base, 14px);
+  line-height: 1.75;
+  color: var(--text-primary, var(--color-text-primary));
+  word-break: break-word;
+}
+/* AI:无气泡,直接排版 */
+.dste-ai-msg.assistant .dste-ai-bubble {
+  padding: 2px 0;
+}
+/* 用户:右侧浅灰气泡 */
+.dste-ai-msg.user .dste-ai-bubble {
+  background: var(--bg-hover, var(--color-bg-hover));
+  border-radius: 18px;
+  padding: 8px 14px;
+  line-height: 1.6;
+}
+
+/* ===== 思考态:shimmer 流光文字 ===== */
+.dste-ai-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm, 13px);
+  font-weight: 500;
+  background: linear-gradient(
+    90deg,
+    var(--text-tertiary, var(--color-text-tertiary)) 0%,
+    var(--text-primary, var(--color-text-primary)) 50%,
+    var(--text-tertiary, var(--color-text-tertiary)) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: dste-ai-shimmer 1.6s linear infinite;
+}
+@keyframes dste-ai-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== 三点跳动(规则型 AI loading) ===== */
+.dste-ai-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.dste-ai-dots > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary, var(--color-text-tertiary));
+  animation: dste-ai-bounce 1.2s ease-in-out infinite;
+}
+.dste-ai-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.dste-ai-dots > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dste-ai-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ===== 流式中:呼吸小圆点 ===== */
+.dste-ai-streaming-dot,
+.dste-ai-msg.ai-streaming .dste-ai-bubble::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-radius: 50%;
+  vertical-align: baseline;
+  background: var(--primary, var(--color-primary));
+  animation: dste-ai-pulse 1s ease-in-out infinite;
+}
+@keyframes dste-ai-pulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.4; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== 输入区:大圆角输入卡 + 圆形发送按钮 ===== */
+.dste-ai-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--border-color, var(--color-border-default));
+  border-radius: 20px;
+  background: var(--bg-card, var(--color-bg-surface));
+  transition: border-color var(--duration-fast, 150ms) var(--ease-productive, ease),
+    box-shadow var(--duration-fast, 150ms) var(--ease-productive, ease);
+}
+.dste-ai-composer:focus-within {
+  border-color: var(--primary, var(--color-border-focus));
+  box-shadow: 0 0 0 3px var(--primary-light, var(--color-primary-subtle));
+}
+.dste-ai-composer input,
+.dste-ai-composer textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--text-base, 14px);
+  color: var(--text-primary, var(--color-text-primary));
+  resize: none;
+}
+.dste-ai-composer input::placeholder,
+.dste-ai-composer textarea::placeholder {
+  color: var(--text-tertiary, var(--color-text-tertiary));
+}
+.dste-ai-send-btn {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary, var(--color-primary));
+  color: var(--color-text-on-primary, #fff);
+  cursor: pointer;
+  transition: background var(--duration-fast, 150ms) var(--ease-productive, ease),
+    transform var(--duration-fast, 150ms) var(--ease-productive, ease);
+}
+.dste-ai-send-btn:hover:not(:disabled) {
+  background: var(--primary-hover, var(--color-primary-hover));
+  transform: scale(1.05);
+}
+.dste-ai-send-btn:disabled {
+  background: var(--bg-hover, var(--color-bg-hover));
+  color: var(--text-disabled, var(--color-text-disabled));
+  cursor: not-allowed;
+}
+
+/* ===== 建议 chips ===== */
+.dste-ai-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color, var(--color-border-default));
+  border-radius: var(--radius-full, 9999px);
+  background: var(--bg-card, var(--color-bg-surface));
+  color: var(--text-secondary, var(--color-text-secondary));
+  font-size: var(--text-xs, 12px);
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) var(--ease-productive, ease);
+}
+.dste-ai-chip:hover {
+  border-color: var(--primary, var(--color-primary));
+  color: var(--primary, var(--color-primary));
+  transform: translateY(-1px);
+}
+
+/* ===== Markdown 排版 ===== */
+.dste-ai-md > p {
+  margin: 0 0 8px;
+}
+.dste-ai-md > p:last-child {
+  margin-bottom: 0;
+}
+.dste-ai-md h1,
+.dste-ai-md h2,
+.dste-ai-md h3,
+.dste-ai-md h4 {
+  margin: 12px 0 6px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary, var(--color-text-primary));
+}
+.dste-ai-md h1:first-child,
+.dste-ai-md h2:first-child,
+.dste-ai-md h3:first-child,
+.dste-ai-md h4:first-child {
+  margin-top: 0;
+}
+.dste-ai-md h1 { font-size: 17px; }
+.dste-ai-md h2 { font-size: 16px; }
+.dste-ai-md h3 { font-size: 15px; }
+.dste-ai-md h4 { font-size: 14px; }
+.dste-ai-md ul,
+.dste-ai-md ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.dste-ai-md li {
+  margin-bottom: 4px;
+}
+.dste-ai-md li:last-child {
+  margin-bottom: 0;
+}
+.dste-ai-md strong {
+  font-weight: 600;
+}
+.dste-ai-md code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-hover, var(--color-bg-hover));
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
+/* ===== 待确认草案卡片 ===== */
+.dste-ai-draft-card {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px dashed var(--primary, var(--color-primary));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--primary-light, var(--color-primary-subtle));
+}
+
+/* ===== 减少动画偏好 ===== */
+@media (prefers-reduced-motion: reduce) {
+  .dste-ai-thinking,
+  .dste-ai-dots > span,
+  .dste-ai-streaming-dot {
+    animation: none;
+  }
+  .dste-ai-thinking {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text-tertiary, var(--color-text-tertiary));
+  }
+}

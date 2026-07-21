@@ -9,6 +9,7 @@ import {
 } from '../utils/helpers.js';
 import { getMaterialReviewInfo, persistReviewScores } from '../utils/reviewer.js';
 import { getResolutionStatusConfig, normalizeResolution } from '../utils/resolution-helpers.js';
+import { getOmpKeyWorks } from '../utils/agenda-recommender.js';
 import { renderPerson } from '../../lib/employee-directory.js';
 
 // ---- 编辑弹窗函数 ----
@@ -19,12 +20,34 @@ function openMeetingEditor(id) {
   if (!m) return;
   window._meetingEditData = JSON.parse(JSON.stringify(m));
   const ov = document.getElementById('meeting-editor-overlay');
-  if (ov) ov.style.display = 'flex';
+  if (ov) {
+    ov.style.display = 'flex';
+    ov.dataset.isNew = '';
+  }
   renderEditorForm();
   if (typeof window.flushPendingAgendaAdoptions === 'function') {
     window.flushPendingAgendaAdoptions(window._meetingEditData);
   }
 }
+
+/**
+ * 使用预填充的 meeting 对象打开编辑器（用于规则引擎生成的草稿）。
+ * @param {Object} meeting
+ */
+function openMeetingEditorWithDraft(meeting) {
+  if (!meeting) return;
+  window._meetingEditData = JSON.parse(JSON.stringify(meeting));
+  const ov = document.getElementById('meeting-editor-overlay');
+  if (ov) {
+    ov.style.display = 'flex';
+    ov.dataset.isNew = 'true';
+  }
+  renderEditorForm();
+  if (typeof window.flushPendingAgendaAdoptions === 'function') {
+    window.flushPendingAgendaAdoptions(window._meetingEditData);
+  }
+}
+
 function closeMeetingEditor() {
   const ov = document.getElementById('meeting-editor-overlay');
   if (ov) {
@@ -287,6 +310,8 @@ function renderAgendaList() {
   const list = d.agenda_items || [];
   const timeSlots = computeAgendaTimeSlots(d);
   const batchMode = window._agendaReviewMode;
+  // G3: 关联重点工作下拉选项（与 AI 议程推荐同源，仅未完成任务）
+  const ompTasks = getOmpKeyWorks();
   container.innerHTML = list.map((item, idx) => {
     const url = item.material_link?.trim() || '';
     const reviewing = window._agendaReviewing.has(idx) || item.reviewStatus === 'reviewing';
@@ -311,6 +336,11 @@ function renderAgendaList() {
       ? `<span style="padding: 1px 6px; font-size: 10px; border-radius: 4px; background: rgba(245,34,45,0.06); color: var(--danger); white-space: nowrap; border: 1px solid rgba(245,34,45,0.2);">审核失败</span>`
       : '';
     const checkbox = batchMode ? `<input type="checkbox" ${window._agendaBatchSelections.has(idx) ? 'checked' : ''} onchange="updateBatchReviewSelection(${idx}, this.checked)" style="cursor: pointer;" ${!url ? 'disabled' : ''} />` : '';
+    // G3: 关联重点工作下拉；当前关联任务若已不在未完成任务列表中，保留为兜底选项避免静默丢失
+    const sourceTaskOptions = ompTasks.map(t => `<option value="${window.escapeHtml(t.id)}" ${item.sourceTaskId === t.id ? 'selected' : ''}>${window.escapeHtml((t.title || '未命名任务').slice(0, 30))}</option>`).join('')
+      + (item.sourceTaskId && !ompTasks.some(t => t.id === item.sourceTaskId)
+        ? `<option value="${window.escapeHtml(item.sourceTaskId)}" selected>${window.escapeHtml((item.sourceTaskName || '已关联任务').slice(0, 30))}（已完成/已移除）</option>`
+        : '');
     return `
     <div style="margin-bottom: 12px; padding: 10px; background: var(--bg-page); border-radius: 8px; border: 1px solid var(--border-light);">
       <div style="display: flex; align-items: flex-start; gap: 8px;">
@@ -329,6 +359,13 @@ function renderAgendaList() {
             <input type="text" value="${(item.data_views || []).join(', ')}" onchange="updateAgendaDataViews(${idx}, this.value)" placeholder="关联报表 ID，逗号分隔" style="flex: 1; min-width: 0; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-primary);" />
             <input type="text" value="${item.pre_report_section || ''}" onchange="updateAgendaPreReportSection(${idx}, this.value)" placeholder="报告章节，如 §2.1" style="width: 130px; flex-shrink: 0; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-primary);" />
             <button type="button" onclick="openReportAssetManager(${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--primary); border-radius: 4px; background: var(--primary-light); color: var(--primary); cursor: pointer; white-space: nowrap; flex-shrink: 0;">${icon('chartBar', {size: 14})} 报表</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap;">${icon('pushPin', {size: 14})} 关联重点工作</span>
+            <select onchange="updateAgendaSourceTask(${idx}, this.value)" style="flex: 1; min-width: 0; max-width: 320px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; background: var(--bg-card); color: var(--text-primary); cursor: pointer;">
+              <option value="">不关联</option>
+              ${sourceTaskOptions}
+            </select>
           </div>
           ${(() => {
             const warning = getAgendaPostponeWarning(item);
@@ -381,11 +418,24 @@ function updateAgendaDataViews(idx, val) {
 function updateAgendaPreReportSection(idx, val) {
   if (window._meetingEditData?.agenda_items?.[idx]) window._meetingEditData.agenda_items[idx].pre_report_section = val.trim();
 }
+// G3: 关联重点工作（val 为空表示不关联，置 null）
+function updateAgendaSourceTask(idx, val) {
+  const item = window._meetingEditData?.agenda_items?.[idx];
+  if (!item) return;
+  if (!val) {
+    item.sourceTaskId = null;
+    item.sourceTaskName = null;
+    return;
+  }
+  const task = getOmpKeyWorks().find(t => t.id === val);
+  item.sourceTaskId = val;
+  item.sourceTaskName = task ? task.title : (item.sourceTaskName || '');
+}
 function addAgendaItem() {
   if (!window._meetingEditData) return;
   if (!window._meetingEditData.agenda_items) window._meetingEditData.agenda_items = [];
   const newAgendaId = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-  window._meetingEditData.agenda_items.push({ id: newAgendaId, type: 'goal_management', title: '新议程项', duration: 15, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: newAgendaId, postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [] });
+  window._meetingEditData.agenda_items.push({ id: newAgendaId, type: 'goal_management', title: '新议程项', duration: 15, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: newAgendaId, postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [], sourceTaskId: null, sourceTaskName: null });
   renderAgendaList();
   renderDecisionList();
 }
@@ -930,8 +980,10 @@ function saveMeeting() {
     const scenarioVal = document.getElementById('edit-scenario').value;
     const statusVal = document.getElementById('edit-status').value;
     if (isNew || idx === -1) {
+      const d = window._meetingEditData;
+      const isRuleGenerated = !!d._ruleGenerated;
       const newMeeting = {
-        id: dateVal.replace(/-/g, '') + '_' + Math.floor(Math.random() * 1000),
+        id: isRuleGenerated ? d.id : (dateVal.replace(/-/g, '') + '_' + Math.floor(Math.random() * 1000)),
         title: titleVal,
         date: dateVal,
         startTime: startTimeVal,
@@ -1020,8 +1072,37 @@ function deleteMeeting() {
   window.navigate('exe/meetings');
 }
 
+/**
+ * 从规则引擎页面跳转而来时，读取 sessionStorage 中的会议草稿并打开编辑器。
+ */
+function loadRuleEngineDraft() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('ruleDraft') !== '1') return;
+    const raw = sessionStorage.getItem('dste_rule_engine_pending_draft');
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    sessionStorage.removeItem('dste_rule_engine_pending_draft');
+    if (draft && draft.id) {
+      // 清除 URL 参数，避免刷新重复打开
+      const cleanUrl = window.location.pathname + window.location.hash;
+      history.replaceState(null, '', cleanUrl);
+      openMeetingEditorWithDraft(draft);
+    }
+  } catch (e) {
+    console.error('加载规则引擎草稿失败:', e);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadRuleEngineDraft);
+} else {
+  loadRuleEngineDraft();
+}
+
 // ---- Expose on window for onclick handlers in HTML strings ----
 window.openMeetingEditor = openMeetingEditor;
+window.openMeetingEditorWithDraft = openMeetingEditorWithDraft;
 window.closeMeetingEditor = closeMeetingEditor;
 window.renderEditorForm = renderEditorForm;
 window.autoFillMeetingForm = autoFillMeetingForm;
@@ -1034,6 +1115,7 @@ window.updateAgendaOwner = updateAgendaOwner;
 window.updateAgendaMaterialLink = updateAgendaMaterialLink;
 window.updateAgendaDataViews = updateAgendaDataViews;
 window.updateAgendaPreReportSection = updateAgendaPreReportSection;
+window.updateAgendaSourceTask = updateAgendaSourceTask;
 window.addAgendaItem = addAgendaItem;
 window.removeAgendaItem = removeAgendaItem;
 window.moveAgendaItem = moveAgendaItem;
@@ -1075,6 +1157,7 @@ window.closeAgendaReviewDetail = closeAgendaReviewDetail;
 // ---- Named exports for testability ----
 export {
   openMeetingEditor,
+  openMeetingEditorWithDraft,
   closeMeetingEditor,
   renderEditorForm,
   autoFillMeetingForm,

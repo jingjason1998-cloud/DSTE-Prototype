@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>业务专题管理 - DSTE战略管理平台</title>
     <link rel="stylesheet" href="../assets/css/main.css?v=2">
+    <link rel="stylesheet" href="./styles/ai-chat.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="../assets/js/main.js"></script>
     <script>
@@ -609,7 +610,7 @@
                 <button class="btn btn-ghost" style="flex:1;" data-link-filter="all" id="linkFilterAll">全部</button>
                 <button class="btn btn-ghost" style="flex:1;" data-link-filter="ST"><span class="icon" data-icon="building" data-icon-size="14"></span> ST</button>
                 <button class="btn btn-ghost" style="flex:1;" data-link-filter="AT"><span class="icon" data-icon="buildings" data-icon-size="14"></span> AT</button>
-                <button class="btn btn-primary" style="flex:1.5; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));" data-action="ai-match"><span class="icon" data-icon="robot" data-icon-size="14"></span> AI 智能匹配</button>
+                <button class="btn btn-primary" style="flex:1.5; background: var(--accent-indigo);" data-action="ai-match"><span class="icon" data-icon="robot" data-icon-size="14"></span> AI 智能匹配</button>
             </div>
             <div style="margin-bottom: 12px;">
                 <input type="text" id="linkIssuesSearch" class="form-input" placeholder="搜索议题编号、标题、部门..." data-link-search style="width: 100%;">
@@ -633,9 +634,9 @@
                 <div class="modal-subtitle" id="aiMatchSubtitle">基于部门、关键词、KPI、时间窗口等维度分析</div>
             </div>
             <div id="aiMatchLoading" style="text-align:center; padding: 40px;">
-                <div style="font-size: 32px; margin-bottom: 12px;"><span class="icon" data-icon="brain" data-icon-size="32"></span></div>
-                <div style="font-size: 14px; color: var(--text-secondary);">AI 正在分析专题与议题的关联度...</div>
-                <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">匹配维度：部门一致性 · 关键词重叠 · KPI关联 · 时间窗口 · 优先级</div>
+                <div style="margin-bottom: 12px;"><span class="dste-ai-thinking" style="font-size: 14px;">AI 正在分析专题与议题的关联度...</span></div>
+                <div style="margin-top: 12px;"><span class="dste-ai-dots"><span></span><span></span><span></span></span></div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">匹配维度：部门一致性 · 关键词重叠 · KPI关联 · 时间窗口 · 优先级</div>
             </div>
             <div id="aiMatchContent" style="display: none;">
                 <div id="aiMatchStats" style="margin-bottom: 16px; padding: 12px 16px; background: var(--bg-surface); border-radius: 8px; font-size: 13px; color: var(--text-secondary);"></div>
@@ -703,20 +704,25 @@
             <button data-action="toggle-ai" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:18px;">×</button>
         </div>
         <div class="ai-panel-body" id="aiMessages">
-            <div class="ai-message assistant">
-                <span class="icon" data-icon="hand-waving" data-icon-size="16"></span> 你好！我是你的AI战略助手。我可以帮你：
-                <br>• 分析KPI达成情况
-                <br>• 生成经营分析报告
-                <br>• 模拟战略调整影响
-                <div class="ai-suggestions">
-                    <span class="ai-suggestion" data-ask-ai="Q3营收为什么低于预期？">Q3营收为什么低于预期？</span>
-                    <span class="ai-suggestion" data-ask-ai="生成月度经营分析报告">生成月度经营分析报告</span>
+            <div class="ai-message assistant dste-ai-msg assistant">
+                <div class="dste-ai-avatar"><span class="icon" data-icon="robot" data-icon-size="14"></span></div>
+                <div class="dste-ai-bubble">
+                    <span class="icon" data-icon="hand-waving" data-icon-size="16"></span> 你好！我是你的AI战略助手。我可以帮你：
+                    <br>• 分析KPI达成情况
+                    <br>• 生成经营分析报告
+                    <br>• 模拟战略调整影响
+                    <div class="ai-suggestions">
+                        <span class="ai-suggestion dste-ai-chip" data-ask-ai="Q3营收为什么低于预期？">Q3营收为什么低于预期？</span>
+                        <span class="ai-suggestion dste-ai-chip" data-ask-ai="生成月度经营分析报告">生成月度经营分析报告</span>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="ai-input-area">
-            <input type="text" class="ai-input" id="aiInput" placeholder="输入你的问题..." onkeypress="if(event.key==='Enter')sendAI()">
-            <button class="ai-send" data-action="send-ai">发送</button>
+            <div class="dste-ai-composer" style="flex: 1;">
+                <input type="text" class="ai-input" id="aiInput" placeholder="输入你的问题..." onkeypress="if(event.key==='Enter')sendAI()" oninput="document.querySelector('.ai-send').disabled=!this.value.trim()">
+                <button class="ai-send dste-ai-send-btn" data-action="send-ai" aria-label="发送" disabled><span class="icon" data-icon="arrowUp" data-icon-size="16"></span></button>
+            </div>
         </div>
     </div>
 

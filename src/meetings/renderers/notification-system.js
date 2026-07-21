@@ -3,7 +3,7 @@ import { icon } from '../../../assets/js/icons.js';
 import { getMeetings } from '../data-store.js';
 
 const NOTIF_CONFIG_KEY = 'dste_notification_config';
-const NOTIF_DEFAULT = { webhooks: [], enabledTypes: { resolution: true, todo: true, alert: true, agenda: true }, mentionAll: false, lastSent: [] };
+const NOTIF_DEFAULT = { webhooks: [], enabledTypes: { resolution: true, todo: true, alert: true, agenda: true, rule: true }, mentionAll: false, lastSent: [] };
 
 function loadNotificationConfig() {
   let cfg;
@@ -26,7 +26,7 @@ function saveNotificationConfig(cfg) {
 async function sendWeComNotification(type, payload, webhookUrl) {
   const cfg = loadNotificationConfig();
   if (!webhookUrl) { window.showToast('请先选择发送目标群', 'warning'); return { success: false, msg: '未选择发送目标' }; }
-  const enabledKey = type.startsWith('alert') ? 'alert' : type.startsWith('agenda') ? 'agenda' : type;
+  const enabledKey = type.startsWith('alert') ? 'alert' : type.startsWith('agenda') ? 'agenda' : type.startsWith('rule') ? 'rule' : type;
   if (!cfg.enabledTypes[enabledKey]) return { success: false, msg: '该类型推送已禁用' };
   const msg = renderNotificationMessage(type, payload);
   if (!msg) return { success: false, msg: '消息内容为空' };
@@ -141,6 +141,19 @@ function pushAgendaMeeting(meetingId) {
       owner: a.owner
     })),
     totalDuration: totalMinutes
+  });
+}
+
+function pushRuleTrigger(rule, result, meeting) {
+  openWebhookSelector('rule-trigger', {
+    ruleName: rule?.name || '规则触发',
+    period: result?.period || '',
+    theater: result?.theater || '',
+    indicatorName: result?.indicatorName || '',
+    rank: result?.rank || 1,
+    achievementRate: result?.achievementRate || 0,
+    actionRequired: '落后述职',
+    meetingTitle: meeting?.title,
   });
 }
 
@@ -262,6 +275,7 @@ window.pushTodoReminder = pushTodoReminder;
 window.pushAlert = pushAlert;
 window.pushAgenda = pushAgenda;
 window.pushAgendaMeeting = pushAgendaMeeting;
+window.pushRuleTrigger = pushRuleTrigger;
 window.openNotificationCenter = openNotificationCenter;
 window.closeNotificationCenter = closeNotificationCenter;
 window.renderWebhookConfigList = renderWebhookConfigList;
@@ -284,6 +298,7 @@ export {
   pushAlert,
   pushAgenda,
   pushAgendaMeeting,
+  pushRuleTrigger,
   openNotificationCenter,
   closeNotificationCenter,
   renderWebhookConfigList,

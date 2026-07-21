@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>需求管理中心 - DSTE战略管理平台</title>
+    <title>规则引擎中心 - DSTE战略管理平台</title>
     <link rel="stylesheet" href="../assets/css/main.css?v=2">
     <link rel="stylesheet" href="./styles/shell.css">
-  <link rel="stylesheet" href="./styles/ai-chat.css">
+    <link rel="stylesheet" href="./styles/ai-chat.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="../assets/js/main.js"></script>
     <script>
@@ -45,7 +45,7 @@
             if (host === 'localhost' || host === '127.0.0.1' || host === 'dste.jasonxspace.cc') {
                 return DSTE.Storage.getString('dste_api_base') || '';
             }
-            return ''; // 生产环境走同域 /api/ 代理
+            return '';
         })();
 
         const CAS_LANDING_PAGE = '/src/cockpit.html';
@@ -211,7 +211,7 @@
         }
     })();
     </script>
-    <link rel="stylesheet" href="./pages/requirement-pool/style.css">
+    <link rel="stylesheet" href="./pages/rule-engine/style.css">
     <script type="module" src="./lib/shell-injector.js"></script>
 </head>
 <body>
@@ -242,63 +242,13 @@
             <aside class="sidebar" id="sidebar"></aside>
 
             <main class="content-area">
-                <div class="req-breadcrumb">
-                    <a href="cockpit.html#dashboard">驾驶舱</a>
-                    <span class="req-breadcrumb-separator">/</span>
-                    <span>需求管理中心</span>
-                </div>
-                <div class="req-page-container" id="req-page-container">
+                <div class="re-page-container" id="rule-engine-container">
                     <!-- JS rendered -->
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- 新建/编辑需求弹窗 -->
-    <div class="req-modal-overlay" id="req-form-modal" style="display:none;">
-        <div class="req-modal">
-            <div class="req-modal-header">
-                <h3 id="req-form-heading">新建需求</h3>
-                <button class="req-modal-close" data-req-action="close-form-modal">×</button>
-            </div>
-            <div class="req-modal-body" id="req-form-body">
-                <!-- JS rendered -->
-            </div>
-        </div>
-    </div>
-
-    <!-- 需求详情弹窗 -->
-    <div class="req-modal-overlay" id="req-detail-modal" style="display:none;">
-        <div class="req-modal req-modal-wide">
-            <div class="req-modal-header">
-                <h3>需求详情</h3>
-                <button class="req-modal-close" data-req-action="close-detail-modal">×</button>
-            </div>
-            <div class="req-modal-body" id="req-detail-body">
-                <!-- JS rendered -->
-            </div>
-        </div>
-    </div>
-
-    <!-- 删除确认弹窗 -->
-    <div class="req-modal-overlay" id="req-delete-modal" style="display:none;">
-        <div class="req-modal" style="max-width:420px;">
-            <div class="req-modal-header">
-                <h3>确认删除</h3>
-                <button class="req-modal-close" data-req-action="close-delete-modal">×</button>
-            </div>
-            <div class="req-modal-body">
-                <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
-                    确定要删除需求 <strong id="req-delete-target"></strong> 吗？此操作不可恢复。
-                </p>
-                <div class="req-form-actions">
-                    <button class="btn btn-secondary" data-req-action="close-delete-modal">取消</button>
-                    <button class="btn btn-danger" id="req-confirm-delete-btn">删除</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module" src="./pages/requirement-pool/main.js"></script>
+    <script type="module" src="./pages/rule-engine/main.js"></script>
 </body>
 </html>

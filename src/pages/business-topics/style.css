@@ -1260,7 +1260,7 @@
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));
+            background: var(--accent-indigo);
             border: none;
             color: white;
             font-size: 24px;
@@ -1313,22 +1313,7 @@
             overflow: auto;
             padding: 16px;
         }
-        .ai-message {
-            margin-bottom: 16px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-        .ai-message.user {
-            background: var(--accent-indigo);
-            margin-left: 20px;
-        }
-        .ai-message.assistant {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            margin-right: 20px;
-        }
+        /* AI 消息气泡样式由 ai-chat.css 的 dste-ai-* 类提供 */
         .ai-suggestions {
             display: flex;
             flex-wrap: wrap;
@@ -1355,29 +1340,7 @@
             display: flex;
             gap: 8px;
         }
-        .ai-input {
-            flex: 1;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-standard);
-            border-radius: 8px;
-            padding: 8px 12px;
-            color: var(--text-primary);
-            font-size: 13px;
-            font-family: inherit;
-        }
-        .ai-input:focus {
-            outline: none;
-            border-color: var(--accent-indigo);
-        }
-        .ai-send {
-            background: var(--accent-indigo);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            padding: 8px 16px;
-            font-size: 13px;
-            cursor: pointer;
-        }
+        /* .ai-input / .ai-send 样式由 ai-chat.css 的 dste-ai-composer / dste-ai-send-btn 提供 */
 
         /* ===== 业务专题管理 - Stage 1 新增样式 ===== */
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -1467,9 +1430,9 @@
             width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;
         }
-        .ai-match-score.high { background: linear-gradient(135deg, #10b981, #059669); }
-        .ai-match-score.medium { background: linear-gradient(135deg, #f59e0b, #d97706); }
-        .ai-match-score.low { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .ai-match-score.high { background: var(--success, #10b981); }
+        .ai-match-score.medium { background: var(--warning, #f59e0b); }
+        .ai-match-score.low { background: var(--text-muted, #6b7280); }
         .ai-match-info { flex: 1; min-width: 0; }
         .ai-match-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ai-match-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }

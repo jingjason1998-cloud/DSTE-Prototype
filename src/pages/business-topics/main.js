@@ -1526,15 +1526,23 @@ function sendAI() {
     const text = input.value.trim();
     if (!text) return;
     const messages = document.getElementById('aiMessages');
-    messages.innerHTML += `<div class="ai-message user">${escapeHtml(text)}</div>`;
+    messages.innerHTML += `<div class="ai-message user dste-ai-msg user"><div class="dste-ai-bubble">${escapeHtml(text)}</div></div>`;
+    const thinkingId = 'ai-mock-thinking-' + Date.now();
+    messages.innerHTML += `<div class="ai-message assistant dste-ai-msg assistant" id="${thinkingId}"><div class="dste-ai-avatar">${icon('robot', {size: 14})}</div><div class="dste-ai-bubble"><span class="dste-ai-thinking">正在思考…</span></div></div>`;
+    messages.scrollTop = messages.scrollHeight;
     setTimeout(() => {
         let response = `${icon('lightbulb', {size: 14})} 收到你的问题。我正在查询相关数据并分析，请稍候...\n\n（这是一个演示回复，实际产品将连接AI模型提供智能分析）`;
         if (text.includes('营收')) response = `${icon('chartBar', {size: 14})} Q3营收分析：\n• 目标：¥3.75亿\n• 实际：¥3.46亿（达成率92.3%）\n• 主要原因：华东区增速放缓、新产品推广滞后\n• 建议：加大华东区资源投入`;
         else if (text.includes('报告')) response = `${icon('clipboardText', {size: 14})} 月度经营分析报告已生成！\n\n【执行摘要】\nQ3整体达成率87%，3个KPI预警\n\n【关键发现】\n1. 营收增长12.5%\n2. 客户满意度提升5.2分\n3. 新产品收入占比偏低`;
-        messages.innerHTML += `<div class="ai-message assistant">${response}</div>`;
+        const replyHtml = `<div class="ai-message assistant dste-ai-msg assistant"><div class="dste-ai-avatar">${icon('robot', {size: 14})}</div><div class="dste-ai-bubble">${response.replace(/\n/g, '<br>')}</div></div>`;
+        const thinkingEl = document.getElementById(thinkingId);
+        if (thinkingEl) thinkingEl.outerHTML = replyHtml;
+        else messages.innerHTML += replyHtml;
         messages.scrollTop = messages.scrollHeight;
     }, 800);
     input.value = '';
+    const sendBtn = document.querySelector('.ai-send');
+    if (sendBtn) sendBtn.disabled = true;
     messages.scrollTop = messages.scrollHeight;
 }
 

@@ -472,13 +472,12 @@ def test_getMaterialScore_function_exists():
     assert "dste_review_scores" in combined, "未读取 dste_review_scores localStorage"
 
 def test_score_color_rules():
-    """得分颜色规则应符合设计：≥80绿色 / 60-79橙色 / <60红色 / 无灰色"""
-    content = (SRC / "meetings.html").read_text(encoding="utf-8")
-    meetings_section = content.split("function renderMeetings()")[1] if "function renderMeetings()" in content else ""
-    # 至少应有 80 分的判断逻辑
-    assert ">= 80" in meetings_section or ">=80" in meetings_section or "80 " in meetings_section, "未找到 80 分颜色分界逻辑"
+    """得分颜色规则应符合设计：≥90绿色 / 60-89橙色 / <60红色（规则统一维护在 scoring.js）"""
+    content = (SRC / "meetings" / "utils" / "scoring.js").read_text(encoding="utf-8")
+    # 至少应有 90 分的判断逻辑
+    assert ">= 90" in content or ">=90" in content, "未找到 90 分颜色分界逻辑"
     # 至少应有 60 分的判断逻辑
-    assert ">= 60" in meetings_section or ">=60" in meetings_section or "60 " in meetings_section, "未找到 60 分颜色分界逻辑"
+    assert ">= 60" in content or ">=60" in content, "未找到 60 分颜色分界逻辑"
 
 def test_reviewer_syncs_score_to_localStorage():
     """reviewer 保存审核结果时应同步最高分到 localStorage"""

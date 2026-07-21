@@ -11,7 +11,7 @@ import { icon } from '../../../assets/js/icons.js';
 
 /**
  * 根据通知类型和数据渲染企业微信 markdown 消息
- * @param {string} type - 通知类型：'resolution' | 'todo' | 'alert-meeting' | 'alert-action' | 'agenda' | 'agenda-meeting'
+ * @param {string} type - 通知类型：'resolution' | 'todo' | 'alert-meeting' | 'alert-action' | 'agenda' | 'agenda-meeting' | 'rule-trigger'
  * @param {Object} data - 通知数据
  * @returns {string} markdown 格式消息内容
  */
@@ -112,6 +112,21 @@ export function renderNotificationMessage(type, data) {
         (data.location ? `**地点：**${data.location}\n` : '') +
         `\n**议程列表：**\n${items || '> 暂无议程'}\n\n` +
         `> 合计 ${data.totalDuration || 0} 分钟，共 ${(data.agendaItems || []).length} 项议程`
+      );
+    }
+
+    case 'rule-trigger': {
+      return (
+        `## ${icon('warning', {size: 14 })} 落后战区业绩承诺会触发通知\n` +
+        `**规则：**${data.ruleName}\n` +
+        `**考核月份：**${data.period}\n` +
+        `**落后战区：**${data.theater}\n` +
+        `**落后指标：**${data.indicatorName}\n` +
+        `**排名：**倒数第 ${data.rank} 名\n` +
+        `**达成率：**${data.achievementRate}%\n` +
+        `**会议要求：**${data.actionRequired || '落后述职'}\n` +
+        (data.meetingTitle ? `**会议：**${data.meetingTitle}\n` : '') +
+        `> 请相关战区负责人准备落后述职材料并按时参会。`
       );
     }
 
