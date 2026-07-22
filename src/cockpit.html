@@ -540,9 +540,21 @@
   <script src="../pages/dashboard/roadmap.js" defer></script>
   <script src="../pages/dashboard/version-audit.js" defer></script>
   <script type="module">
-    import { renderTopNav, renderSidebar as shellRenderSidebar, getPhaseFromPage } from './lib/shell.js';
+    import { renderTopNav, renderSidebar as shellRenderSidebar, getPhaseFromPage, getPageMeta } from './lib/shell.js';
     import { hydrateIcons, icon } from '../assets/js/icons.js';
     import { EXTERNAL_PAGES } from './lib/config.js';
+    import {
+      loadWorkspaceTabs,
+      saveWorkspaceTabs,
+      createTab,
+      switchTab as switchWorkspaceTab,
+      closeTab as closeWorkspaceTab,
+      updateActiveTabPage,
+      openOrActivateTab,
+      setTabPinned,
+      reorderTabs,
+      resolvePageMeta
+    } from './lib/workspace-tabs.js';
     import { createBackup, restoreFromBackup, cleanupOldBackups, getBackupKeys } from './lib/migration-utils.js';
     import { Repository, createOmpRepository } from './lib/repository.js';
     import { enhancePersonInput, getPersonInputValue } from './components/person-input.js';
@@ -1353,8 +1365,19 @@
             tasks.forEach(t => {
               const normalized = window.normalizePerson(t.owner);
               if (normalized && normalized !== t.owner) { t.owner = normalized; tasksChanged = true; }
-              // 6) 为老任务补齐 members 字段
+              // 6) 为老任务补齐 members 字段，并把 legacy/stale 对象解析为字符串/PersonRef
               if (!Array.isArray(t.members)) { t.members = []; tasksChanged = true; }
+              if (Array.isArray(t.members)) {
+                t.members = t.members.map(m => {
+                  if (!m) return m;
+                  // 保持字符串工号不变，避免破坏 matrix 拖拽/移除的 data-person-ref 匹配
+                  if (typeof m === 'string' || typeof m === 'number') return m;
+                  // 仅对象类型尝试标准化
+                  const normalizedMember = window.normalizePerson(m);
+                  return normalizedMember !== null ? normalizedMember : m;
+                });
+                tasksChanged = true;
+              }
             });
             if (tasksChanged) omp_save('tasks', tasks);
 
@@ -2212,72 +2235,70 @@
       let currentPhase = 'dashboard';
       let currentPage = 'dashboard';
 
-      // ===== 站内标签栏状态 =====
-      let appTabs = [{ id: 'tab-1', pageId: 'dashboard', title: '驾驶舱' }];
-      let activeTabId = 'tab-1';
-      let tabCounter = 2;
+      // ===== 持久化多标签工作区 =====
+      let workspace = loadWorkspaceTabs();
 
       function getPageTitle(pageId) {
-        const pageNames = {
-          'dashboard': '驾驶舱',
-          'sp/strategy-map': '战略地图', 'sp/strategy-map-detail': '战略地图详情', 'sp/insights-topics': '战略洞察与专题',
-          'bp/kpi': '战略指标库', 'bp/bem': 'BEM 战略解码', 'bp/annual-plan': '年度经营计划',
-          'exe/kpi': 'KPI管理', 'exe/tasks': '重点工作管理', 'exe/business-topics': '业务专题管理', 'exe/st-issue-tracking': '片联ST议题跟踪表', 'exe/at-issue-tracking': '片联AT议题跟踪表', 'exe/meetings': '经营分析会', 'exe/meetings/edit': '编辑会议', 'exe/meeting-review': '会议材料审核',
-          'rev/performance': '绩效与激励', 'rev/cadre': '干部管理', 'rev/review': '战略复盘', 'rev/gap-analysis': '差距分析',
-          'dashboard/roadmap': '开发路线图 Road Map',
-          'dashboard/version-audit': '版本审计'
-        };
-        return pageNames[pageId] || '未命名';
+        return getPageMeta(pageId).title;
       }
 
       function renderTabs() {
         const tabsEl = document.getElementById('page-tabs');
         if (!tabsEl) return;
-        tabsEl.innerHTML = appTabs.map(tab => {
-          const activeClass = tab.id === activeTabId ? 'active' : '';
-          return `<div class="tab ${activeClass}" data-tab-id="${tab.id}">
-            <span>${escapeHtml(tab.title)}</span>
-            ${appTabs.length > 1 ? `<span class="tab-close" data-tab-id="${tab.id}" title="关闭">×</span>` : ''}
+        tabsEl.innerHTML = workspace.tabs.map(tab => {
+          const activeClass = tab.id === workspace.activeTabId ? 'active' : '';
+          const pinnedClass = tab.pinned ? 'pinned' : '';
+          const iconHtml = tab.icon ? icon(tab.icon, { size: 14 }) : '';
+          const closeable = workspace.tabs.length > 1 && !tab.pinned;
+          return `<div class="tab ${activeClass} ${pinnedClass}" data-tab-id="${tab.id}" title="${escapeHtml(tab.title)}">
+            ${iconHtml ? `<span class="tab-icon">${iconHtml}</span>` : ''}
+            <span class="tab-title">${escapeHtml(tab.title)}</span>
+            ${closeable ? `<span class="tab-close" data-tab-id="${tab.id}" title="关闭">×</span>` : ''}
           </div>`;
         }).join('');
         hydrateIcons(tabsEl);
       }
 
       function switchTab(tabId) {
-        const tab = appTabs.find(t => t.id === tabId);
+        const tab = workspace.tabs.find(t => t.id === tabId);
         if (!tab) return;
-        activeTabId = tabId;
+        workspace = switchWorkspaceTab(workspace, tabId);
         renderTabs();
         _renderPage(tab.pageId, true);
       }
 
       function closeTab(tabId) {
-        const idx = appTabs.findIndex(t => t.id === tabId);
-        if (idx === -1 || appTabs.length <= 1) return;
-        const wasActive = activeTabId === tabId;
-        appTabs.splice(idx, 1);
-        if (wasActive) {
-          const next = appTabs[Math.max(0, idx - 1)] || appTabs[0];
-          activeTabId = next.id;
-          switchTab(activeTabId);
-        } else {
-          renderTabs();
+        const wasActive = workspace.activeTabId === tabId;
+        const result = closeWorkspaceTab(workspace, tabId);
+        workspace = result.state;
+        renderTabs();
+        if (wasActive && workspace.tabs.length > 0) {
+          switchTab(workspace.activeTabId);
         }
       }
 
       function openTab(pageId) {
-        const existing = appTabs.find(t => t.pageId === pageId);
-        if (existing) {
-          activeTabId = existing.id;
-          renderTabs();
-          _renderPage(pageId, true);
-          return;
-        }
-        const newTab = { id: 'tab-' + tabCounter++, pageId, title: getPageTitle(pageId) };
-        appTabs.push(newTab);
-        activeTabId = newTab.id;
+        const meta = resolvePageMeta(pageId, getPageMeta);
+        const result = openOrActivateTab(workspace, meta);
+        workspace = result.state;
         renderTabs();
         _renderPage(pageId, true);
+      }
+
+      function updateActiveTab(pageId) {
+        const meta = resolvePageMeta(pageId, getPageMeta);
+        workspace = updateActiveTabPage(workspace, meta);
+        renderTabs();
+      }
+
+      function onTopNavNavigate(defaultPage) {
+        const phase = getPhaseFromPage(defaultPage);
+        const activeTab = workspace.tabs.find(t => t.id === workspace.activeTabId);
+        if (activeTab && activeTab.phase === phase) {
+          navigate(defaultPage);
+        } else {
+          openTab(defaultPage);
+        }
       }
 
       // ===== 初始化 =====
@@ -2296,7 +2317,7 @@
           }
         }
 
-        renderTopNav(currentPhase, navigate);
+        renderTopNav(currentPhase, onTopNavNavigate);
         hydrateIcons();
         renderCycleSelector();
         // 全局周期切换器事件绑定
@@ -2312,8 +2333,8 @@
 
         const hash = window.location.hash.slice(1) || 'dashboard';
         // 初始化第一个 tab 为当前 hash 页面
-        appTabs[0].pageId = hash;
-        appTabs[0].title = getPageTitle(hash);
+        const initialMeta = resolvePageMeta(hash, getPageMeta);
+        workspace = updateActiveTabPage(workspace, initialMeta);
         renderTabs();
         navigate(hash, false);
         window.addEventListener('hashchange', () => navigate(window.location.hash.slice(1), false));
@@ -3666,7 +3687,7 @@
           pageId = 'dashboard';
         }
 
-        // 外部链接直接跳转
+        // 外部链接直接跳转（Phase 2 将改为 iframe 嵌入工作区）
         if (EXTERNAL_PAGES[pageId]) {
           window.location.href = EXTERNAL_PAGES[pageId];
           return;
@@ -3675,15 +3696,7 @@
         if (!PAGES[pageId]) pageId = 'dashboard';
 
         // 在当前 tab 内跳转，替换当前 tab 的页面
-        const activeTab = appTabs.find(t => t.id === activeTabId);
-        if (activeTab) {
-          activeTab.pageId = pageId;
-          activeTab.title = getPageTitle(pageId);
-        } else {
-          appTabs = [{ id: 'tab-' + tabCounter++, pageId, title: getPageTitle(pageId) }];
-          activeTabId = appTabs[0].id;
-        }
-        renderTabs();
+        updateActiveTab(pageId);
 
         _renderPage(pageId, pushState);
       }
@@ -4069,8 +4082,8 @@
 
       // ===== 渲染左侧栏 =====
       function renderSidebar(phase) {
-        // 所有页面统一使用共享 shell.js 渲染；侧边栏点击打开新 tab
-        shellRenderSidebar(phase, currentPage, openTab);
+        // 所有页面统一使用共享 shell.js 渲染；默认替换当前 tab，Ctrl/Cmd/中键点击新建 tab
+        shellRenderSidebar(phase, currentPage, navigate, { onOpenInNewTab: openTab });
       }
 
       // ===== 报表中心 =====
@@ -5209,6 +5222,15 @@
       // ===== Tab 4.5: 资源配置矩阵（MVP：负责人 + 成员） =====
       function resolvePersonDisplayName(personRef) {
         if (!personRef) return '';
+        // 兼容 legacy/stale 对象：name 可能是工号，优先按工号回查
+        if (personRef && typeof personRef === 'object' && (personRef._legacy || personRef._stale)) {
+          const nameOrId = String(personRef.name || '').trim();
+          if (nameOrId && typeof getEmployeeById === 'function') {
+            const emp = getEmployeeById(nameOrId);
+            if (emp) return emp.name || emp.displayName || nameOrId;
+          }
+          return personRef.name || '';
+        }
         const emp = typeof getEmployeeById === 'function' ? getEmployeeById(personRef) : null;
         if (emp) return emp.name || emp.displayName || personRef;
         return window.renderPerson ? window.renderPerson(personRef) : personRef;

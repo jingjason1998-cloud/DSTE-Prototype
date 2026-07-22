@@ -1,38 +1,38 @@
 {
-  "generated_at": "2026-07-21T12:49:00.701Z",
+  "generated_at": "2026-07-22T02:18:01.862Z",
   "project": "dste-platform",
   "local": {
-    "version_tag": "v0.7.0",
-    "build_time": "2026-07-21 12:49:00",
+    "version_tag": "v0.7.1",
+    "build_time": "2026-07-22 02:18:01",
     "source": "dist",
     "cockpit_html": {
-      "md5": "19f6dc74",
-      "hash": "19f6dc74e0ef198569f7cd1c54ecf108",
-      "mtime": "2026-07-21 12:48:26",
+      "md5": "b1d176f1",
+      "hash": "b1d176f1276d824dcb4315f9e051d2cd",
+      "mtime": "2026-07-22 02:18:01",
       "size": 20148
     },
     "reviewer_html": {
-      "md5": "6b79f162",
-      "hash": "6b79f1627eca21e0864178e256fee174",
-      "mtime": "2026-07-21 12:48:26",
+      "md5": "3165e635",
+      "hash": "3165e63538499d426cbd55164cdf4a30",
+      "mtime": "2026-07-22 02:18:01",
       "size": 24408
     },
     "business_topics_html": {
-      "md5": "270f3be4",
-      "hash": "270f3be4c989788fd44e8fe10c107f6b",
-      "mtime": "2026-07-21 12:48:26",
+      "md5": "4ed810d5",
+      "hash": "4ed810d5b6bb134aadab6882de4bb29e",
+      "mtime": "2026-07-22 02:18:01",
       "size": 44594
     },
     "meetings_html": {
-      "md5": "a00b5a91",
-      "hash": "a00b5a91858b5f29ac733fb1bdc0ffe5",
-      "mtime": "2026-07-21 12:48:26",
+      "md5": "d1f5711e",
+      "hash": "d1f5711e39b0d8a724e891d38d09b376",
+      "mtime": "2026-07-22 02:18:01",
       "size": 36355
     }
   },
   "git": {
-    "version_tag": "v0.6.17",
-    "commit": "00869bc",
+    "version_tag": "v0.7.0",
+    "commit": "801a106",
     "branch": "main",
     "dirty": true
   },

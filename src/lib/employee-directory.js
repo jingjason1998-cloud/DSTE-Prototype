@@ -326,8 +326,9 @@ export function getOrgTree() {
 
 export function getEmployeeById(id) {
   if (!id) return null;
-  const target = String(id);
-  return getEmployees().find(emp => String(emp.id) === target) || null;
+  const target = String(id).trim();
+  if (!target) return null;
+  return getEmployees().find(emp => String(emp.id).trim() === target) || null;
 }
 
 export function getEmployeeByName(name) {
@@ -861,12 +862,20 @@ export async function rebuildPersonRefs() {
  */
 export function renderPerson(personRef) {
   if (!personRef) return '待定';
-  if (typeof personRef === 'string') {
-    const trimmed = personRef.trim();
+  if (typeof personRef === 'string' || typeof personRef === 'number') {
+    const trimmed = String(personRef).trim();
     if (!trimmed) return '待定';
     const emp = getEmployeeById(trimmed);
     if (emp) return emp.displayName || emp.name || trimmed;
-    return personRef;
+    return String(personRef);
+  }
+  if (personRef._legacy || personRef._stale) {
+    // 兼容旧数据：legacy 对象里的 name 可能是工号，尝试按工号解析
+    const nameOrId = String(personRef.name || '').trim();
+    if (nameOrId) {
+      const emp = getEmployeeById(nameOrId);
+      if (emp) return emp.displayName || emp.name || nameOrId;
+    }
   }
   if (personRef._legacy) return personRef.name;
   if (personRef._stale) return `${personRef.name || '未知'} (已离职)`;

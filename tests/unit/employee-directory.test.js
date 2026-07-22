@@ -196,10 +196,22 @@ describe('employee-directory', () => {
       expect(ref.name).toBe('李四');
     });
 
-    it('marks unknown string as legacy', () => {
-      const ref = normalizePerson('不存在的人');
-      expect(ref._legacy).toBe(true);
-      expect(ref.name).toBe('不存在的人');
+    it('resolves legacy object with id-like name', () => {
+      saveEmployeeDirectory([
+        {
+          id: 57968473,
+          name: '李四',
+          displayName: '李四 (Li.Si)',
+          orgPath: '线 > 大区',
+          orgChain: [],
+          ldap: '',
+          searchTokens: [],
+        },
+      ], { fileName: 'test.xlsx' });
+
+      expect(renderPerson({ _legacy: true, name: '57968473' })).toBe('李四 (Li.Si)');
+      expect(renderPerson({ _stale: true, name: '57968473' })).toBe('李四 (Li.Si)');
+      expect(renderPerson(57968473)).toBe('李四 (Li.Si)');
     });
   });
 

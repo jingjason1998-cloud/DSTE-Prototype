@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [v0.7.1] - 2026-07-22
+
+### Fixed
+- **修复重点工作成员姓名解析仍显示工号**：v0.7.0 的修复未覆盖成员已被旧版标准化为 `{ _legacy: true, name: '工号' }` 对象、以及工号含前后空格/数字类型的情况。现统一在 `renderPerson`、`resolvePersonDisplayName`、`getEmployeeById` 中对 legacy/stale 对象和字符串/数字工号做回查；页面加载时自动将 legacy 对象成员解析为字符串或 PersonRef，保持拖拽/移除的 `data-person-ref` 匹配。
+
 ## [v0.7.0] - 2026-07-21
 
 ### Added
