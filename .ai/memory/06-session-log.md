@@ -2,6 +2,41 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-21（Kimi，AI UI 升级 + 审核修复）
+- **主题**：会议列表紧凑化 + AI 交互 UI 升级（Kimi 风）+ 会议材料审核功能修复
+- **操作**：
+  - `src/meetings.html` 会议卡片纵向间距压缩（padding/margins/列表 gap），构建与 check:scope 通过
+  - **AI 交互 UI 升级（对标 Kimi 网页版，功能不变）**：新增 `src/styles/ai-chat.css`（dste-ai-* 共享样式，已引入 10 个 HTML 页面）+ `src/lib/markdown-lite.js`（轻量 markdown 渲染，先 escape 防 XSS）+ `tests/unit/markdown-lite.test.js` 14 用例；全局 AI 抽屉 / 会议 AI 助手（含 AiAgendaDrawer）/ cockpit 专题 AI 问答 / 规则型 AI（business-topics 匹配弹窗 + mock 浮窗、requirement-pool）统一换肤：AI 消息无气泡带头像、用户右侧浅灰气泡、思考态 spinner → shimmer 流光、流式竖线光标 → 呼吸圆点、输入区 → 大圆角 composer + 圆形发送按钮（空输入置灰）、AI 回复 markdown 渲染（流式期间 textContent，结束后一次性渲染）；删除 `shell.css` 与 `meetings.html` 中互相覆盖的旧 `.ai-message` 定义；修复 GlobalAiDrawer 事件委托 `e.target.id` 命中 SVG 子元素导致发送失效（改 `closest()`）
+  - **会议材料审核修复（已发布 commit `00869bc`）**：诊断确认 v0.6.7（`604f65f`）把 nginx `/api/` 反代从 Flask(8766) 切到 Worker，审核 7 端点全 404（生产实测，`/api/health` 200 属误导性正常）；修复 `scripts/update-nginx-api-proxy.sh` 按路径分流（`^/api/(review|batch|scenes|history|summary|config)` → Flask，其余 → Worker），推送后生产验证：`/api/scenes` 200、`/api/review` 400 参数校验、Worker AI 链路不受影响；**遗留**：Flask 侧 `KMS_API_TOKEN` 失效致 KMS 拉取 404（Worker 的 `KMS_PAT_TOKEN` 同页面可取），需用户在服务器更新 `/opt/meeting-reviewer/src/.env` 并 `systemctl restart meeting-reviewer`
+  - 方案 B（审核端点移植 Worker）登记为 `.ai/tasks/active/T080-review-worker-migration.md`（含完整迁移契约），用户决定暂缓
+- **修改文件**：`src/styles/ai-chat.css`、`src/lib/markdown-lite.js`、`src/components/GlobalAiDrawer.js`、`src/meetings.html`、`src/meetings/components/{MeetingAiAssistant,AiAgendaDrawer}.js`、`src/cockpit.html`、`src/styles/shell.css`、`src/business-topics.html`、`src/pages/business-topics/{main,style}.*`、`src/pages/requirement-pool/{main,style}.*`、`scripts/update-nginx-api-proxy.sh`、10 个 HTML 引入 ai-chat.css
+- **验证**：build / check:scope ✓；unit 466 ✓（含新增 14）；E2E ai-assistant 6 + ai-agenda-recommend/business-topics/meeting-pending-actions 54 ✓；视觉走查截图 ✓；pytest 183 过 1 失败（`test_score_color_rules`，并行会话 todo-panel 改动所致，非本会话）
+- **状态**：complete（AI UI 改动未提交，攒着；审核链路已恢复，待用户更新 Flask token 后端到端确认）
+- **下一步**：用户更新服务器 KMS_API_TOKEN 后跑一次真实材料审核；AI UI 改动随下次发布提交；T080 后续排期
+
+## 2026-07-21（Kimi，记忆机制修复）
+- **主题**：排查记忆版本过期（v0.6.13 vs 实际 v0.6.17）并修补机制
+- **操作**：
+  - 定位根因：07-16（v0.6.14）与 07-20（v0.6.15/16/17，性能优化 + defer 白屏 hotfix）的发布/救火会话未回写 `.ai/memory/`；结构性原因是机制无强制力、`AGENTS.md` 未提及 `.ai/memory/`、`docs/04-Guide开发指南/ai-memory-workflow.md` 已被删除
+  - 修正 `01-current-focus.md`：生产版本号 → v0.6.17，标注 07-14~07-21 记忆空白（以 git log 为准）
+  - `AGENTS.md` 新增「会话记忆（每个会话必须执行）」一节：开始读 bootstrap + current-focus，结束更新 current-focus + session log（发布/救火会话无一例外），判定标准"有提交/发布但 memory 无变化 = 没做完"
+- **修改文件**：`.ai/memory/01-current-focus.md`、`.ai/memory/06-session-log.md`、`AGENTS.md`（均未提交）
+- **状态**：complete
+- **下一步**：改动随下次发布一起提交；工作区仍有规则引擎 + 会议待办面板 + 全局 AI 抽屉未提交开发线（用户表示暂不处理）
+
+## 2026-07-21
+- **主题**：接手并完成规则引擎中心测试验证
+- **操作**：
+  - 接手隔壁会话中断的规则引擎开发任务，当前仅剩「运行测试并验证规则引擎」
+  - 定位并修复规则引擎保存新规则不生效的 bug：新建规则时 `state.editingRule` 带有默认规则 id，保存时误走 `updateRule` 分支但 localStorage 中无此 id，导致规则未写入
+  - 修复 `src/pages/rule-engine/main.js`：新建规则时将 `id` 重置为空；保存时通过 `findRuleById(id)` 判断是更新还是新增
+  - 更新 `tests/e2e/navigation.spec.js`：规则引擎已改为独立页面 `rule-engine.html`，测试从占位页断言改为跳转独立页面断言
+  - 顺手修复 cockpit.html 构建后 roadmap/version-audit 页面无法渲染的问题：Vite 构建后 cockpit 主逻辑 module 提前执行，`PAGES['dashboard/roadmap']` 直接引用 `window.renderDevTimeline` 时未定义；改为 `() => window.renderDevTimeline()` / `() => window.renderVersionAudit()` 延迟访问
+- **修改文件**：`src/pages/rule-engine/main.js`、`tests/e2e/navigation.spec.js`、`src/cockpit.html`
+- **验证**：`npm run test:unit` 509 passed；`npx playwright test tests/e2e/rule-engine.spec.js` 3 passed；`npx playwright test tests/e2e/navigation.spec.js` 14 passed；`npm run build` / `npm run check:scope` ✅
+- **状态**：complete（规则引擎验证通过，改动未提交/未发布）
+- **下一步**：用户决定是否将规则引擎改动随下一版本发布；继续其他并行开发线
+
 ## 2026-07-14
 - **主题**：发布 v0.6.13 —— 纳入上一会话遗留的 AI 改动并修复 4 个过期 E2E
 - **操作**：
