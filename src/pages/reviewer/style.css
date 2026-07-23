@@ -88,7 +88,7 @@
             padding: 14px 18px;
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            background: #fafafa;
+            background: var(--color-bg-hover);
             color: var(--text-primary);
             font-size: 1em;
             transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
@@ -171,7 +171,7 @@
             display: block;
             background: rgba(82,196,26,0.08);
             border: 1px solid rgba(82,196,26,0.15);
-            color: #389e0d;
+            color: var(--color-success-hover);
         }
         .report-box {
             background: var(--bg-card);
@@ -202,7 +202,7 @@
             width: 16px;
             height: 16px;
             border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: #00d4ff;
+            border-top-color: var(--color-info);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -252,7 +252,7 @@
         }
         .config-form label {
             font-size: 0.85em;
-            color: #888;
+            color: var(--color-text-tertiary);
             margin-bottom: 4px;
         }
         .config-form input {
@@ -265,7 +265,7 @@
         }
         .config-form input:focus {
             outline: none;
-            border-color: #00d4ff;
+            border-color: var(--color-info);
         }
         .config-section {
             max-height: 0;
@@ -305,7 +305,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            color: #555;
+            color: var(--color-text-secondary);
             font-size: 0.8em;
         }
         .config-bar-right .arrow {
@@ -349,7 +349,7 @@
         }
         .config-form input:focus {
             outline: none;
-            border-color: #00d4ff;
+            border-color: var(--color-info);
             color: var(--text-inverse);
         }
         .config-actions {
@@ -369,7 +369,7 @@
             font-size: 0.8em;
         }
         .footer a {
-            color: #555;
+            color: var(--color-text-secondary);
             text-decoration: none;
         }
         .scene-select {
@@ -377,7 +377,7 @@
             padding: 14px 18px;
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            background: #fafafa;
+            background: var(--color-bg-hover);
             color: var(--text-primary);
             font-size: 1em;
             transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
@@ -1097,7 +1097,7 @@
         }
         .history-scene {
             font-size: 0.8em;
-            color: #888;
+            color: var(--color-text-tertiary);
             background: rgba(255,255,255,0.06);
             padding: 2px 8px;
             border-radius: 4px;

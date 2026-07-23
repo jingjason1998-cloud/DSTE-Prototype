@@ -119,7 +119,7 @@ describe('buildGlobalTodos', () => {
     expect(decisionTodos[0].text).toContain('决议A');
   });
 
-  it('generates agendaMaterial todo for missing or unreviewed material', () => {
+  it('does not track agenda material todos (category removed)', () => {
     const meetings = [createMeeting({
       status: 'planned',
       agenda_items: [
@@ -129,10 +129,8 @@ describe('buildGlobalTodos', () => {
       ],
     })];
     const todos = buildGlobalTodos(meetings, { scenarioConfig });
-    const materialTodos = todos.filter(t => t.type === 'agendaMaterial');
-    expect(materialTodos).toHaveLength(2);
-    expect(materialTodos[0].text).toContain('待补充材料');
-    expect(materialTodos[1].text).toContain('待审核材料');
+    expect(todos.find(t => t.type === 'agendaMaterial')).toBeUndefined();
+    expect(todos.find(t => (t.text || '').includes('材料'))).toBeUndefined();
   });
 
   it('generates effectiveness todo for completed meeting without effectiveness', () => {

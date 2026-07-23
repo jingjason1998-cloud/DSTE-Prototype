@@ -74,6 +74,32 @@ test.describe('Meeting Global Todo Panel', () => {
     await expect(page.locator('#global-todo-panel .todo-group').first()).toBeVisible();
   });
 
+  test('type pills filter todos by type and toggle off', async ({ page }) => {
+    const typeBtn = page.locator('#global-todo-panel [data-todo-type]:not([data-todo-type="all"])').first();
+    await expect(typeBtn).toBeVisible();
+    const typeKey = await typeBtn.getAttribute('data-todo-type');
+
+    await typeBtn.click();
+    await page.waitForTimeout(150);
+
+    const items = page.locator('#global-todo-panel .todo-item');
+    expect(await items.count()).toBeGreaterThan(0);
+    const types = await items.evaluateAll(els => els.map(e => e.getAttribute('data-todo-type')));
+    expect([...new Set(types)]).toEqual([typeKey]);
+
+    // 再次点击同一类型取消筛选，恢复全部待办
+    await typeBtn.click();
+    await page.waitForTimeout(150);
+    const allTypes = await page.locator('#global-todo-panel .todo-item')
+      .evaluateAll(els => els.map(e => e.getAttribute('data-todo-type')));
+    expect(new Set(allTypes).size).toBeGreaterThan(1);
+  });
+
+  test('agenda material todos are no longer tracked', async ({ page }) => {
+    await expect(page.locator('#global-todo-panel [data-todo-type="agendaMaterial"]')).toHaveCount(0);
+    await expect(page.locator('#global-todo-panel .todo-item[data-todo-section="agenda"]')).toHaveCount(0);
+  });
+
   test('empty state appears when no todos', async ({ page }) => {
     await page.evaluate(() => {
       const cleared = (window._meetingsData || []).map(m => ({

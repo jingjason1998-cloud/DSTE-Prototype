@@ -33,7 +33,6 @@ export const TODO_TYPE_CONFIG = {
   minutes: { label: '会议纪要', icon: 'fileText', color: 'var(--warning)' },
   decision: { label: '决议确认', icon: 'clipboardText', color: 'var(--warning)' },
   action: { label: '行动项跟进', icon: 'check', color: 'var(--primary)' },
-  agendaMaterial: { label: '议程材料', icon: 'paperclip', color: 'var(--warning)' },
   effectiveness: { label: '会议评估', icon: 'star', color: 'var(--warning)' },
   pipeline: { label: '流程推进', icon: 'chartBar', color: 'var(--primary)' },
 };
@@ -212,37 +211,7 @@ export function buildGlobalTodos(meetings, options = {}) {
       }
     });
 
-    // 6. 议程材料待补充/评审
-    (m.agenda_items || []).forEach((agenda, idx) => {
-      const hasMaterial = Boolean(agenda.material_link?.trim());
-      const isReviewed = agenda.reviewStatus === 'reviewed';
-
-      if (!hasMaterial) {
-        todoItems.push(createTodo({
-          type: 'agendaMaterial',
-          text: `${m.title} · ${agenda.title || `议程${idx + 1}`} 待补充材料`,
-          meetingId: m.id,
-          meetingTitle: m.title,
-          meetingDate: m.date,
-          section: 'agenda',
-          subIndex: idx,
-          priority: meetingDaysLeft !== null && meetingDaysLeft <= 3 ? TODO_PRIORITY.HIGH : TODO_PRIORITY.MEDIUM,
-        }));
-      } else if (!isReviewed) {
-        todoItems.push(createTodo({
-          type: 'agendaMaterial',
-          text: `${m.title} · ${agenda.title || `议程${idx + 1}`} 待审核材料`,
-          meetingId: m.id,
-          meetingTitle: m.title,
-          meetingDate: m.date,
-          section: 'agenda',
-          subIndex: idx,
-          priority: meetingDaysLeft !== null && meetingDaysLeft <= 3 ? TODO_PRIORITY.HIGH : TODO_PRIORITY.MEDIUM,
-        }));
-      }
-    });
-
-    // 7. 待会议效果评估
+    // 6. 待会议效果评估
     if (m.status === 'completed' && !m.effectiveness) {
       todoItems.push(createTodo({
         type: 'effectiveness',
@@ -255,7 +224,7 @@ export function buildGlobalTodos(meetings, options = {}) {
       }));
     }
 
-    // 8. 一报一会流程待推进
+    // 7. 一报一会流程待推进
     const scenario = scenarioConfig[m.scenario];
     if (scenario?.pipelineEnabled) {
       const firstUndone = pipelineSteps.find(step => !pipeline[step.key]);

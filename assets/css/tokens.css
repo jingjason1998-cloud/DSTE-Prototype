@@ -75,6 +75,7 @@
   --color-border-subtle: var(--color-gray-100);
   --color-border-strong: var(--color-gray-300);
   --color-border-focus: var(--color-blue-500);
+  --color-border-divider: var(--color-gray-200);
 
   /* ===== Spacing ===== */
   --space-0: 0px;
@@ -134,11 +135,12 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
   /* ===== Shell ===== */
-  --shell-topbar-height: 60px;
-  --shell-sidebar-width: 240px;
+  --shell-topbar-height: 56px;
+  --shell-sidebar-width: 220px;
   --shell-sidebar-collapsed: 64px;
+  --shell-tabbar-height: 36px;
   --shell-content-max-width: 1440px;
-  --shell-content-padding: var(--space-6);
+  --shell-content-padding: var(--space-5);
 
   /* ===== Z-Index ===== */
   --z-base: 0;

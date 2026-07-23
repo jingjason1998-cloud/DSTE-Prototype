@@ -13,6 +13,7 @@ import {
   groupTodosByType,
   groupTodosByUrgency,
   TODO_PRIORITY,
+  TODO_TYPE_CONFIG,
 } from '../utils/todo-aggregator.js';
 
 const FILTER_TABS = [
@@ -38,7 +39,14 @@ function escapeJsString(s) {
     : String(s || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
 }
 
-function renderTodoToolbar(realCount, currentFilter, currentGroup) {
+function renderTodoToolbar(realCount, currentFilter, currentGroup, allTodos, currentType) {
+  const realTodos = (allTodos || []).filter(t => t.type !== 'empty');
+  const typeCounts = {};
+  realTodos.forEach(t => { typeCounts[t.type] = (typeCounts[t.type] || 0) + 1; });
+  const presentTypes = Object.keys(TODO_TYPE_CONFIG).filter(k => typeCounts[k]);
+
+  const pillStyle = (active) => `padding: 3px 8px; font-size: 11px; border-radius: 4px; border: 1px solid ${active ? 'var(--primary)' : 'var(--border-color)'}; background: ${active ? 'var(--primary)' : 'var(--bg-card)'}; color: ${active ? '#fff' : 'var(--text-secondary)'}; cursor: pointer; transition: all 0.2s;`;
+
   return `
     <div style="margin-bottom: 12px;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -47,16 +55,28 @@ function renderTodoToolbar(realCount, currentFilter, currentGroup) {
       <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
         ${FILTER_TABS.map(t => `
           <button type="button" data-todo-filter="${t.key}" onclick="switchTodoFilter('${t.key}')"
-            style="padding: 3px 8px; font-size: 11px; border-radius: 4px; border: 1px solid ${currentFilter === t.key ? 'var(--primary)' : 'var(--border-color)'}; background: ${currentFilter === t.key ? 'var(--primary)' : 'var(--bg-card)'}; color: ${currentFilter === t.key ? '#fff' : 'var(--text-secondary)'}; cursor: pointer; transition: all 0.2s;">
+            style="${pillStyle(currentFilter === t.key)}">
+            ${t.label}
+          </button>
+        `).join('')}
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+        ${GROUP_TABS.map(t => `
+          <button type="button" data-todo-group="${t.key}" onclick="switchTodoGroup('${t.key}')"
+            style="${pillStyle(currentGroup === t.key)}">
             ${t.label}
           </button>
         `).join('')}
       </div>
       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-        ${GROUP_TABS.map(t => `
-          <button type="button" data-todo-group="${t.key}" onclick="switchTodoGroup('${t.key}')"
-            style="padding: 3px 8px; font-size: 11px; border-radius: 4px; border: 1px solid ${currentGroup === t.key ? 'var(--primary)' : 'var(--border-color)'}; background: ${currentGroup === t.key ? 'var(--primary)' : 'var(--bg-card)'}; color: ${currentGroup === t.key ? '#fff' : 'var(--text-secondary)'}; cursor: pointer; transition: all 0.2s;">
-            ${t.label}
+        <button type="button" data-todo-type="all" onclick="switchTodoType('all')"
+          style="${pillStyle(currentType === 'all')}">
+          全部类型
+        </button>
+        ${presentTypes.map(k => `
+          <button type="button" data-todo-type="${k}" onclick="switchTodoType('${k}')"
+            style="${pillStyle(currentType === k)}">
+            ${TODO_TYPE_CONFIG[k].label} (${typeCounts[k]})
           </button>
         `).join('')}
       </div>
@@ -76,10 +96,12 @@ function renderTodoItem(t) {
 
   const subIndexParam = t.subIndex !== null ? t.subIndex : 'null';
   const sectionParam = t.section || '';
+  const typeLabel = TODO_TYPE_CONFIG[t.type]?.label || '';
 
   return `
     <div class="todo-item"
          data-todo-id="${escapeHtml(t.id)}"
+         data-todo-type="${escapeHtml(t.type)}"
          data-todo-section="${escapeHtml(sectionParam)}"
          data-todo-priority="${t.priority}"
          onclick="window.openTodoMeeting('${escapeJsString(t.meetingId)}', '${escapeJsString(sectionParam)}', ${subIndexParam})"
@@ -95,7 +117,7 @@ function renderTodoItem(t) {
           ${escapeHtml(t.text)}
         </div>
         <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          ${escapeHtml(t.meetingTitle)}${t.dueText ? ` · ${escapeHtml(t.dueText)}` : ''}
+          ${typeLabel ? `<span style="display: inline-block; padding: 0 4px; margin-right: 4px; border-radius: 3px; font-size: 10px; line-height: 16px; color: ${t.color}; background: var(--bg-page); border: 1px solid var(--border-light); vertical-align: 1px;">${escapeHtml(typeLabel)}</span>` : ''}${escapeHtml(t.meetingTitle)}${t.dueText ? ` · ${escapeHtml(t.dueText)}` : ''}
         </div>
       </div>
       <span style="color: var(--primary); display: inline-flex; flex-shrink: 0; align-self: center;">${icon('caretRight', {size: 12})}</span>
@@ -138,6 +160,7 @@ function renderTodoItems(todos, groupBy) {
 function renderTodoPanel(meetings, options = {}) {
   const filter = options.filter || window._todoFilter || 'all';
   const groupBy = options.groupBy || window._todoGroup || 'none';
+  const type = options.type || window._todoType || 'all';
 
   const allTodos = buildGlobalTodos(meetings, {
     scenarioConfig: window.SCENARIO_CONFIG,
@@ -148,12 +171,13 @@ function renderTodoPanel(meetings, options = {}) {
   const realCount = isEmptyState ? 0 : allTodos.length;
 
   if (isEmptyState) {
-    return renderTodoToolbar(0, filter, groupBy) + renderTodoItems(allTodos, 'none');
+    return renderTodoToolbar(0, filter, groupBy, allTodos, 'all') + renderTodoItems(allTodos, 'none');
   }
 
-  const filteredTodos = filterTodos(allTodos, filter);
+  const filteredTodos = filterTodos(allTodos, filter)
+    .filter(t => type === 'all' || t.type === type);
 
-  return renderTodoToolbar(realCount, filter, groupBy) + renderTodoItems(filteredTodos, groupBy);
+  return renderTodoToolbar(realCount, filter, groupBy, allTodos, type) + renderTodoItems(filteredTodos, groupBy);
 }
 
 function refreshTodoPanel() {
@@ -175,10 +199,18 @@ function switchTodoGroup(group) {
   refreshTodoPanel();
 }
 
+function switchTodoType(type) {
+  if (type !== 'all' && !TODO_TYPE_CONFIG[type]) return;
+  // 再次点击当前类型则取消筛选
+  window._todoType = (window._todoType === type) ? 'all' : type;
+  refreshTodoPanel();
+}
+
 // ---- window shim ----
 window.renderTodoPanel = renderTodoPanel;
 window.refreshTodoPanel = refreshTodoPanel;
 window.switchTodoFilter = switchTodoFilter;
 window.switchTodoGroup = switchTodoGroup;
+window.switchTodoType = switchTodoType;
 
-export { renderTodoPanel, refreshTodoPanel, switchTodoFilter, switchTodoGroup };
+export { renderTodoPanel, refreshTodoPanel, switchTodoFilter, switchTodoGroup, switchTodoType };
