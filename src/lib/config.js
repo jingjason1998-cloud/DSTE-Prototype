@@ -4,12 +4,12 @@
  */
 
 export const TOP_NAV = [
-  { id: 'dashboard', icon: 'dashboard', label: '驾驶舱', full: '驾驶舱', defaultPage: 'dashboard' },
-  { id: 'sp', icon: 'sp', label: 'SP', full: '战略制定', defaultPage: 'sp/strategy-map' },
-  { id: 'bp', icon: 'bp', label: 'BP', full: '战略解码', defaultPage: 'bp/kpi' },
-  { id: 'exe', icon: 'exe', label: '执行', full: '战略执行', defaultPage: 'exe/tasks' },
-  { id: 'rev', icon: 'rev', label: '评估', full: '战略评估', defaultPage: 'rev/performance' },
-  { id: 'ai', icon: 'ai', label: 'AI', full: 'AI 助手', type: 'drawer' }
+  { id: 'dashboard', icon: 'dashboard', label: '驾驶舱', full: '驾驶舱', defaultPage: 'dashboard', allowTabs: true },
+  { id: 'sp', icon: 'sp', label: 'SP', full: '战略制定', defaultPage: 'sp/strategy-map', allowTabs: true },
+  { id: 'bp', icon: 'bp', label: 'BP', full: '战略解码', defaultPage: 'bp/kpi', allowTabs: true },
+  { id: 'exe', icon: 'exe', label: '执行', full: '战略执行', defaultPage: 'exe/tasks', allowTabs: true },
+  { id: 'rev', icon: 'rev', label: '评估', full: '战略评估', defaultPage: 'rev/performance', allowTabs: true },
+  { id: 'ai', icon: 'ai', label: 'AI', full: 'AI 助手', type: 'drawer', allowTabs: false }
 ];
 
 export const SIDEBAR_CONFIG = {
@@ -122,4 +122,39 @@ export const PAGE_NAMES = {
   'admin/rule-engine': '规则引擎中心',
   'admin/alert-hub': '预警中心',
   'admin/requirement-pool': '需求管理中心'
+};
+
+/**
+ * 页面元数据
+ * 统一维护每个 pageId 的标题、图标、所属 phase、是否外部页、外部文件
+ */
+export const PAGE_META = {
+  'dashboard': { title: '驾驶舱', icon: 'dashboard', phase: 'dashboard' },
+  'sp/strategy-map': { title: '战略地图', icon: 'sp/strategy-map', phase: 'sp', isExternal: true, externalFile: 'strategy-map-list.html' },
+  'sp/strategy-map-detail': { title: '战略地图详情', icon: 'sp/strategy-map-detail', phase: 'sp', isExternal: true, externalFile: 'strategy-map.html' },
+  'sp/insights': { title: '战略洞察', icon: 'sp/insights', phase: 'sp' },
+  'sp/strategy-topics': { title: '战略专题管理', icon: 'sp/strategy-topics', phase: 'sp' },
+  'bp/kpi': { title: 'KPI 指标体系', icon: 'bp/kpi', phase: 'bp' },
+  'bp/bem': { title: 'BEM 战略解码', icon: 'bp/bem', phase: 'bp' },
+  'bp/annual-plan': { title: '年度经营计划', icon: 'bp/annual-plan', phase: 'bp' },
+  'exe/kpi': { title: 'KPI管理', icon: 'exe/kpi', phase: 'exe' },
+  'exe/tasks': { title: '重点工作管理', icon: 'exe/tasks', phase: 'exe' },
+  'exe/business-topics': { title: '业务专题管理', icon: 'exe/business-topics', phase: 'exe', isExternal: true, externalFile: 'business-topics.html' },
+  'exe/st-issue-tracking': { title: '片联ST议题跟踪表', icon: 'exe/st-issue-tracking', phase: 'exe', isExternal: true, externalFile: 'st-issue-tracking.html' },
+  'exe/at-issue-tracking': { title: '片联AT议题跟踪表', icon: 'exe/at-issue-tracking', phase: 'exe', isExternal: true, externalFile: 'at-issue-tracking.html' },
+  'exe/meetings': { title: '经营分析会', icon: 'exe/meetings', phase: 'exe', isExternal: true, externalFile: 'meetings.html' },
+  'exe/meeting-review': { title: '会议材料审核', icon: 'exe/meeting-review', phase: 'exe' },
+  'exe/report-center': { title: '经营分析报表中心', icon: 'exe/report-center', phase: 'exe' },
+  'rev/performance': { title: '绩效与激励', icon: 'rev/performance', phase: 'rev' },
+  'rev/cadre': { title: '干部管理', icon: 'rev/cadre', phase: 'rev' },
+  'rev/review': { title: '战略复盘', icon: 'rev/review', phase: 'rev' },
+  'rev/gap-analysis': { title: '差距分析', icon: 'rev/gap-analysis', phase: 'rev' },
+  'ai': { title: 'AI 战略助手', icon: 'ai', phase: 'ai' },
+  'dashboard/roadmap': { title: '开发路线图 Road Map', icon: 'dashboard/roadmap', phase: 'dashboard' },
+  'dashboard/version-audit': { title: '版本审计', icon: 'dashboard/version-audit', phase: 'dashboard' },
+  'exe/finereport': { title: 'FineReport 报表', icon: 'exe/report-center', phase: 'exe' },
+  'admin/employee-directory': { title: '人员与组织管理', icon: 'admin/employee-directory', phase: 'dashboard', isExternal: true, externalFile: 'employee-directory.html' },
+  'admin/rule-engine': { title: '规则引擎中心', icon: 'admin/rule-engine', phase: 'dashboard', isExternal: true, externalFile: 'rule-engine.html' },
+  'admin/alert-hub': { title: '预警中心', icon: 'admin/alert-hub', phase: 'dashboard' },
+  'admin/requirement-pool': { title: '需求管理中心', icon: 'admin/requirement-pool', phase: 'dashboard', isExternal: true, externalFile: 'requirement-pool.html' }
 };

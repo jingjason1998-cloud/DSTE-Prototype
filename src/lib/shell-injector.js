@@ -16,8 +16,9 @@ import { hydrateIcons } from '../../assets/js/icons.js';
 (function initShell() {
   'use strict';
 
-  // 嵌入模式：不注入 shell，由父页面控制
+  // 嵌入模式：不注入 shell，由父页面控制；但保留与父窗口的通信桥
   if (new URLSearchParams(location.search).get('embed') === '1') {
+    setupEmbedBridge();
     return;
   }
 
@@ -84,5 +85,36 @@ import { hydrateIcons } from '../../assets/js/icons.js';
     document.addEventListener('DOMContentLoaded', bindShell);
   } else {
     bindShell();
+  }
+
+  /**
+   * 嵌入模式下建立与父窗口的通信桥
+   * - 拦截内部页面链接，通知父窗口在工作区打开新标签
+   */
+  function setupEmbedBridge() {
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (!link) return;
+
+      const href = link.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('javascript:') || link.target === '_blank') {
+        return;
+      }
+
+      // 将 href 映射回 pageId
+      const targetFile = href.split('?')[0].split('/').pop() || '';
+      let targetPageId = null;
+      for (const [id, file] of Object.entries(EXTERNAL_PAGES)) {
+        if (file === targetFile) {
+          targetPageId = id;
+          break;
+        }
+      }
+
+      if (targetPageId) {
+        e.preventDefault();
+        window.parent.postMessage({ type: 'dste-navigate', pageId: targetPageId }, window.location.origin);
+      }
+    });
   }
 })();

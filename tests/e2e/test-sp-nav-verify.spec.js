@@ -20,17 +20,15 @@ test('线上 SP 标签修复验证', async ({ page }) => {
   await spLink.click();
   await page.waitForTimeout(2000);
 
-  // SP 战略地图入口为 strategy-map-list.html（列表页）
+  // 新工作区标签系统：SP 战略地图在驾驶舱内通过 iframe 嵌入
   console.log('URL after click:', page.url());
-  expect(page.url()).toContain('strategy-map-list.html');
+  expect(page.url()).toContain('cockpit.html#sp/strategy-map');
 
-  // 检查 SP 侧边栏内容（在独立页面中）
-  const spSidebarItems = await page.locator('.sidebar-item').allTextContents();
-  console.log('SP sidebar:', spSidebarItems);
-  expect(spSidebarItems.some(t => t.includes('战略地图'))).toBeTruthy();
-
-  // 检查内容区域有 SP 相关内容
-  const contentText = await page.locator('body').textContent();
-  console.log('Content preview:', contentText.substring(0, 100));
-  expect(contentText).toContain('战略地图');
+  // iframe 应加载 strategy-map-list.html
+  const iframe = page.locator('.workspace-iframe');
+  await expect(iframe).toBeVisible();
+  await expect(iframe).toHaveAttribute('src', /strategy-map-list\.html/);
+  // 嵌入模式不渲染 sidebar，直接检查 iframe 正文内容
+  const iframeBody = iframe.contentFrame().locator('body');
+  await expect(iframeBody).toContainText('战略地图');
 });

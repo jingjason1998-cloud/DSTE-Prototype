@@ -6,7 +6,7 @@
  * - 独立页面模式（external）：真实 HTML 文件链接，浏览器直接跳转
  */
 
-import { TOP_NAV, SIDEBAR_CONFIG, PAGE_NAMES, EXTERNAL_PAGES } from './config.js';
+import { TOP_NAV, SIDEBAR_CONFIG, PAGE_NAMES, PAGE_META, EXTERNAL_PAGES } from './config.js';
 import { icon } from '../../assets/js/icons.js';
 
 let globalAiDrawerModule = null;
@@ -259,7 +259,12 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
         e.preventDefault();
         const reportId = item.dataset.reportId;
         if (reportId) window._pendingReportId = reportId;
-        onNavigate(item.dataset.page);
+        const openInNewTab = options.onOpenInNewTab;
+        if ((e.ctrlKey || e.metaKey || e.button === 1) && typeof openInNewTab === 'function') {
+          openInNewTab(item.dataset.page);
+        } else {
+          onNavigate(item.dataset.page);
+        }
       });
     });
   }
@@ -278,13 +283,23 @@ export function updateSidebarActive(pageId) {
 }
 
 /**
+ * 获取页面元数据
+ * @param {string} pageId
+ * @returns {Object}
+ */
+export function getPageMeta(pageId) {
+  // eslint-disable-next-line security/detect-object-injection
+  return PAGE_META[pageId] || { title: PAGE_NAMES[pageId] || pageId, icon: 'file', phase: getPhaseFromPage(pageId) };
+}
+
+/**
  * 获取页面名称
  * @param {string} pageId
  * @returns {string}
  */
 export function getPageName(pageId) {
   // eslint-disable-next-line security/detect-object-injection
-  return PAGE_NAMES[pageId] || 'DSTE';
+  return PAGE_META[pageId]?.title || PAGE_NAMES[pageId] || 'DSTE';
 }
 
 /**

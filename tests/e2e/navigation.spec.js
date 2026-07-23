@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Navigation', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.evaluate(() => localStorage.removeItem('dste-workspace-tabs-v1'));
+  });
   test('top nav has 6 phases', async ({ page }) => {
     await page.goto('/src/cockpit.html');
     const navLinks = page.locator('.top-nav-links li');
@@ -73,6 +79,28 @@ test.describe('Navigation', () => {
     await expect(page.locator('.breadcrumb')).toContainText('组织绩效管理');
   });
 
+  test('tab bar renders with dashboard tab', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(1);
+    await expect(page.locator('#page-tabs .tab.active .tab-title')).toContainText('驾驶舱');
+  });
+
+  test('navigating to internal page updates active tab title', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="bp"]').click();
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(2);
+    await expect(page.locator('#page-tabs .tab.active .tab-title')).toContainText('KPI 指标体系');
+  });
+
+  test('workspace tabs persist after refresh for internal pages', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="bp"]').click();
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(2);
+    await page.reload();
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(2);
+    await expect(page.locator('#page-tabs .tab.active .tab-title')).toContainText('KPI 指标体系');
+  });
+
   test('theme toggle works', async ({ page }) => {
     await page.goto('/src/cockpit.html');
     const html = page.locator('html');
@@ -97,12 +125,15 @@ test.describe('Page Content', () => {
     await expect(page.locator('.page-content')).toContainText('Road Map');
   });
 
-  test('rule engine page accessible from sidebar', async ({ page }) => {
+  test('rule engine page accessible from sidebar via iframe', async ({ page }) => {
     await page.goto('/src/cockpit.html');
     await page.locator('.sidebar-item[data-page="admin/rule-engine"]').click();
-    await page.waitForURL(/rule-engine\.html/);
-    await expect(page.locator('.re-page-title')).toContainText('规则引擎中心');
-    await expect(page.locator('.re-rule-grid')).toBeVisible();
+    await expect(page).toHaveURL(/cockpit\.html#admin\/rule-engine/);
+    const iframe = page.locator('.workspace-iframe');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute('src', /rule-engine\.html\?embed=1/);
+    await expect(iframe.contentFrame().locator('.re-page-title')).toContainText('规则引擎中心');
+    await expect(iframe.contentFrame().locator('.re-rule-grid')).toBeVisible();
   });
 
   test('alert hub placeholder accessible from sidebar', async ({ page }) => {
@@ -112,12 +143,15 @@ test.describe('Page Content', () => {
     await expect(page.locator('.page-content')).toContainText('预警事件');
   });
 
-  test('requirement pool page accessible from sidebar', async ({ page }) => {
+  test('requirement pool page accessible from sidebar via iframe', async ({ page }) => {
     await page.goto('/src/cockpit.html');
     await page.locator('.sidebar-item[data-page="admin/requirement-pool"]').click();
-    await page.waitForURL(/requirement-pool\.html/);
-    await expect(page.locator('.req-page-title')).toContainText('需求管理中心');
-    await expect(page.locator('.req-table')).toBeVisible();
+    await expect(page).toHaveURL(/cockpit\.html#admin\/requirement-pool/);
+    const iframe = page.locator('.workspace-iframe');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute('src', /requirement-pool\.html\?embed=1/);
+    await expect(iframe.contentFrame().locator('.req-page-title')).toContainText('需求管理中心');
+    await expect(iframe.contentFrame().locator('.req-table')).toBeVisible();
   });
 });
 

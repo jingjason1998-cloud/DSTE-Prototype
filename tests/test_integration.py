@@ -71,10 +71,12 @@ def test_cockpit_has_business_topics_link():
     assert "business-topics.html" in content, "未链接到业务专题页面"
 
 def test_cockpit_has_meeting_review_nav():
-    """驾驶舱导航中包含会议审核入口"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
-    assert "'exe/meeting-review'" in content, "导航中缺少会议审核入口"
-    assert "会议材料审核" in content or "会议审核" in content, "导航标签不正确"
+    """驾驶舱导航中包含会议审核入口（配置已抽离到 src/lib/config.js）"""
+    cockpit_content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    config_content = (SRC / "lib" / "config.js").read_text(encoding="utf-8")
+    combined = cockpit_content + config_content
+    assert "'exe/meeting-review'" in combined, "导航中缺少会议审核入口"
+    assert "会议材料审核" in combined or "会议审核" in combined, "导航标签不正确"
 
 def test_cockpit_has_external_page_mapping():
     """驾驶舱支持外部页面跳转（映射已抽离到 src/lib/config.js）"""
