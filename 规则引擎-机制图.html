@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>规则引擎机制图</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #f5f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .slide {
+      width: 1280px;
+      height: 720px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      padding: 48px 56px;
+      position: relative;
+      overflow: hidden;
+    }
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 36px;
+    }
+    .diagram {
+      width: 100%;
+      height: 540px;
+    }
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      left: 56px;
+      right: 56px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <h1>规则引擎自动触发落后战区业绩承诺会</h1>
+    <div class="subtitle">Rule Engine → 排名计算 → 自动生成经营分析会 → 企业微信通知</div>
+
+    <svg class="diagram" viewBox="0 0 1168 540" xmlns="http://www.w3.org/2000/svg">
+      <!-- Definitions -->
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/>
+        </marker>
+        <marker id="arrow-primary" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#3b82f6"/>
+        </marker>
+        <marker id="arrow-success" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#10b981"/>
+        </marker>
+        <marker id="arrow-warning" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#f59e0b"/>
+        </marker>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+        </filter>
+      </defs>
+
+      <!-- Background zones -->
+      <rect x="20" y="80" width="200" height="420" rx="8" fill="#eff6ff" stroke="#dbeafe" stroke-width="1"/>
+      <text x="120" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#1d4ed8">规则配置层</text>
+
+      <rect x="250" y="80" width="180" height="420" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="340" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#475569">数据输入层</text>
+
+      <rect x="460" y="80" width="200" height="420" rx="8" fill="#fff7ed" stroke="#ffedd5" stroke-width="1"/>
+      <text x="560" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#c2410c">排名计算层</text>
+
+      <rect x="690" y="80" width="200" height="420" rx="8" fill="#f0fdf4" stroke="#dcfce7" stroke-width="1"/>
+      <text x="790" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#15803d">执行动作层</text>
+
+      <rect x="920" y="80" width="228" height="420" rx="8" fill="#faf5ff" stroke="#f3e8ff" stroke-width="1"/>
+      <text x="1034" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#7c3aed">输出通知层</text>
+
+      <!-- Box helper function via repeated rect+text -->
+
+      <!-- Rule Config -->
+      <g filter="url(#shadow)">
+        <rect x="44" y="140" width="152" height="72" rx="8" fill="#ffffff" stroke="#3b82f6" stroke-width="2"/>
+        <text x="120" y="165" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">规则配置</text>
+        <text x="120" y="185" text-anchor="middle" font-size="11" fill="#64748b">月份类型 · 指标</text>
+        <text x="120" y="202" text-anchor="middle" font-size="11" fill="#64748b">倒数第 N 名 · 阈值</text>
+      </g>
+
+      <!-- Trigger -->
+      <g filter="url(#shadow)">
+        <rect x="44" y="240" width="152" height="72" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="2"/>
+        <text x="120" y="265" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">触发器</text>
+        <text x="120" y="285" text-anchor="middle" font-size="11" fill="#64748b">手动执行</text>
+        <text x="120" y="302" text-anchor="middle" font-size="11" fill="#64748b">定时自动执行</text>
+      </g>
+
+      <!-- Schedule detail -->
+      <rect x="44" y="330" width="152" height="48" rx="6" fill="#fffbeb" stroke="#fcd34d" stroke-width="1"/>
+      <text x="120" y="350" text-anchor="middle" font-size="11" fill="#92400e">每月 5 日 09:00</text>
+      <text x="120" y="367" text-anchor="middle" font-size="11" fill="#92400e">扫描上月数据</text>
+
+      <!-- KPI Data -->
+      <g filter="url(#shadow)">
+        <rect x="274" y="140" width="152" height="72" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+        <text x="350" y="165" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">OMP KPI 数据</text>
+        <text x="350" y="185" text-anchor="middle" font-size="11" fill="#64748b">dste_omp_kpi_instances_v1</text>
+        <text x="350" y="202" text-anchor="middle" font-size="11" fill="#64748b">十大战区 · 实际/目标值</text>
+      </g>
+
+      <!-- Indicators -->
+      <rect x="274" y="230" width="152" height="48" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="350" y="250" text-anchor="middle" font-size="11" fill="#475569">销售额-D · 回款额</text>
+      <text x="350" y="267" text-anchor="middle" font-size="11" fill="#475569">利润率 · ARR</text>
+
+      <!-- Warzones -->
+      <rect x="274" y="292" width="152" height="48" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="350" y="312" text-anchor="middle" font-size="11" fill="#475569">北京 · 上海 · 华南</text>
+      <text x="350" y="329" text-anchor="middle" font-size="11" fill="#475569">浙闽 · 苏皖 · 西南 ...</text>
+
+      <!-- Ranking Engine -->
+      <g filter="url(#shadow)">
+        <rect x="484" y="140" width="152" height="96" rx="8" fill="#ffffff" stroke="#f97316" stroke-width="2"/>
+        <text x="560" y="168" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">排名引擎</text>
+        <text x="560" y="190" text-anchor="middle" font-size="11" fill="#64748b">① 过滤有效 KPI</text>
+        <text x="560" y="208" text-anchor="middle" font-size="11" fill="#64748b">② 按达成率升序排序</text>
+        <text x="560" y="226" text-anchor="middle" font-size="11" fill="#64748b">③ 取倒数第 N 名</text>
+      </g>
+
+      <!-- Filter -->
+      <rect x="484" y="256" width="152" height="48" rx="6" fill="#fff7ed" stroke="#fdba74" stroke-width="1"/>
+      <text x="560" y="276" text-anchor="middle" font-size="11" fill="#9a3412">达成率阈值过滤</text>
+      <text x="560" y="293" text-anchor="middle" font-size="11" fill="#9a3412">仅落后状态</text>
+
+      <!-- Trigger Result -->
+      <g filter="url(#shadow)">
+        <rect x="484" y="340" width="152" height="88" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+        <text x="560" y="365" text-anchor="middle" font-size="14" font-weight="600" fill="#b91c1c">触发结果</text>
+        <text x="560" y="385" text-anchor="middle" font-size="11" fill="#7f1d1d">东北大区 · 销售额-D</text>
+        <text x="560" y="402" text-anchor="middle" font-size="11" fill="#7f1d1d">倒数第 1 名</text>
+        <text x="560" y="419" text-anchor="middle" font-size="12" font-weight="700" fill="#dc2626">达成率 62.5%</text>
+      </g>
+
+      <!-- Idempotency -->
+      <rect x="714" y="140" width="152" height="56" rx="6" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1"/>
+      <text x="790" y="162" text-anchor="middle" font-size="12" font-weight="600" fill="#0369a1">幂等检查</text>
+      <text x="790" y="182" text-anchor="middle" font-size="11" fill="#0c4a6e">会议是否已存在？</text>
+
+      <!-- Branch: Draft -->
+      <g filter="url(#shadow)">
+        <rect x="714" y="220" width="152" height="64" rx="8" fill="#ffffff" stroke="#3b82f6" stroke-width="2"/>
+        <text x="790" y="245" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">草稿待确认</text>
+        <text x="790" y="265" text-anchor="middle" font-size="11" fill="#64748b">默认：打开会议编辑器</text>
+        <text x="790" y="282" text-anchor="middle" font-size="11" fill="#64748b">人工确认后保存</text>
+      </g>
+
+      <!-- Branch: Auto-save -->
+      <g filter="url(#shadow)">
+        <rect x="714" y="304" width="152" height="64" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="2"/>
+        <text x="790" y="329" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">自动保存</text>
+        <text x="790" y="349" text-anchor="middle" font-size="11" fill="#64748b">高级权限：直接创建</text>
+        <text x="790" y="366" text-anchor="middle" font-size="11" fill="#64748b">生成经营分析会</text>
+      </g>
+
+      <!-- Meeting -->
+      <g filter="url(#shadow)">
+        <rect x="714" y="396" width="152" height="88" rx="8" fill="#ffffff" stroke="#8b5cf6" stroke-width="2"/>
+        <text x="790" y="421" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">落后战区业绩承诺会</text>
+        <text x="790" y="441" text-anchor="middle" font-size="11" fill="#64748b">scenario: lagging_region</text>
+        <text x="790" y="458" text-anchor="middle" font-size="11" fill="#64748b">L3 · 经营分析会模块</text>
+        <text x="790" y="475" text-anchor="middle" font-size="11" fill="#64748b">进入会议生命周期</text>
+      </g>
+
+      <!-- Notification -->
+      <g filter="url(#shadow)">
+        <rect x="944" y="140" width="180" height="88" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="2"/>
+        <text x="1034" y="168" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">企业微信通知</text>
+        <text x="1034" y="190" text-anchor="middle" font-size="11" fill="#64748b">规则触发通知</text>
+        <text x="1034" y="208" text-anchor="middle" font-size="11" fill="#64748b">落后战区 · 指标 · 排名</text>
+        <text x="1034" y="226" text-anchor="middle" font-size="11" fill="#64748b">Webhook 群消息</text>
+      </g>
+
+      <!-- Execution Log -->
+      <g filter="url(#shadow)">
+        <rect x="944" y="256" width="180" height="72" rx="8" fill="#ffffff" stroke="#6366f1" stroke-width="2"/>
+        <text x="1034" y="281" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">执行日志</text>
+        <text x="1034" y="301" text-anchor="middle" font-size="11" fill="#64748b">dste_rule_engine_logs_v1</text>
+        <text x="1034" y="318" text-anchor="middle" font-size="11" fill="#64748b">排名明细 · 通知结果</text>
+      </g>
+
+      <!-- Arrows -->
+      <!-- Rule config -> KPI data (not direct, but trigger drives it) -->
+      <!-- Trigger -> Ranking Engine -->
+      <line x1="196" y1="276" x2="250" y2="276" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-warning)"/>
+      <text x="223" y="270" font-size="10" fill="#b45309" text-anchor="middle">触发</text>
+
+      <!-- KPI data -> Ranking Engine -->
+      <line x1="426" y1="176" x2="484" y2="176" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="455" y="170" font-size="10" fill="#475569" text-anchor="middle">输入</text>
+
+      <!-- Ranking Engine -> Filter -->
+      <line x1="560" y1="236" x2="560" y2="256" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- Filter -> Trigger Result -->
+      <line x1="560" y1="304" x2="560" y2="340" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- Trigger Result -> Idempotency -->
+      <line x1="636" y1="384" x2="690" y2="168" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- Idempotency -> Draft / Auto-save -->
+      <line x1="790" y1="196" x2="790" y2="220" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-primary)"/>
+      <line x1="790" y1="196" x2="790" y2="220" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-success)" transform="translate(0, 84)"/>
+
+      <!-- Draft -> Meeting -->
+      <line x1="790" y1="284" x2="790" y2="396" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-primary)"/>
+      <text x="808" y="340" font-size="10" fill="#1d4ed8">保存后</text>
+
+      <!-- Auto-save -> Meeting -->
+      <line x1="790" y1="368" x2="790" y2="396" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-success)"/>
+
+      <!-- Meeting -> Notification -->
+      <line x1="866" y1="440" x2="944" y2="184" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-success)"/>
+      <text x="915" y="300" font-size="10" fill="#047857" text-anchor="middle">创建成功</text>
+
+      <!-- Meeting -> Execution Log -->
+      <line x1="866" y1="440" x2="944" y2="292" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- Bottom note -->
+      <rect x="44" y="460" width="592" height="56" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="60" y="485" font-size="12" font-weight="600" fill="#475569">幂等策略</text>
+      <text x="60" y="505" font-size="11" fill="#64748b">确定性会议 ID：lg_{period}_{indicatorId}_{theater}_{ruleId} · 同 rule/period 不重复定时触发 · 元数据回退扫描</text>
+    </svg>
+
+    <div class="footer">
+      <span>DSTE 规则引擎机制图</span>
+      <span>2026-07-21</span>
+    </div>
+  </div>
+</body>
+</html>
