@@ -9,6 +9,22 @@
 
 ## [Unreleased]
 
+## [v0.7.2] - 2026-07-23
+
+### Added
+- **驾驶舱持久化多标签工作区**：`cockpit.html` 新增页签栏，支持跨阶段并行打开多个页面；标签状态写入 `localStorage`，刷新后恢复；外部独立页面通过 iframe `?embed=1` 嵌入驾驶舱，保持 Shell 与业务逻辑解耦。
+  - 核心文件：`src/lib/workspace-tabs.js`、`src/lib/config.js`（`PAGE_META` / `allowTabs`）、`src/lib/shell.js`、`src/lib/shell-injector.js`。
+  - 新增测试：`tests/e2e/workspace-tabs.spec.js`；`tests/e2e/navigation.spec.js` 更新标签/iframe 相关断言。
+
+### Changed
+- **设计系统 tokens / 组件收尾**：`assets/css/components.css` 新增共享组件类，`assets/css/tokens.css` 调整语义化变量；`src/pages/business-topics/style.css`、`src/pages/reviewer/style.css`、`src/styles/shell.css` 迁移至设计系统变量。
+- **会议列表紧凑化**：`src/meetings.html` 列表区响应式列宽由 `2fr 1fr` 调整为 `1fr 1fr`，卡片与列表间距压缩。
+- **全局会议待办面板精简**：`src/meetings/utils/todo-aggregator.js` 移除「议程材料」待办类型，聚焦报告/评审/纪要/决议/行动项/评估/流程推进 7 类待办。
+
+### Docs
+- `AGENTS.md` 新增 AI 会话记忆规范（`.ai/memory/` 读写要求）。
+- `docs/00-index.md` 新增战略执行链路实体关系手册索引；补齐规则引擎相关文档。
+
 ## [v0.7.1] - 2026-07-22
 
 ### Fixed
