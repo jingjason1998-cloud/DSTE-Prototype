@@ -2,7 +2,21 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
-## 2026-07-21（Kimi，AI UI 升级 + 审核修复）
+## 2026-07-23（Claude，发布 v0.7.2）
+- **主题**：发布 DSTE v0.7.2
+- **操作**：
+  - 合并并提交未发布改动：驾驶舱持久化多标签工作区（`src/lib/workspace-tabs.js` + `cockpit.html` iframe 嵌入 + `shell.js`/`shell-injector.js`/`config.js`）、设计系统 tokens/组件/样式迁移、会议待办面板精简、AGENTS/规则引擎/执行链路文档
+  - 修复因导航配置抽离而失败的 `tests/test_integration.py::test_cockpit_has_meeting_review_nav`
+  - 修复因工作区标签系统改变 URL 行为而失败的 `tests/e2e/test-sp-nav-verify.spec.js`
+  - 版本号 `0.7.1 → 0.7.2`，更新 `CHANGELOG.md`、`sonar-project.properties`，`npm run build` 生成 `roadmap-data.json`
+  - `release.sh v0.7.2` 打 tag 并推送 main
+  - GitHub Actions `Deploy to Production` success；生产 `https://dste.fineres.com/`、`/src/cockpit.html`、`/src/meetings.html` 均 200
+- **修改文件**：`package.json`、`package-lock.json`、`CHANGELOG.md`、`sonar-project.properties`、`public/roadmap-data.json`、`src/data/roadmap-data.json`、`.ai/memory/01-current-focus.md`、`.ai/memory/06-session-log.md`
+- **验证**：`npm run lint` 0 error / `npm run check:scope` ✓ / pytest 184 passed / `npm run test:unit` 509 passed / `npx playwright test` 382 passed, 25 skipped / `npm run build` ✓
+- **注意**：GitHub Actions `DSTE CI` baseline 与 Sonar 显示 failure，但 Deploy 成功、生产 200，判断为 CI 环境/权限问题而非代码回归
+- **状态**：complete（已发布生产）
+- **下一步**：服务器更新 Flask KMS_API_TOKEN 后端到端确认；继续督办中心阶段 2、决议中心可选优化、T080 排期
+
 - **主题**：会议列表紧凑化 + AI 交互 UI 升级（Kimi 风）+ 会议材料审核功能修复
 - **操作**：
   - `src/meetings.html` 会议卡片纵向间距压缩（padding/margins/列表 gap），构建与 check:scope 通过

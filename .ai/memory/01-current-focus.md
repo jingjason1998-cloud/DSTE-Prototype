@@ -1,12 +1,13 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-22 10:22
+> 更新时间: 2026-07-23 10:35
 
 ## 状态
-**新增开发线：AI 交互 UI 升级（2026-07-21 完成，未提交）**。全部 AI 对话/规则型界面统一为 Kimi 网页版风格（共享 `dste-ai-*` 样式 + 轻量 markdown 渲染），验证全过，攒着随下次发布。
+**v0.7.2 已发布并部署生产**（commit `2e6c8ed`）：包含驾驶舱持久化多标签工作区、设计系统 tokens/组件收尾、会议卡片紧凑化、全局待办面板精简、AGENTS 会话记忆规范与文档补齐。
+**AI 交互 UI 升级已随 v0.7.2 发布**。
 **会议材料审核已应急修复并发布（commit `00869bc`）**：nginx 审核路径分流回 Flask；遗留 Flask 侧 `KMS_API_TOKEN` 失效，需服务器更新 `.env`。
 现有并行开发线仍保留：
-- **UI/UX 设计系统升级**：Phase 0~2 完成（emoji 迁移收尾），本地未发布。
+- **UI/UX 设计系统升级**：Phase 0~2 已随 v0.7.2 发布。
 - **人员与组织目录**：第一阶段已完成，待接入人员选择器。
 - **经分会-决议中心**：核心状态机与单测已完成，UI 抽屉与旧组件状态体系已统一，剩余可选优化。
 - **DSTE 完整功能框架搭建**：方案已完成，待用户确认是否开始第一阶段实施。
@@ -14,15 +15,15 @@
 
 ## 进行中的开发线
 
-### UI/UX 设计系统升级（新增 / Phase 0~2 进行中）
+### UI/UX 设计系统升级（已随 v0.7.2 发布）
 - 建立设计系统基线：`assets/css/tokens.css`、`assets/css/components.css`、`assets/css/main.css` 兼容层
 - 建立 Phosphor 图标体系：`assets/js/icon-mapping.js`、`assets/js/icons.js`、`assets/js/phosphor-icons.js`、`scripts/build-icon-sprite.js`
 - 完成设计文档：`docs/07-DesignSystem/` 全套 token / 组件 / 图标 / shell / a11y / 迁移 / 视觉回归规范
 - 完成 Phase 1 Shell 统一收尾：修复 `config.js` 残留 emoji、补齐 sidebar group icon key 映射，`shell.js`/`shell-injector.js` 全部渲染 SVG 图标
 - 完成 Phase 2 独立页面 emoji 替换：`src/business-topics.html`、`src/meetings.html`、`src/reviewer.html`、`src/requirement-pool.html`、`src/employee-directory.html`、`src/st-issue-tracking.html`、`src/at-issue-tracking.html`、`src/strategy-map-list.html`、`src/strategy-map.html` 全部清除 emoji
-- ✅ 完成 JS 模块 emoji 收尾（2026-07-14，commit `1ed5536`）：`src/meetings/**`、`src/pages/reviewer` 等 6 文件象形状态 emoji（⏳/⏸/⏱）→ Phosphor；`→`/`↔` 为行文箭头/注释/正则/data-id 予以保留。设计系统 emoji 迁移基本完成
-- 验证：`npm run build` 通过，`npm run check:scope` 通过，`npm run test:unit` 414 passed；meetings/reviewer E2E 全过
-- 下一步：设计系统 emoji 迁移已收尾；本地该改动未发布（攒着），生产 v0.6.17
+- ✅ 完成 JS 模块 emoji 收尾（2026-07-14，commit `1ed5536`）
+- ✅ 完成 design-system tokens / 组件 / cockpit 内联样式迁移（2026-07-23，commit `248d35c`，v0.7.2）
+- 状态：已发布生产 v0.7.2
 
 ### 经分会-督办中心（新增 / 阶段 1 完成）
 - 行动项 3 状态配置：`pending` / `in_progress` / `completed`
@@ -84,9 +85,22 @@
 
 ## 刚完成
 
-### AI 交互 UI 升级 + 会议材料审核修复（Kimi 会话，2026-07-21）
+### v0.7.2 发布（Claude 会话，2026-07-23）
+- **驾驶舱持久化多标签工作区**：
+  - 新增 `src/lib/workspace-tabs.js` 状态管理库，标签状态写入 `localStorage`，刷新后恢复
+  - `src/cockpit.html` 新增 `#page-tabs` 页签栏与 `.workspace-iframe`，支持跨阶段并行打开多个页面
+  - 外部独立页面通过 iframe `?embed=1` 嵌入驾驶舱，`src/lib/shell-injector.js` 增加嵌入模式通信桥，拦截内部链接通知父窗口开新标签
+  - `src/lib/config.js` 新增 `PAGE_META` 统一维护 pageId 元数据，`src/lib/shell.js` 支持 Ctrl/Cmd/中键在新标签打开
+  - 新增 E2E `tests/e2e/workspace-tabs.spec.js` 4 用例；`tests/e2e/navigation.spec.js`、`tests/e2e/test-sp-nav-verify.spec.js` 适配新导航行为
+- **设计系统收尾与会议紧凑化**：`assets/css/components.css` 新增共享工具类、`assets/css/tokens.css` 语义化变量；`src/cockpit.html` 大量内联样式迁移；`src/pages/business-topics/style.css`、`src/pages/reviewer/style.css`、`src/styles/shell.css` 接入设计系统 token；`src/meetings.html` 列表响应式列宽压缩
+- **会议待办面板精简**：`src/meetings/utils/todo-aggregator.js` 移除 `agendaMaterial` 待办类型；`src/meetings/renderers/todo-panel.js` 增加类型药丸筛选；相关单元/E2E 测试同步更新
+- **文档**：`AGENTS.md` 新增会话记忆规范；`docs/00-index.md` 与规则引擎/执行链路文档补齐
+- **验证**：`npm run lint` 0 error / `npm run check:scope` ✓ / pytest 184 passed / `npm run test:unit` 509 passed / `npx playwright test` 382 passed, 25 skipped / `npm run build` ✓ / `release.sh v0.7.2` 打 tag 并推送 / GitHub Actions `Deploy to Production` success / 生产 `https://dste.fineres.com/` 200
+- **注意**：GitHub Actions `DSTE CI` baseline 与 Sonar 显示 failure（权限/环境问题，非代码回归导致部署失败；生产已验证正常）
+
+### AI 交互 UI 升级 + 会议材料审核修复（Kimi 会话，2026-07-21，已随 v0.7.2 发布）
 - **会议列表紧凑化**：`src/meetings.html` 会议卡片 padding/margins/列表 gap 压缩，每张卡片约矮 20~25px
-- **AI 交互 UI 升级（对标 Kimi 网页版，功能不变，未提交）**：
+- **AI 交互 UI 升级（对标 Kimi 网页版，已随 v0.7.2 发布）**：
   - 新增 `src/styles/ai-chat.css`（dste-ai-* 共享样式，引入 10 个 HTML 页面）、`src/lib/markdown-lite.js`（escape 优先的轻量 markdown 渲染）、`tests/unit/markdown-lite.test.js` 14 用例
   - 全局 AI 抽屉 / 会议 AI 助手（含 AiAgendaDrawer）/ cockpit 专题 AI 问答 / 规则型 AI（business-topics 匹配弹窗 + mock 浮窗、requirement-pool）统一换肤：AI 无气泡带头像、用户右侧浅灰气泡、shimmer 思考态、呼吸点流式光标、大圆角 composer + 圆形发送按钮（空输入置灰）、AI 回复 markdown 渲染
   - 删除 `shell.css` 与 `meetings.html` 互相覆盖的旧 `.ai-message` 定义；修复 GlobalAiDrawer 事件委托命中 SVG 子元素致发送失效（改 `closest()`）
@@ -176,8 +190,8 @@
 - 全量 E2E 并行运行时偶发 `page.goto` 超时（`business-topics.spec.js`、`navigation.spec.js`、`reviewer-embed.spec.js`），单独重跑可 pass
 
 ## 下一步
-1. **服务器更新 Flask KMS_API_TOKEN** — 编辑 `/opt/meeting-reviewer/src/.env` 后 `systemctl restart meeting-reviewer`，然后跑一次真实材料审核端到端确认
-2. **AI UI 改动随下次发布提交** — 本会话 AI 交互 UI 升级 + 会议卡片紧凑化均未提交（攒着）；发布前按 AGENTS.md 清单跑 reviewer-parser / reviewer-report-render E2E 与本地 vs 线上对比
+1. ✅ **v0.7.2 已发布并部署生产**
+2. **服务器更新 Flask KMS_API_TOKEN** — 编辑 `/opt/meeting-reviewer/src/.env` 后 `systemctl restart meeting-reviewer`，然后跑一次真实材料审核端到端确认
 3. **继续经分会-督办中心阶段 2** — 逾期催办、独立督办工作台页面、数据看板（详见 T050）
 4. **继续经分会-决议中心可选优化** — 真正以 ES Module 引入 `resolution-helpers.js`、确认生产数据迁移、版本号升级（详见 T030）
 5. **T080 审核端点 Worker 迁移** — 后续排期（详见 `.ai/tasks/active/T080-review-worker-migration.md`）
