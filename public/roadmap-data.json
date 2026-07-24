@@ -1471,6 +1471,11 @@
   ],
   "upcoming": [
     {
+      "name": "**修复会议卡片 tab 再次点击不能收起**：`src/meetings.html` 的 `switchMeetingCardTab` 原先无论当前是否已展开都会重新打开目标 tab。现改为：点击已展开的 tab 时隐藏所有 panel 并高亮取消，实现展开/收起切换。",
+      "priority": "中",
+      "eta": "待定"
+    },
+    {
       "name": "**新增预算执行监控独立页面（仅关联不操作）**：",
       "priority": "中",
       "eta": "待定"

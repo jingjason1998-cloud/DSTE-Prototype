@@ -9,6 +9,24 @@
 
 ## [Unreleased]
 
+### Fixed
+- **修复会议卡片 tab 再次点击不能收起**：`src/meetings.html` 的 `switchMeetingCardTab` 原先无论当前是否已展开都会重新打开目标 tab。现改为：点击已展开的 tab 时隐藏所有 panel 并高亮取消，实现展开/收起切换。
+
+### Added
+- **新增预算执行监控独立页面（仅关联不操作）**：
+  - 新增 `src/budget-execution-monitor.html` 及 `src/pages/budget-execution-monitor/{main.js,style.css}`，作为预算执行项与 DSTE 实体的纯关联入口。
+  - 预算执行项以种子数据只读展示（后续可替换为外部数据源），本页仅可新增/解除与业务专题、重点工作、子任务的关联。
+  - 被关联的业务专题、重点工作、子任务在本页只读展示，点击后通过深链跳转各自原生页面操作。
+  - 新增关联选择器弹窗，支持按业务专题 / 重点工作 / 子任务搜索并多选关联；关联数据以快照形式存入 `dste_budget_associations_v1`。
+  - 在 `src/lib/config.js` 注册 `exe/budget-execution-monitor` 导航与页面元数据，`vite.config.js` 增加构建入口，`assets/js/icon-mapping.js` 增加图标别名。
+  - 新增 `tests/e2e/budget-execution-monitor.spec.js` 覆盖页面加载与关联流程。
+
+### Changed
+- **业务专题与 OMP 重点工作支持深链打开**：
+  - `src/pages/business-topics/main.js` 支持 `?topicId=xxx&modal=detail|edit` 参数，初始化时自动打开专题详情/编辑弹窗。
+  - `src/cockpit.html` 支持 `?taskId=xxx&modal=view|edit&tab=subtasks&subtaskId=yyy#exe/tasks` 参数，自动打开任务详情/编辑弹窗并定位到子任务。
+  - cockpit iframe 通信新增 `dste-open-external` 消息类型，支持外部页携带 query 参数打开其他页面/视图。
+
 ## [v0.7.9] - 2026-07-24
 
 ### Fixed
