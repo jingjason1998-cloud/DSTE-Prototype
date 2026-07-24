@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [v0.7.6] - 2026-07-24
+
+### Fixed
+- **修复经营分析会 70/30 比例未生效**：`src/meetings.html` 中 `.meetings-main-grid` 使用 `7fr 3fr` 时，`fr` 单位的默认最小尺寸为 `auto`，右侧「待办提醒」面板的筛选药丸等内容撑开了列宽，导致视觉比例仍接近 50/50。已将 `grid-template-columns` 改为 `minmax(0, 70%) minmax(0, 30%)`，强制按 70/30 分配，不受内容最小宽度影响。
+
 ## [v0.7.5] - 2026-07-24
 
 ### Fixed

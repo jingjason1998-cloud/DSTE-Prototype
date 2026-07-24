@@ -18,6 +18,7 @@ export const ICONS = {
   'chart-line-up': 'chart-line-up',
   'users-three': 'users-three',
   'chart-pie-slice': 'chart-pie-slice',
+  'chart-bar': 'chart-bar',
 
   // Sidebar items
   'sp/strategy-map': 'map-trifold',
