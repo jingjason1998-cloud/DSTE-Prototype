@@ -2,6 +2,21 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-24（Claude，发布 v0.7.3 修复 iframe 宽度 bug）
+- **主题**：修复 `cockpit.html#exe/meetings` 经分会页面在 iframe 嵌入模式下被挤成一团
+- **根因**：`src/cockpit.html` 的 `.content-area--tabs .page-content` 仅设置 `flex: 1`，未声明宽度；iframe 默认宽度 300px，导致 `#page-content` 收缩至 300px
+- **修复**：给 `.content-area--tabs .page-content` 添加 `width: 100%`
+- **操作**：
+  - 本地用 Playwright 复现并测量（iframe 宽度 300px）
+  - 修改 `src/cockpit.html` 一行 CSS
+  - 验证修复后 iframe 宽度 1180px，布局正常
+  - 运行受影响 E2E（workspace-tabs/navigation/test-sp-nav-verify）22 个用例全部通过
+  - 版本号 `0.7.2 → 0.7.3`，更新 CHANGELOG、sonar-project.properties，build 生成 roadmap-data.json
+  - 手动打 tag `v0.7.3` 并 push main，GitHub Actions `Deploy to Production` success
+- **验证**：`npm run check:scope` ✓ / 本地 preview 截图确认布局正常 / 生产 `https://dste.fineres.com/` 200
+- **状态**：complete（已发布生产）
+- **下一步**：服务器更新 Flask KMS_API_TOKEN 后端到端确认；继续督办中心阶段 2、决议中心可选优化、T080 排期
+
 ## 2026-07-23（Claude，发布 v0.7.2）
 - **主题**：发布 DSTE v0.7.2
 - **操作**：
