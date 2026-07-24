@@ -1,8 +1,9 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-24 19:20
+> 更新时间: 2026-07-24 19:35
 
 ## 状态
+**v0.7.11 已发布并部署生产**（commit `3e5a402`）：修复会议卡片「纪要」panel 默认展开的问题，现在所有 tab 默认均为收起状态。
 **v0.7.10 已发布并部署生产**（commit `19aa767`）：修复会议卡片底部 tab（纪要/决策/行动项/评估/会议链）点击展开后再次点击不能收起的 bug。
 **v0.7.9 已发布并部署生产**（commit `a27ae78`）：修复会议卡片「纪要」tab 显示「暂无纪要」但实际 `minutes_content` 有内容的问题；`migrateMeetingsData` 增加旧数据 `hasMinutes`/`minutesStatus` 与 `minutes_content` 的同步。
 **v0.7.3 已发布并部署生产**（commit `4a62232`）：修复驾驶舱 iframe 嵌入外部页时 `.page-content` 宽度收缩至 300px 导致页面被挤成一团的 bug。

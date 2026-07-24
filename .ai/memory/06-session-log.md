@@ -2,6 +2,15 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-24（Claude，发布 v0.7.11 修复纪要 tab 默认展开）
+- **主题**：修复会议卡片「纪要」tab 页面加载时默认展开
+- **根因**：`src/meetings.html` 的 `renderTabs` 生成的「纪要」panel 没有 `display: none`，而其他 tab 均有，导致默认状态下纪要 panel 可见
+- **修复**：给「纪要」panel 补上 `style="display: none;"`，与其他 tab 统一默认收起
+- **操作**：版本号 `0.7.10 → 0.7.11`，更新 CHANGELOG、sonar-project.properties，build 生成 roadmap-data.json，打 tag `v0.7.11` 并 push
+- **验证**：`npm run check:scope` ✓ / 受影响 E2E 15 passed / `npm run build` ✓ / GitHub Actions `Deploy to Production` success / 生产 200
+- **状态**：complete（已发布生产）
+- **下一步**：服务器更新 Flask KMS_API_TOKEN 后端到端确认；继续督办中心阶段 2、决议中心可选优化、T080 排期
+
 ## 2026-07-24（Claude，发布 v0.7.10 修复会议卡片 tab 收起）
 - **主题**：修复会议卡片底部 tab 再次点击不能收起
 - **根因**：`src/meetings.html` 的 `switchMeetingCardTab` 无论当前 tab 是否已展开都会重新打开目标 tab，缺少 toggle 逻辑
