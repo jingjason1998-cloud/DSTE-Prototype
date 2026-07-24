@@ -2,6 +2,19 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-24（Claude，发布 v0.7.9 修复纪要 tab 显示 bug）
+- **主题**：修复会议卡片「纪要」tab 显示「暂无纪要」但实际有内容
+- **根因**：`src/meetings.html` 的 `renderTabs` 仅依据 `m.hasMinutes` 判断，未展示 `m.minutes_content` 实际内容；旧数据可能存在 `minutes_content` 有内容但 `hasMinutes` 标志未同步的情况
+- **修复**：
+  - `src/meetings.html` 的纪要 tab 改为直接判断 `m.minutes_content?.trim()`，并渲染纪要正文（保留状态徽标）
+  - 顶部「纪要」统计与首页纪要卡片改为按 `minutes_content` 是否存在计数/筛选，并展示内容摘要
+  - `src/meetings/data-store.js` 的 `migrateMeetingsData` 增加同步逻辑：`minutes_content` 非空则补齐 `hasMinutes=true` 与 `minutesStatus='draft'`；为空则清空标志
+  - 同步更新 `tests/unit/meetings-data-store.test.js` 迁移断言
+- **操作**：版本号 `0.7.8 → 0.7.9`，更新 CHANGELOG、sonar-project.properties，build 生成 roadmap-data.json，打 tag `v0.7.9` 并 push
+- **验证**：`npm run check:scope` ✓ / `npm run test:unit` 509 passed / 受影响 E2E 36 passed / `npm run build` ✓ / GitHub Actions `Deploy to Production` success / 生产 200
+- **状态**：complete（已发布生产）
+- **下一步**：服务器更新 Flask KMS_API_TOKEN 后端到端确认；继续督办中心阶段 2、决议中心可选优化、T080 排期
+
 ## 2026-07-24（Claude，发布 v0.7.3 修复 iframe 宽度 bug）
 - **主题**：修复 `cockpit.html#exe/meetings` 经分会页面在 iframe 嵌入模式下被挤成一团
 - **根因**：`src/cockpit.html` 的 `.content-area--tabs .page-content` 仅设置 `flex: 1`，未声明宽度；iframe 默认宽度 300px，导致 `#page-content` 收缩至 300px
