@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "v0.7.9",
+      "date": "2026-07-24",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复会议卡片「纪要」标签显示「暂无纪要」但实际有内容**："
+        }
+      ]
+    },
+    {
       "version": "v0.7.8",
       "date": "2026-07-24",
       "status": "released",

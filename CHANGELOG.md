@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [v0.7.9] - 2026-07-24
+
+### Fixed
+- **修复会议卡片「纪要」标签显示「暂无纪要」但实际有内容**：
+  - `src/meetings.html` 的纪要 tab 改为直接判断 `m.minutes_content?.trim()`，并渲染实际纪要正文（保留状态徽标）。
+  - 顶部「纪要」统计与首页纪要卡片改为按 `minutes_content` 是否存在计数/筛选。
+  - `src/meetings/data-store.js` 的 `migrateMeetingsData` 增加同步逻辑：`minutes_content` 非空则补齐 `hasMinutes=true` 与 `minutesStatus='draft'`；为空则清空标志。
+  - 同步更新 `tests/unit/meetings-data-store.test.js` 迁移断言。
+
 ## [v0.7.8] - 2026-07-24
 
 ### Fixed
