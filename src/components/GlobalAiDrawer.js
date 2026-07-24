@@ -473,4 +473,5 @@ if (typeof window !== 'undefined') {
   window.closeGlobalAiDrawer = closeGlobalAiDrawer;
   window.toggleGlobalAiDrawer = toggleGlobalAiDrawer;
   window.refreshGlobalAiDrawer = refreshGlobalAiDrawer;
+  window.sendGlobalAiMessage = sendMessage;
 }

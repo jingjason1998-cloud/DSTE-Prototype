@@ -1,6 +1,21 @@
 {
   "versions": [
     {
+      "version": "v0.7.7",
+      "date": "2026-07-24",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复 iframe 嵌入页面无法向下滚动**：`assets/css/main.css` 中 `[data-embed=\"true\"]` 模式将 `.app` / `.app-body` / `.content-area` 都设为 `overflow: visible` 与 `height: auto`，导致 iframe 内部失去滚动容器，内容超出时无法向下滚动。已恢复为 `.app { height: 100vh; overflow: hidden; }` 与 `.content-area { overflow-y: auto; }`，使外部页在 cockpit 工作区 iframe 内可正常内部滚动。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**移除误加入的「营销线预算执行监控」导航与文件**：v0.7.6 中误将未完成的 `src/budget-execution-monitor.html`（2MB 独立页面）及对应 sidebar/config/AI 上下文注册一并发布。现已在 `src/lib/config.js` 与 `src/cockpit.html` 中移除相关入口，并删除该文件，避免生产环境出现无内容页面。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.6",
       "date": "2026-07-24",
       "status": "released",

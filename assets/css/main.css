@@ -802,19 +802,19 @@ body {
 }
 
 [data-embed="true"] .app {
-  height: auto;
+  height: 100vh;
   min-height: 100vh;
-  overflow: visible;
+  overflow: hidden;
 }
 
 [data-embed="true"] .app-body {
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 [data-embed="true"] .content-area {
   margin-left: 0;
   width: 100%;
   max-width: 100%;
-  overflow: visible;
+  overflow-y: auto;
 }

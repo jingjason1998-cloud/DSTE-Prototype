@@ -563,7 +563,8 @@
   <script src="../pages/dashboard/roadmap.js" defer></script>
   <script src="../pages/dashboard/version-audit.js" defer></script>
   <script type="module">
-    import { renderTopNav, renderSidebar as shellRenderSidebar, getPhaseFromPage, getPageMeta } from './lib/shell.js';
+    import { renderTopNav, renderSidebar as shellRenderSidebar, getPhaseFromPage, getPageMeta, toggleGlobalAiDrawer } from './lib/shell.js';
+    import { sendMessage as sendGlobalAiMessage } from './components/GlobalAiDrawer.js';
     import { hydrateIcons, icon } from '../assets/js/icons.js';
     import { EXTERNAL_PAGES } from './lib/config.js';
     import {
@@ -2440,6 +2441,17 @@
               navigate(e.data.pageId);
             }
           }
+
+          if (e.data.type === 'dste-open-ai' && e.data.prompt) {
+            if (typeof window.toggleGlobalAiDrawer === 'function') {
+              window.toggleGlobalAiDrawer();
+              setTimeout(() => {
+                if (typeof window.sendGlobalAiMessage === 'function') {
+                  window.sendGlobalAiMessage(e.data.prompt);
+                }
+              }, 100);
+            }
+          }
         });
 
         // 显示用户名
@@ -3664,7 +3676,7 @@
           contentEl.innerHTML = `
             <iframe
               class="workspace-iframe"
-              src="${meta.externalFile}?embed=1"
+              src="${meta.externalFile}?embed=1&pageId=${encodeURIComponent(pageId)}"
               data-page-id="${pageId}"
               title="${escapeHtml(meta.title)}"
               frameborder="0"
@@ -8622,6 +8634,7 @@
             '生成年度经营计划执行摘要',
           ],
         });
+
       }
 
       // ===== AI 助手 =====

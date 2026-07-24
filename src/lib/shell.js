@@ -20,6 +20,8 @@ async function toggleGlobalAiDrawer() {
   }
 }
 
+export { toggleGlobalAiDrawer };
+
 /**
  * 渲染图标到元素中
  * @param {HTMLElement} el
