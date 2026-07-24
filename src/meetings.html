@@ -938,7 +938,7 @@
                   <button type="button" onclick="switchMeetingCardTab('${m.id}', '${key}'); event.stopPropagation();" class="mtab-btn-${m.id} mtab-${key}" style="padding: 4px 10px; font-size: 12px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent;">${label}</button>
                 `).join('')}
               </div>
-              <div class="mtab-content-${m.id} mtab-panel-minutes">${tabContents.minutes}</div>
+              <div class="mtab-content-${m.id} mtab-panel-minutes" style="display: none;">${tabContents.minutes}</div>
               <div class="mtab-content-${m.id} mtab-panel-decisions" style="display: none;">${tabContents.decisions}</div>
               <div class="mtab-content-${m.id} mtab-panel-actions" style="display: none;">${tabContents.actions}</div>
               <div class="mtab-content-${m.id} mtab-panel-eval" style="display: none;">${tabContents.eval}</div>
