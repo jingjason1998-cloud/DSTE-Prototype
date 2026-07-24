@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [v0.7.3] - 2026-07-24
+
+### Fixed
+- **修复驾驶舱 iframe 嵌入外部页宽度被压缩**：`src/cockpit.html` 的 `.content-area--tabs .page-content` 缺少 `width: 100%`，导致 iframe 默认宽度仅 300px，外部页面（如经营分析会）被挤成一团。现已补齐宽度声明，iframe 可填满工作区内容区。
+
 ## [v0.7.2] - 2026-07-23
 
 ### Added
