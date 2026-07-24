@@ -786,7 +786,7 @@
             return acc;
           }, {})
         ).map(([key, val]) => ({ key, name: (SCENARIO_CONFIG[key]?.label || key), avg: Math.round(val.total / val.count), color: SCENARIO_CONFIG[key]?.color || 'var(--text-tertiary)' }));
-        const totalMinutes = meetings.filter(m => m.hasMinutes).length;
+        const totalMinutes = meetings.filter(m => (m.minutes_content || '').trim()).length;
         const totalAgendaItems = meetings.reduce((s, m) => s + (m.agenda_items?.length || 0), 0);
         const actionDone = allActions.filter(a => a.status === 'completed').length;
         const actionTotal = allActions.length;
@@ -848,10 +848,10 @@
             chain: `${icon('link', {size: 14})} 会议链`
           };
           const tabContents = {
-            minutes: m.hasMinutes
+            minutes: (m.minutes_content || '').trim()
               ? `<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
                   <div style="margin-bottom: 8px;"><strong>纪要状态：</strong>${m.minutesStatus === 'final' ? '已定稿' : '起草中'}</div>
-                  <div>会议已召开，纪要${m.minutesStatus === 'final' ? '已定稿并归档' : '正在起草中'}。</div>
+                  <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(m.minutes_content)}</div>
                  </div>`
               : `<div style="font-size: 12px; color: var(--text-tertiary);">暂无纪要</div>`,
             decisions: (m.decisions && m.decisions.length > 0)
@@ -1095,9 +1095,10 @@
         }).join('');
 
         // ---- 纪要卡片 ----
-        const minutesCards = meetings.filter(m => m.hasMinutes).map(m => {
+        const minutesCards = meetings.filter(m => (m.minutes_content || '').trim()).map(m => {
           const statusLabel = m.minutesStatus === 'final' ? '已定稿' : '审核中';
           const statusClass = m.minutesStatus === 'final' ? 'status-success' : 'status-warning';
+          const snippet = escapeHtml((m.minutes_content || '').trim()).slice(0, 120) + ((m.minutes_content || '').trim().length > 120 ? '...' : '');
           return `
             <div style="padding: 14px; background: var(--bg-page); border-radius: 8px; border-left: 3px solid var(--primary); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -1105,7 +1106,7 @@
                 <span class="status-badge ${statusClass}">${statusLabel}</span>
               </div>
               <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">会议日期：${m.date} &nbsp;|&nbsp; 决议 ${m.decisions?.length || 0} 项 &nbsp;|&nbsp; 行动项 ${m.actions?.length || 0} 项</div>
-              <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">会议已完成，纪要${m.minutesStatus === 'final' ? '已定稿并归档' : '正在审核中'}。</div>
+              <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap; word-break: break-word;">${snippet}</div>
             </div>
           `;
         }).join('');

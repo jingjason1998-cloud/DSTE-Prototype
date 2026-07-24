@@ -622,6 +622,16 @@ export function migrateMeetingsData() {
   const meetings = getMeetings();
   meetings.forEach(m => {
     if (typeof m.pre_report_id !== 'string') m.pre_report_id = '';
+    if (typeof m.minutes_content !== 'string') m.minutes_content = '';
+    // 同步 hasMinutes / minutesStatus 与 minutes_content，修复旧数据标志位不一致
+    const hasMinutesContent = m.minutes_content.trim().length > 0;
+    if (hasMinutesContent) {
+      if (!m.hasMinutes) { m.hasMinutes = true; cleanedAny = true; }
+      if (!m.minutesStatus) { m.minutesStatus = 'draft'; cleanedAny = true; }
+    } else {
+      if (m.hasMinutes) { m.hasMinutes = false; cleanedAny = true; }
+      if (m.minutesStatus) { m.minutesStatus = null; cleanedAny = true; }
+    }
     if (typeof m.minutes_report_id !== 'string') m.minutes_report_id = '';
     (m.agenda_items || []).forEach(a => {
       if (!a.id) a.id = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);

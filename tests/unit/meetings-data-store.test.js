@@ -116,7 +116,7 @@ describe('meetings data-store', () => {
       }));
       window.location.hostname = 'localhost';
       const result = initDataStore();
-      expect(result).toEqual([{ id: 'restored', title: 'Restored', pre_report_id: '', minutes_report_id: '' }]);
+      expect(result).toEqual([{ id: 'restored', title: 'Restored', pre_report_id: '', minutes_report_id: '', minutes_content: '' }]);
     });
 
     it('migrates from old version and stores version key', () => {
@@ -124,7 +124,7 @@ describe('meetings data-store', () => {
       storageMap.set('dste_meetings_version', 1);
       window.location.hostname = 'localhost';
       const result = initDataStore();
-      expect(result).toEqual([{ id: 'old', title: 'Old', pre_report_id: '', minutes_report_id: '' }]);
+      expect(result).toEqual([{ id: 'old', title: 'Old', pre_report_id: '', minutes_report_id: '', minutes_content: '' }]);
       expect(stored('dste_meetings_version')).toBe(6);
     });
 
