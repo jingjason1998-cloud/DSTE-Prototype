@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "v0.7.5",
+      "date": "2026-07-24",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复 nginx 审核路径正则误匹配 `/api/review-scores`**：`scripts/update-nginx-api-proxy.sh` 中 Flask 审核端点分流正则 `^/api/(review|batch|scenes|history|summary|config)` 缺少结束锚点，导致 `/api/review-scores` 也被错误路由到本机 Flask（Flask 无此端点，返回 404 HTML）。经营分析会页面加载时会调用该 Worker 端点拉取材料审核评分，从而报错 \"load remote review scores failed\"。现已将正则修正为 `^/api/(review|batch|scenes|history|summary|config)(/|$)`，仅把真正的审核端点及其子路径分流到 Flask，其余 `/api/` 请求继续走 Worker。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.4",
       "date": "2026-07-24",
       "status": "released",

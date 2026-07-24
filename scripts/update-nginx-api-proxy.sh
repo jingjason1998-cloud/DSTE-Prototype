@@ -54,7 +54,7 @@ WORKER_DOMAIN = "api.dste.jasonxspace.cc"
 
 # 审核类端点（会议材料审核）分流到本机 Flask 审核服务（meeting-reviewer, 127.0.0.1:8766）。
 # Worker 上没有这些路由——v0.6.7 把整段 /api/ 切到 Worker 后审核功能全部 404，此处按路径分流恢复。
-api_block = f"""    location ~ ^/api/(review|batch|scenes|history|summary|config) {{
+api_block = f"""    location ~ ^/api/(review|batch|scenes|history|summary|config)(/|$) {{
         proxy_pass http://127.0.0.1:8766;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
