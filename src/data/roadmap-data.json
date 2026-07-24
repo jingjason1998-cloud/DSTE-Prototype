@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "v0.7.8",
+      "date": "2026-07-24",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复会议卡片「纪要」标签显示「暂无纪要」但实际有内容**：会议卡片底部的 `renderTabs` 仅依据 `m.hasMinutes` 判断，未展示 `m.minutes_content` 实际内容；同时旧数据可能存在 `minutes_content` 有内容但 `hasMinutes` 标志未同步的情况。已做以下修复："
+        }
+      ]
+    },
+    {
       "version": "v0.7.7",
       "date": "2026-07-24",
       "status": "released",
