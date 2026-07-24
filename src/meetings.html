@@ -114,6 +114,20 @@
       min-width: 600px;
     }
 
+    /* 会议列表主布局：会议内容 70% / 待办提醒 30% */
+    .meetings-main-grid {
+      display: grid;
+      grid-template-columns: 7fr 3fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 1024px) {
+      .meetings-main-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .meetings-main-grid { gap: 12px; }
+    }
+
     /* 会议 AI 助手侧滑面板 - 左右并列，宽度展开 */
     .meeting-ai-overlay {
       display: none;
@@ -299,6 +313,38 @@
   </div>
 
   <script src="../assets/js/main.js"></script>
+  <script>
+    // DSTE 主题同步 + 嵌入模式检测（提前初始化，与 reviewer.html 保持一致）
+    (function() {
+      const theme = (typeof DSTE !== 'undefined' && DSTE.Storage)
+        ? DSTE.Storage.getString('dste-theme')
+        : null;
+      document.documentElement.setAttribute('data-theme', theme || 'light');
+
+      // 嵌入模式：在 iframe 中使用时隐藏导航外壳，并向父页面汇报高度
+      if (new URLSearchParams(location.search).get('embed') === '1') {
+        document.documentElement.setAttribute('data-embed', 'true');
+
+        if (window !== window.top) {
+          let lastHeight = 0;
+          const reportHeight = () => {
+            const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+            if (h !== lastHeight) {
+              lastHeight = h;
+              window.parent.postMessage({ type: 'dste-embed-resize', height: h }, window.location.origin);
+            }
+          };
+          reportHeight();
+          let timer;
+          window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+          if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+            ro.observe(document.body);
+          }
+        }
+      }
+    })();
+  </script>
   <script type="module">
     import { icon } from '../assets/js/icons.js';
     import { calculateAutoScore, getScoreColor, getScoreLabel } from './meetings/utils/scoring.js';
@@ -1560,7 +1606,7 @@
           </div>
 
           <!-- 主体：列表视图 / 日历视图 -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="meetings-main-grid">
               <div>
                 <div id="meetings-list-panel" class="card">
                   <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
@@ -2121,8 +2167,11 @@
           }
         }
 
-        window.__dsteShell.renderTopNav('exe', null, { external: true });
-        window.__dsteShell.renderSidebar('exe', 'exe/meetings', meetingsNavigate, { external: false });
+        const isEmbed = new URLSearchParams(location.search).get('embed') === '1';
+        if (!isEmbed) {
+          window.__dsteShell.renderTopNav('exe', null, { external: true });
+          window.__dsteShell.renderSidebar('exe', 'exe/meetings', meetingsNavigate, { external: false });
+        }
 
         initDataStore();
         const hadRemote = await loadRemoteMeetings();
@@ -2164,7 +2213,7 @@
         const menuToggle = document.getElementById('mobile-menu-toggle');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
-        if (menuToggle && sidebar && overlay) {
+        if (!isEmbed && menuToggle && sidebar && overlay) {
           menuToggle.addEventListener('click', () => {
             sidebar.classList.toggle('open');
             overlay.classList.toggle('open');

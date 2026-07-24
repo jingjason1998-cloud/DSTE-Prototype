@@ -1,6 +1,25 @@
 {
   "versions": [
     {
+      "version": "v0.7.4",
+      "date": "2026-07-24",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复外部页 iframe 嵌入时双层 shell 嵌套**：`src/meetings.html`、`src/employee-directory.html`、`src/st-issue-tracking.html`、`src/at-issue-tracking.html` 未识别 `?embed=1`，导致被 cockpit 工作区 iframe 嵌入时仍渲染顶部导航与侧边栏，出现双层外壳。现已在上述页面统一增加嵌入模式检测，设置 `data-embed=\"true\"` 并跳过 shell 渲染，同时向父窗口汇报高度实现 iframe 自适应。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**经营分析会列表布局改为 7:3**：`src/meetings.html` 主体网格由 `1fr 1fr`（50/50）调整为 `7fr 3fr`，会议内容区占 70%，待办提醒区占 30%，并保留响应式断点自动堆叠为单列。"
+        },
+        {
+          "type": "Added",
+          "desc": "**新增 embed 模式 E2E 测试**：`tests/e2e/meetings-embed.spec.js` 与 `tests/e2e/external-pages-embed.spec.js` 覆盖 meetings、人员与组织管理、片联 ST/AT 议题跟踪表等外部页在 `?embed=1` 下隐藏导航外壳、内容区占满全宽的验证。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.3",
       "date": "2026-07-24",
       "status": "released",

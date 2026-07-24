@@ -13,6 +13,29 @@
     (function() {
       const theme = DSTE.Storage.getString('dste-theme') || 'light';
       document.documentElement.setAttribute('data-theme', theme);
+
+      // 嵌入模式：在 iframe 中使用时隐藏导航外壳，并向父页面汇报高度
+      if (new URLSearchParams(location.search).get('embed') === '1') {
+        document.documentElement.setAttribute('data-embed', 'true');
+
+        if (window !== window.top) {
+          let lastHeight = 0;
+          const reportHeight = () => {
+            const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+            if (h !== lastHeight) {
+              lastHeight = h;
+              window.parent.postMessage({ type: 'dste-embed-resize', height: h }, window.location.origin);
+            }
+          };
+          reportHeight();
+          let timer;
+          window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+          if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+            ro.observe(document.body);
+          }
+        }
+      }
     })();
   </script>
   <style>
