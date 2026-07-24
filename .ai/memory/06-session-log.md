@@ -2,6 +2,15 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-24（Claude，发布 v0.7.10 修复会议卡片 tab 收起）
+- **主题**：修复会议卡片底部 tab 再次点击不能收起
+- **根因**：`src/meetings.html` 的 `switchMeetingCardTab` 无论当前 tab 是否已展开都会重新打开目标 tab，缺少 toggle 逻辑
+- **修复**：在重置所有 panel 为隐藏前，先判断目标 panel 是否已经是 `display: block`；若是则只隐藏并取消高亮，直接返回；否则再展开目标 tab
+- **操作**：版本号 `0.7.9 → 0.7.10`，更新 CHANGELOG、sonar-project.properties，build 生成 roadmap-data.json，打 tag `v0.7.10` 并 push
+- **验证**：`npm run check:scope` ✓ / 受影响 E2E 15 passed / `npm run build` ✓ / GitHub Actions `Deploy to Production` success / 生产 200
+- **状态**：complete（已发布生产）
+- **下一步**：服务器更新 Flask KMS_API_TOKEN 后端到端确认；继续督办中心阶段 2、决议中心可选优化、T080 排期
+
 ## 2026-07-24（Claude，发布 v0.7.9 修复纪要 tab 显示 bug）
 - **主题**：修复会议卡片「纪要」tab 显示「暂无纪要」但实际有内容
 - **根因**：`src/meetings.html` 的 `renderTabs` 仅依据 `m.hasMinutes` 判断，未展示 `m.minutes_content` 实际内容；旧数据可能存在 `minutes_content` 有内容但 `hasMinutes` 标志未同步的情况
