@@ -947,8 +947,11 @@
           `;
         }
         window.switchMeetingCardTab = function(meetingId, tabKey) {
+          const targetPanel = document.querySelector('.mtab-panel-' + tabKey + '.mtab-content-' + meetingId);
+          const isAlreadyActive = targetPanel && targetPanel.style.display === 'block';
           document.querySelectorAll('.mtab-content-' + meetingId).forEach(el => el.style.display = 'none');
           document.querySelectorAll('.mtab-btn-' + meetingId).forEach(el => { el.style.color = 'var(--text-tertiary)'; el.style.borderBottomColor = 'transparent'; });
+          if (isAlreadyActive) return;
           const panel = document.querySelector('.mtab-panel-' + tabKey + '.mtab-content-' + meetingId);
           if (panel) panel.style.display = 'block';
           const btn = document.querySelector('.mtab-btn-' + meetingId + '.mtab-' + tabKey);

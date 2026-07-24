@@ -1469,7 +1469,18 @@
       "targetVersion": "v1.0.0"
     }
   ],
-  "upcoming": [],
+  "upcoming": [
+    {
+      "name": "**新增预算执行监控独立页面（仅关联不操作）**：",
+      "priority": "中",
+      "eta": "待定"
+    },
+    {
+      "name": "**业务专题与 OMP 重点工作支持深链打开**：",
+      "priority": "中",
+      "eta": "待定"
+    }
+  ],
   "plans": [
     {
       "id": "PLAN-001",
