@@ -6,7 +6,7 @@ const BASE_URL = '/src/business-topics.html';
 test.beforeEach(async ({ page }) => {
   await page.goto(BASE_URL, { timeout: 120000 });
   await page.waitForSelector('#topicTableBody tr', { timeout: 60000 });
-  // Reset year filter to "all" since the UI defaults to current year
+  // 页面默认年度为 2026，测试前重置为“全部年度”以保持与其他用例的独立性和可预期数据量
   await page.selectOption('#filterYear', '');
   await page.waitForTimeout(200);
 });
@@ -367,13 +367,35 @@ test.describe('Business Topics - Filters', () => {
     }
   });
 
+  test('year filter defaults to 2026', async ({ page }) => {
+    // 重新加载页面，验证初始默认选中 2026（beforeEach 会重置为全部年度）
+    await page.goto(BASE_URL, { timeout: 120000 });
+
+    // 等待年度筛选初始化完成（选项数大于 1，即至少包含“全部年度”和一个年份）
+    await page.waitForFunction(() => {
+      const select = document.getElementById('filterYear');
+      return select && select.options.length > 1;
+    }, { timeout: 10000 });
+
+    const value = await page.locator('#filterYear').inputValue();
+    expect(value).toBe('2026');
+
+    const text = await page.locator('#filterYear option:checked').textContent();
+    expect(text?.trim()).toBe('2026');
+  });
+
   test('year filter updates table', async ({ page }) => {
     await page.locator('#filterYear').selectOption('2024');
     await page.waitForTimeout(500);
 
     const count = await page.locator('#topicTableBody tr').count();
-    expect(count).toBeGreaterThanOrEqual(0);
-    expect(count).toBeLessThanOrEqual(11);
+    expect(count).toBeGreaterThan(0);
+
+    // All visible rows should have year 2024 in period column or detail
+    const years = await page.locator('#topicTableBody tr td:nth-child(6)').allTextContents();
+    for (const y of years) {
+      expect(y.trim().startsWith('2024')).toBe(true);
+    }
   });
 
   test('combined filters work together', async ({ page }) => {
