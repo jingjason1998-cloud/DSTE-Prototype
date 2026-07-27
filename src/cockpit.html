@@ -4227,6 +4227,13 @@
               url: 'https://bi.finereporthelp.com/webroot/decision?#/?activeTab=24d22c15-75c0-4ab2-9cec-6d727c9e45cd',
               embed: true,
               hideSidebar: 220
+            },
+            {
+              id: 'fr-marketing-budget',
+              name: '营销线预算执行监控表',
+              description: '国内营销线损益全景，关联年度重点工作、子任务与业务专题',
+              url: 'marketing-budget.html',
+              embed: true
             }
           ]
         },
@@ -4360,7 +4367,14 @@
                 </div>
               </div>
               <div style="position: relative; width: 100%; height: calc(100% - 41px); overflow: hidden;">
-                <iframe id="report-center-iframe" style="position: absolute; left: ${iframeLeft}; top: 0; width: ${iframeWidth}; height: 100%; border: none;" src="${activeReport ? activeReport.url : 'about:blank'}"></iframe>
+                ${(() => {
+                  const iframeSrc = activeReport
+                    ? (activeReport.url === 'marketing-budget.html'
+                        ? 'marketing-budget.html?embed=1&pageId=exe%2Fmarketing-budget'
+                        : activeReport.url)
+                    : 'about:blank';
+                  return `<iframe id="report-center-iframe" style="position: absolute; left: ${iframeLeft}; top: 0; width: ${iframeWidth}; height: 100%; border: none;" src="${iframeSrc}"></iframe>`;
+                })()}
               </div>
             </div>
 

@@ -11,8 +11,7 @@ import {
   apiLoadArray,
 } from '../../lib/per-record-sync.js';
 import { enhancePersonInput, getPersonInputValue } from '../../components/person-input.js';
-import { renderPerson, normalizePerson, personMatches, normalizePersonField, getOrgTree } from '../../lib/employee-directory.js';
-import { createOrgSelector } from '../../components/org-selector.js';
+import { renderPerson, normalizePerson, personMatches, normalizePersonField } from '../../lib/employee-directory.js';
 
 import {
     validateIssueRow, safeIssueId, hasCsvFormulaInjection, sanitizeCsvCell,
@@ -77,8 +76,6 @@ let _cachedTopics = null;
 let _deleteTargetId = null;
 let _currentTab = 'all';
 const _sortConfig = { field: 'seq', direction: 'asc' };
-let _deptOrgSelector = null;
-let _deptOrgTree = null;
 
 const topicsRepo = new Repository('businessTopics', {
   storageKey: STORAGE_KEY,
@@ -557,9 +554,6 @@ function formatPeriod(start, end) {
 function getFilteredTopics() {
     let topics = loadTopics();
     const search = document.getElementById('searchInput').value.trim().toLowerCase();
-    const selectedOrgId = _deptOrgSelector?.getValue?.() || '';
-    const selectedOrg = selectedOrgId && _deptOrgTree ? _deptOrgTree.orgUnits[selectedOrgId] : null;
-    const dept = selectedOrg ? selectedOrg.name : '';
     const priority = document.getElementById('filterPriority').value;
     const year = document.getElementById('filterYear').value;
 
@@ -570,7 +564,6 @@ function getFilteredTopics() {
     else if (_currentTab === 'mine') topics = topics.filter(t => personMatches(t.owner, CURRENT_USER));
 
     // Dropdown filters
-    if (dept) topics = topics.filter(t => t.department === dept);
     if (priority) topics = topics.filter(t => t.priority === priority);
     if (year) {
         topics = topics.filter(t => t.year === year);
@@ -634,39 +627,6 @@ function getFilteredTopics() {
 }
 
 // ===================== Render =====================
-function renderDeptOrgSelector() {
-    const container = document.getElementById('filterDeptContainer');
-    if (!container) return;
-    const currentVal = _deptOrgSelector?.getValue?.() || null;
-    if (_deptOrgSelector) {
-        _deptOrgSelector.destroy();
-    }
-    _deptOrgTree = getOrgTree();
-    if (!_deptOrgTree || !_deptOrgTree.roots || _deptOrgTree.roots.length === 0) {
-        _deptOrgTree = buildFallbackOrgTreeFromTopics();
-    }
-    _deptOrgSelector = createOrgSelector(container, {
-        placeholder: '全部部门',
-        allowClear: true,
-        value: currentVal,
-        orgTree: _deptOrgTree,
-        onChange: () => applyFilters(),
-    });
-}
-
-function buildFallbackOrgTreeFromTopics() {
-    const topics = loadTopics();
-    const depts = [...new Set(topics.map(t => t.department).filter(Boolean))].sort();
-    const orgUnits = {};
-    const roots = [];
-    depts.forEach((dept, idx) => {
-        const id = `_dept_${idx}`;
-        orgUnits[id] = { id, name: dept, children: [], employeeCount: 0 };
-        roots.push(id);
-    });
-    return { orgUnits, roots };
-}
-
 function renderTable() {
     const topics = getFilteredTopics();
     const tbody = document.getElementById('topicTableBody');
@@ -1271,7 +1231,6 @@ function saveTopic() {
     closeModal('formModal');
     renderTable();
     renderStats();
-    renderDeptOrgSelector();
   } catch (e) {
     console.error('[saveTopic] failed:', e);
     showToast('保存失败：' + e.message, 'error');
@@ -1489,7 +1448,6 @@ function importTopicsFromFile(event) {
             saveTopics(validTopics);
             renderTable();
             renderStats();
-            renderDeptOrgSelector();
             showToast(`导入成功！共恢复 ${validTopics.length} 个专题`, 'success');
         } catch (err) {
             showToast('备份文件解析失败：' + err.message, 'error');
@@ -1570,8 +1528,9 @@ async function init() {
     }
     if (topics.length === 0) {
         topics = isLocalDev ? initDefaultData() : [];
-    } else if (isLocalDev) {
+    } else if (isLocalDev && !localStorage.getItem('dste_business_topics_prod_imported')) {
         // Ensure all default topics are present (merge missing ones) — only on localhost
+        // 如果已显式导入生产数据，则跳过默认示例数据合并，避免污染真实数据
         const defaults = initDefaultData(false);
         const existingIds = new Set(topics.map(t => t.id));
         let added = 0;
@@ -1598,7 +1557,6 @@ async function init() {
 
     renderTable();
     renderStats();
-    renderDeptOrgSelector();
     populateYearFilter(); // 动态填充年度筛选，必须执行以保证年份筛选可用
     updateAiReportCards(); // v2.1: update AI report entry cards
 

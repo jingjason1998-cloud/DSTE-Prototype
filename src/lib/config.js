@@ -63,7 +63,8 @@ export const SIDEBAR_CONFIG = {
       { id: 'exe/report-center', icon: 'exe/report-center', label: '报表首页' },
       { id: 'exe/report-center', reportId: 'fr-001', icon: 'chart-line-up', label: '国内营销线利润表' },
       { id: 'exe/report-center', reportId: 'fr-002', icon: 'chart-line-up', label: '国内营销线利润表（新）' },
-      { id: 'exe/report-center', reportId: 'fr-ioc-platform', icon: 'chart-pie-slice', label: '营销线组织绩效IOC平台' }
+      { id: 'exe/report-center', reportId: 'fr-ioc-platform', icon: 'chart-pie-slice', label: '营销线组织绩效IOC平台' },
+      { id: 'exe/report-center', reportId: 'fr-marketing-budget', icon: 'chart-line-up', label: '营销线预算执行监控表' }
     ]},
     { type: 'quick', label: '快捷工具' },
     { type: 'item', id: 'exe/meeting-review', icon: 'exe/meeting-review', label: '会议材料审核' }
@@ -89,6 +90,7 @@ export const EXTERNAL_PAGES = {
   'exe/meetings': 'meetings.html',
   'exe/st-issue-tracking': 'st-issue-tracking.html',
   'exe/at-issue-tracking': 'at-issue-tracking.html',
+  'exe/marketing-budget': 'marketing-budget.html',
   'sp/strategy-map': 'strategy-map-list.html',
   'sp/strategy-map-detail': 'strategy-map.html'
 };
@@ -110,6 +112,7 @@ export const PAGE_NAMES = {
   'exe/meetings': '经营分析会',
   'exe/meeting-review': '会议材料审核',
   'exe/report-center': '经营分析报表中心',
+  'exe/marketing-budget': '营销线预算执行监控表',
   'rev/performance': '绩效与激励',
   'rev/cadre': '干部管理',
   'rev/review': '战略复盘',
@@ -145,6 +148,7 @@ export const PAGE_META = {
   'exe/meetings': { title: '经营分析会', icon: 'exe/meetings', phase: 'exe', isExternal: true, externalFile: 'meetings.html' },
   'exe/meeting-review': { title: '会议材料审核', icon: 'exe/meeting-review', phase: 'exe' },
   'exe/report-center': { title: '经营分析报表中心', icon: 'exe/report-center', phase: 'exe' },
+  'exe/marketing-budget': { title: '营销线预算执行监控表', icon: 'exe/report-center', phase: 'exe', isExternal: true, externalFile: 'marketing-budget.html' },
   'rev/performance': { title: '绩效与激励', icon: 'rev/performance', phase: 'rev' },
   'rev/cadre': { title: '干部管理', icon: 'rev/cadre', phase: 'rev' },
   'rev/review': { title: '战略复盘', icon: 'rev/review', phase: 'rev' },

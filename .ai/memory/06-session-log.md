@@ -2,6 +2,48 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-27（Claude，业务专题管理优化：移除部门筛选框 + 年份筛选默认值 2026 + 生产数据同步到本地）
+- **主题**：
+  1. 按用户截图反馈，移除业务专题管理列表顶部的部门组织树筛选框，直接展示全部专题名单
+  2. 修复年份筛选控件无法使用、默认值未选中 2026 的问题
+  3. 将生产环境业务专题数据同步到本地测试系统
+- **根因**：
+  - 用户认为部门筛选框不必要
+  - 年份筛选初始化依赖 `innerHTML` 的 `selected` 属性，在动态填充后未正确生效；且原默认值为 `new Date().getFullYear()`，未固定为 2026
+  - 云端数据加载失败会中断 `init()`，导致 `populateYearFilter()` 未执行，年份筛选只有“全部年度”一个空选项
+  - 本地测试系统需要真实生产数据验证
+- **操作**：
+  - 删除 `src/business-topics.html` 中 `#filterDeptContainer` 容器
+  - 删除 `src/pages/business-topics/main.js` 中 `createOrgSelector` 引入、`_deptOrgSelector`/`_deptOrgTree` 变量、部门过滤逻辑、`renderDeptOrgSelector()` 与 `buildFallbackOrgTreeFromTopics()` 函数及其调用
+  - 保留 `department` 字段在表格、表单、详情、搜索、排序中的使用
+  - 删除 `tests/e2e/business-topics.spec.js` 中 `department filter updates table` 用例
+  - `populateYearFilter()` 默认年度固定为 `2026`，并显式设置 `select.value = defaultVal`，避免 `selected` 属性失效
+  - `init()` 中对 `loadRemoteTopics()` 和 `loadRemoteIssues()` 加 `try/catch`，确保筛选器 UI 在远程加载失败时仍可正常渲染
+  - 新增 E2E 用例 `year filter defaults to 2026`，并强化 `year filter updates table` 验证筛选后行数据年份
+  - 新增 `scripts/export-prod-topics-to-local.js`：通过 wrangler 读取生产 KV `dste_topics_v2`、`dste_issues_v1`，按 `sourceSystem` 拆分 ST/AT 议题，导出到 `backups/prod-business-topics-sync.json`
+  - 新增 `backups/inject-prod-data.html`：浏览器端一键注入生产数据到 localStorage；已改为页面加载后自动注入并跳转到业务专题页面，无需用户点击
+  - 修复生产数据注入后被本地默认示例数据覆盖/混入的问题：注入器写入 `dste_business_topics_prod_imported` 标记，`main.js` 初始化时检测到该标记则跳过默认示例数据合并
+- **修改文件**：`src/business-topics.html`、`src/pages/business-topics/main.js`、`tests/e2e/business-topics.spec.js`、`scripts/export-prod-topics-to-local.js`、`backups/inject-prod-data.html`、`.ai/memory/06-session-log.md`
+- **验证**：
+  - `npm run build` 通过 / `npm run check:scope` 通过 / `npm run test:unit` 509 passed
+  - `npx playwright test tests/e2e/business-topics.spec.js` 35 passed / `npx playwright test tests/e2e/verify-business-topics.spec.js` 3 passed
+  - Playwright 端到端验证：注入 7 专题 + 1510 ST 议题 + 781 AT 议题后，业务专题页面正常加载，部门筛选框已消失；年份筛选默认选中 2026，切换 2024 后表格只显示 2024 年度专题
+- **状态**：complete（未发版本）
+- **下一步**：继续业务专题管理其他优化（如分页、批量操作、表单校验等），或处理用户新反馈
+
+## 2026-07-24（Kimi，经营分析会 AI 功能盘点 + 汇报 PPT 整合）
+- **主题**：盘点经营分析会管理全流程 AI 功能并生成汇报 PPT；多份历史 PPT 去重合并（非产品代码变更，无版本发布）
+- **AI 功能盘点结论**（基于代码核实）：会前 = AI 议程推荐（`agenda-recommender.js` + `/api/ai/agenda`）、KMS 材料智能审核（Flask 8766，4 套场景评分矩阵）、议程一键/批量送审（评分回传 `dste_review_scores`）、会前准备度检查；会中 = 会议 AI 助手（`MeetingAiAssistant.js`，流式问答 + function calling，行动项/新会议草案人工确认写入）；会后 = AI 自动评分（`scoring.js` 三段式 35+30+35，消费材料审核分）、闭环追踪问答；底座 = `ai-client.js` 统一网关（Kimi）+ KMS 工具（`searchKms`/`getKmsPage`）+ 全局 AI 抽屉「DSTE 智脑」+ `ai-chat.css` 统一交互 UI
+- **产出**：
+  - `DSTE汇报合集.pptx`（5 页终版，帆软风格）：事不过三封面/机制逻辑/场景示例与价值/会议智能评价（取自帆软母版版 4 页）+ 新增帆软风「经营分析会管理全流程 AI 功能总览」页
+  - `scripts/generate_meeting_ai_overview_ppt.py`：单页 AI 总览 PPT 生成
+  - `scripts/merge_pptx.py`：通用 pptx 合并（深拷贝形状 + 版式背景图衬底 + 图片关系 rId 重映射）
+  - `scripts/build_final_deck.py`：以帆软母版版为基底重建终版（配色 `#035DCF`/`#5B8CC8`/`#E8F4FD`/`#BFDCFC` 取自帆软母版）
+  - 原 4 个 pptx（事不过三原版/帆软风格/帆软母版版/AI 总览单页）已移入废纸篓；pptx 被 gitignore 不入库
+- **验证**：终版逐页形状/图片引用校验无损坏；qlmanage 缩略图渲染确认第 5 页帆软风格与前 4 页统一
+- **状态**：complete（无 git 提交、无版本发布；3 个脚本未提交，留待用户决定）
+- **下一步**：服务器更新 Flask KMS_API_TOKEN 后端到端确认；继续督办中心阶段 2、决议中心可选优化、T080 排期
+
 ## 2026-07-24（Claude，发布 v0.7.11 修复纪要 tab 默认展开）
 - **主题**：修复会议卡片「纪要」tab 页面加载时默认展开
 - **根因**：`src/meetings.html` 的 `renderTabs` 生成的「纪要」panel 没有 `display: none`，而其他 tab 均有，导致默认状态下纪要 panel 可见

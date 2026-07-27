@@ -27,6 +27,7 @@ export default defineConfig({
         'rule-engine': resolve(__dirname, 'src/rule-engine.html'),
         'at-issue-tracking': resolve(__dirname, 'src/at-issue-tracking.html'),
         'st-issue-tracking': resolve(__dirname, 'src/st-issue-tracking.html'),
+        'marketing-budget': resolve(__dirname, 'src/marketing-budget.html'),
       },
     },
   },

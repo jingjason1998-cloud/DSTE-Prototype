@@ -324,32 +324,6 @@ test.describe('Business Topics - Milestone Management', () => {
 
 // ===================== Filters =====================
 test.describe('Business Topics - Filters', () => {
-  test('department filter updates table', async ({ page }) => {
-    // 展开组织选择器
-    await page.locator('#filterDeptContainer .org-selector-header').first().click();
-    await page.waitForTimeout(300);
-
-    // 获取第一个组织名称
-    const firstOrgName = await page.locator('#filterDeptContainer .org-name').first().textContent();
-    expect(firstOrgName).toBeTruthy();
-
-    // 点击第一个组织
-    await page.locator('#filterDeptContainer .org-name').first().click();
-    await page.waitForTimeout(500);
-
-    const count = await page.locator('#topicTableBody tr').count();
-    expect(count).toBeGreaterThanOrEqual(0);
-    expect(count).toBeLessThanOrEqual(11);
-
-    // 如果表格有数据，验证部门列都匹配
-    if (count > 0) {
-      const depts = await page.locator('#topicTableBody tr td:nth-child(5)').allTextContents();
-      for (const d of depts) {
-        expect(d.trim()).toBe(firstOrgName.trim());
-      }
-    }
-  });
-
   test('priority filter updates table', async ({ page }) => {
     await page.locator('#filterPriority').selectOption('P0');
     await page.waitForTimeout(500);
