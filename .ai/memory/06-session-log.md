@@ -2,6 +2,21 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-27（Claude，发布 v0.7.12 修复业务专题年份筛选）
+- **主题**：修复业务专题管理年份筛选无法使用、默认未选中 2026 的问题，并推送生产
+- **根因**：`populateYearFilter()` 依赖 `innerHTML` 的 `selected` 属性在动态填充后未正确生效；原默认值为 `new Date().getFullYear()`，未固定为 2026；云端加载失败会中断 `init()`，导致筛选器未初始化
+- **修复**：
+  - `src/pages/business-topics/main.js` 的 `populateYearFilter()` 默认年度固定为 `2026`，显式设置 `select.value = defaultVal`
+  - `init()` 中对 `loadRemoteTopics()` 和 `loadRemoteIssues()` 增加 `try/catch`
+  - 新增/强化 E2E 用例验证默认年份与筛选行为
+- **操作**：
+  - 版本号 `0.7.11 → 0.7.12`，更新 `CHANGELOG.md`、`sonar-project.properties`
+  - 切出 hotfix 分支 `hotfix/year-filter-default-2026`，仅包含 bug 修复；合并到 `main` 后打 tag `v0.7.12` 并 push
+  - 原未提交 WIP（部门筛选移除、营销线预算页面、PPT 脚本等）保存到分支 `wip/business-topics-optimization`
+- **验证**：`npm run build` ✓ / `npm run check:scope` ✓ / `npx playwright test tests/e2e/business-topics.spec.js` 36 passed / `npx playwright test tests/e2e/verify-business-topics.spec.js` 3 passed / GitHub Actions `Deploy to Production` success / 生产 `https://dste.fineres.com/` 200
+- **状态**：complete（已发布生产）
+- **下一步**：继续 `wip/business-topics-optimization` 分支上的业务专题管理优化；服务器更新 Flask KMS_API_TOKEN 后端到端确认
+
 ## 2026-07-24（Claude，发布 v0.7.11 修复纪要 tab 默认展开）
 - **主题**：修复会议卡片「纪要」tab 页面加载时默认展开
 - **根因**：`src/meetings.html` 的 `renderTabs` 生成的「纪要」panel 没有 `display: none`，而其他 tab 均有，导致默认状态下纪要 panel 可见
