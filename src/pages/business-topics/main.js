@@ -42,6 +42,10 @@ import {
     sortTopicsBySeq,
     isNaturalSeqOrder,
 } from './seq-utils.js';
+import {
+    getTopicYears,
+    getAllYearsFromTopics,
+} from './year-utils.js';
 
 // 暴露人员目录工具给内联事件与动态弹窗
 window.enhancePersonInput = enhancePersonInput;
@@ -566,7 +570,7 @@ function getFilteredTopics() {
     // Dropdown filters
     if (priority) topics = topics.filter(t => t.priority === priority);
     if (year) {
-        topics = topics.filter(t => t.year === year);
+        topics = topics.filter(t => getTopicYears(t).has(year));
     }
 
     // Search
@@ -874,12 +878,7 @@ function applyFilters() {
 }
 
 function getAllYears() {
-    const topics = loadTopics();
-    const years = new Set();
-    topics.forEach(t => {
-        if (t.year) years.add(t.year);
-    });
-    return Array.from(years).sort().reverse();
+    return getAllYearsFromTopics(loadTopics());
 }
 
 function populateYearFilter() {
@@ -1015,7 +1014,7 @@ function renderYearManageList() {
 
     const topics = loadTopics();
     container.innerHTML = years.map(y => {
-        const count = topics.filter(t => t.year === y).length;
+        const count = topics.filter(t => getTopicYears(t).has(y)).length;
         return `
             <div class="year-manage-item" data-year="${y}">
                 <div style="display:flex; align-items:center; gap:8px;"
@@ -1060,7 +1059,7 @@ function addYear() {
 
 function removeYear(year) {
     const topics = loadTopics();
-    const count = topics.filter(t => t.year === year).length;
+    const count = topics.filter(t => getTopicYears(t).has(year)).length;
     if (count > 0) {
         showToast(`该年度下有 ${count} 个专题，请先修改这些专题的年度后再删除。`, 'warning');
         return;

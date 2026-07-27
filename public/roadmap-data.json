@@ -1,6 +1,25 @@
 {
   "versions": [
     {
+      "version": "v0.7.12",
+      "date": "2026-07-27",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复业务专题管理年份筛选无法使用且默认未选中 2026**："
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复会议卡片 tab 再次点击不能收起**：`src/meetings.html` 的 `switchMeetingCardTab` 原先无论当前是否已展开都会重新打开目标 tab。现改为：点击已展开的 tab 时隐藏所有 panel 并高亮取消，实现展开/收起切换。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复会议卡片纪要 tab 默认展开**：`renderTabs` 生成的「纪要」panel 缺少 `display: none`，导致页面加载时默认展开。已与其他 tab 统一默认隐藏。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.9",
       "date": "2026-07-24",
       "status": "released",
@@ -1469,18 +1488,7 @@
       "targetVersion": "v1.0.0"
     }
   ],
-  "upcoming": [
-    {
-      "name": "**修复会议卡片 tab 再次点击不能收起**：`src/meetings.html` 的 `switchMeetingCardTab` 原先无论当前是否已展开都会重新打开目标 tab。现改为：点击已展开的 tab 时隐藏所有 panel 并高亮取消，实现展开/收起切换。",
-      "priority": "中",
-      "eta": "待定"
-    },
-    {
-      "name": "**修复会议卡片纪要 tab 默认展开**：`renderTabs` 生成的「纪要」panel 缺少 `display: none`，导致页面加载时默认展开。已与其他 tab 统一默认隐藏。",
-      "priority": "中",
-      "eta": "待定"
-    }
-  ],
+  "upcoming": [],
   "plans": [
     {
       "id": "PLAN-001",
