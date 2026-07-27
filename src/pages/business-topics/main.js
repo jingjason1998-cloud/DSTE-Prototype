@@ -927,13 +927,17 @@ function populateYearFilter() {
     if (!select) return;
     const currentVal = select.value;
     const years = getAllYears();
-    const currentYear = new Date().getFullYear().toString();
-    if (!years.includes(currentYear)) years.unshift(currentYear);
-    // 默认选中当年度（首次加载时 currentVal 为空）
-    const defaultVal = currentVal || currentYear;
+    const defaultYear = '2026';
+    if (!years.includes(defaultYear)) years.unshift(defaultYear);
+    // 默认选中 2026 年度（首次加载时 currentVal 为空）
+    const defaultVal = currentVal || defaultYear;
     select.innerHTML = '<option value="">全部年度</option>' + years.map(y =>
-        `<option value="${y}" ${y === defaultVal ? 'selected' : ''}>${y}</option>`
+        `<option value="${y}">${y}</option>`
     ).join('');
+    // 显式设置选中值，避免 selected 属性在 innerHTML 重绘后未生效
+    if (defaultVal) {
+        select.value = defaultVal;
+    }
     // 填充后触发筛选，确保默认年度生效
     if (!currentVal && defaultVal) {
         applyFilters();
@@ -1550,8 +1554,12 @@ function sendAI() {
 async function init() {
     migrateV1ToV2(); // v2.1: auto-migrate v1.2 data on load
 
-    // 优先从云端加载数据
-    await loadRemoteTopics();
+    // 优先从云端加载数据；失败时不阻塞页面初始化，确保筛选器等 UI 正常渲染
+    try {
+        await loadRemoteTopics();
+    } catch (e) {
+        console.warn('[init] loadRemoteTopics failed:', e);
+    }
 
     let topics = loadTopics();
     const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
@@ -1581,13 +1589,17 @@ async function init() {
 
     _cachedTopics = topics;
 
-    // 同步加载云端议题数据并与本地合并
-    await loadRemoteIssues();
+    // 同步加载云端议题数据并与本地合并；失败时不阻塞页面初始化
+    try {
+        await loadRemoteIssues();
+    } catch (e) {
+        console.warn('[init] loadRemoteIssues failed:', e);
+    }
 
     renderTable();
     renderStats();
     renderDeptOrgSelector();
-    populateYearFilter(); // 动态填充年度筛选
+    populateYearFilter(); // 动态填充年度筛选，必须执行以保证年份筛选可用
     updateAiReportCards(); // v2.1: update AI report entry cards
 
     bindDelegatedEvents();

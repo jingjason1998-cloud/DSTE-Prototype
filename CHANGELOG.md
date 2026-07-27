@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [v0.7.12] - 2026-07-27
+
+### Fixed
+- **修复业务专题管理年份筛选无法使用且默认未选中 2026**：
+  - `src/pages/business-topics/main.js` 的 `populateYearFilter()` 默认年度固定为 `2026`，并显式设置 `select.value`，避免 `innerHTML` 重绘后 `selected` 属性未生效导致仍显示“全部年度”。
+  - `init()` 中对 `loadRemoteTopics()` 和 `loadRemoteIssues()` 增加 `try/catch`，远程加载失败时不再中断初始化，确保年份筛选控件始终可用。
+  - 同步更新 E2E 测试，新增 `year filter defaults to 2026` 用例并强化 `year filter updates table` 验证。
+
 ### Fixed
 - **修复会议卡片 tab 再次点击不能收起**：`src/meetings.html` 的 `switchMeetingCardTab` 原先无论当前是否已展开都会重新打开目标 tab。现改为：点击已展开的 tab 时隐藏所有 panel 并高亮取消，实现展开/收起切换。
 - **修复会议卡片纪要 tab 默认展开**：`renderTabs` 生成的「纪要」panel 缺少 `display: none`，导致页面加载时默认展开。已与其他 tab 统一默认隐藏。
