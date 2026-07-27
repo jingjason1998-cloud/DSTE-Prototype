@@ -1,6 +1,6 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-27 18:45
+> 更新时间: 2026-07-27 19:04
 
 ## 状态
 **v0.7.12 已发布并部署生产**（commit `2cf47e2`）：修复业务专题管理年份筛选无法使用且默认未选中 2026 的问题；年份筛选默认固定为 2026，远程加载失败不再阻塞初始化。
@@ -89,6 +89,19 @@
 - 断点/恢复见 `08-checkpoint.md`，任务配方见 `.ai/tasks/active/T030-resolution-center.md`
 
 ## 刚完成
+
+### 业务专题管理优化：移除部门筛选框 + 生产数据同步到本地（Claude 会话，2026-07-27，未发版本）
+- 按用户反馈，移除 `src/business-topics.html` 列表顶部的部门组织树筛选框，直接展示全部专题名单
+- 删除 `src/pages/business-topics/main.js` 中 `createOrgSelector` 相关引入、变量、过滤逻辑、渲染函数及调用；保留 `department` 字段在表格/表单/详情/搜索/排序中的使用
+- 删除 `tests/e2e/business-topics.spec.js` 中 `department filter updates table` 用例
+- 新增 `scripts/export-prod-topics-to-local.js` 与 `backups/inject-prod-data.html`，将生产 KV 中 7 专题 + 1510 ST 议题 + 781 AT 议题同步到本地测试系统；注入页面加载后自动注入并跳转，无需用户点击；`main.js` 检测到 `dste_business_topics_prod_imported` 标记后跳过本地默认示例数据合并，避免污染真实数据
+- 验证：`npm run build` ✓ / `npm run check:scope` ✓ / `npm run test:unit` 509 passed / `npx playwright test tests/e2e/business-topics.spec.js` 34 passed / `npx playwright test tests/e2e/verify-business-topics.spec.js` 3 passed / Playwright 端到端验证生产数据注入后 2026 年度显示 6 条专题
+
+### 经营分析会 AI 功能盘点 + 汇报 PPT 整合（Kimi 会话，2026-07-24，非产品变更）
+- 盘点代码库核实经营分析会全流程 AI 功能（会前议程推荐/材料审核/送审/准备度，会中 AI 助手/工具调用/草拟确认，会后自动评分/闭环问答，统一 AI 底座）
+- 产出 `DSTE汇报合集.pptx`（5 页帆软风格终版：事不过三 4 页 + 经营分析会 AI 功能总览 1 页），原 4 个 pptx 已移废纸篓
+- 新增脚本（未提交）：`scripts/generate_meeting_ai_overview_ppt.py`、`scripts/merge_pptx.py`（通用合并）、`scripts/build_final_deck.py`（帆软风终版重建）
+- 详见 `.ai/memory/06-session-log.md` 顶部条目
 
 ### v0.7.2 发布（Claude 会话，2026-07-23）
 - **驾驶舱持久化多标签工作区**：

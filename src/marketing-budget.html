@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>营销线预算执行监控表 - DSTE战略管理平台</title>
+    <link rel="stylesheet" href="../assets/css/main.css?v=2">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="../assets/js/main.js"></script>
+    <script>
+        (function() {
+            const theme = DSTE.Storage.getString('dste-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+
+            // 主题与嵌入模式已由内联脚本与 shell-injector 统一处理
+            if (new URLSearchParams(location.search).get('embed') === '1') {
+                document.documentElement.setAttribute('data-embed', 'true');
+
+                // 向父页面汇报高度，实现 iframe 自适应
+                if (window !== window.top) {
+                    let lastHeight = 0;
+                    const reportHeight = () => {
+                        const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+                        if (h !== lastHeight) {
+                            lastHeight = h;
+                            window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*');
+                        }
+                    };
+                    reportHeight();
+                    let timer;
+                    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                    if (typeof ResizeObserver !== 'undefined') {
+                        const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                        ro.observe(document.body);
+                    }
+                }
+            }
+        })();
+    </script>
+    <script>
+    (function() {
+        'use strict';
+
+        const CAS_LANDING_PAGE = '/src/cockpit.html';
+        const CAS_REDIRECT_HISTORY_KEY = 'dste-cas-redirect-history';
+
+        function isCasRedirectLoop() {
+            try {
+                const now = Date.now();
+                const raw = sessionStorage.getItem(CAS_REDIRECT_HISTORY_KEY);
+                const history = raw ? JSON.parse(raw) : [];
+                const recent = history.filter(t => now - t < 10000);
+                recent.push(now);
+                sessionStorage.setItem(CAS_REDIRECT_HISTORY_KEY, JSON.stringify(recent));
+                return recent.length > 2;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function clearCasRedirectHistory() {
+            try { sessionStorage.removeItem(CAS_REDIRECT_HISTORY_KEY); } catch (e) {}
+        }
+
+        // CAS 回调处理
+        async function handleCasCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ticket = urlParams.get('ticket');
+            if (!ticket) return false;
+
+            const cleanUrl = window.location.pathname + window.location.hash;
+            history.replaceState(null, '', cleanUrl);
+
+            try {
+                const service = encodeURIComponent(window.location.origin + CAS_LANDING_PAGE);
+                const resp = await fetch(`/api/auth/cas/validate?ticket=${encodeURIComponent(ticket)}&service=${service}`);
+                if (!resp.ok) throw new Error('CAS 验证失败');
+                const data = await resp.json();
+                if (data.success && data.token) {
+                    DSTE.Storage.setString('dste-token', data.token);
+                    DSTE.Storage.setString('dste-user', data.user?.name || data.user?.username || '');
+                    sessionStorage.setItem('dste-user', data.user?.name || data.user?.username || '');
+                    sessionStorage.setItem('dste-cas-login-at', String(Date.now()));
+                    clearCasRedirectHistory();
+                } else {
+                    throw new Error(data.message || 'CAS 验证未通过');
+                }
+            } catch (err) {
+                console.error('[Auth]', err);
+            }
+            return true;
+        }
+
+        handleCasCallback();
+    })();
+    </script>
+    <link rel="stylesheet" href="./pages/marketing-budget/style.css">
+    <script type="module" src="./lib/shell-injector.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部导航 (与 cockpit.html 一致) -->
+        <nav class="top-nav">
+            <div style="display: flex; align-items: center;">
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单"><span class="icon" data-icon="menu" data-icon-size="18"></span></button>
+                <div class="top-nav-brand">
+                    <div class="top-nav-logo">D</div>
+                    <span class="top-nav-title">DSTE 战略管理平台</span>
+                </div>
+            </div>
+            <ul class="top-nav-links" id="top-nav-links"></ul>
+            <div class="top-nav-actions">
+                <button class="icon-btn" id="theme-toggle" title="切换主题"><span class="icon" data-icon="moon" data-icon-size="18"></span></button>
+                <button class="icon-btn" title="通知"><span class="icon" data-icon="notification" data-icon-size="18"></span></button>
+                <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;position:relative;cursor:pointer;">张</div>
+                <div class="user-dropdown" id="user-dropdown">
+                    <div class="user-dropdown-name" id="user-dropdown-name">张总</div>
+                    <div class="user-dropdown-divider"></div>
+                    <button class="user-dropdown-item" id="user-logout"><span class="icon" data-icon="logout" data-icon-size="14"></span> 退出登录</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="app-body">
+            <!-- 侧边栏遮罩层 -->
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+            <!-- 左侧边栏 -->
+            <aside class="sidebar" id="sidebar"></aside>
+
+            <!-- 内容区 -->
+            <main class="content-area">
+                <div class="budget-workspace">
+                    <div class="page-container" id="budget-page-root">
+                        <!-- JS 渲染 -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 上传 Excel 弹窗 -->
+    <div class="modal-overlay" id="uploadModal" style="display: none;">
+        <div class="modal-content" style="max-width: 520px;">
+            <button class="modal-close" data-action="close-upload">×</button>
+            <div class="modal-header">
+                <div class="modal-title"><span class="icon" data-icon="upload" data-icon-size="18"></span> 上传 Excel</div>
+                <div class="modal-subtitle">支持 .xlsx / .xls / .csv，单文件 ≤ 5MB</div>
+            </div>
+            <div class="upload-dropzone" id="uploadDropzone">
+                <div style="font-size: 32px; margin-bottom: 12px;"><span class="icon" data-icon="file-xls" data-icon-size="32"></span></div>
+                <div style="font-size: 14px; color: var(--text-secondary);">拖拽文件到此处，或 <span class="link-primary" data-action="choose-file">点击选择</span></div>
+                <input type="file" id="uploadFileInput" style="display: none;" accept=".xlsx,.xls,.csv">
+            </div>
+            <div id="uploadError" style="color: var(--danger); font-size: 13px; display: none; margin-top: 12px;"></div>
+            <div class="form-actions" style="margin-top: 16px;">
+                <button type="button" class="btn btn-ghost" data-action="close-upload">取消</button>
+                <button type="button" class="btn btn-ghost" data-action="download-template"><span class="icon" data-icon="download" data-icon-size="14"></span> 下载模板</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧抽屉 -->
+    <div class="budget-overlay" id="budgetOverlay" style="display: none;"></div>
+    <div class="budget-drawer" id="budgetDrawer" style="display: none;">
+        <div class="budget-drawer-head">
+            <div>
+                <div class="budget-drawer-eyebrow" id="drawerEyebrow">科目行 · LEVEL 1</div>
+                <div class="budget-drawer-title" id="drawerTitle">科目名称</div>
+            </div>
+            <button class="budget-drawer-close" data-action="close-drawer"><span class="icon" data-icon="x" data-icon-size="18"></span></button>
+        </div>
+        <div class="budget-drawer-summary" id="drawerSummary">
+            <!-- JS 渲染 -->
+        </div>
+        <div class="budget-drawer-tabs" id="drawerTabs">
+            <button class="budget-drawer-tab active" data-dtab="summary">概览</button>
+            <button class="budget-drawer-tab" data-dtab="tasks">重点工作<span id="tabTaskCount"></span></button>
+            <button class="budget-drawer-tab" data-dtab="topics">业务专题<span id="tabTopicCount"></span></button>
+            <button class="budget-drawer-tab" data-dtab="ai">AI 分析</button>
+        </div>
+        <div class="budget-drawer-body" id="drawerBody">
+            <!-- JS 渲染 -->
+        </div>
+    </div>
+
+    <!-- AI 分析抽屉 -->
+    <div class="budget-overlay" id="aiOverlay" style="display: none;"></div>
+    <div class="budget-drawer ai-drawer" id="aiDrawer" style="display: none;">
+        <div class="budget-drawer-head">
+            <div>
+                <div class="budget-drawer-eyebrow">AI 战略助手</div>
+                <div class="budget-drawer-title">预算执行分析</div>
+            </div>
+            <button class="budget-drawer-close" data-action="close-ai"><span class="icon" data-icon="x" data-icon-size="18"></span></button>
+        </div>
+        <div class="budget-drawer-body">
+            <div id="aiResultPanel">
+                <button type="button" class="btn btn-primary" id="btnRunAi" data-action="run-ai"><span class="icon" data-icon="robot" data-icon-size="14"></span> 生成分析</button>
+                <div id="aiResult" class="ai-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./pages/marketing-budget/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</body>
+</html>
