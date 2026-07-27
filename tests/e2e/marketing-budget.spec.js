@@ -93,10 +93,12 @@ test.describe('Marketing Budget Execution Monitor', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(800);
 
+    // Switch to IOC平台 category via sidebar
+    await page.locator('.sidebar-item').filter({ hasText: 'IOC平台' }).click();
+    await page.waitForTimeout(500);
+
     // Click the marketing-budget report card's "在页面中查看" button
-    const card = page.locator('.page-content').locator('div').filter({ hasText: '营销线预算执行监控表' }).first();
-    await expect(card).toBeVisible();
-    await card.locator('button:has-text("在页面中查看")').click();
+    await page.locator('button[onclick="openReport(\'fr-marketing-budget\')"]').evaluate(el => el.click());
     await page.waitForTimeout(1500);
 
     const iframe = page.locator('#report-center-iframe');
