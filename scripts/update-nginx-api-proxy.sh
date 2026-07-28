@@ -63,11 +63,15 @@ api_block = f"""    location ~ ^/api/(review|batch|scenes|history|summary|config
     }}
 
     location /api/ {{
-        proxy_pass https://{WORKER_DOMAIN}/api/;
+        # 使用 resolver + 变量，避免 nginx 启动时因临时 DNS 失败而无法启动
+        resolver 127.0.0.53 valid=300s;
+        set \$worker_domain {WORKER_DOMAIN};
+        proxy_pass https://\$worker_domain/api/;
         proxy_set_header Host {WORKER_DOMAIN};
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_ssl_name {WORKER_DOMAIN};
         proxy_ssl_server_name on;
         proxy_ssl_protocols TLSv1.2 TLSv1.3;
     }}
@@ -145,8 +149,12 @@ grep -A 12 "DSTE API PROXY" "$CONFIG_FILE" || true
 echo "测试 nginx 配置..."
 nginx -t
 
-echo "重载 nginx..."
-nginx -s reload
+echo "重载/启动 nginx..."
+if systemctl is-active --quiet nginx 2>/dev/null; then
+    nginx -s reload
+else
+    systemctl start nginx
+fi
 
 echo "✅ nginx /api/ 代理更新完成"
 '

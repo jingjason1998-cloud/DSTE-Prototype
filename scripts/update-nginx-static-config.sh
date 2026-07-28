@@ -166,8 +166,12 @@ grep -A 18 "DSTE STATIC CACHE" "$CONFIG_FILE" || true
 echo "测试 nginx 配置..."
 nginx -t
 
-echo "重载 nginx..."
-nginx -s reload
+echo "重载/启动 nginx..."
+if systemctl is-active --quiet nginx 2>/dev/null; then
+    nginx -s reload
+else
+    systemctl start nginx
+fi
 
 echo "✅ nginx 静态资源压缩与缓存配置更新完成"
 '
