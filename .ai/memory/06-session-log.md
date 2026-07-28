@@ -2,15 +2,19 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
-## 2026-07-28（Claude，准备并归档 v0.7.13 发布）
-- **主题**：接手隔壁会话的版本升级准备，将工作区中多套未提交改动（目录管理、工作区去重、报表中心布局、business-topics 统计卡优化）归档到 v0.7.13
+## 2026-07-28（Claude，准备、发布并部署 v0.7.13 生产）
+- **主题**：接手隔壁会话的版本升级准备，将工作区中多套未提交改动（目录管理、工作区去重、报表中心布局、business-topics 统计卡优化）归档到 v0.7.13 并部署生产
 - **操作**：
   - 清理合并残留 `src/cockpit.html.orig`
   - 删除已失效的 `tests/unit/ai-analysis.test.js`（对应 AI 全局报告缓存函数已随 business-topics 重构移除）
   - 更新 `CHANGELOG.md` v0.7.13 条目，归档目录管理、业务专题统计卡优化、报表中心布局修复、工作区标签去重
-  - `package.json` / `sonar-project.properties` 已在工作区中为 `0.7.13`，确认无误
-- **验证**：`npm run build` ✓ / `npm run check:scope` ✓ / `npm run test:unit` 535 passed / 相关 E2E 51 passed（catalog-management 4 + workspace-tabs 6 + business-topics 35 + marketing-budget 6）
-- **状态**：ready to commit / tag / push
+  - 提交并打 tag `v0.7.13`，推送触发 GitHub Actions 部署
+  - 跟踪部署失败：SSH 上生产服务器后发现 `nginx.service` 自 06:09 因 `proxy_pass https://api.dste.jasonxspace.cc/api/` 启动 DNS 解析失败而挂掉
+  - 手动启动 nginx、rsync v0.7.13 dist、重启 nginx，恢复生产访问
+  - 修复部署脚本 `scripts/update-nginx-static-config.sh` / `update-nginx-api-proxy.sh`：未运行则自动 start；API 代理改用 `resolver + set $worker_domain + proxy_pass https://$worker_domain$request_uri;` 避免启动时 DNS 失败
+  - 部署 Cloudflare Worker：`npx wrangler deploy`（token 在 `~/.config/.wrangler/config/default.toml`），使 `/api/catalogs` 可用
+- **验证**：`npm run build` ✓ / `npm run check:scope` ✓ / `npm run test:unit` 535 passed / 相关 E2E 51 passed；GitHub Actions Deploy to Production ✅ success；生产 `https://dste.fineres.com` 200，`/api/catalogs` / `/api/topics` 正常
+- **状态**：complete（v0.7.13 已发布生产）
 
 ## 2026-07-27（Kimi，修复报表中心 iframe 嵌入布局，接手营销线预算会话）
 - **主题**：接手隔壁会话的营销线预算执行监控开发；修复「Fix embed mode iframe layout」遗留任务

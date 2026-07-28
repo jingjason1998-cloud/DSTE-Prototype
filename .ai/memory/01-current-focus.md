@@ -1,9 +1,10 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-28 18:35
+> 更新时间: 2026-07-28 19:35
 
 ## 状态
-**v0.7.13 已归档并准备发布**：合并了目录管理配置功能、工作区标签去重、报表中心 iframe 布局修复与业务专题统计卡优化；`package.json` / `sonar-project.properties` 已更新为 `0.7.13`，`CHANGELOG.md` 已归档。验证：`npm run build` ✓ / `check:scope` ✓ / unit 535 passed / 相关 E2E 51 passed。待提交并打 tag `v0.7.13`。
+**v0.7.13 已发布并部署生产**（commit `fafa195`，tag `v0.7.13`）：包含目录管理配置功能、工作区标签去重、报表中心 iframe 布局修复与业务专题统计卡优化。GitHub Actions Deploy to Production ✅ success。生产验证：`https://dste.fineres.com` 200，`/api/catalogs` / `/api/topics` 正常。
+**本次发布踩坑**：生产 nginx 自 2026-07-28 06:09 因 `proxy_pass https://api.dste.jasonxspace.cc/api/` 启动时 DNS 解析失败而挂掉，导致 GitHub Actions 连续部署失败。已修复 `scripts/update-nginx-api-proxy.sh`：改用 `resolver 127.0.0.53 valid=300s; set $worker_domain ...; proxy_pass https://$worker_domain$request_uri;`，并增加 nginx 未运行时自动 `systemctl start nginx`。
 **v0.7.12 已发布并部署生产**（commit `2cf47e2`）：修复业务专题管理年份筛选无法使用且默认未选中 2026 的问题；年份筛选默认固定为 2026，远程加载失败不再阻塞初始化。
 **v0.7.11 已发布并部署生产**（commit `3e5a402`）：修复会议卡片「纪要」panel 默认展开的问题，现在所有 tab 默认均为收起状态。
 **v0.7.10 已发布并部署生产**（commit `19aa767`）：修复会议卡片底部 tab（纪要/决策/行动项/评估/会议链）点击展开后再次点击不能收起的 bug。
