@@ -66,7 +66,7 @@ api_block = f"""    location ~ ^/api/(review|batch|scenes|history|summary|config
         # 使用 resolver + 变量，避免 nginx 启动时因临时 DNS 失败而无法启动
         resolver 127.0.0.53 valid=300s;
         set \$worker_domain {WORKER_DOMAIN};
-        proxy_pass https://\$worker_domain/api/;
+        proxy_pass https://\$worker_domain\$request_uri;
         proxy_set_header Host {WORKER_DOMAIN};
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
