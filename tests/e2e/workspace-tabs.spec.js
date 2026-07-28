@@ -77,4 +77,48 @@ test.describe('Workspace Tabs', () => {
     await expect(page.locator('#page-tabs .tab.active .tab-title')).toContainText('战略地图');
     await expect(page.locator('.workspace-iframe')).toHaveAttribute('src', /strategy-map-list\.html\?embed=1/);
   });
+
+  test('navigating to a page already open in another tab activates it instead of duplicating', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+
+    // 在当前（驾驶舱）标签内打开开发路线图，标签被复用为路线图
+    await page.locator('.sidebar-item[data-page="dashboard/roadmap"]').click();
+    await expect(page).toHaveURL(/cockpit\.html#dashboard\/roadmap/);
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(1);
+
+    // 打开战略地图（新标签）
+    await page.locator('.top-nav-item[data-phase="sp"]').click();
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(2);
+
+    // 重新打开一个驾驶舱标签
+    await page.locator('.top-nav-item[data-phase="dashboard"]').click();
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(3);
+
+    // 在驾驶舱标签中再次点击开发路线图：应激活已有路线图标签，而不是产生重复标签
+    await page.locator('.sidebar-item[data-page="dashboard/roadmap"]').click();
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(3);
+    await expect(page.locator('#page-tabs .tab', { hasText: '开发路线图' })).toHaveCount(1);
+    await expect(page.locator('#page-tabs .tab.active .tab-title')).toContainText('开发路线图');
+  });
+
+  test('duplicate page tabs from legacy state are deduped on load', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.evaluate(() => {
+      localStorage.setItem('dste-workspace-tabs-v1', JSON.stringify({
+        version: 1,
+        activeTabId: 'tab-3',
+        tabs: [
+          { id: 'tab-1', pageId: 'dashboard', phase: 'dashboard', title: '驾驶舱', icon: 'dashboard', pinned: true, createdAt: 1 },
+          { id: 'tab-2', pageId: 'dashboard/roadmap', phase: 'dashboard', title: '开发路线图 Road Map', icon: 'dashboard/roadmap', pinned: false, createdAt: 2 },
+          { id: 'tab-3', pageId: 'dashboard/roadmap', phase: 'dashboard', title: '开发路线图 Road Map', icon: 'dashboard/roadmap', pinned: false, createdAt: 3 }
+        ],
+        nextCounter: 4
+      }));
+    });
+    await page.reload();
+
+    // 重复的路线图标签被清理，只保留一个；activeTabId 回退到有效标签
+    await expect(page.locator('#page-tabs .tab')).toHaveCount(2);
+    await expect(page.locator('#page-tabs .tab', { hasText: '开发路线图' })).toHaveCount(1);
+  });
 });

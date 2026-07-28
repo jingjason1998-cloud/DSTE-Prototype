@@ -1,6 +1,29 @@
 {
   "versions": [
     {
+      "version": "v0.7.13",
+      "date": "2026-07-28",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**新增目录管理配置功能**：支持树形目录的增删改、拖拽排序、启用/禁用，首期用于重点工作分类。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**业务专题管理页统计卡片与筛选交互优化**："
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复报表中心 iframe 嵌入布局被裁剪**：`src/cockpit.html` 报表中心容器原先写死 `min-height: 500px` 且按 `scrollHeight` 自适应，但内嵌页是 `100vh` 应用壳，形成高度反馈环。现改为 `_fitReportCenterContainer()` 按剩余视口高度填充，并在渲染与窗口 resize 时调用。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复工作区同一页面可打开多个重复标签**："
+        }
+      ]
+    },
+    {
       "version": "v0.7.12",
       "date": "2026-07-27",
       "status": "released",

@@ -27,7 +27,8 @@ export const SIDEBAR_CONFIG = {
       { id: 'admin/employee-directory', icon: 'admin/employee-directory', label: '人员与组织管理' },
       { id: 'admin/rule-engine', icon: 'admin/rule-engine', label: '规则引擎中心' },
       { id: 'admin/alert-hub', icon: 'admin/alert-hub', label: '预警中心' },
-      { id: 'admin/requirement-pool', icon: 'admin/requirement-pool', label: '需求管理中心' }
+      { id: 'admin/requirement-pool', icon: 'admin/requirement-pool', label: '需求管理中心' },
+      { id: 'admin/catalog-management', icon: 'admin/catalog-management', label: '目录管理' }
     ]}
   ],
   sp: [
@@ -124,7 +125,8 @@ export const PAGE_NAMES = {
   'admin/employee-directory': '人员与组织管理',
   'admin/rule-engine': '规则引擎中心',
   'admin/alert-hub': '预警中心',
-  'admin/requirement-pool': '需求管理中心'
+  'admin/requirement-pool': '需求管理中心',
+  'admin/catalog-management': '目录管理'
 };
 
 /**
@@ -160,5 +162,6 @@ export const PAGE_META = {
   'admin/employee-directory': { title: '人员与组织管理', icon: 'admin/employee-directory', phase: 'dashboard', isExternal: true, externalFile: 'employee-directory.html' },
   'admin/rule-engine': { title: '规则引擎中心', icon: 'admin/rule-engine', phase: 'dashboard', isExternal: true, externalFile: 'rule-engine.html' },
   'admin/alert-hub': { title: '预警中心', icon: 'admin/alert-hub', phase: 'dashboard' },
-  'admin/requirement-pool': { title: '需求管理中心', icon: 'admin/requirement-pool', phase: 'dashboard', isExternal: true, externalFile: 'requirement-pool.html' }
+  'admin/requirement-pool': { title: '需求管理中心', icon: 'admin/requirement-pool', phase: 'dashboard', isExternal: true, externalFile: 'requirement-pool.html' },
+  'admin/catalog-management': { title: '目录管理', icon: 'admin/catalog-management', phase: 'dashboard' }
 };

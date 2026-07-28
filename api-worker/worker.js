@@ -114,6 +114,8 @@ const KEYS = {
   strategyMaps: 'dste_strategy_maps_v1',
   // 版本审计
   versionAudit: 'dste_version_audit_v1',
+  // 目录管理
+  catalogs: 'dste_catalogs_v1',
 };
 
 // CAS 配置
@@ -386,6 +388,7 @@ const DEFAULTS = {
   progressRecords: '[]',
   cycles: '[]',
   strategyMaps: '[]',
+  catalogs: '[]',
 };
 
 // --- AI 议程推荐 ---
@@ -997,7 +1000,7 @@ export default {
       }
 
       // --- 单条 CRUD 端点（新增）---
-      const itemMatch = path.match(/^\/api\/(topics|strategy-topics|insights|issues|meetings|employees|org-units|requirements)\/([^\/]+)$/);
+      const itemMatch = path.match(/^\/api\/(topics|strategy-topics|insights|issues|meetings|employees|org-units|requirements|catalogs)\/([^\/]+)$/);
       if (itemMatch) {
         const entity = itemMatch[1];
         const id = decodeURIComponent(itemMatch[2]);
@@ -1213,6 +1216,24 @@ export default {
           const normalized = normalizeArrayItems(body, auth.user);
           await env.DSTE_KV.put(KEYS.strategyMaps, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'strategy maps saved' }, 200, request);
+        }
+      }
+
+      // --- 目录管理 API ---
+      if (path === '/api/catalogs') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.catalogs) || DEFAULTS.catalogs;
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.catalogs, JSON.stringify(normalized));
+          return jsonResponse({ success: true, message: 'catalogs saved' }, 200, request);
         }
       }
 

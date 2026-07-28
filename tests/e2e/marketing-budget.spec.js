@@ -116,5 +116,18 @@ test.describe('Marketing Budget Execution Monitor', () => {
       return el ? getComputedStyle(el).display : 'not found';
     });
     expect(topNavDisplay).toBe('none');
+
+    // Container fills the remaining viewport and the iframe fills the container (minus the 41px toolbar)
+    const layout = await page.evaluate(() => {
+      const c = document.getElementById('report-center-container');
+      const f = document.getElementById('report-center-iframe');
+      return {
+        containerStyleHeight: c?.style.height || '',
+        containerHeight: c?.getBoundingClientRect().height || 0,
+        iframeHeight: f?.getBoundingClientRect().height || 0,
+      };
+    });
+    expect(layout.containerStyleHeight).not.toBe('');
+    expect(Math.abs(layout.iframeHeight - (layout.containerHeight - 41))).toBeLessThan(4); // 2px tolerance for container borders
   });
 });

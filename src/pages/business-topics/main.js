@@ -23,12 +23,9 @@ import {
 } from './issue-import.js';
 
 import {
-    extractKeywords, jaccardSimilarity, computeAiMatchScore, openAiMatchModal,
-    runAiMatch, renderAiMatchResults, applyAiMatches, extractTitleKeywords,
-    findClusters, checkUpgradePotential, findExecutionRisks, findLongPendingIssues,
-    findDeptConcentration, findHighPriorityIssues, findIssuesWithoutActionItems,
-    analyzeDistribution, generateGlobalReport, loadCachedReport, saveCachedReport,
-    openAiReportModal, regenerateAiReport, updateAiReportCards, openIssueDetailModal
+    openAiMatchModal,
+    applyAiMatches,
+    openIssueDetailModal
 } from './ai-analysis.js';
 
 import {
@@ -79,6 +76,7 @@ const CURRENT_USER = '销售总监'; // 演示用：当前登录用户
 let _cachedTopics = null;
 let _deleteTargetId = null;
 let _currentTab = 'all';
+let _forcedFilter = null; // 由顶部统计卡点击触发的临时筛选条件
 const _sortConfig = { field: 'seq', direction: 'asc' };
 
 const topicsRepo = new Repository('businessTopics', {
@@ -573,6 +571,12 @@ function getFilteredTopics() {
         topics = topics.filter(t => getTopicYears(t).has(year));
     }
 
+    // 顶部统计卡触发的强制筛选（优先级高于 tab）
+    if (_forcedFilter) {
+        if (_forcedFilter.status) topics = topics.filter(t => t.status === _forcedFilter.status);
+        if (_forcedFilter.priority) topics = topics.filter(t => t.priority === _forcedFilter.priority);
+    }
+
     // Search
     if (search) {
         topics = topics.filter(t => {
@@ -849,10 +853,50 @@ function renderStats() {
 
 function switchTab(tab) {
     _currentTab = tab;
+    _forcedFilter = null; // 切换 tab 时清除统计卡强制筛选
     document.querySelectorAll('#topicTabs .dashboard-tab').forEach(el => {
         el.classList.toggle('active', el.dataset.tab === tab);
     });
     renderTable();
+    updateStatItemsActiveState();
+}
+
+function applyStatFilter(stat) {
+    // 点击统计卡时重置其他筛选，避免统计数字与表格数量不一致
+    document.getElementById('filterYear').value = '';
+    document.getElementById('filterPriority').value = '';
+    document.getElementById('searchInput').value = '';
+
+    if (stat === 'in_progress' || stat === 'archived') {
+        // 状态类指标直接切换 tab
+        switchTab(stat);
+        return;
+    }
+
+    // 已延期 / P0 紧急：使用强制筛选
+    _forcedFilter = stat === 'delayed' ? { status: 'delayed' } : { priority: 'P0' };
+    _currentTab = 'all';
+    document.querySelectorAll('#topicTabs .dashboard-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === 'all');
+    });
+    document.getElementById('filterPriority').value = stat === 'p0' ? 'P0' : '';
+
+    renderTable();
+    updateStatItemsActiveState();
+}
+
+function updateStatItemsActiveState() {
+    document.querySelectorAll('.stat-item[data-stat]').forEach(el => {
+        const stat = el.dataset.stat;
+        let active = false;
+        if (_forcedFilter) {
+            if (_forcedFilter.status && stat === _forcedFilter.status) active = true;
+            if (_forcedFilter.priority && stat === 'p0') active = true;
+        } else if (stat === _currentTab) {
+            active = true;
+        }
+        el.classList.toggle('active', active);
+    });
 }
 
 function moveTopicRow(topicId, direction) {
@@ -874,6 +918,14 @@ function moveTopicRow(topicId, direction) {
 }
 
 function applyFilters() {
+    _forcedFilter = null; // 手动调整筛选条件时清除统计卡强制筛选
+    updateStatItemsActiveState();
+    renderTable();
+}
+
+function applySearch() {
+    _forcedFilter = null; // 搜索时清除统计卡强制筛选
+    updateStatItemsActiveState();
     renderTable();
 }
 
@@ -1557,7 +1609,7 @@ async function init() {
     renderTable();
     renderStats();
     populateYearFilter(); // 动态填充年度筛选，必须执行以保证年份筛选可用
-    updateAiReportCards(); // v2.1: update AI report entry cards
+    updateStatItemsActiveState();
 
     bindDelegatedEvents();
 
@@ -1622,8 +1674,8 @@ function handleDelegatedClick(e) {
             case 'new-topic':
                 openFormModal();
                 return;
-            case 'ai-report':
-                openAiReportModal(actionEl.dataset.reportType);
+            case 'stat-filter':
+                applyStatFilter(actionEl.dataset.stat);
                 return;
             case 'detail':
                 if (topicId) openDetailModal(topicId);
@@ -1663,9 +1715,6 @@ function handleDelegatedClick(e) {
                 return;
             case 'ai-match':
                 openAiMatchModal();
-                return;
-            case 'regenerate-report':
-                regenerateAiReport();
                 return;
             case 'toggle-ai':
                 toggleAI();
@@ -1897,8 +1946,6 @@ window._dste = {
     confirmImport,
     openLinkIssuesModal,
     openAiMatchModal,
-    openAiReportModal,
-    regenerateAiReport,
     unlinkIssueFromTopic,
     linkIssueToTopic,
     openIssueDetailModal,

@@ -411,6 +411,53 @@ test.describe('Business Topics - Stats', () => {
     const afterInProgress = Number(await page.locator('#statInProgress').textContent());
     expect(afterInProgress).toBe(beforeInProgress + 1);
   });
+
+  test('clicking stat card filters table and resets other filters', async ({ page }) => {
+    // 先人为加一个年份筛选，制造"统计数字 != 表格行数"的场景
+    await page.selectOption('#filterYear', '2026');
+    await page.waitForTimeout(200);
+
+    // 记录统计卡上的"进行中"数量（总览数字）
+    const statInProgress = Number(await page.locator('#statInProgress').textContent());
+
+    // 点击"进行中"统计卡
+    await page.locator('[data-stat="in_progress"]').click();
+    await page.waitForTimeout(300);
+
+    // 年份筛选应被重置为"全部年度"
+    const yearValue = await page.locator('#filterYear').inputValue();
+    expect(yearValue).toBe('');
+
+    // Tab 应切换到"进行中"
+    const activeTab = await page.locator('#topicTabs .dashboard-tab.active').textContent();
+    expect(activeTab?.trim()).toBe('进行中');
+
+    // 表格所有可见行状态应为"进行中"
+    const statuses = await page.locator('#topicTableBody tr td:nth-child(8)').allTextContents();
+    expect(statuses.length).toBeGreaterThan(0);
+    for (const s of statuses) {
+      expect(s.trim()).toContain('进行中');
+    }
+
+    // 表格行数应等于统计卡上的"进行中"数量
+    expect(statuses.length).toBe(statInProgress);
+
+    // 点击 P0 紧急
+    await page.locator('[data-stat="p0"]').click();
+    await page.waitForTimeout(300);
+
+    // 优先级筛选应为 P0，年份保持全部
+    const priorityValue = await page.locator('#filterPriority').inputValue();
+    expect(priorityValue).toBe('P0');
+    expect(await page.locator('#filterYear').inputValue()).toBe('');
+
+    // 表格所有可见行优先级应为 P0
+    const priorities = await page.locator('#topicTableBody tr td:nth-child(3)').allTextContents();
+    expect(priorities.length).toBeGreaterThan(0);
+    for (const p of priorities) {
+      expect(p.trim()).toContain('P0');
+    }
+  });
 });
 
 // ===================== Export =====================
@@ -452,21 +499,6 @@ test.describe('Business Topics - Issue Import', () => {
 
     // Should show validation results
     await expect(page.locator('#importPreviewTable tbody tr')).toHaveCount(2);
-  });
-});
-
-// ===================== AI Report =====================
-test.describe('Business Topics - AI Report', () => {
-  test('AI report modal opens', async ({ page }) => {
-    await page.locator('[data-action="ai-report"]').first().click();
-    await page.waitForTimeout(500);
-
-    await expect(page.locator('#aiReportModal')).toBeVisible();
-    await expect(page.locator('#aiReportModal')).toContainText('全局分析报告');
-
-    await page.locator('#aiReportModal .modal-close').first().click();
-    await page.waitForTimeout(300);
-    await expect(page.locator('#aiReportModal')).not.toBeVisible();
   });
 });
 

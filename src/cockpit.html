@@ -605,6 +605,21 @@
     } from './lib/per-record-sync.js';
     import { getDefaultSyncQueue } from './lib/sync-queue.js';
     import { createSwrSync } from './lib/swr-local.js';
+    import {
+      CATALOG_SCOPES,
+      loadCatalogs,
+      saveCatalogs,
+      createCatalogNode,
+      updateCatalogNode,
+      deleteCatalogNode,
+      buildCatalogTree,
+      getCatalogPath,
+      getCatalogName,
+      reorderCatalogNode,
+      countCatalogRefs,
+      catalogSyncFromApi,
+    } from './lib/catalog.js';
+    import { createCatalogTree, openCatalogPicker } from './components/catalog-tree.js';
 
     (function() {
       'use strict';
@@ -946,7 +961,7 @@
       window._ompState = {
         taskViewMode: 'list',
         kpiFilter: { dept: 'all', status: 'all', category: 'all', assessmentLevel: 'all' },
-        taskFilter: { status: 'all', dept: 'all', type: 'all' },
+        taskFilter: { status: 'all', dept: 'all', type: 'all', catalog: 'all' },
         staffingState: {
           searchQuery: '',
           dirSearchQuery: '',
@@ -2252,7 +2267,8 @@
         'rev/gap-analysis': () => renderPlaceholder(icon('rev/gap-analysis', { size: 48 }), '差距分析', '战略目标与实际执行的差距分析，根因定位与改进建议。'),
         'admin/rule-engine': () => { window.location.href = 'rule-engine.html'; return ''; },
         'admin/alert-hub': () => renderPlaceholder(icon('admin/alert-hub', { size: 48 }), '预警中心', '统一接收规则引擎与业务模块的预警事件，进行分级、通知、工单跟踪与闭环管理。'),
-        'admin/requirement-pool': () => renderPlaceholder(icon('admin/requirement-pool', { size: 48 }), '需求管理中心', '统一收集、评审、跟踪来自市场、客户、高管与部门的需求，为战略制定与年度经营计划提供输入。')
+        'admin/requirement-pool': () => renderPlaceholder(icon('admin/requirement-pool', { size: 48 }), '需求管理中心', '统一收集、评审、跟踪来自市场、客户、高管与部门的需求，为战略制定与年度经营计划提供输入。'),
+        'admin/catalog-management': renderCatalogManagement
       };
 
       // ===== 路由状态 =====
@@ -2356,9 +2372,12 @@
         }
 
         const hash = window.location.hash.slice(1) || 'dashboard';
-        // 初始化第一个 tab 为当前 hash 页面
+        // 初始化活动标签为当前 hash 页面；若其他标签已打开该页面则直接激活，避免重复标签
         const initialMeta = resolvePageMeta(hash, getPageMeta);
-        workspace = updateActiveTabPage(workspace, initialMeta);
+        const existingInitialTab = workspace.tabs.find(t => t.pageId === initialMeta.pageId && t.id !== workspace.activeTabId);
+        workspace = existingInitialTab
+          ? switchWorkspaceTab(workspace, existingInitialTab.id)
+          : updateActiveTabPage(workspace, initialMeta);
         renderTabs();
         navigate(hash, false);
         window.addEventListener('hashchange', () => navigate(window.location.hash.slice(1), false));
@@ -2380,6 +2399,13 @@
             await ompSyncFromApi();
           } catch (e) {
             console.warn('[init] OMP sync failed:', e.message);
+          }
+
+          try {
+            // 同步目录管理数据
+            await catalogSyncFromApi();
+          } catch (e) {
+            console.warn('[init] catalog sync failed:', e.message);
           }
 
           try {
@@ -2432,6 +2458,8 @@
             if (iframe) {
               iframe.style.height = Math.min(e.data.height, window.innerHeight - 120) + 'px';
             }
+            // 注意：报表中心 iframe 不走此逻辑 —— 内嵌页是 100vh 应用壳，scrollHeight 恒等于
+            // iframe 当前高度，按内容自适应会形成反馈环。报表中心改用视口高度填充（_fitReportCenterContainer）。
           }
 
           if (e.data.type === 'dste-navigate' && e.data.pageId) {
@@ -2453,6 +2481,15 @@
             }
           }
         });
+
+        // 报表中心内嵌报表：容器高度填充剩余视口，iframe 内部自行滚动
+        // （内嵌页是 100vh 应用壳，dste-embed-resize 报的 scrollHeight 恒等于 iframe 当前高度，不能按内容自适应）
+        window._fitReportCenterContainer = function() {
+          const c = document.getElementById('report-center-container');
+          if (!c || !window._reportCenterActiveReport) return;
+          c.style.height = Math.max(window.innerHeight - c.getBoundingClientRect().top - 16, 300) + 'px';
+        };
+        window.addEventListener('resize', () => window._fitReportCenterContainer());
 
         // 显示用户名
         updateUserUI();
@@ -3800,6 +3837,15 @@
           pageId = 'dashboard';
         }
 
+        // 同一页面只允许一个标签：若其他标签已打开该页面，激活并刷新该标签
+        const existingTab = workspace.tabs.find(t => t.pageId === pageId && t.id !== workspace.activeTabId);
+        if (existingTab) {
+          workspace = switchWorkspaceTab(workspace, existingTab.id);
+          renderTabs();
+          _renderPage(pageId, pushState);
+          return;
+        }
+
         // 在当前 tab 内跳转，替换当前 tab 的页面
         updateActiveTab(pageId);
 
@@ -3847,6 +3893,21 @@
                 case 'omp-view-task': window.omp_viewTask(id); break;
                 case 'omp-edit-task': window.omp_editTask(id); break;
                 case 'omp-new-task': window.omp_newTask(); break;
+                case 'omp-pick-task-catalog': {
+                  const selectedId = document.getElementById('omp-task-catalog-id')?.value || '';
+                  openCatalogPicker({
+                    scope: CATALOG_SCOPES.OMP_TASKS,
+                    selectedId,
+                    title: '选择重点工作目录',
+                  }).then(node => {
+                    if (!node) return;
+                    const input = document.getElementById('omp-task-catalog-id');
+                    const display = document.getElementById('omp-task-catalog-display');
+                    if (input) input.value = node.id || '';
+                    if (display) display.querySelector('span').textContent = node.id ? getCatalogPath(CATALOG_SCOPES.OMP_TASKS, node.id) : '未选择';
+                  });
+                  break;
+                }
                 case 'omp-delete-kpi': window.omp_deleteKpi(id); break;
                 case 'omp-delete-task': window.omp_deleteTask(id); break;
                 case 'omp-task-edit-tab': window.omp_switchTaskEditTab(actionBtn.dataset.tab); break;
@@ -4291,6 +4352,7 @@
         const contentEl = document.getElementById('page-content');
         if (contentEl && currentPage === 'exe/report-center') {
           contentEl.innerHTML = PAGES['exe/report-center']();
+          requestAnimationFrame(() => window._fitReportCenterContainer());
         }
       }
 
@@ -4356,7 +4418,7 @@
           </div>
 
           <!-- 右侧内容区全宽显示（左侧目录已移到 sidebar） -->
-          <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden; position: relative; min-height: 500px;">
+          <div id="report-center-container" style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden; position: relative; min-height: 500px;">
             <!-- iframe 挂载区 -->
             <div id="report-center-iframe-wrap" style="display: ${activeReport ? 'block' : 'none'}; position: absolute; inset: 0; z-index: 10;">
               <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--bg-page); border-bottom: 1px solid var(--border-light);">
@@ -4535,6 +4597,55 @@
               </div>
             </div>
           </div>
+        `;
+      }
+
+      // ===== 目录管理页 =====
+      function renderCatalogManagement() {
+        catalogSyncFromApi();
+        // 延迟初始化树组件，等待 DOM 渲染
+        setTimeout(() => {
+          const root = document.getElementById('catalog-management-root');
+          if (!root) return;
+          createCatalogTree(root, {
+            scope: CATALOG_SCOPES.OMP_TASKS,
+            mode: 'manage',
+            title: '重点工作目录',
+            onChange: () => {
+              // 目录变更后刷新 OMP 相关视图（如果当前在重点工作页）
+              if (window.__dsteCurrentPageId === 'exe/tasks') {
+                navigate('exe/tasks', false);
+              }
+            },
+          });
+        }, 0);
+
+        return `
+          <div class="breadcrumb">
+            <a href="#dashboard" data-navigate="dashboard">驾驶舱</a>
+            <span class="breadcrumb-separator">/</span>
+            <span>系统管理</span>
+            <span class="breadcrumb-separator">/</span>
+            <span>目录管理</span>
+          </div>
+          <div class="page-header">
+            <h1 class="page-title">目录管理</h1>
+            <div class="page-actions">
+              <span class="text-sm-tertiary mr-3">首期管理：重点工作目录</span>
+            </div>
+          </div>
+          <div id="catalog-management-root" data-scope="omp-tasks"></div>
+          <style>
+            .catalog-tree { padding: 8px 0; }
+            .catalog-row { transition: background 0.15s; }
+            .catalog-row:hover { background: var(--bg-hover, rgba(0,0,0,0.03)); }
+            .catalog-row.selected { background: var(--primary-light, color-mix(in srgb, var(--primary) 12%, transparent)); }
+            .catalog-row.dragging { opacity: 0.5; }
+            .catalog-row.drop-before { border-top: 2px solid var(--primary); }
+            .catalog-row.drop-after { border-bottom: 2px solid var(--primary); }
+            .catalog-row.drop-child { background: var(--primary-bg, rgba(0,87,217,0.08)); }
+            .catalog-name-input { padding: 2px 6px; font-size: inherit; }
+          </style>
         `;
       }
 
@@ -5091,16 +5202,57 @@
         const cycleId = window._dsteState.currentCycleId;
         const tasks = omp_load('tasks');
         const kpis = omp_load('kpiInstances').filter(k => k.cycleId === cycleId);
-        const filtered = tasks.filter(t => t.cycleId === cycleId && t.source === 'omp' && !t.parentId);
+        const filter = window._ompState.taskFilter || { status: 'all', dept: 'all', type: 'all', catalog: 'all' };
+
+        const catalogs = loadCatalogs(CATALOG_SCOPES.OMP_TASKS);
+        const catalogOptions = [`<option value="all">全部目录</option>`]
+          .concat(catalogs.filter(c => c.status === 'active').map(c =>
+            `<option value="${escapeHtml(c.id)}" ${filter.catalog === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
+          )).join('');
+
+        const depts = [...new Set(tasks.filter(t => t.cycleId === cycleId && t.source === 'omp' && !t.parentId).map(t => t.dept).filter(Boolean))];
+        const deptOptions = [`<option value="all">全部部门</option>`]
+          .concat(depts.map(d => `<option value="${escapeHtml(d)}" ${filter.dept === d ? 'selected' : ''}>${escapeHtml(d)}</option>`))
+          .join('');
+
+        const filtered = tasks.filter(t => {
+          if (t.cycleId !== cycleId || t.source !== 'omp' || t.parentId) return false;
+          if (filter.status !== 'all' && t.status !== filter.status) return false;
+          if (filter.dept !== 'all' && t.dept !== filter.dept) return false;
+          if (filter.type !== 'all' && t.type !== filter.type) return false;
+          if (filter.catalog !== 'all' && t.catalogId !== filter.catalog) return false;
+          return true;
+        });
+
         return `
-          <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select class="form-input-compact" data-action="omp-filter-task" data-filter="status" style="min-width:100px;">
+                <option value="all" ${filter.status === 'all' ? 'selected' : ''}>全部状态</option>
+                <option value="planning" ${filter.status === 'planning' ? 'selected' : ''}>规划中</option>
+                <option value="active" ${filter.status === 'active' ? 'selected' : ''}>进行中</option>
+                <option value="at_risk" ${filter.status === 'at_risk' ? 'selected' : ''}>有风险</option>
+                <option value="delayed" ${filter.status === 'delayed' ? 'selected' : ''}>已延期</option>
+                <option value="done" ${filter.status === 'done' ? 'selected' : ''}>已完成</option>
+                <option value="closed" ${filter.status === 'closed' ? 'selected' : ''}>已关闭</option>
+              </select>
+              <select class="form-input-compact" data-action="omp-filter-task" data-filter="dept" style="min-width:120px;">${deptOptions}</select>
+              <select class="form-input-compact" data-action="omp-filter-task" data-filter="type" style="min-width:120px;">
+                <option value="all" ${filter.type === 'all' ? 'selected' : ''}>全部类型</option>
+                <option value="strategic" ${filter.type === 'strategic' ? 'selected' : ''}>战略举措</option>
+                <option value="improvement" ${filter.type === 'improvement' ? 'selected' : ''}>业务改进</option>
+                <option value="capability" ${filter.type === 'capability' ? 'selected' : ''}>能力建设</option>
+                <option value="risk_response" ${filter.type === 'risk_response' ? 'selected' : ''}>风险应对</option>
+              </select>
+              <select class="form-input-compact" data-action="omp-filter-task" data-filter="catalog" style="min-width:140px;">${catalogOptions}</select>
+            </div>
             <button class="btn btn-primary" data-action="omp-new-task" class="text-sm-only">+ 新建工作</button>
           </div>
           <div class="card">
             <div class="overflow-x-auto">
               <table class="data-table">
                 <thead>
-                  <tr><th>工作名称</th><th>负责人</th><th>成员</th><th class="text-center">进度</th><th>截止日期</th><th class="text-center">操作</th></tr>
+                  <tr><th>工作名称</th><th>目录</th><th>负责人</th><th>成员</th><th class="text-center">进度</th><th>截止日期</th><th class="text-center">操作</th></tr>
                 </thead>
                 <tbody>
                   ${filtered.map(t => {
@@ -5126,9 +5278,11 @@
                     const memberList = Array.isArray(t.members) ? t.members.filter(Boolean) : [];
                     const memberNames = memberList.slice(0, 2).map(m => resolvePersonDisplayName(m)).join('、');
                     const memberExtra = memberList.length > 2 ? ` +${memberList.length - 2}` : '';
+                    const catalogPath = getCatalogPath(CATALOG_SCOPES.OMP_TASKS, t.catalogId);
                     return `
                       <tr>
                         <td><strong>${t.name}</strong>${sourceTag}${displayLabel ? ` <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--primary-bg);color:var(--primary);margin-left:6px;cursor:help;" title="${escapeHtml(tooltipNames)}">${icon('chartLineUp', {size: 11})} ${escapeHtml(displayLabel)}</span>` : ''}</td>
+                        <td class="text-xs-secondary">${catalogPath ? escapeHtml(catalogPath) : '-'}</td>
                         <td>${escapeHtml(window.renderPerson ? window.renderPerson(t.owner) : (t.owner || ''))}</td>
                         <td class="text-xs-secondary">${memberList.length > 0 ? escapeHtml(memberNames + memberExtra) : '-'}</td>
                         <td class="text-center">
@@ -5145,7 +5299,7 @@
                         </td>
                       </tr>`;
                   }).join('')}
-                  ${filtered.length === 0 ? '<tr><td colspan="5" class="empty-state">暂无匹配数据</td></tr>' : ''}
+                  ${filtered.length === 0 ? '<tr><td colspan="7" class="empty-state">暂无匹配数据</td></tr>' : ''}
                 </tbody>
               </table>
             </div>
@@ -5359,13 +5513,15 @@
         const cycleId = window._dsteState.currentCycleId;
         const allTasks = omp_load('tasks') || [];
         const tasks = allTasks.filter(t => t && t.cycleId === cycleId && t.source === 'omp' && !t.parentId);
-        const filter = window._ompState.taskFilter || { dept: 'all', type: 'all' };
+        const filter = window._ompState.taskFilter || { dept: 'all', type: 'all', catalog: 'all' };
         const state = window._ompState.staffingState || { searchQuery: '', dirSearchQuery: '' };
         const depts = ['all', ...new Set(tasks.map(t => t.dept).filter(Boolean))];
+        const catalogs = loadCatalogs(CATALOG_SCOPES.OMP_TASKS).filter(c => c.status === 'active');
 
         let filtered = tasks.filter(t => {
           if (filter.dept !== 'all' && t.dept !== filter.dept) return false;
           if (filter.type !== 'all' && t.type !== filter.type) return false;
+          if (filter.catalog !== 'all' && t.catalogId !== filter.catalog) return false;
           if (state.searchQuery) {
             const q = state.searchQuery.toLowerCase();
             return (t.name || '').toLowerCase().includes(q) || resolvePersonDisplayName(t.owner).toLowerCase().includes(q) || (t.members || []).some(m => resolvePersonDisplayName(m).toLowerCase().includes(q));
@@ -5650,6 +5806,10 @@
                   <option value="capability" ${filter.type === 'capability' ? 'selected' : ''}><span class="icon" data-icon="books" data-icon-size="14"></span> 能力建设</option>
                   <option value="risk_response" ${filter.type === 'risk_response' ? 'selected' : ''}><span class="icon" data-icon="warning" data-icon-size="14"></span>️ 风险应对</option>
                   <option value="meeting_resolution" ${filter.type === 'meeting_resolution' ? 'selected' : ''}><span class="icon" data-icon="file-text" data-icon-size="14"></span> 会议决议</option>
+                </select>
+                <select data-action="omp-filter-task" data-filter="catalog" class="form-input-compact" class="cursor-pointer-sm" style="min-width:140px;">
+                  <option value="all" ${filter.catalog === 'all' ? 'selected' : ''}>全部目录</option>
+                  ${catalogs.map(c => `<option value="${escapeHtml(c.id)}" ${filter.catalog === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                 </select>
                 <input type="text" id="omp-matrix-search" placeholder="搜索任务或负责人..." value="${escapeHtml(state.searchQuery || '')}" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;min-width:180px;" data-action="omp-staffing-search">
               </div>
@@ -9245,6 +9405,14 @@
             <div class="grid-full-width"><label class="form-label">工作名称 *</label><input type="text" id="omp-task-name" value="${task.name}" class="form-input-compact"></div>
             <div class="grid-full-width"><label class="form-label">描述</label><textarea id="omp-task-desc" rows="2" class="form-textarea-compact">${task.description}</textarea></div>
             <div><label class="form-label">类型 *</label><select id="omp-task-type" class="form-input-compact"><option value="strategic" ${task.type === 'strategic' ? 'selected' : ''}><span class="icon" data-icon="target" data-icon-size="14"></span> 战略举措</option><option value="improvement" ${task.type === 'improvement' ? 'selected' : ''}><span class="icon" data-icon="gear" data-icon-size="14"></span> 业务改进</option><option value="capability" ${task.type === 'capability' ? 'selected' : ''}><span class="icon" data-icon="books" data-icon-size="14"></span> 能力建设</option><option value="risk_response" ${task.type === 'risk_response' ? 'selected' : ''}><span class="icon" data-icon="warning" data-icon-size="14"></span>️ 风险应对</option></select></div>
+            <div>
+              <label class="form-label">所属目录</label>
+              <input type="hidden" id="omp-task-catalog-id" value="${task.catalogId || ''}">
+              <div id="omp-task-catalog-display" class="form-input-compact" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>${escapeHtml(getCatalogPath(CATALOG_SCOPES.OMP_TASKS, task.catalogId) || '未选择')}</span>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="window.omp_pickTaskCatalog()">选择</button>
+              </div>
+            </div>
             <div><label class="form-label">负责人 *</label><input type="text" id="omp-task-owner" value="${typeof task.owner === 'object' ? (task.owner.displayName || task.owner.name || '') : (task.owner || '')}" ${task.annualPlanTaskId ? 'disabled' : ''} style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:${task.annualPlanTaskId ? 'var(--bg-page)' : 'var(--bg-card)'};color:var(--text-primary);font-size:13px;"></div>
             <div><label class="form-label">部门 *</label><input type="text" id="omp-task-dept" value="${task.dept}" oninput="window.omp_updateKpiDeptWarning('omp-task')" class="form-input-compact"></div>
             ${task.annualPlanTaskId ? `<div style="grid-column:1 / -1;font-size:12px;color:var(--text-tertiary);padding:8px 12px;background:var(--bg-page);border-radius:6px;">ℹ️ 负责人由年度经营计划同步，如需修改请前往「年度经营计划」页面</div>` : ''}
@@ -9637,8 +9805,9 @@
           const annualTarget = document.getElementById('omp-task-annual-target')?.value?.trim() || '';
           const spLink = document.getElementById('omp-task-sp-link')?.value?.trim() || '';
           const biDashboard = document.getElementById('omp-task-bi-dashboard')?.value?.trim() || '';
+          const catalogId = document.getElementById('omp-task-catalog-id')?.value?.trim() || '';
           if (!name || !owner || !dept || !endDate) { showToast('请填写必填项（名称、负责人、部门、截止日期）', 'warning'); return; }
-          tasks.push({ id: 'task_' + Date.now(), cycleId: window._dsteState.currentCycleId, source: 'omp', name, description, type, status, progress, owner, dept, startDate, endDate, kpiAssociations, budget, actualCost, annualTarget, spLink, biDashboard, members: [] });
+          tasks.push({ id: 'task_' + Date.now(), cycleId: window._dsteState.currentCycleId, source: 'omp', name, description, type, status, progress, owner, dept, startDate, endDate, kpiAssociations, budget, actualCost, annualTarget, spLink, biDashboard, catalogId, members: [] });
         } else {
           const idx = tasks.findIndex(t => t.id === editId);
           if (idx > -1) {
@@ -9664,13 +9833,14 @@
               const annualTarget = document.getElementById('omp-task-annual-target')?.value?.trim() || '';
               const spLink = document.getElementById('omp-task-sp-link')?.value?.trim() || '';
               const biDashboard = document.getElementById('omp-task-bi-dashboard')?.value?.trim() || '';
+              const catalogId = document.getElementById('omp-task-catalog-id')?.value?.trim() || '';
               if (!name || !owner || !dept || !endDate) { showToast('请填写必填项（名称、负责人、部门、截止日期）', 'warning'); return; }
               const finalOwner = isDerived ? existing.owner : owner;
               let progressOverridden = existing.progressOverridden;
               if (isParentTask && progress !== existing.progress) {
                 progressOverridden = true;
               }
-              tasks[idx] = { ...existing, name, description, type, owner: finalOwner, dept, startDate, endDate, status, progress, kpiAssociations, budget, actualCost, annualTarget, spLink, biDashboard, members: existingMembers, progressOverridden };
+              tasks[idx] = { ...existing, name, description, type, owner: finalOwner, dept, startDate, endDate, status, progress, kpiAssociations, budget, actualCost, annualTarget, spLink, biDashboard, catalogId, members: existingMembers, progressOverridden };
             }
 
             // 父任务统一处理子任务增删改（仅在子任务标签页保存时执行，避免其他标签页因 DOM 不存在而误删子任务）
@@ -9704,6 +9874,21 @@
         window._ompState.taskEditActiveTab = 'basic';
         document.getElementById('omp-active-modal')?.remove();
         navigate('exe/tasks');
+      };
+
+      window.omp_pickTaskCatalog = function() {
+        const selectedId = document.getElementById('omp-task-catalog-id')?.value || '';
+        openCatalogPicker({
+          scope: CATALOG_SCOPES.OMP_TASKS,
+          selectedId,
+          title: '选择重点工作目录',
+        }).then(node => {
+          if (!node) return;
+          const input = document.getElementById('omp-task-catalog-id');
+          const display = document.getElementById('omp-task-catalog-display');
+          if (input) input.value = node.id || '';
+          if (display) display.querySelector('span').textContent = node.id ? getCatalogPath(CATALOG_SCOPES.OMP_TASKS, node.id) : '未选择';
+        });
       };
 
       window.omp_switchTaskView = function(view) {
@@ -10034,6 +10219,14 @@
             <div class="grid-full-width"><label class="form-label">工作名称 *</label><input type="text" id="omp-task-name" placeholder="如: 华东区渠道下沉" class="form-input-compact"></div>
             <div class="grid-full-width"><label class="form-label">描述</label><textarea id="omp-task-desc" rows="2" placeholder="简要描述工作目标" class="form-textarea-compact"></textarea></div>
             <div><label class="form-label">类型 *</label><select id="omp-task-type" class="form-input-compact"><option value="strategic"><span class="icon" data-icon="target" data-icon-size="14"></span> 战略举措</option><option value="improvement"><span class="icon" data-icon="gear" data-icon-size="14"></span> 业务改进</option><option value="capability"><span class="icon" data-icon="books" data-icon-size="14"></span> 能力建设</option><option value="risk_response"><span class="icon" data-icon="warning" data-icon-size="14"></span>️ 风险应对</option></select></div>
+            <div>
+              <label class="form-label">所属目录</label>
+              <input type="hidden" id="omp-task-catalog-id" value="">
+              <div id="omp-task-catalog-display" class="form-input-compact" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>未选择</span>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="window.omp_pickTaskCatalog()">选择</button>
+              </div>
+            </div>
             <div><label class="form-label">负责人 *</label><input type="text" id="omp-task-owner" placeholder="如: 李经理" class="form-input-compact"></div>
             <div><label class="form-label">部门 *</label><input type="text" id="omp-task-dept" placeholder="如: 销售部" oninput="window.omp_updateKpiDeptWarning('omp-task')" class="form-input-compact"></div>
             <div><label class="form-label">开始日期</label><input type="date" id="omp-task-start" class="form-input-compact"></div>

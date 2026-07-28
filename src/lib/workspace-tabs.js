@@ -48,11 +48,21 @@ export function loadWorkspaceTabs() {
     if (!Array.isArray(parsed.tabs) || parsed.tabs.length === 0) {
       return getDefaultState();
     }
+    // 同一页面只允许一个标签：按 pageId 去重，保留先打开的标签（清理历史遗留的重复标签）
+    const seenPageIds = new Set();
+    const tabs = parsed.tabs.filter(t => {
+      if (!t || seenPageIds.has(t.pageId)) return false;
+      seenPageIds.add(t.pageId);
+      return true;
+    });
+    if (tabs.length === 0) {
+      return getDefaultState();
+    }
     return {
       version: 1,
-      activeTabId: parsed.activeTabId || parsed.tabs[0]?.id,
-      tabs: parsed.tabs,
-      nextCounter: parsed.nextCounter || parsed.tabs.length + 1
+      activeTabId: tabs.some(t => t.id === parsed.activeTabId) ? parsed.activeTabId : tabs[0].id,
+      tabs,
+      nextCounter: parsed.nextCounter || tabs.length + 1
     };
   } catch (e) {
     console.warn('[workspace-tabs] load failed:', e);

@@ -2,6 +2,26 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-28（Claude，准备并归档 v0.7.13 发布）
+- **主题**：接手隔壁会话的版本升级准备，将工作区中多套未提交改动（目录管理、工作区去重、报表中心布局、business-topics 统计卡优化）归档到 v0.7.13
+- **操作**：
+  - 清理合并残留 `src/cockpit.html.orig`
+  - 删除已失效的 `tests/unit/ai-analysis.test.js`（对应 AI 全局报告缓存函数已随 business-topics 重构移除）
+  - 更新 `CHANGELOG.md` v0.7.13 条目，归档目录管理、业务专题统计卡优化、报表中心布局修复、工作区标签去重
+  - `package.json` / `sonar-project.properties` 已在工作区中为 `0.7.13`，确认无误
+- **验证**：`npm run build` ✓ / `npm run check:scope` ✓ / `npm run test:unit` 535 passed / 相关 E2E 51 passed（catalog-management 4 + workspace-tabs 6 + business-topics 35 + marketing-budget 6）
+- **状态**：ready to commit / tag / push
+
+## 2026-07-27（Kimi，修复报表中心 iframe 嵌入布局，接手营销线预算会话）
+- **主题**：接手隔壁会话的营销线预算执行监控开发；修复「Fix embed mode iframe layout」遗留任务
+- **根因**：报表中心容器写死 `min-height: 500px` 且 wrap 绝对定位，iframe 被裁剪；`dste-embed-resize` 消息只处理 `.workspace-iframe`，且内嵌页是 100vh 应用壳，`scrollHeight` 恒等于 iframe 当前高度，按内容自适应会形成反馈环（457→498→457）
+- **修复**：
+  - `src/cockpit.html`：容器加 `id="report-center-container"`；新增 `window._fitReportCenterContainer()`（容器高度 = 剩余视口高度，最小 300px），在 `renderReportCenterUI()` 的 RAF 与 window resize 时调用；resize 消息处理保留 workspace-iframe 原逻辑并注释说明报表中心为何不走该路径
+  - `tests/e2e/marketing-budget.spec.js`：新增布局断言（容器有显式高度、iframe 填满容器减 41px 工具条，容差 4px 边框）
+- **验证**：`npm run build` ✓ / `check:scope` ✓ / marketing-budget E2E 6 passed / navigation + workspace-tabs 27 passed / pytest 184 passed / unit 535 passed（5 failed 为并行会话 ai-analysis.js 重构中，非本次改动）
+- **注意**：并行 Claude 会话（pid 2696）仍在同仓库开发「目录管理」（worker.js catalogs 端点、config.js 导航、cockpit.html +201 行、`docs/01-Product产品/目录管理-配置功能-PRD.md`），提交前需确认分工避免冲突
+- **状态**：complete（未提交，待用户确认是否随并行工作一起发版）
+
 ## 2026-07-27（Kimi，修复工作区同页重复标签；修复 parked 为补丁待发布）
 - **主题**：按用户截图反馈，修复驾驶舱工作区同一页面（如「开发路线图 Road Map」）可打开多个重复标签的问题
 - **根因**：`src/cockpit.html` 的 `navigate()` 直接把当前标签复用为目标页面（`updateActiveTabPage`），不检查其他标签是否已打开该页；`openTab()` 走 `openOrActivateTab` 有去重，但侧边栏/面包屑/data-navigate 都走 `navigate()`

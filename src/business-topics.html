@@ -308,46 +308,34 @@
 
         <div class="page-content">
             <!-- 顶部：统计指标卡 + ST/AT 报告 -->
-            <div style="display: flex; gap: 16px; margin-bottom: 20px; align-items: stretch;">
+            <div class="stats-section">
                 <!-- 左侧：统计指标卡 -->
-                <div style="flex: 1; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: center;">
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;"><span class="icon" data-icon="chart-bar" data-icon-size="14"></span> 业务专题统计</div>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
-                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                            <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="statInProgress">0</div>
-                            <div style="font-size: 12px; color: var(--text-tertiary);">进行中</div>
+                <div class="stats-card">
+                    <div class="stats-header"><span class="icon" data-icon="chart-bar" data-icon-size="14"></span> 业务专题统计</div>
+                    <div class="stats-grid">
+                        <div class="stat-item stat-success" data-action="stat-filter" data-stat="in_progress" title="查看进行中专题">
+                            <div class="stat-value" id="statInProgress">0</div>
+                            <div class="stat-label">进行中</div>
                         </div>
-                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                            <div style="font-size: 28px; font-weight: 700;" id="statArchived">0</div>
-                            <div style="font-size: 12px; color: var(--text-tertiary);">已归档</div>
+                        <div class="stat-item" data-action="stat-filter" data-stat="archived" title="查看已归档专题">
+                            <div class="stat-value" id="statArchived">0</div>
+                            <div class="stat-label">已归档</div>
                         </div>
-                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                            <div style="font-size: 28px; font-weight: 700; color: var(--warning);" id="statP1Urgent">0</div>
-                            <div style="font-size: 12px; color: var(--text-tertiary);">P0 紧急</div>
+                        <div class="stat-item stat-warning" data-action="stat-filter" data-stat="p0" title="查看 P0 紧急专题">
+                            <div class="stat-value" id="statP1Urgent">0</div>
+                            <div class="stat-label">P0 紧急</div>
                         </div>
-                        <div style="text-align: center; padding: 16px; background: var(--bg-surface); border-radius: 8px;">
-                            <div style="font-size: 28px; font-weight: 700; color: var(--danger);" id="statDelayed">0</div>
-                            <div style="font-size: 12px; color: var(--text-tertiary);">已延期</div>
+                        <div class="stat-item stat-danger" data-action="stat-filter" data-stat="delayed" title="查看已延期专题">
+                            <div class="stat-value" id="statDelayed">0</div>
+                            <div class="stat-label">已延期</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 右侧：ST / AT 报告卡片 -->
-                <div style="width: 240px; display: flex; flex-direction: column; gap: 12px;">
-                    <div class="report-card report-card-st" data-action="ai-report" data-report-type="ST" style="flex: 1;">
-                        <div class="report-card-label"><span class="icon" data-icon="building" data-icon-size="14"></span> ST 议题全局分析</div>
-                        <div class="report-card-status" id="stReportStatus">点击生成</div>
-                        <div class="report-card-meta" id="stReportMeta">—</div>
-                    </div>
-                    <div class="report-card report-card-at" data-action="ai-report" data-report-type="AT" style="flex: 1;">
-                        <div class="report-card-label"><span class="icon" data-icon="buildings" data-icon-size="14"></span> AT 议题全局分析</div>
-                        <div class="report-card-status" id="atReportStatus">点击生成</div>
-                        <div class="report-card-meta" id="atReportMeta">—</div>
-                    </div>
-                </div>
+
             </div>
 
-            <div class="dashboard-tabs" style="margin-bottom: 24px;" id="topicTabs">
+            <div class="dashboard-tabs" id="topicTabs">
                 <div class="dashboard-tab active" data-tab="all">全部</div>
                 <div class="dashboard-tab" data-tab="in_progress">进行中</div>
                 <div class="dashboard-tab" data-tab="done">已结束</div>
@@ -355,7 +343,7 @@
                 <div class="dashboard-tab" data-tab="mine">我负责的</div>
             </div>
 
-            <div class="filter-bar" style="margin-bottom: 20px;">
+            <div class="filter-bar">
                 <div style="display: flex; align-items: center; gap: 4px;">
                     <select id="filterYear" class="form-select" style="min-width: 100px;" data-filter>
                         <option value="">全部年度</option>
@@ -651,24 +639,6 @@
             <div class="form-actions" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
                 <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('aiMatchModal')">关闭</button>
                 <button type="button" class="btn btn-primary" id="aiMatchApplyBtn" onclick="window._dste.applyAiMatches()" style="display:none;"><span class="icon" data-icon="check" data-icon-size="14"></span> 关联选中建议</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- AI 全局报告弹窗 -->
-    <div class="modal-overlay" id="aiReportModal">
-        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-            <button class="modal-close" onclick="window._dste.closeModal('aiReportModal')">×</button>
-            <div class="modal-header">
-                <div class="modal-title" id="aiReportTitle"><span class="icon" data-icon="robot" data-icon-size="18"></span> AI 全局分析报告</div>
-                <div class="modal-subtitle" id="aiReportSubtitle"></div>
-            </div>
-            <div id="aiReportContent">
-                <!-- JS rendered -->
-            </div>
-            <div class="form-actions" style="margin-top: 20px; padding-top: 16px;">
-                <button type="button" class="btn btn-ghost" onclick="window._dste.closeModal('aiReportModal')">关闭</button>
-                <button type="button" class="btn btn-primary" data-action="regenerate-report"><span class="icon" data-icon="arrows-clockwise" data-icon-size="14"></span> 重新生成</button>
             </div>
         </div>
     </div>

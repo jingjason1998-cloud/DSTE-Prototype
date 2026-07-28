@@ -45,6 +45,7 @@ export const ICONS = {
   'admin/rule-engine': 'gear',
   'admin/alert-hub': 'bell',
   'admin/requirement-pool': 'list-checks',
+  'admin/catalog-management': 'tree',
   'ai/assistant': 'robot',
 
   // UI controls

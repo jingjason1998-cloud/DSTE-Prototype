@@ -9,6 +9,31 @@
 
 ## [Unreleased]
 
+## [v0.7.13] - 2026-07-28
+
+### Added
+- **新增目录管理配置功能**：支持树形目录的增删改、拖拽排序、启用/禁用，首期用于重点工作分类。
+  - 数据层：`src/lib/catalog.js` 提供目录 CRUD、树形构建、引用计数、路径解析与 per-record 云端同步。
+  - 组件层：`src/components/catalog-tree.js` 提供管理页树形展示、行内编辑、HTML5 拖拽排序、目录选择器弹窗。
+  - 驾驶舱集成：`src/cockpit.html#admin/catalog-management` 新增「系统管理 → 目录管理」入口；重点工作列表支持按目录筛选并在表格展示目录路径；任务编辑支持选择所属目录。
+  - 后端同步：`api-worker/worker.js` 新增 `/api/catalogs` 与单条 CRUD 端点，写入 `dste_catalogs_v1` KV。
+  - 导航与图标：`src/lib/config.js` 注册页面元数据；`assets/js/icon-mapping.js` 新增 `admin/catalog-management` 树形图标。
+  - 新增测试：`tests/unit/catalog.test.js`、`tests/e2e/catalog-management.spec.js`。
+
+### Changed
+- **业务专题管理页统计卡片与筛选交互优化**：
+  - 顶部统计指标卡改为可点击筛选，点击后自动切换 tab 或触发强制筛选，解决统计数字与表格数量不一致问题。
+  - 移除右侧 ST/AT AI 全局报告卡片及相关弹窗、缓存逻辑，简化页面结构。
+  - `src/pages/business-topics/style.css` 清理已移除的报告卡片样式。
+
+### Fixed
+- **修复报表中心 iframe 嵌入布局被裁剪**：`src/cockpit.html` 报表中心容器原先写死 `min-height: 500px` 且按 `scrollHeight` 自适应，但内嵌页是 `100vh` 应用壳，形成高度反馈环。现改为 `_fitReportCenterContainer()` 按剩余视口高度填充，并在渲染与窗口 resize 时调用。
+- **修复工作区同一页面可打开多个重复标签**：
+  - `src/cockpit.html` 的 `navigate()` 原先直接将当前标签复用为目标页面，不检查其他标签是否已打开该页，导致从多个标签进入「开发路线图」等同一页面时出现重复标签。现改为：若其他标签已打开目标页面，则激活该标签并重新渲染刷新，不再产生重复。
+  - `init()` 恢复会话时，若 URL hash 页面已存在于其他标签则直接激活，避免刷新后重复。
+  - `src/lib/workspace-tabs.js` 的 `loadWorkspaceTabs()` 加载时按 `pageId` 去重，自动清理历史遗留的重复标签数据。
+  - 新增 E2E 用例：导航去重（`activates it instead of duplicating`）与历史重复数据加载清理（`deduped on load`）。
+
 ## [v0.7.12] - 2026-07-27
 
 ### Fixed
