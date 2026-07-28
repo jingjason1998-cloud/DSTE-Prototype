@@ -1,6 +1,6 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-27 19:04
+> 更新时间: 2026-07-28 10:48
 
 ## 状态
 **v0.7.12 已发布并部署生产**（commit `2cf47e2`）：修复业务专题管理年份筛选无法使用且默认未选中 2026 的问题；年份筛选默认固定为 2026，远程加载失败不再阻塞初始化。
@@ -209,10 +209,11 @@
 
 ## 下一步
 1. ✅ **v0.7.2 已发布并部署生产**
-2. **服务器更新 Flask KMS_API_TOKEN** — 编辑 `/opt/meeting-reviewer/src/.env` 后 `systemctl restart meeting-reviewer`，然后跑一次真实材料审核端到端确认
-3. **继续经分会-督办中心阶段 2** — 逾期催办、独立督办工作台页面、数据看板（详见 T050）
-4. **继续经分会-决议中心可选优化** — 真正以 ES Module 引入 `resolution-helpers.js`、确认生产数据迁移、版本号升级（详见 T030）
-5. **T080 审核端点 Worker 迁移** — 后续排期（详见 `.ai/tasks/active/T080-review-worker-migration.md`）
+2. **发布 parked 的工作区标签去重修复（v0.7.13）** — 修复已完成并验证，因并行会话反复 reset 工作区、用户决定后续一起发布，已存为 `.ai/patches/workspace-tabs-dedup-v0.7.13.patch`；应用与发布步骤见 `.ai/patches/README-workspace-tabs-fix.md`
+3. **服务器更新 Flask KMS_API_TOKEN** — 编辑 `/opt/meeting-reviewer/src/.env` 后 `systemctl restart meeting-reviewer`，然后跑一次真实材料审核端到端确认
+4. **继续经分会-督办中心阶段 2** — 逾期催办、独立督办工作台页面、数据看板（详见 T050）
+5. **继续经分会-决议中心可选优化** — 真正以 ES Module 引入 `resolution-helpers.js`、确认生产数据迁移、版本号升级（详见 T030）
+6. **T080 审核端点 Worker 迁移** — 后续排期（详见 `.ai/tasks/active/T080-review-worker-migration.md`）
 
 ## 督办中心数据结构
 ```javascript

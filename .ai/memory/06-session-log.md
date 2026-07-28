@@ -2,6 +2,20 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-27（Kimi，修复工作区同页重复标签；修复 parked 为补丁待发布）
+- **主题**：按用户截图反馈，修复驾驶舱工作区同一页面（如「开发路线图 Road Map」）可打开多个重复标签的问题
+- **根因**：`src/cockpit.html` 的 `navigate()` 直接把当前标签复用为目标页面（`updateActiveTabPage`），不检查其他标签是否已打开该页；`openTab()` 走 `openOrActivateTab` 有去重，但侧边栏/面包屑/data-navigate 都走 `navigate()`
+- **修复内容**（已验证，见下）：
+  - `navigate()`：目标页已在其他标签打开时，`switchWorkspaceTab` 激活并 `_renderPage` 刷新该标签，不再复用当前标签
+  - `init()`：恢复会话时 hash 页面已存在于其他标签则直接激活
+  - `src/lib/workspace-tabs.js` `loadWorkspaceTabs()`：按 pageId 去重，清理历史遗留重复标签
+  - `tests/e2e/workspace-tabs.spec.js` 新增 2 用例（导航去重 + 加载清理）
+  - CHANGELOG v0.7.13 条目 + `package.json`/`sonar-project.properties` 版本号 0.7.13
+- **验证**：`npm run build` ✓ / `check:scope` ✓ / workspace-tabs E2E 6/6 ✓ / navigation+sp-nav-verify+theme 29/29 ✓ / unit 520 passed（5 个 ai-analysis 失败为并行会话删改所致，与本修复无关）
+- **重要：修复未提交，已 parked 为补丁**：会话期间另一并行会话（catalog 目录管理/business-topics 线）反复 `git reset --hard`/`git stash`，本修复三次被回退（含一次已成功的 commit 被 reset 抹掉）。用户决定本次不推送、后续一起发布。完整修复已存为 **`.ai/patches/workspace-tabs-dedup-v0.7.13.patch`**（dry-run 校验通过，`/tmp` 有备份），发布步骤见 **`.ai/patches/README-workspace-tabs-fix.md`**。工作区已还原为并行会话的改动。
+- **状态**：partial（修复完成并验证，待应用补丁后提交发布）
+- **下一步**：用户确认后 `patch -p1 < .ai/patches/workspace-tabs-dedup-v0.7.13.patch` → 跑 build + workspace-tabs E2E → 提交 fix + `chore(release): v0.7.13` → tag 推送；注意确认 v0.7.13 未被其他发布占用；服务器 Flask KMS_API_TOKEN 仍待更新
+
 ## 2026-07-27（Claude，发布 v0.7.12 修复业务专题年份筛选）
 - **主题**：修复业务专题管理年份筛选无法使用、默认未选中 2026 的问题，并推送生产
 - **根因**：`populateYearFilter()` 依赖 `innerHTML` 的 `selected` 属性在动态填充后未正确生效；原默认值为 `new Date().getFullYear()`，未固定为 2026；云端加载失败会中断 `init()`，导致筛选器未初始化
