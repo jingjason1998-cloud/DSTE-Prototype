@@ -280,7 +280,21 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
  */
 export function updateSidebarActive(pageId) {
   document.querySelectorAll('.sidebar-item').forEach(item => {
-    item.classList.toggle('active', item.dataset.page === pageId);
+    const itemPage = item.dataset.page;
+    const reportId = item.dataset.reportId;
+    let active = itemPage === pageId;
+
+    // 报表中心多个子项共用同一个 pageId，需要按 reportId 区分高亮
+    if (active && pageId === 'exe/report-center') {
+      const activeReport = window._reportCenterActiveReport || '';
+      if (reportId) {
+        active = reportId === activeReport;
+      } else {
+        active = !activeReport;
+      }
+    }
+
+    item.classList.toggle('active', active);
   });
 }
 
