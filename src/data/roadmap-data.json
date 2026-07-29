@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "v0.7.14",
+      "date": "2026-07-29",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Changed",
+          "desc": "**营销线预算执行监控表改为「损益主表 / 图表速览」Tab 布局**：损益主表提升为默认首屏视图，解决长滚动布局下主表排在 KPI 卡片与 4 张图表之后、报表中心 iframe 内难以发现的问题。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.13",
       "date": "2026-07-28",
       "status": "released",
