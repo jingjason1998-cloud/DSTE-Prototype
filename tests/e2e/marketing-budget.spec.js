@@ -4,7 +4,7 @@ const BUDGET_PAGE_URL = '/src/marketing-budget.html';
 const REPORT_CENTER_URL = '/src/cockpit.html#exe/report-center';
 
 test.describe('Marketing Budget Execution Monitor', () => {
-  test('standalone page loads with KPI cards, charts and tree table', async ({ page }) => {
+  test('standalone page loads with KPI cards and P&L table as default view', async ({ page }) => {
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 
@@ -13,9 +13,22 @@ test.describe('Marketing Budget Execution Monitor', () => {
 
     await expect(page.locator('.page-title')).toContainText('营销线预算执行监控表');
     await expect(page.locator('.budget-kpi-card')).toHaveCount(6);
-    await expect(page.locator('.budget-chart-box')).toHaveCount(4);
+
+    // 默认展示损益主表 tab
+    await expect(page.locator('.budget-view-tab[data-view="table"]')).toHaveClass(/active/);
     const rowCount = await page.locator('#budget-tbody tr').count();
     expect(rowCount).toBeGreaterThan(0);
+
+    // 切到图表速览 tab，懒加载 4 张图表
+    await page.locator('.budget-view-tab[data-view="charts"]').click();
+    await expect(page.locator('.budget-view-tab[data-view="charts"]')).toHaveClass(/active/);
+    await expect(page.locator('.budget-chart-box')).toHaveCount(4);
+    await page.waitForSelector('#chart-waterfall canvas', { timeout: 10000 });
+
+    // 切回损益主表，表格状态保留
+    await page.locator('.budget-view-tab[data-view="table"]').click();
+    await expect(page.locator('.budget-view-tab[data-view="table"]')).toHaveClass(/active/);
+    await expect(page.locator('#budget-tbody tr').first()).toBeVisible();
 
     expect(errors).toEqual([]);
   });

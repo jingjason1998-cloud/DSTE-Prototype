@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [v0.7.14] - 2026-07-29
+
+### Changed
+- **营销线预算执行监控表改为「损益主表 / 图表速览」Tab 布局**：损益主表提升为默认首屏视图，解决长滚动布局下主表排在 KPI 卡片与 4 张图表之后、报表中心 iframe 内难以发现的问题。
+  - `src/pages/marketing-budget/main.js` 新增 `currentView` 状态与 `renderViewTabs()` / `renderViewBody()` / `switchView()`；图表速览 tab 首次激活时才懒加载 ECharts，表格折叠/隐藏零行状态切 tab 后保留。
+  - `src/pages/marketing-budget/style.css` 新增 `.budget-view-tab` 样式，复用设计系统 token。
+  - `tests/e2e/marketing-budget.spec.js` 首屏用例适配 tab 行为（默认主表 → 图表速览懒加载 → 切回状态保留）。
+
 ## [v0.7.13] - 2026-07-28
 
 ### Added

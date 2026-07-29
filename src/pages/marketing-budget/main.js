@@ -51,6 +51,7 @@ let allTasks = [];            // OMP 任务（含年度重点、子任务）
 let allTopics = [];           // 业务专题
 let drawerRowId = null;       // 当前抽屉打开的科目行
 let currentDrawerTab = 'summary';
+let currentView = 'table';    // 主视图 tab：table（损益主表）/ charts（图表速览）
 let charts = [];              // ECharts 实例
 
 // ===== 初始化 =====
@@ -205,12 +206,39 @@ function hashString(s) {
 function renderPage() {
   const root = document.getElementById('budget-page-root');
   if (!root) return;
-  root.innerHTML = renderHeader() + renderKpis() + renderCharts() + renderTableSection();
+  root.innerHTML = renderHeader() + renderKpis() + renderViewTabs() + renderViewBody();
   requestAnimationFrame(() => {
-    initCharts();
+    if (currentView === 'charts') initCharts();
     animateBars();
     hydrateIcons(root);
   });
+}
+
+// 主视图 tab：损益主表（默认）/ 图表速览（懒加载 ECharts）
+function renderViewTabs() {
+  return `
+    <div class="budget-view-tabs">
+      <button class="budget-view-tab ${currentView === 'table' ? 'active' : ''}" data-action="switch-view" data-view="table">损益主表</button>
+      <button class="budget-view-tab ${currentView === 'charts' ? 'active' : ''}" data-action="switch-view" data-view="charts">图表速览</button>
+    </div>
+  `;
+}
+
+function renderViewBody() {
+  return `<div id="budget-view-body">${currentView === 'charts' ? renderCharts() : renderTableSection()}</div>`;
+}
+
+function switchView(view) {
+  if (view === currentView) return;
+  currentView = view;
+  document.querySelectorAll('.budget-view-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.getAttribute('data-view') === view);
+  });
+  const body = document.getElementById('budget-view-body');
+  if (!body) return;
+  body.innerHTML = view === 'charts' ? renderCharts() : renderTableSection();
+  hydrateIcons(body);
+  if (view === 'charts') requestAnimationFrame(() => initCharts());
 }
 
 function renderHeader() {
@@ -495,6 +523,9 @@ function handleClick(e) {
         break;
       case 'close-drawer':
         closeDrawer();
+        break;
+      case 'switch-view':
+        switchView(btn.getAttribute('data-view'));
         break;
     }
   }

@@ -237,6 +237,38 @@
 
 .budget-chart-box { height: 280px; }
 
+/* ---------- 主视图 Tab（损益主表 / 图表速览） ---------- */
+
+.budget-view-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border-default);
+  margin-bottom: var(--space-4);
+}
+
+.budget-view-tab {
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  position: relative;
+  transition: color var(--duration-fast) ease;
+}
+
+.budget-view-tab:hover { color: var(--color-text-secondary); }
+.budget-view-tab.active { color: var(--color-text-primary); }
+
+.budget-view-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--color-primary);
+}
+
 /* ---------- 树表 ---------- */
 
 .budget-table-toolbar {
