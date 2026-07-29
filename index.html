@@ -1039,7 +1039,8 @@
         passwordInput.classList.remove('error');
 
         // 生产环境强制走 CAS，本地开发允许快速登录
-        const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        // TODO: 临时绕过 CAS，恢复时去掉 'dste.fineres.com'
+        const isLocalDev = ['localhost', '127.0.0.1', 'dste.fineres.com'].includes(window.location.hostname);
         if (!isLocalDev) {
           redirectToCasLogin();
           return;

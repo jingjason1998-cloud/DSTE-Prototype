@@ -2350,7 +2350,8 @@
         if (!casHandled) {
           const isLoggedIn = await checkLoginStatus();
           // 本地开发环境可免登录
-          const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
+          // TODO: 临时绕过 CAS，恢复时去掉 'dste.fineres.com'
+          const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc', 'dste.fineres.com'].includes(window.location.hostname);
           if (!isLoggedIn && !isLocalDev) {
             redirectToCasLogin();
             return;

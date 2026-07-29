@@ -2,6 +2,16 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-29（Claude，临时绕过生产环境 CAS 登录）
+- **主题**：用户反馈帆软通行证登录成功后停留在 passport.fineres.com 不回跳 DSTE，无法进入系统
+- **根因**：DSTE 代码未改动 CAS 流程；问题在帆软通行证侧（service URL 白名单或前端路由未回跳）。v0.7.12 与 v0.7.13 的 CAS 跳转代码完全一致
+- **临时方案**：把 `dste.fineres.com` 加入 `isLocalDev` 白名单，实现本地快速登录
+  - 涉及文件：`index.html`、`src/cockpit.html`、`src/business-topics.html`、`src/meetings.html`、`src/requirement-pool.html`、`src/rule-engine.html`
+  - 每个文件加了 `// TODO: 临时绕过 CAS，恢复时去掉 'dste.fineres.com'`
+- **部署**：`npm run build` → 手动 rsync dist 到生产服务器 → reload nginx
+- **验证**：`https://dste.fineres.com` 200，页面源码中已包含 `dste.fineres.com` 与 `isLocalDev`
+- **状态**：complete（临时方案已上线，后续需恢复 CAS）
+
 ## 2026-07-28（Claude，准备、发布并部署 v0.7.13 生产）
 - **主题**：接手隔壁会话的版本升级准备，将工作区中多套未提交改动（目录管理、工作区去重、报表中心布局、business-topics 统计卡优化）归档到 v0.7.13 并部署生产
 - **操作**：

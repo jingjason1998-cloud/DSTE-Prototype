@@ -52,7 +52,8 @@
         const CAS_REDIRECT_HISTORY_KEY = 'dste-cas-redirect-history';
         const CAS_LOGIN_AT_KEY = 'dste-cas-login-at';
 
-        const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
+        // TODO: 临时绕过 CAS，恢复时去掉 'dste.fineres.com'
+        const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc', 'dste.fineres.com'].includes(window.location.hostname);
 
         function getCasServiceUrl() {
             return window.location.origin + CAS_LANDING_PAGE;

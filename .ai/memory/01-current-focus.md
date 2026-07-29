@@ -4,6 +4,7 @@
 
 ## 状态
 **v0.7.13 已发布并部署生产**（commit `fafa195`，tag `v0.7.13`）：包含目录管理配置功能、工作区标签去重、报表中心 iframe 布局修复与业务专题统计卡优化。GitHub Actions Deploy to Production ✅ success。生产验证：`https://dste.fineres.com` 200，`/api/catalogs` / `/api/topics` 正常。
+**临时 CAS 绕过（2026-07-29）**：帆软通行证登录成功后不回跳 DSTE，用户无法进入系统。已临时把 `dste.fineres.com` 加入 `isLocalDev` 白名单（`index.html` / `cockpit.html` / `business-topics.html` / `meetings.html` / `requirement-pool.html` / `rule-engine.html`），实现本地快速登录。已手动部署到生产。**后续必须恢复**，恢复前生产环境无 CAS 认证。
 **本次发布踩坑**：生产 nginx 自 2026-07-28 06:09 因 `proxy_pass https://api.dste.jasonxspace.cc/api/` 启动时 DNS 解析失败而挂掉，导致 GitHub Actions 连续部署失败。已修复 `scripts/update-nginx-api-proxy.sh`：改用 `resolver 127.0.0.53 valid=300s; set $worker_domain ...; proxy_pass https://$worker_domain$request_uri;`，并增加 nginx 未运行时自动 `systemctl start nginx`。
 **v0.7.12 已发布并部署生产**（commit `2cf47e2`）：修复业务专题管理年份筛选无法使用且默认未选中 2026 的问题；年份筛选默认固定为 2026，远程加载失败不再阻塞初始化。
 **v0.7.11 已发布并部署生产**（commit `3e5a402`）：修复会议卡片「纪要」panel 默认展开的问题，现在所有 tab 默认均为收起状态。
