@@ -2,6 +2,15 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-29（Kimi，营销线预算监控表改为「损益主表 / 图表速览」Tab 布局）
+- **主题**：用户反馈报表中心嵌入的营销线预算执行监控表「没有损益主表的内容」。查证发现损益主表一直在页面里（`renderTableSection`，数据与桌面重塑版 `~/Desktop/损益表重塑/pnl-data.js` 完全一致），只是长滚动布局中排在 KPI 卡片和 4 张图表之后，首屏不可见
+- **操作**：
+  - `src/pages/marketing-budget/main.js`：新增 `currentView` 状态与 `renderViewTabs()` / `renderViewBody()` / `switchView()`；`renderPage()` 改为 header + KPI + 视图 tab + 视图主体；损益主表为默认 tab，图表速览 tab 首次激活时才 `initCharts()` 懒加载；`handleClick` 新增 `switch-view` action
+  - `src/pages/marketing-budget/style.css`：新增 `.budget-view-tabs` / `.budget-view-tab` 样式（复用设计系统 token，风格同 `.budget-drawer-tab`）
+  - `tests/e2e/marketing-budget.spec.js`：首屏用例改为断言默认损益主表 tab → 点图表速览出 4 图（等 `#chart-waterfall canvas`）→ 切回主表状态保留
+- **验证**：`npm run build` ✓ / `check:scope` ✓ / marketing-budget E2E 6 passed / pytest 184 passed / unit 535 passed / 截图目检默认首屏为损益主表 ✓
+- **状态**：complete（未提交，未发版）
+
 ## 2026-07-29（Claude，临时绕过生产环境 CAS 登录）
 - **主题**：用户反馈帆软通行证登录成功后停留在 passport.fineres.com 不回跳 DSTE，无法进入系统
 - **根因**：DSTE 代码未改动 CAS 流程；问题在帆软通行证侧（service URL 白名单或前端路由未回跳）。v0.7.12 与 v0.7.13 的 CAS 跳转代码完全一致

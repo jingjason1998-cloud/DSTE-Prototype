@@ -94,6 +94,11 @@
 
 ## 刚完成
 
+### 营销线预算监控表 Tab 布局改造（Kimi 会话，2026-07-29，未发版本）
+- 起因：用户反馈报表中心嵌入页「没有损益主表内容」。查证：损益主表（`renderTableSection`）一直在页面底部，长滚动布局中被 KPI 卡片 + 4 图表挤到首屏之外；数据与桌面 `损益表重塑/pnl-data.js` 完全一致
+- 改造：`main.js` 新增 `currentView` 与 `renderViewTabs`/`renderViewBody`/`switchView`，损益主表为默认 tab，图表速览懒加载 ECharts；`style.css` 新增 `.budget-view-tab*`；E2E 首屏用例适配 tab 行为
+- 验证：`npm run build` ✓ / `check:scope` ✓ / marketing-budget E2E 6 passed / pytest 184 passed / unit 535 passed / 截图目检 ✓
+
 ### 业务专题管理优化：移除部门筛选框 + 生产数据同步到本地（Claude 会话，2026-07-27，未发版本）
 - 按用户反馈，移除 `src/business-topics.html` 列表顶部的部门组织树筛选框，直接展示全部专题名单
 - 删除 `src/pages/business-topics/main.js` 中 `createOrgSelector` 相关引入、变量、过滤逻辑、渲染函数及调用；保留 `department` 字段在表格/表单/详情/搜索/排序中的使用
