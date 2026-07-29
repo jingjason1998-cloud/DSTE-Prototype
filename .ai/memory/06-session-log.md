@@ -9,7 +9,8 @@
   - `src/pages/marketing-budget/style.css`：新增 `.budget-view-tabs` / `.budget-view-tab` 样式（复用设计系统 token，风格同 `.budget-drawer-tab`）
   - `tests/e2e/marketing-budget.spec.js`：首屏用例改为断言默认损益主表 tab → 点图表速览出 4 图（等 `#chart-waterfall canvas`）→ 切回主表状态保留
 - **验证**：`npm run build` ✓ / `check:scope` ✓ / marketing-budget E2E 6 passed / pytest 184 passed / unit 535 passed / 截图目检默认首屏为损益主表 ✓
-- **状态**：complete（未提交，未发版）
+- **发布**：release.sh 全量 E2E 被既有失败用例 `omp-matrix.spec.js:151`（成员拖动排序，与本次无关）阻断，改为手动 build + tag `v0.7.14` + push；GitHub Actions 部署成功，生产新 bundle `marketing-budget-Cy3kOzSE.js` 已生效
+- **状态**：complete（v0.7.14 已发布生产）
 
 ## 2026-07-29（Claude，临时绕过生产环境 CAS 登录）
 - **主题**：用户反馈帆软通行证登录成功后停留在 passport.fineres.com 不回跳 DSTE，无法进入系统
