@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [v0.7.16] - 2026-07-30
+
+### Fixed
+- **修复嵌入页 ResizeObserver 报错**：所有带 `?embed=1` 的外部页在 `<head>` 中初始化 ResizeObserver 时，`document.body` 可能尚未解析，导致 `Failed to execute 'observe' on 'ResizeObserver': parameter 1 is not of type 'Element'`。统一改为观察 `document.documentElement`，与高度计算源一致。
+
 ## [v0.7.15] - 2026-07-30
 
 ### Changed
