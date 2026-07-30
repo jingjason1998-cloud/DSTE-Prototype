@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+## [v0.7.15] - 2026-07-30
+
+### Changed
+- **报表中心内嵌模式顶栏紧凑化**：iframe 嵌入场景下隐藏冗余标题与按钮，减少首屏占用。
+- **营销预算表隐藏列持久化**：用户隐藏的列通过 `localStorage` 记忆，刷新后保持。
+- **「关联」列改为「关联举措」chips + 浮框**：点 chip 展示单项，+N 展示全部关联举措。
+
+### Fixed
+- **修复报表中心图表速览 tab 无法滚动**：调整 `assets/css/main.css` 中 embed 模式 flex 链，使 `.content-area` 恢复滚动容器。
+- **修复负责人下拉显示 `[object Object]`**：`fmtOwner` 统一格式化对象/字符串类型的负责人。
+- **修复关联举措下拉重复展示**：增加年度过滤与去重，避免同一年度重复项。
+- **修复报表中心侧边栏多个子项同时高亮**：按 `data-reportid` 与 `window._reportCenterActiveReport` 精确匹配，仅当前报表高亮。
+
 ## [v0.7.14] - 2026-07-29
 
 ### Changed
