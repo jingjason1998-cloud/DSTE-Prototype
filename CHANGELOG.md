@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [v0.7.17] - 2026-07-30
+
+### Fixed
+- **修复预算执行监控看板嵌入模式下底部留白过窄**：`src/pages/marketing-budget/style.css` 中 `[data-embed="true"] .budget-workspace .page-container` 的 `padding-bottom` 由 `var(--space-3)`（12px）增加到 `var(--space-5)`（20px），使表格底部与容器下边框保持合适间距。
+
 ## [v0.7.16] - 2026-07-30
 
 ### Fixed
