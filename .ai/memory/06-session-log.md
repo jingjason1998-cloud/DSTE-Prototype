@@ -2,6 +2,21 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-30（Claude，v0.7.17 热修：预算执行监控看板嵌入底部留白）
+- **主题**：用户反馈预算执行监控看板在报表中心嵌入模式下底部留白（下边框）过窄
+- **操作**：
+  - `src/pages/marketing-budget/style.css`：嵌入模式下 `[data-embed="true"] .budget-workspace .page-container` 的 `padding-bottom` 由 `var(--space-3)`（12px）提升到 `var(--space-5)`（20px）
+  - 版本号：`package.json`/`package-lock.json`/`sonar-project.properties` 0.7.16 → 0.7.17
+  - `CHANGELOG.md`：新增 `v0.7.17 - 2026-07-30` Fixed 条目
+  - 提交 fix、版本 bump、roadmap 数据更新
+  - 手动 build + tag `v0.7.17` + push origin main
+- **验证**：
+  - 本地：`npm run build` ✓ / `npm run check:scope` ✓ / marketing-budget E2E 6 passed / report-center-nav E2E 4 passed
+  - 全量 E2E：417 passed / 1 failed（`omp-matrix.spec.js:151`，既有问题）
+  - 生产：`https://dste.fineres.com/assets/cockpit-*.js` 版本字符串已更新为 `DSTE Platform v0.7.17`
+- **发布**：commit `e5c003e`，tag `v0.7.17`
+- **状态**：complete（v0.7.17 已发布生产）
+
 ## 2026-07-30（Claude，v0.7.16 热修：嵌入页 ResizeObserver 报错）
 - **主题**：v0.7.15 部署后生产验证发现嵌入页在部分加载时机会抛出 `Failed to execute 'observe' on 'ResizeObserver': parameter 1 is not of type 'Element'`，原因是 `<head>` 中初始化 ResizeObserver 时 `document.body` 尚未解析
 - **操作**：
