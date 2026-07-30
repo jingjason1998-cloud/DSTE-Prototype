@@ -174,6 +174,9 @@ test.describe('OMP 资源配置矩阵', () => {
     await page.waitForTimeout(500);
 
     const cell = page.locator('[data-drop="matrix-member"][data-task-id="matrix_reorder"]').first();
+    //  seeded 任务排在矩阵末行，位于视口底缘时原生 mouse 事件无法命中 chip，先滚入视口
+    await cell.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
     const chips = cell.locator('.omp-matrix-member-chip');
     await expect(chips).toHaveCount(3);
 
