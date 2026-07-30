@@ -4412,9 +4412,9 @@
         return `
           ${activeReport ? `
             <!-- 内嵌报表模式：紧凑顶栏，把空间留给报表正文 -->
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div class="report-center-compact-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
               <button type="button" onclick="window._reportCenterActiveReport=null; renderReportCenterUI();" class="btn btn-secondary" style="padding: 4px 10px; font-size: 13px;"><span class="icon" data-icon="caret-left" data-icon-size="14"></span> 返回报表中心</button>
-              <div style="font-size: 15px; font-weight: 600; color: var(--text-primary);">${activeReport.name}</div>
+              <div class="report-center-compact-title" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">${activeReport.name}</div>
               <a href="${activeReport.url}" target="_blank" style="margin-left: auto; font-size: 12px; color: var(--primary); text-decoration: none;"><span class="icon" data-icon="arrow-square-out" data-icon-size="14"></span> 新标签页打开</a>
             </div>
           ` : `

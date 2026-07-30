@@ -60,7 +60,8 @@ test.describe('经营分析报表中心导航', () => {
     await page.locator('.sidebar-item[data-report-id="fr-002"]').click();
     await page.waitForTimeout(1000);
 
-    await expect(page.locator('.page-title')).toContainText('经营分析报表中心');
+    // 内嵌报表模式下显示紧凑顶栏，不再渲染 .page-title
+    await expect(page.locator('.report-center-compact-title')).toContainText('国内营销线利润表（新）');
     // 页面应显示报表标题/返回按钮或 iframe 占位
     await expect(page.locator('.page-content')).toContainText('国内营销线利润表（新）');
   });
@@ -73,7 +74,8 @@ test.describe('经营分析报表中心导航', () => {
     await page.locator('.sidebar-item[data-report-id="fr-ioc-platform"]').click();
     await page.waitForTimeout(1000);
 
-    await expect(page.locator('.page-title')).toContainText('经营分析报表中心');
+    // 内嵌报表模式下显示紧凑顶栏
+    await expect(page.locator('.report-center-compact-title')).toContainText('营销线组织绩效IOC平台');
     await expect(page.locator('.page-content')).toContainText('营销线组织绩效IOC平台');
     await expect(page.locator('.page-content iframe')).toBeVisible();
   });
