@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+## [v0.7.18] - 2026-07-30
+
+### Added
+- **新增 2026年营销线H1专项激励名单页面**：位于「评估 → 绩效与激励 → 2026年营销线H1专项激励名单」，11 页幻灯片式公示大屏，支持系统主题/深色大屏切换，内容包含半年度激励数据总览、战区排名、大客户经营能力提升、新产品 TOP 订单奖等。
+  - 新增 `src/incentive-h1-2026.html`。
+  - `vite.config.js` 注册构建入口。
+  - `src/lib/config.js` 在 `rev` 阶段新增「绩效与激励」可折叠分组，注册 `rev/performance-incentive-h1` 页面元数据。
+  - `tests/e2e/navigation.spec.js` 新增 iframe 嵌入导航、独立页面加载、主题切换持久化 3 个用例。
+  - `docs/00-功能全景图.md` 更新绩效与激励模块状态。
+
+### Fixed
+- **修复 OMP 资源配置矩阵成员拖拽排序 E2E**：拖拽前调用 `scrollIntoViewIfNeeded()`，解决 seeded 任务位于视口底缘时 Chromium hit-test 失效导致 `dragstart` 不触发的问题，使 `scripts/release.sh` 全量 E2E gate 重新可用。
+
 ## [v0.7.17] - 2026-07-30
 
 ### Fixed
