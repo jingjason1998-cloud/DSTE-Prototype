@@ -1,6 +1,21 @@
 {
   "versions": [
     {
+      "version": "v0.7.18",
+      "date": "2026-07-30",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**新增 2026年营销线H1专项激励名单页面**：位于「评估 → 绩效与激励 → 2026年营销线H1专项激励名单」，11 页幻灯片式公示大屏，支持系统主题/深色大屏切换，内容包含半年度激励数据总览、战区排名、大客户经营能力提升、新产品 TOP 订单奖等。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复 OMP 资源配置矩阵成员拖拽排序 E2E**：拖拽前调用 `scrollIntoViewIfNeeded()`，解决 seeded 任务位于视口底缘时 Chromium hit-test 失效导致 `dragstart` 不触发的问题，使 `scripts/release.sh` 全量 E2E gate 重新可用。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.17",
       "date": "2026-07-30",
       "status": "released",

@@ -73,6 +73,14 @@
 - **未发布**：改动只在工作区（`assets/css/main.css`、`src/cockpit.html`、`src/pages/marketing-budget/main.js`、`style.css`），未提交、未部署生产（`dste.fineres.com`），仅经隧道在本机 preview 生效
 - **状态**：complete（已随 v0.7.15 发布）
 
+## 2026-07-29（Kimi，修复 omp-matrix 成员拖动排序 E2E）
+- **主题**：修复 v0.7.14 发布时被全量 E2E 卡住的 `tests/e2e/omp-matrix.spec.js:151`「可在成员单元格内左右拖动调整成员顺序」
+- **根因**：测试问题，非产品 bug。seeded 任务是矩阵第 7 行，位于 720px 视口底缘，此时 Chromium 对该位置元素 hit-test 失效（`elementFromPoint` 返回 MAIN 祖先），原生 mouse 事件落不到 chip 上，`dragstart` 不触发，成员顺序不变。同文件 remove-member 用例通过是因为 `locator.click()` 自动滚动入视口
+- **诊断方法**：Playwright 调试脚本逐步验证（dragstart 计数为 0 → elementFromPoint 失效 → `scrollIntoViewIfNeeded()` 后命中并拖拽成功）；注意本仓库有并行会话会 `git clean` 删掉未跟踪临时脚本，调试脚本需放 /tmp 并用绝对路径 import playwright（CJS 默认导出）
+- **修复**：`tests/e2e/omp-matrix.spec.js` 拖拽前加 `cell.scrollIntoViewIfNeeded()`
+- **验证**：`npx playwright test tests/e2e/omp-matrix.spec.js` 5 passed
+- **状态**：complete
+
 ## 2026-07-29（Kimi，营销线预算监控表改为「损益主表 / 图表速览」Tab 布局）
 - **主题**：用户反馈报表中心嵌入的营销线预算执行监控表「没有损益主表的内容」。查证发现损益主表一直在页面里（`renderTableSection`，数据与桌面重塑版 `~/Desktop/损益表重塑/pnl-data.js` 完全一致），只是长滚动布局中排在 KPI 卡片和 4 张图表之后，首屏不可见
 - **操作**：
