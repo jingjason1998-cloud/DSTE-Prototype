@@ -36,7 +36,7 @@
                     window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
                     if (typeof ResizeObserver !== 'undefined') {
                         const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
-                        ro.observe(document.body);
+                        ro.observe(document.documentElement);
                     }
                 }
             }
