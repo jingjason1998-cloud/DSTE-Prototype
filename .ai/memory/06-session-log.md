@@ -2,6 +2,21 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-30（Claude，v0.7.16 热修：嵌入页 ResizeObserver 报错）
+- **主题**：v0.7.15 部署后生产验证发现嵌入页在部分加载时机会抛出 `Failed to execute 'observe' on 'ResizeObserver': parameter 1 is not of type 'Element'`，原因是 `<head>` 中初始化 ResizeObserver 时 `document.body` 尚未解析
+- **操作**：
+  - 修改 10 个外部嵌入页（`src/marketing-budget.html`、`src/meetings.html`、`src/business-topics.html`、`src/reviewer.html`、`src/requirement-pool.html`、`src/rule-engine.html`、`src/employee-directory.html`、`src/strategy-map.html`、`src/strategy-map-list.html`、`src/st-issue-tracking.html`、`src/at-issue-tracking.html`）：`ro.observe(document.body)` → `ro.observe(document.documentElement)`
+  - 版本号：`package.json`/`package-lock.json`/`sonar-project.properties` 0.7.15 → 0.7.16
+  - `CHANGELOG.md`：新增 `v0.7.16 - 2026-07-30` Fixed 条目
+  - 提交 fix、版本 bump、roadmap 数据更新
+  - 手动 build + tag `v0.7.16` + push origin main
+- **验证**：
+  - 本地：`npm run lint` 0 error / `npm run check:scope` ✓ / unit 535 passed / pytest 184 passed / 相关 E2E 33 passed
+  - 全量 E2E：417 passed / 1 failed（`omp-matrix.spec.js:151`，既有问题）
+  - 生产 smoke：报表中心打开营销预算嵌入页无 pageerror，紧凑顶栏/iframe/默认损益主表 tab 均正常
+- **发布**：commit `379a8f4`，tag `v0.7.16`；生产 `https://dste.fineres.com/assets/cockpit-*.js` 版本字符串已更新为 `DSTE Platform v0.7.16`
+- **状态**：complete（v0.7.16 已发布生产）
+
 ## 2026-07-29 ~ 2026-07-30（Claude，v0.7.15 发布：报表中心嵌入体验优化）
 - **主题**：将 2026-07-29 Kimi 会话的报表中心内嵌体验修复发布为 v0.7.15，并统一修正 `package.json`/`package-lock.json`/`sonar-project.properties` 的版本号不一致
 - **操作**：
@@ -13,8 +28,8 @@
   - 提交 roadmap 数据更新
   - 手动 build + tag `v0.7.15` + push origin main，触发 GitHub Actions 部署
 - **验证**：`npm run lint` 0 error / `npm run check:scope` ✓ / unit 535 passed / pytest 184 passed / 相关 E2E 33 passed；全量 E2E 417 passed / 1 failed（`tests/e2e/omp-matrix.spec.js:151`，既有问题，与本次无关）
-- **发布**：commit `a0b0f12`，tag `v0.7.15`；GitHub Actions `Deploy to Production` 待验证
-- **状态**：complete（v0.7.15 已推送，等待生产部署验证）
+- **发布**：commit `a0b0f12`，tag `v0.7.15`；GitHub Actions `Deploy to Production` 已触发，但后续发现嵌入页 ResizeObserver 报错，已随 v0.7.16 修复并重新部署
+- **状态**：complete（v0.7.15 内容已发布，但生产当前版本为 v0.7.16）
 
 ## 2026-07-29（Kimi，报表中心嵌入体验优化：紧凑顶栏 / 隐藏列 / 滚动修复 / 关联举措）
 - **主题**：围绕 `dste.jasonxspace.cc`（Cloudflare Tunnel → 本机 `localhost:3456` vite preview）上报表中心内嵌「营销线预算执行监控表」的一系列 UI/BUG 修复
