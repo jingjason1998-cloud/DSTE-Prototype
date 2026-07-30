@@ -2,6 +2,34 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-29 ~ 2026-07-30（Claude，v0.7.15 发布：报表中心嵌入体验优化）
+- **主题**：将 2026-07-29 Kimi 会话的报表中心内嵌体验修复发布为 v0.7.15，并统一修正 `package.json`/`package-lock.json`/`sonar-project.properties` 的版本号不一致
+- **操作**：
+  - 版本号：`package.json` 0.7.13 → 0.7.15，`package-lock.json` 0.7.11 → 0.7.15，`sonar-project.properties` 0.7.13 → 0.7.15
+  - `CHANGELOG.md`：新增 `v0.7.15 - 2026-07-30` 条目（Changed / Fixed）
+  - 提交功能改动：`fix(report-center)` 报表中心内嵌体验与营销预算表交互修复
+  - 提交版本改动：`chore(release): bump version to 0.7.15`
+  - E2E 适配：`tests/e2e/marketing-budget.spec.js` 适配内嵌模式 `.page-title` 隐藏与 iframe 铺满容器；`tests/e2e/report-center-nav.spec.js` 适配内嵌报表紧凑顶栏；`src/cockpit.html` 增加 `report-center-compact-header/title` 可测试类名
+  - 提交 roadmap 数据更新
+  - 手动 build + tag `v0.7.15` + push origin main，触发 GitHub Actions 部署
+- **验证**：`npm run lint` 0 error / `npm run check:scope` ✓ / unit 535 passed / pytest 184 passed / 相关 E2E 33 passed；全量 E2E 417 passed / 1 failed（`tests/e2e/omp-matrix.spec.js:151`，既有问题，与本次无关）
+- **发布**：commit `a0b0f12`，tag `v0.7.15`；GitHub Actions `Deploy to Production` 待验证
+- **状态**：complete（v0.7.15 已推送，等待生产部署验证）
+
+## 2026-07-29（Kimi，报表中心嵌入体验优化：紧凑顶栏 / 隐藏列 / 滚动修复 / 关联举措）
+- **主题**：围绕 `dste.jasonxspace.cc`（Cloudflare Tunnel → 本机 `localhost:3456` vite preview）上报表中心内嵌「营销线预算执行监控表」的一系列 UI/BUG 修复
+- **操作**：
+  - 站点 502 排查：隧道进程存活但本机 preview 挂了，重新 `npm run preview` 恢复（preview 随 CLI 会话存活，重启电脑/结束会话会再挂）
+  - `src/cockpit.html`：报表中心内嵌模式下，面包屑+大页头+iframe 工具栏三行合并为一条紧凑顶栏（返回报表中心 / 报表名 / 新标签页打开），iframe 占满容器
+  - `src/pages/marketing-budget/style.css`：嵌入模式压缩页头与内边距、隐藏页内重复大标题
+  - 隐藏列功能：`main.js` 新增 `COL_DEFS` + `hiddenCols`（localStorage `dste_marketing_budget_hidden_cols_v1` 持久化），工具栏「隐藏列」下拉勾选，科目名称列固定；表头/表体条件渲染
+  - **图表速览 TAB 无法滚动**：嵌入模式缺 flex 高度约束链，`assets/css/main.css` 的 `[data-embed]` 段补 `display:flex` / `flex:1` / `min-height:0`，`.content-area` 滚动生效（损益主表此前靠表格卡片内部滚动未暴露）
+  - 关联下拉修复：`owner` 为人员对象导致 `[object Object]`，新增 `fmtOwner`（displayName/name 兜底）；种子数据 annual_plan/omp 双来源 + 历史周期残留导致重复，改为按页面年份选择器的年度过滤 `cycleId` 并按名称去重；专题关联复用 `business-topics/year-utils.js` 的 `getTopicYears` 做年度过滤（跨年覆盖当前年度可关联，无年份老数据保留）
+  - 「关联」列改名「关联举措」：单元格改为类型彩色 chip（重点工作/子任务/业务专题图标+名称，最多 2 个 +「+N」）；点击弹浮框——**点单个 chip 只显示该项，点 +N/空白显示全部**；浮框按类型分组、含负责人/进度条，「管理关联 →」直达抽屉 tasks tab；滚动/点外部自动关闭
+- **验证**：均 `npm run build` ✓ + Playwright 无头浏览器截图/断言验证（表头、选项去重、年度过滤、chips、浮框单项/全部、滚动 scrollTop、独立页面回归）；eslint 0 error
+- **未发布**：改动只在工作区（`assets/css/main.css`、`src/cockpit.html`、`src/pages/marketing-budget/main.js`、`style.css`），未提交、未部署生产（`dste.fineres.com`），仅经隧道在本机 preview 生效
+- **状态**：complete（已随 v0.7.15 发布）
+
 ## 2026-07-29（Kimi，营销线预算监控表改为「损益主表 / 图表速览」Tab 布局）
 - **主题**：用户反馈报表中心嵌入的营销线预算执行监控表「没有损益主表的内容」。查证发现损益主表一直在页面里（`renderTableSection`，数据与桌面重塑版 `~/Desktop/损益表重塑/pnl-data.js` 完全一致），只是长滚动布局中排在 KPI 卡片和 4 张图表之后，首屏不可见
 - **操作**：
