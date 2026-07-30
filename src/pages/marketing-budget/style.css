@@ -279,6 +279,46 @@
   flex-wrap: wrap;
 }
 
+/* 隐藏列下拉面板 */
+.budget-cols-dropdown {
+  position: relative;
+}
+
+.budget-cols-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 140px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+}
+
+.budget-cols-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 8px;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.budget-cols-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.budget-cols-item input[type="checkbox"] {
+  accent-color: var(--color-primary);
+}
+
 .budget-table-card {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
@@ -759,3 +799,160 @@
   transform: translateY(12px);
   animation: budget-rise .5s cubic-bezier(.22,.8,.3,1) forwards;
 }
+
+/* ---------- 嵌入报表中心模式：压缩页头，把空间留给正文 ---------- */
+
+[data-embed="true"] .budget-workspace {
+  min-height: auto;
+}
+
+[data-embed="true"] .budget-workspace .page-container {
+  padding: var(--space-3) var(--space-4);
+}
+
+[data-embed="true"] .budget-workspace .page-header {
+  margin-bottom: var(--space-3);
+}
+
+/* 外层紧凑顶栏已显示报表名，嵌入时隐藏页内大标题 */
+[data-embed="true"] .budget-workspace .page-title {
+  display: none;
+}
+
+/* ---------- 关联举措列 chips ---------- */
+
+.budget-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  cursor: pointer;
+  max-width: 240px;
+  vertical-align: middle;
+}
+
+.budget-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 112px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.budget-link-chip.task { background: var(--color-primary-subtle); color: var(--color-primary); }
+.budget-link-chip.subtask { background: var(--color-warning-subtle); color: var(--color-warning); }
+.budget-link-chip.topic { background: var(--color-info-subtle); color: var(--color-primary); }
+.budget-link-chip.more { background: var(--color-bg-hover); color: var(--color-text-secondary); }
+
+.budget-link-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 关联举措浮框 ---------- */
+
+.budget-links-popover {
+  position: fixed;
+  z-index: 1000;
+  width: 300px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  padding: 12px 14px;
+}
+
+.blp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.blp-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex: none;
+}
+
+.blp-subject {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blp-group { margin-top: 8px; }
+
+.blp-group-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.blp-group-title.task { color: var(--color-primary); }
+.blp-group-title.subtask { color: var(--color-warning); }
+.blp-group-title.topic { color: var(--color-primary); }
+
+.blp-item {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--color-bg-page);
+  margin-bottom: 4px;
+}
+
+.blp-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.blp-item-meta {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+
+.blp-item-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-bg-hover);
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.blp-item-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
+
+.blp-manage {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--color-primary);
+  text-align: center;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.blp-manage:hover { background: var(--color-primary-subtle); }

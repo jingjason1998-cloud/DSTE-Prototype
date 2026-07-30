@@ -4410,26 +4410,28 @@
         ` : welcomeContent;
 
         return `
-          ${renderBreadcrumb('经营分析报表中心')}
-          <div class="page-header">
-            <h1 class="page-title"><span class="icon" data-icon="chart-bar" data-icon-size="14"></span> 经营分析报表中心</h1>
-            <div class="page-actions">
-              <span class="text-sm-tertiary">共 ${totalReports} 张报表 · ${REPORT_CATALOG.length} 个分类</span>
+          ${activeReport ? `
+            <!-- 内嵌报表模式：紧凑顶栏，把空间留给报表正文 -->
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <button type="button" onclick="window._reportCenterActiveReport=null; renderReportCenterUI();" class="btn btn-secondary" style="padding: 4px 10px; font-size: 13px;"><span class="icon" data-icon="caret-left" data-icon-size="14"></span> 返回报表中心</button>
+              <div style="font-size: 15px; font-weight: 600; color: var(--text-primary);">${activeReport.name}</div>
+              <a href="${activeReport.url}" target="_blank" style="margin-left: auto; font-size: 12px; color: var(--primary); text-decoration: none;"><span class="icon" data-icon="arrow-square-out" data-icon-size="14"></span> 新标签页打开</a>
             </div>
-          </div>
+          ` : `
+            ${renderBreadcrumb('经营分析报表中心')}
+            <div class="page-header">
+              <h1 class="page-title"><span class="icon" data-icon="chart-bar" data-icon-size="14"></span> 经营分析报表中心</h1>
+              <div class="page-actions">
+                <span class="text-sm-tertiary">共 ${totalReports} 张报表 · ${REPORT_CATALOG.length} 个分类</span>
+              </div>
+            </div>
+          `}
 
           <!-- 右侧内容区全宽显示（左侧目录已移到 sidebar） -->
           <div id="report-center-container" style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-light); overflow: hidden; position: relative; min-height: 500px;">
             <!-- iframe 挂载区 -->
             <div id="report-center-iframe-wrap" style="display: ${activeReport ? 'block' : 'none'}; position: absolute; inset: 0; z-index: 10;">
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--bg-page); border-bottom: 1px solid var(--border-light);">
-                <div style="font-size: 13px; font-weight: 600;">${activeReport ? activeReport.name : ''}</div>
-                <div style="display: flex; gap: 8px;">
-                  <a href="${activeReport ? activeReport.url : ''}" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;"><span class="icon" data-icon="arrow-square-out" data-icon-size="14"></span> 新标签页打开</a>
-                  <button type="button" onclick="window._reportCenterActiveReport=null; renderReportCenterUI();" style="font-size: 12px; color: var(--text-tertiary); background: none; border: none; cursor: pointer;"><span class="icon" data-icon="x" data-icon-size="14"></span> 关闭</button>
-                </div>
-              </div>
-              <div style="position: relative; width: 100%; height: calc(100% - 41px); overflow: hidden;">
+              <div style="position: relative; width: 100%; height: 100%; overflow: hidden;">
                 ${(() => {
                   const iframeSrc = activeReport
                     ? (activeReport.url === 'marketing-budget.html'

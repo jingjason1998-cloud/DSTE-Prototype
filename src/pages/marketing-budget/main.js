@@ -9,14 +9,26 @@ import { PNL_DATA } from './demo-data.js';
 import { parseExcelFile, downloadTemplate, RATIO_ROWS } from './xlsx-parser.js';
 import {
   loadLinkages, saveLinkages, addTaskLink, removeTaskLink,
-  addSubtaskLink, removeSubtaskLink, addTopicLink, removeTopicLink,
-  getLinkCount
+  addSubtaskLink, removeSubtaskLink, addTopicLink, removeTopicLink
 } from './budget-linkage-store.js';
 import { buildGlobalPrompt, buildRowPrompt } from './ai-prompts.js';
+import { getTopicYears } from '../business-topics/year-utils.js';
 
 // ===== 常量 =====
 const LS_DATA_KEY = 'dste_marketing_budget_data_v1';
 const LS_AI_CACHE_KEY = 'dste_budget_ai_cache_v1';
+const LS_COLS_KEY = 'dste_marketing_budget_hidden_cols_v1';
+// 可隐藏列（科目名称列固定显示）
+const COL_DEFS = [
+  { key: 'cur', label: '当月实际' },
+  { key: 'ytd', label: '累计实际' },
+  { key: 'budget', label: '年度预算' },
+  { key: 'rate', label: '完成率' },
+  { key: 'lyYtd', label: '上年同期' },
+  { key: 'yoy', label: '同比变动' },
+  { key: 'fcst', label: '全年预测' },
+  { key: 'links', label: '关联举措' }
+];
 const PACE = 7 / 12;
 const KPI_DEFS = [
   { row: 5, label: '销售额-D' },
@@ -46,6 +58,7 @@ let parentOf = {};            // rowId -> parent rowId
 let parents = [];             // 所有有子节点的行
 let collapsed = {};           // 折叠状态
 let showZero = false;         // 隐藏零行
+let hiddenCols = Storage.get(LS_COLS_KEY, []); // 隐藏列（COL_DEFS key 数组）
 let linkages = {};            // 关联映射
 let allTasks = [];            // OMP 任务（含年度重点、子任务）
 let allTopics = [];           // 业务专题
@@ -93,8 +106,121 @@ function getTaskById(id) {
   return allTasks.find(t => t.id === id);
 }
 
+// owner 可能是字符串或人员对象（{displayName/name}），统一转成显示文本
+function fmtOwner(owner) {
+  if (!owner) return '—';
+  if (typeof owner === 'string') return owner;
+  return owner.displayName || owner.name || '—';
+}
+
 function getTopicById(id) {
   return allTopics.find(t => t.id === id);
+}
+
+// ===== 关联举措（重点工作/子任务/业务专题） =====
+const LINK_TYPE_META = {
+  task: { label: '重点工作', icon: 'clipboard-text' },
+  subtask: { label: '子任务', icon: 'flag' },
+  topic: { label: '业务专题', icon: 'chart-pie-slice' }
+};
+
+// 汇总某科目行的全部关联项，统一成 {type, id, name, owner, progress, extra}
+function getLinkedItems(rowId) {
+  const link = linkages[String(rowId)] || {};
+  const tasks = (link.taskIds || []).map(getTaskById).filter(Boolean)
+    .map(t => ({ type: 'task', id: t.id, name: t.name, owner: fmtOwner(t.owner), progress: t.progress ?? null, status: t.status }));
+  const subtasks = (link.subtaskIds || []).map(getTaskById).filter(Boolean)
+    .map(s => {
+      const parent = getTaskById(s.parentId);
+      return { type: 'subtask', id: s.id, name: s.name, owner: fmtOwner(s.owner), progress: s.progress ?? null, status: s.status, extra: parent ? `所属：${parent.name}` : '' };
+    });
+  const topics = (link.topicIds || []).map(getTopicById).filter(Boolean)
+    .map(t => ({ type: 'topic', id: t.id, name: t.name, owner: fmtOwner(t.owner), progress: t.progress ?? null, status: t.status, extra: t.department || '' }));
+  return [...tasks, ...subtasks, ...topics];
+}
+
+// 表格「关联举措」列：类型图标 + 名称的 chip，最多显示 2 个，超出用 +N 表示
+function renderLinkCell(rowId) {
+  const items = getLinkedItems(rowId);
+  if (!items.length) return '<span class="budget-badge empty">·</span>';
+  const shown = items.slice(0, 2);
+  const rest = items.length - shown.length;
+  return `<span class="budget-links" data-links="${rowId}" title="查看关联举措">
+    ${shown.map(it => `<span class="budget-link-chip ${it.type}" data-item="${it.type}:${escapeHtml(String(it.id))}">${icon(LINK_TYPE_META[it.type].icon, { size: 11 })}<span class="budget-link-chip-name">${escapeHtml(it.name)}</span></span>`).join('')}
+    ${rest > 0 ? `<span class="budget-link-chip more">+${rest}</span>` : ''}
+  </span>`;
+}
+
+// ===== 关联举措浮框 =====
+let linksPopoverEl = null;
+let linksPopoverKey = null; // `${rowId}|${itemKey}`，itemKey 为空表示显示全部
+
+function closeLinksPopover() {
+  if (linksPopoverEl) {
+    linksPopoverEl.remove();
+    linksPopoverEl = null;
+    linksPopoverKey = null;
+  }
+}
+
+// itemKey（"type:id"）存在时只显示该关联项，否则显示全部
+function renderLinksPopover(rowId, itemKey) {
+  let items = getLinkedItems(rowId);
+  if (itemKey) {
+    const sep = itemKey.indexOf(':');
+    const type = itemKey.slice(0, sep);
+    const id = itemKey.slice(sep + 1);
+    items = items.filter(it => it.type === type && String(it.id) === id);
+  }
+  const rowName = rowById[rowId] ? rowById[rowId].name : '';
+  const groups = ['task', 'subtask', 'topic']
+    .map(type => ({ type, items: items.filter(it => it.type === type) }))
+    .filter(g => g.items.length);
+  return `
+    <div class="blp-head">
+      <span class="blp-title">关联举措</span>
+      <span class="blp-subject">${escapeHtml(rowName)}</span>
+    </div>
+    ${groups.map(g => `
+      <div class="blp-group">
+        <div class="blp-group-title ${g.type}">${icon(LINK_TYPE_META[g.type].icon, { size: 12 })} ${LINK_TYPE_META[g.type].label}</div>
+        ${g.items.map(it => `
+          <div class="blp-item">
+            <div class="blp-item-name">${escapeHtml(it.name)}</div>
+            <div class="blp-item-meta">${escapeHtml([it.owner, it.extra].filter(Boolean).join(' · '))}${it.progress !== null ? ` · ${it.progress}%` : ''}</div>
+            ${it.progress !== null ? `<div class="blp-item-bar"><i style="width:${Math.min(it.progress, 100)}%"></i></div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `).join('')}
+    <button type="button" class="blp-manage" data-links-drawer="${rowId}">管理关联 →</button>
+  `;
+}
+
+function toggleLinksPopover(rowId, itemKey) {
+  const key = `${rowId}|${itemKey || ''}`;
+  if (linksPopoverKey === key) {
+    closeLinksPopover();
+    return;
+  }
+  closeLinksPopover();
+  const anchor = document.querySelector(`[data-links="${rowId}"]`);
+  if (!anchor) return;
+  const el = document.createElement('div');
+  el.className = 'budget-links-popover';
+  el.innerHTML = renderLinksPopover(rowId, itemKey);
+  document.body.appendChild(el);
+  // 定位：锚点下方右对齐，溢出时翻转到上方/夹紧到视口内
+  const rect = anchor.getBoundingClientRect();
+  const pw = el.offsetWidth;
+  const ph = el.offsetHeight;
+  const left = Math.max(8, Math.min(rect.right - pw, window.innerWidth - pw - 8));
+  let top = rect.bottom + 6;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, rect.top - ph - 6);
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+  linksPopoverEl = el;
+  linksPopoverKey = key;
 }
 
 function getProgressRecords(taskId) {
@@ -353,29 +479,39 @@ function renderTableSection() {
         <span class="track"></span>
         <span>隐藏零行</span>
       </label>
+      <div class="budget-cols-dropdown" id="colsDropdown">
+        <button class="btn btn-sm btn-ghost" data-action="toggle-cols-panel"><span class="icon" data-icon="eye-slash" data-icon-size="14"></span> 隐藏列</button>
+        <div class="budget-cols-panel" id="colsPanel" style="display: none;">
+          ${COL_DEFS.map(c => `
+            <label class="budget-cols-item">
+              <input type="checkbox" data-col="${c.key}" ${hiddenCols.includes(c.key) ? '' : 'checked'}>
+              <span>${c.label}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
       <div class="spacer"></div>
       <span class="text-sm-tertiary">共 ${rows.length} 行 · 已折叠 ${Object.keys(collapsed).length} 个节点</span>
     </div>
     <div class="budget-table-card">
       <div class="budget-table-scroll">
         <table class="budget-table data-table">
-          <thead>
-            <tr>
-              <th>科目名称</th>
-              <th>当月实际</th>
-              <th>累计实际</th>
-              <th>年度预算</th>
-              <th>完成率</th>
-              <th>上年同期</th>
-              <th>同比变动</th>
-              <th>全年预测</th>
-              <th>关联</th>
-            </tr>
+          <thead id="budget-thead">
+            ${renderTableHeadRow()}
           </thead>
           <tbody id="budget-tbody">${renderTableRows()}</tbody>
         </table>
       </div>
     </div>
+  `;
+}
+
+function renderTableHeadRow() {
+  return `
+    <tr>
+      <th>科目名称</th>
+      ${COL_DEFS.filter(c => !hiddenCols.includes(c.key)).map(c => `<th>${c.label}</th>`).join('')}
+    </tr>
   `;
 }
 
@@ -390,7 +526,20 @@ function renderTableRows() {
     if (hasKids && !isCollapsed) cls.push('expanded');
     if (isZeroRow(r)) cls.push('zero-row');
     const indent = (r.level - 1) * 18;
-    const count = getLinkCount(linkages, r.row);
+    const cellByKey = {
+      cur: () => fmtCell(r, r.cur),
+      ytd: () => fmtCell(r, r.ytd),
+      budget: () => fmtCell(r, r.budget),
+      rate: () => renderRateCell(r),
+      lyYtd: () => fmtCell(r, r.lyYtd),
+      yoy: () => renderYoyCell(r),
+      fcst: () => fmtCell(r, r.fcst),
+      links: () => renderLinkCell(r.row)
+    };
+    const dataCells = COL_DEFS
+      .filter(c => !hiddenCols.includes(c.key))
+      .map(c => `<td>${cellByKey[c.key]()}</td>`)
+      .join('');
     return `
       <tr class="${cls.join(' ')}" data-row="${r.row}">
         <td>
@@ -399,14 +548,7 @@ function renderTableRows() {
             <span>${escapeHtml(r.name)}</span>
           </span>
         </td>
-        <td>${fmtCell(r, r.cur)}</td>
-        <td>${fmtCell(r, r.ytd)}</td>
-        <td>${fmtCell(r, r.budget)}</td>
-        <td>${renderRateCell(r)}</td>
-        <td>${fmtCell(r, r.lyYtd)}</td>
-        <td>${renderYoyCell(r)}</td>
-        <td>${fmtCell(r, r.fcst)}</td>
-        <td>${count ? `<span class="budget-badge">${count}</span>` : '<span class="budget-badge empty">·</span>'}</td>
+        ${dataCells}
       </tr>
     `;
   }).join('');
@@ -440,6 +582,8 @@ function renderYoyCell(r) {
 function bindEvents() {
   document.addEventListener('click', handleClick);
   document.addEventListener('change', handleChange);
+  // 滚动时关闭关联举措浮框，避免浮框与锚点错位
+  document.addEventListener('scroll', closeLinksPopover, true);
 
   // 上传拖拽
   const dropzone = document.getElementById('uploadDropzone');
@@ -463,6 +607,37 @@ function bindEvents() {
 
 function handleClick(e) {
   const target = e.target;
+
+  // 隐藏列面板：点击面板外部时关闭
+  const colsPanel = document.getElementById('colsPanel');
+  if (colsPanel && colsPanel.style.display !== 'none' && !target.closest('#colsDropdown')) {
+    colsPanel.style.display = 'none';
+  }
+
+  // 关联举措浮框：点击浮框/单元格外部时关闭
+  if (linksPopoverEl && !target.closest('.budget-links-popover') && !target.closest('[data-links]')) {
+    closeLinksPopover();
+  }
+
+  // 浮框内「管理关联」：打开抽屉并跳到重点工作 tab
+  const linksDrawer = target.closest('[data-links-drawer]');
+  if (linksDrawer) {
+    e.stopPropagation();
+    const rowId = Number(linksDrawer.getAttribute('data-links-drawer'));
+    closeLinksPopover();
+    openDrawer(rowId);
+    switchDrawerTab('tasks');
+    return;
+  }
+
+  // 关联举措单元格：点 chip 只显示该项，点 +N 或空白处显示全部（不触发行点击打开抽屉）
+  const linksCell = target.closest('[data-links]');
+  if (linksCell) {
+    e.stopPropagation();
+    const itemChip = target.closest('[data-item]');
+    toggleLinksPopover(Number(linksCell.getAttribute('data-links')), itemChip ? itemChip.getAttribute('data-item') : null);
+    return;
+  }
 
   // 树表折叠
   const tw = target.closest('[data-toggle]');
@@ -497,6 +672,11 @@ function handleClick(e) {
         parents.forEach(r => { if (r.level >= 2) collapsed[r.row] = true; });
         renderTableOnly();
         break;
+      case 'toggle-cols-panel': {
+        const panel = document.getElementById('colsPanel');
+        if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        break;
+      }
       case 'open-upload':
         openUploadModal();
         break;
@@ -563,6 +743,15 @@ function handleChange(e) {
   if (target.id === 'budgetYearSelect') {
     // 年度切换：目前仅更新展示，数据仍为 demo/上传数据
     showToast(`已切换至 ${target.value} 年度视图`, 'info');
+  }
+  // 隐藏列勾选（勾选=显示），只重渲染表头与表体，面板保持打开
+  const colKey = target.getAttribute && target.getAttribute('data-col');
+  if (colKey) {
+    hiddenCols = target.checked ? hiddenCols.filter(k => k !== colKey) : [...hiddenCols, colKey];
+    Storage.set(LS_COLS_KEY, hiddenCols);
+    const thead = document.getElementById('budget-thead');
+    if (thead) thead.innerHTML = renderTableHeadRow();
+    renderTableOnly();
   }
 }
 
@@ -715,8 +904,21 @@ function renderDrawerTasksTab(r) {
     return { ...s, taskName: parent ? parent.name : '未知重点工作' };
   }).filter(Boolean);
 
-  const availableTasks = allTasks.filter(t => !t.parentId && !link.taskIds.includes(t.id));
-  const availableSubtasks = allTasks.filter(t => t.parentId && !link.subtaskIds.includes(t.id));
+  // 只展示当前年度周期的任务；同一工作可能同时存在 annual_plan / omp 两个来源（或历史周期残留），按名称去重
+  const selectedYear = document.getElementById('budgetYearSelect')?.value || String(new Date().getFullYear());
+  const inCycle = allTasks.filter(t => !t.cycleId || String(t.cycleId).includes(selectedYear));
+  const pool = inCycle.length ? inCycle : allTasks;
+  const dedupe = (list, keyFn) => {
+    const seen = new Set();
+    return list.filter(t => {
+      const k = keyFn(t);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  };
+  const availableTasks = dedupe(pool.filter(t => !t.parentId && !link.taskIds.includes(t.id)), t => t.name);
+  const availableSubtasks = dedupe(pool.filter(t => t.parentId && !link.subtaskIds.includes(t.id)), s => `${s.parentId}|${s.name}`);
 
   let html = `
     <div class="budget-drawer-section">
@@ -725,7 +927,7 @@ function renderDrawerTasksTab(r) {
         <label>添加重点工作</label>
         <select id="addTaskSelect">
           <option value="">— 请选择 —</option>
-          ${availableTasks.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} · ${escapeHtml(t.owner || '—')}</option>`).join('')}
+          ${availableTasks.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} · ${escapeHtml(fmtOwner(t.owner))}</option>`).join('')}
         </select>
         <button type="button" class="btn btn-sm btn-primary" data-add-link="task">+ 添加</button>
       </div>
@@ -754,7 +956,13 @@ function renderDrawerTasksTab(r) {
 function renderDrawerTopicsTab(r) {
   const link = linkages[String(r.row)] || { topicIds: [] };
   const linkedTopics = link.topicIds.map(id => getTopicById(id)).filter(Boolean);
-  const availableTopics = allTopics.filter(t => !link.topicIds.includes(t.id));
+  // 年度一致：只关联当前年度（页面年份选择器）的专题；无年份信息的老数据保留可见
+  const selectedYear = document.getElementById('budgetYearSelect')?.value || String(new Date().getFullYear());
+  const availableTopics = allTopics.filter(t => {
+    if (link.topicIds.includes(t.id)) return false;
+    const years = getTopicYears(t);
+    return years.size === 0 || years.has(selectedYear);
+  });
 
   return `
     <div class="budget-drawer-section">
@@ -763,7 +971,7 @@ function renderDrawerTopicsTab(r) {
         <label>添加业务专题</label>
         <select id="addTopicSelect">
           <option value="">— 请选择 —</option>
-          ${availableTopics.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} · ${escapeHtml(t.department || '—')} · ${escapeHtml(t.owner || '—')}</option>`).join('')}
+          ${availableTopics.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} · ${escapeHtml(t.department || '—')} · ${escapeHtml(fmtOwner(t.owner))}</option>`).join('')}
         </select>
         <button type="button" class="btn btn-sm btn-primary" data-add-link="topic">+ 添加</button>
       </div>
@@ -791,7 +999,7 @@ function renderTaskCard(t) {
         <button class="icon-btn danger" data-remove-link="task" data-id="${escapeHtml(t.id)}" title="移除"><span class="icon" data-icon="x" data-icon-size="14"></span></button>
       </div>
       <div class="budget-link-card-meta">
-        <span>负责人：${escapeHtml(t.owner || '—')}</span>
+        <span>负责人：${escapeHtml(fmtOwner(t.owner))}</span>
         <span>部门：${escapeHtml(t.dept || '—')}</span>
         <span class="budget-status-tag ${statusClass}">${escapeHtml(statusLabel)}</span>
       </div>
@@ -815,7 +1023,7 @@ function renderSubtaskCard(s) {
       </div>
       <div class="budget-link-card-meta">
         <span>所属重点工作：${escapeHtml(s.taskName)}</span>
-        <span>负责人：${escapeHtml(s.owner || '—')}</span>
+        <span>负责人：${escapeHtml(fmtOwner(s.owner))}</span>
         <span class="budget-status-tag ${statusClass}">${escapeHtml(statusLabel)}</span>
       </div>
       <div class="budget-link-card-progress">
@@ -837,7 +1045,7 @@ function renderTopicCard(t) {
         <button class="icon-btn danger" data-remove-link="topic" data-id="${escapeHtml(t.id)}" title="移除"><span class="icon" data-icon="x" data-icon-size="14"></span></button>
       </div>
       <div class="budget-link-card-meta">
-        <span>负责人：${escapeHtml(t.owner || '—')}</span>
+        <span>负责人：${escapeHtml(fmtOwner(t.owner))}</span>
         <span>部门：${escapeHtml(t.department || '—')}</span>
         <span>优先级：${escapeHtml(t.priority || '—')}</span>
         <span class="budget-status-tag ${statusClass}">${escapeHtml(statusLabel)}</span>

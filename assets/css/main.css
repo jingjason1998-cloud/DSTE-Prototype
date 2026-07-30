@@ -802,17 +802,24 @@ body {
 }
 
 [data-embed="true"] .app {
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
 }
 
 [data-embed="true"] .app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
 }
 
 [data-embed="true"] .content-area {
+  flex: 1;
+  min-height: 0;
   margin-left: 0;
   width: 100%;
   max-width: 100%;
