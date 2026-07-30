@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2026 H1 专项激励发放公示 - DSTE战略管理平台</title>
+    <link rel="stylesheet" href="../assets/css/tokens.css">
+    <script>
+        // 主题初始化：系统亮/暗主题 + 页面风格（system=DSTE 主题风格 / dark=深色大屏）
+        // 必须在样式生效前同步设置，避免闪烁
+        (function() {
+            function applySystemTheme() {
+                let theme = 'light';
+                try { theme = localStorage.getItem('dste-theme') || 'light'; } catch (e) {}
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+            function applyDeckTheme() {
+                let deck = 'system';
+                try { deck = localStorage.getItem('dste-incentive-deck-theme') || 'system'; } catch (e) {}
+                document.documentElement.setAttribute('data-deck-theme', deck);
+            }
+            applySystemTheme();
+            applyDeckTheme();
+            // 驾驶舱（父窗口）切换亮/暗主题时，通过共享 localStorage 同步
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'dste-theme') applySystemTheme();
+                if (e.key === 'dste-incentive-deck-theme') applyDeckTheme();
+            });
+            window.__applyDeckTheme = applyDeckTheme;
+        })();
+    </script>
+    <script>
+        // 嵌入模式标记：与系统其他独立页面一致，cockpit 工作区 iframe 以 ?embed=1 加载
+        (function() {
+            if (new URLSearchParams(location.search).get('embed') === '1') {
+                document.documentElement.setAttribute('data-embed', 'true');
+            }
+        })();
+    </script>
+    <script>
+        // CAS 回调处理（与 marketing-budget.html 等独立页面一致）
+        (function() {
+            'use strict';
+            const CAS_REDIRECT_HISTORY_KEY = 'dste-cas-redirect-history';
+
+            function clearCasRedirectHistory() {
+                try { sessionStorage.removeItem(CAS_REDIRECT_HISTORY_KEY); } catch (e) {}
+            }
+
+            async function handleCasCallback() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const ticket = urlParams.get('ticket');
+                if (!ticket) return false;
+
+                const cleanUrl = window.location.pathname + window.location.hash;
+                history.replaceState(null, '', cleanUrl);
+
+                try {
+                    const service = encodeURIComponent(window.location.origin + '/src/cockpit.html');
+                    const resp = await fetch(`/api/auth/cas/validate?ticket=${encodeURIComponent(ticket)}&service=${service}`);
+                    if (!resp.ok) throw new Error('CAS 验证失败');
+                    const data = await resp.json();
+                    if (data.success && data.token) {
+                        localStorage.setItem('dste-token', data.token);
+                        localStorage.setItem('dste-user', data.user?.name || data.user?.username || '');
+                        sessionStorage.setItem('dste-user', data.user?.name || data.user?.username || '');
+                        sessionStorage.setItem('dste-cas-login-at', String(Date.now()));
+                        clearCasRedirectHistory();
+                    }
+                } catch (err) {
+                    console.error('[Auth]', err);
+                }
+                return true;
+            }
+
+            handleCasCallback();
+        })();
+    </script>
+    <style>
+        :root {
+            --bg-deep: #050714;
+            --bg-card: rgba(18, 24, 48, 0.72);
+            --gold: #f59e0b;
+            --gold-light: #fbbf24;
+            --red: #ef4444;
+            --red-dark: #dc2626;
+            --text: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(255, 255, 255, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text);
+        }
+
+        /* 背景光效 */
+        .bg-effects {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.35;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, #f59e0b 0%, transparent 70%);
+            top: -200px;
+            right: -150px;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, #dc2626 0%, transparent 70%);
+            bottom: -150px;
+            left: -100px;
+            animation-delay: -7s;
+        }
+
+        .orb-3 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -12s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -40px) scale(1.05); }
+            66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+
+        .grid-overlay {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
+        }
+
+        /* 幻灯片容器 */
+        .deck {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 4vh 5vw;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(40px) scale(0.96);
+            transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+
+        .slide.prev {
+            transform: translateY(-60px) scale(0.96);
+            opacity: 0;
+        }
+
+        .slide-content {
+            width: 100%;
+            max-width: 1500px;
+            height: 100%;
+            max-height: 900px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide-header {
+            text-align: center;
+            margin-bottom: 3vh;
+        }
+
+        .kicker {
+            display: inline-block;
+            font-size: clamp(11px, 1.1vw, 15px);
+            letter-spacing: 0.25em;
+            color: var(--gold);
+            text-transform: uppercase;
+            margin-bottom: 1.2vh;
+            font-weight: 600;
+        }
+
+        .slide-title {
+            font-size: clamp(28px, 4vw, 60px);
+            font-weight: 800;
+            line-height: 1.15;
+            background: linear-gradient(135deg, #fff 0%, #fbbf24 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide-subtitle {
+            font-size: clamp(13px, 1.4vw, 20px);
+            color: var(--text-secondary);
+            margin-top: 1.2vh;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* 封面 */
+        .cover .slide-content {
+            align-items: center;
+            text-align: center;
+        }
+
+        .cover-badge {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, var(--gold), var(--red), var(--gold));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 3vh;
+            animation: rotate 8s linear infinite;
+            box-shadow: 0 0 60px rgba(245, 158, 11, 0.3);
+        }
+
+        .cover-badge-inner {
+            width: 94px;
+            height: 94px;
+            border-radius: 50%;
+            background: var(--bg-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            animation: rotate 8s linear infinite reverse;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .cover-title {
+            font-size: clamp(44px, 8vw, 110px);
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            margin-bottom: 2vh;
+        }
+
+        .cover-title span {
+            display: block;
+            background: linear-gradient(135deg, #fff 0%, var(--gold-light) 50%, var(--red) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cover-subtitle {
+            font-size: clamp(16px, 2.2vw, 32px);
+            color: var(--text-secondary);
+            font-weight: 300;
+            letter-spacing: 0.1em;
+        }
+
+        .cover-meta {
+            margin-top: 5vh;
+            display: flex;
+            gap: 2vw;
+            font-size: clamp(11px, 1.1vw, 15px);
+            color: var(--text-secondary);
+        }
+
+        .cover-meta div {
+            padding: 1vh 2vw;
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 数据卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5vw;
+            margin-bottom: 3vh;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5vh 1.5vw;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: clamp(28px, 3.6vw, 52px);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--gold-light), var(--red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: clamp(11px, 1.1vw, 15px);
+            color: var(--text-secondary);
+            margin-top: 0.8vh;
+        }
+
+        /* 图表 */
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5vh 3vw;
+            backdrop-filter: blur(20px);
+        }
+
+        .chart-title {
+            font-size: clamp(15px, 1.5vw, 21px);
+            font-weight: 700;
+            margin-bottom: 2.5vh;
+            text-align: center;
+        }
+
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 1.3vh;
+        }
+
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 1.2vw;
+        }
+
+        .bar-label {
+            width: 16vw;
+            max-width: 200px;
+            font-size: clamp(11px, 1.1vw, 15px);
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .bar-track {
+            flex: 1;
+            height: 2.8vh;
+            min-height: 26px;
+            background: var(--glass);
+            border-radius: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            width: 0;
+            transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 1vw;
+        }
+
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .bar-value {
+            position: absolute;
+            right: -5.5vw;
+            font-size: clamp(11px, 1.1vw, 15px);
+            font-weight: 700;
+            color: var(--gold-light);
+            white-space: nowrap;
+        }
+
+        /* 通用标签 */
+        .section-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5vw;
+            padding: 0.6vh 1.2vw;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 100px;
+            color: var(--gold-light);
+            font-size: clamp(11px, 1vw, 13px);
+            font-weight: 600;
+            width: fit-content;
+            margin-bottom: 1.5vh;
+        }
+
+        .section-tag .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--gold-light);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
+        /* 集成卡片：事情 + 客户 + 人 */
+        .integrated-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.2vh;
+        }
+
+        .integrated-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 2vh 1.2vw;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .integrated-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(245, 158, 11, 0.25);
+        }
+
+        .integrated-title {
+            font-size: clamp(16px, 1.8vw, 24px);
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 0.5vh;
+            line-height: 1.25;
+        }
+
+        .integrated-subtitle {
+            font-size: clamp(11px, 1vw, 14px);
+            color: var(--gold-light);
+            font-weight: 600;
+            margin-bottom: 1.2vh;
+            line-height: 1.4;
+        }
+
+        .integrated-people {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+            margin-top: auto;
+        }
+
+        .integrated-person {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: clamp(12px, 1.1vw, 15px);
+            padding: 0.5vh 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .integrated-person-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1vh;
+        }
+
+        .integrated-person-name {
+            font-weight: 700;
+            line-height: 1.2;
+            font-size: clamp(12px, 1.1vw, 15px);
+        }
+
+        .integrated-person-role {
+            font-size: clamp(9px, 0.8vw, 11px);
+            color: var(--text-secondary);
+        }
+
+        .integrated-person-amount {
+            font-weight: 800;
+            color: var(--gold-light);
+            white-space: nowrap;
+            font-size: clamp(13px, 1.2vw, 16px);
+        }
+
+        /* 新产品：JDY | RANK | FDL 排名行布局 */
+        .product-rank-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+            width: 100%;
+        }
+
+        .rank-row {
+            display: grid;
+            grid-template-columns: 1fr 90px 1fr;
+            gap: 1vw;
+            align-items: stretch;
+        }
+
+        .order-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.2vh 1.2vw;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            gap: 0.4vh;
+            transition: all 0.3s ease;
+        }
+
+        .order-card:hover {
+            border-color: rgba(245, 158, 11, 0.25);
+        }
+
+        .order-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.5vw;
+        }
+
+        .order-customer {
+            font-size: clamp(12px, 1.1vw, 15px);
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.25;
+            flex: 1;
+        }
+
+        .order-incentive-box {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.1vh;
+        }
+
+        .order-incentive-label {
+            font-size: clamp(9px, 0.75vw, 11px);
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .order-incentive {
+            font-size: clamp(15px, 1.3vw, 19px);
+            font-weight: 800;
+            color: var(--gold-light);
+            white-space: nowrap;
+        }
+
+        .order-deal {
+            font-size: clamp(11px, 1vw, 13px);
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .order-people {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3vh 1vw;
+            margin-top: 0.2vh;
+        }
+
+        .order-person {
+            font-size: clamp(10px, 0.9vw, 12px);
+            color: var(--text);
+        }
+
+        .order-person strong {
+            color: var(--gold-light);
+            font-weight: 800;
+        }
+
+        .rank-label {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(16px, 1.8vw, 24px);
+            font-weight: 900;
+            color: var(--gold-light);
+            backdrop-filter: blur(20px);
+        }
+
+        /* SP 活动卡片 */
+        .sp-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 1.5vw;
+            align-items: stretch;
+        }
+
+        .sp-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2vh 1.5vw;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .sp-card:hover {
+            border-color: rgba(245, 158, 11, 0.25);
+        }
+
+        .sp-card.featured {
+            border-color: rgba(245, 158, 11, 0.3);
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.1);
+        }
+
+        .sp-header {
+            margin-bottom: 1.5vh;
+        }
+
+        .sp-activity {
+            font-size: clamp(14px, 1.4vw, 20px);
+            font-weight: 800;
+            color: var(--gold-light);
+            margin-bottom: 0.4vh;
+            line-height: 1.3;
+        }
+
+        .sp-meta {
+            font-size: clamp(11px, 1vw, 13px);
+            color: var(--text-secondary);
+        }
+
+        .sp-people {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            gap: 0.6vh;
+        }
+
+        .sp-people.grid-2x2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1vh;
+        }
+
+        .sp-person {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 0.15vh;
+            font-size: clamp(11px, 1vw, 13px);
+            padding: 0.5vh 0;
+        }
+
+        .sp-person-team {
+            font-size: clamp(9px, 0.8vw, 11px);
+            color: var(--text-secondary);
+        }
+
+        .sp-person-amount {
+            font-weight: 800;
+            color: var(--gold-light);
+            margin-top: 0.2vh;
+        }
+
+        /* 领奖台 - 无排名，等高铁三角 */
+        .podium {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            gap: 2.5vw;
+            height: auto;
+            min-height: 0;
+        }
+
+        .podium-item {
+            flex: 1;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .podium-bar {
+            width: 100%;
+            min-height: 220px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3vh 2vw;
+            background: var(--bg-card);
+            border: 2px solid rgba(245, 158, 11, 0.3);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .podium-bar:hover {
+            transform: translateY(-5px);
+            border-color: rgba(245, 158, 11, 0.5);
+            box-shadow: 0 0 60px rgba(245, 158, 11, 0.2);
+        }
+
+        .podium-name {
+            font-size: clamp(24px, 3vw, 42px);
+            font-weight: 800;
+            margin-bottom: 1.5vh;
+            text-align: center;
+        }
+
+        .podium-amount {
+            font-size: clamp(28px, 3.5vw, 48px);
+            font-weight: 900;
+            color: var(--gold-light);
+        }
+
+        .podium-note {
+            font-size: clamp(12px, 1.2vw, 16px);
+            color: var(--text-secondary);
+            margin-top: 1.5vh;
+            text-align: center;
+        }
+
+        /* 战区颁奖页 */
+        .warzone-slide .slide-content {
+            align-items: center;
+            text-align: center;
+        }
+
+        .warzone-reveal {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3vh;
+        }
+
+        .rank-medal {
+            width: clamp(120px, 15vw, 180px);
+            height: clamp(120px, 15vw, 180px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(32px, 4vw, 56px);
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 0 60px rgba(0,0,0,0.3), inset 0 0 30px rgba(255,255,255,0.2);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .rank-medal::before {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .rank-medal.bronze {
+            background: linear-gradient(135deg, #d4a574, #8b5a2b);
+            box-shadow: 0 0 60px rgba(212, 165, 116, 0.4), inset 0 0 30px rgba(255,255,255,0.2);
+        }
+
+        .rank-medal.silver {
+            background: linear-gradient(135deg, #e2e8f0, #64748b);
+            box-shadow: 0 0 60px rgba(226, 232, 240, 0.4), inset 0 0 30px rgba(255,255,255,0.2);
+        }
+
+        .rank-medal.gold {
+            background: linear-gradient(135deg, #fbbf24, #d97706);
+            box-shadow: 0 0 80px rgba(251, 191, 36, 0.5), inset 0 0 30px rgba(255,255,255,0.2);
+        }
+
+        .warzone-name {
+            font-family: "STXingkai", "Xingkai SC", "KaiTi", "LiSu", "PingFang SC", "Microsoft YaHei", cursive;
+            font-size: clamp(72px, 14vw, 180px);
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.1em;
+            line-height: 1.1;
+            text-shadow: 0 4px 30px rgba(245, 158, 11, 0.35);
+            transform: rotate(-2deg);
+            margin: -1vh 0;
+            position: relative;
+        }
+
+        .warzone-name::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: -1vh;
+            transform: translateX(-50%);
+            width: 70%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--gold-light), transparent);
+            border-radius: 2px;
+            opacity: 0.7;
+        }
+
+        .warzone-amount {
+            font-size: clamp(28px, 4vw, 52px);
+            font-weight: 800;
+            color: var(--gold-light);
+        }
+
+        .warzone-note {
+            font-size: clamp(14px, 1.5vw, 20px);
+            color: var(--text-secondary);
+            max-width: 640px;
+            line-height: 1.8;
+        }
+
+        /* 数字人才 */
+        .digital-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2vw;
+            width: 100%;
+        }
+
+        .digital-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5vh 2vw;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .digital-title {
+            font-size: clamp(18px, 2vw, 28px);
+            font-weight: 800;
+            margin-bottom: 0.6vh;
+            color: var(--gold-light);
+        }
+
+        .digital-desc {
+            font-size: clamp(12px, 1.1vw, 15px);
+            color: var(--text-secondary);
+            margin-bottom: 1.5vh;
+            line-height: 1.6;
+        }
+
+        .digital-people {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1vh;
+            margin-top: auto;
+        }
+
+        .digital-person {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5vh 1vw;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .digital-person:hover {
+            border-color: rgba(245, 158, 11, 0.25);
+        }
+
+        .digital-person-customer {
+            font-size: clamp(10px, 0.9vw, 12px);
+            font-weight: 700;
+            color: var(--gold-light);
+            margin-bottom: 0.4vh;
+            line-height: 1.3;
+        }
+
+        .digital-person-name {
+            font-size: clamp(12px, 1.1vw, 15px);
+            font-weight: 700;
+            margin-bottom: 0.3vh;
+        }
+
+        .digital-person-meta {
+            font-size: clamp(10px, 0.85vw, 11px);
+            color: var(--text-secondary);
+            margin-bottom: 0.5vh;
+        }
+
+        .digital-person-amount {
+            font-size: clamp(13px, 1.1vw, 16px);
+            font-weight: 800;
+            color: var(--gold-light);
+        }
+
+        /* 结尾 */
+        .ending .slide-content {
+            align-items: center;
+            text-align: center;
+        }
+
+        .ending-title {
+            font-size: clamp(36px, 6vw, 80px);
+            font-weight: 900;
+            margin-bottom: 3vh;
+        }
+
+        .ending-subtitle {
+            font-size: clamp(16px, 2vw, 28px);
+            color: var(--text-secondary);
+            margin-bottom: 5vh;
+        }
+
+        .ending-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 1vw;
+            padding: 2vh 4vw;
+            background: linear-gradient(135deg, var(--red-dark), var(--red));
+            border-radius: 100px;
+            font-size: clamp(14px, 1.6vw, 22px);
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* 导航 */
+        .nav-hint {
+            position: fixed;
+            bottom: 3vh;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1vh;
+            color: var(--text-secondary);
+            font-size: 12px;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .nav-arrows {
+            display: flex;
+            gap: 2vw;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--gold), var(--red));
+            z-index: 100;
+            transition: width 0.5s ease;
+        }
+
+        .slide-dots {
+            position: fixed;
+            right: 2vw;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2vh;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background: var(--gold);
+            transform: scale(1.4);
+            box-shadow: 0 0 10px var(--gold);
+        }
+
+        .page-counter {
+            position: fixed;
+            top: 3vh;
+            right: 3vw;
+            z-index: 100;
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .page-counter span {
+            color: var(--gold-light);
+            font-size: 1.4em;
+        }
+
+        /* 动画类 */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(25px);
+            transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .active .fade-up {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .delay-1 { transition-delay: 0.1s; }
+        .delay-2 { transition-delay: 0.2s; }
+        .delay-3 { transition-delay: 0.3s; }
+        .delay-4 { transition-delay: 0.4s; }
+        .delay-5 { transition-delay: 0.5s; }
+        .delay-6 { transition-delay: 0.6s; }
+
+        /* 彩带 */
+        .confetti-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            overflow: hidden;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            animation: confetti-fall linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .integrated-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .sp-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .rank-row {
+                grid-template-columns: 1fr;
+                gap: 1vh;
+            }
+
+            .rank-label {
+                padding: 1vh 0;
+                order: -1;
+            }
+
+            .digital-split {
+                grid-template-columns: 1fr;
+                gap: 2vh;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .podium {
+                height: 28vh;
+                min-height: 220px;
+            }
+
+            .bar-label {
+                width: 28vw;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .slide {
+                padding: 3vh 4vw;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 2vh;
+            }
+
+            .podium {
+                gap: 3vw;
+            }
+
+            .podium-bar {
+                padding: 1.5vh 2vw;
+            }
+
+            .slide-dots {
+                display: none;
+            }
+
+            .integrated-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===== 页面风格切换器 ===== */
+        .deck-theme-toggle {
+            position: fixed;
+            top: 3vh;
+            left: 3vw;
+            z-index: 100;
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            backdrop-filter: blur(10px);
+        }
+
+        .deck-theme-toggle button {
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 14px;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .deck-theme-toggle button.active {
+            background: var(--gold-light);
+            color: var(--bg-deep);
+        }
+
+        /* ===== DSTE 系统主题风格（data-deck-theme="system"） ===== */
+        html[data-deck-theme="system"] {
+            --bg-deep: var(--color-bg-page);
+            --bg-card: var(--color-bg-surface);
+            --gold: var(--color-primary);
+            --gold-light: var(--color-primary);
+            --red: var(--color-danger);
+            --red-dark: var(--color-danger-active);
+            --text: var(--color-text-primary);
+            --text-secondary: var(--color-text-secondary);
+            --border: var(--color-border-default);
+            --glass: var(--color-bg-hover);
+        }
+
+        html[data-deck-theme="system"] body {
+            font-family: var(--font-sans);
+        }
+
+        /* 光效与网格在系统主题下减弱 */
+        html[data-deck-theme="system"] .orb {
+            opacity: 0.12;
+        }
+
+        html[data-deck-theme="system"][data-theme="dark"] .orb {
+            opacity: 0.28;
+        }
+
+        html[data-deck-theme="system"] .grid-overlay {
+            background-image:
+                linear-gradient(rgba(128, 128, 128, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(128, 128, 128, 0.08) 1px, transparent 1px);
+        }
+
+        /* 渐变文字在浅色背景下不可读，系统主题改为实色 */
+        html[data-deck-theme="system"] .slide-title,
+        html[data-deck-theme="system"] .cover-title span,
+        html[data-deck-theme="system"] .integrated-title,
+        html[data-deck-theme="system"] .order-customer {
+            background: none;
+            -webkit-text-fill-color: currentColor;
+            color: var(--text);
+        }
+
+        html[data-deck-theme="system"] .stat-value {
+            background: none;
+            -webkit-text-fill-color: currentColor;
+            color: var(--color-primary);
+        }
+
+        html[data-deck-theme="system"] .warzone-name {
+            color: var(--text);
+            text-shadow: none;
+        }
+
+        /* 卡片统一为系统表面 + 轻阴影 */
+        html[data-deck-theme="system"] .stat-card,
+        html[data-deck-theme="system"] .chart-container,
+        html[data-deck-theme="system"] .integrated-card,
+        html[data-deck-theme="system"] .order-card,
+        html[data-deck-theme="system"] .rank-label,
+        html[data-deck-theme="system"] .sp-card,
+        html[data-deck-theme="system"] .digital-section,
+        html[data-deck-theme="system"] .podium-bar {
+            box-shadow: var(--shadow-1);
+        }
+
+        /* 金色高亮统一映射为主色 */
+        html[data-deck-theme="system"] .section-tag {
+            background: var(--color-primary-subtle);
+            border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+        }
+
+        html[data-deck-theme="system"] .integrated-card:hover,
+        html[data-deck-theme="system"] .order-card:hover,
+        html[data-deck-theme="system"] .sp-card:hover,
+        html[data-deck-theme="system"] .digital-person:hover {
+            border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+        }
+
+        html[data-deck-theme="system"] .sp-card.featured {
+            border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+            box-shadow: var(--shadow-2);
+        }
+
+        html[data-deck-theme="system"] .podium-bar {
+            border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        }
+
+        html[data-deck-theme="system"] .podium-bar:hover {
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-3);
+        }
+
+        html[data-deck-theme="system"] .cover-badge {
+            box-shadow: 0 0 60px color-mix(in srgb, var(--color-primary) 30%, transparent);
+        }
+
+        html[data-deck-theme="system"] .ending-cta {
+            background: linear-gradient(135deg, var(--color-primary-active), var(--color-primary));
+            box-shadow: 0 0 40px color-mix(in srgb, var(--color-primary) 35%, transparent);
+        }
+
+        html[data-deck-theme="system"] .progress-bar {
+            background: linear-gradient(90deg, var(--color-primary), var(--color-primary-hover));
+        }
+
+        html[data-deck-theme="system"] .dot.active {
+            box-shadow: 0 0 10px var(--color-primary);
+        }
+
+        /* 人员行分隔线适配浅色背景 */
+        html[data-deck-theme="system"] .integrated-person {
+            border-top-color: var(--color-border-subtle);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-effects">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <div class="progress-bar" id="progressBar"></div>
+    <div class="deck-theme-toggle" id="deckThemeToggle">
+        <button type="button" data-deck="system">系统主题</button>
+        <button type="button" data-deck="dark">深色大屏</button>
+    </div>
+    <div class="page-counter"><span id="currentPage">1</span> / <span id="totalPages">11</span></div>
+    <div class="slide-dots" id="slideDots"></div>
+
+    <div class="deck" id="deck">
+        <!-- 封面 -->
+        <section class="slide cover active">
+            <div class="slide-content">
+                <div class="cover-badge fade-up">
+                    <div class="cover-badge-inner">🏆</div>
+                </div>
+                <h1 class="cover-title fade-up delay-1">
+                    <span>2026 H1</span>
+                    <span>专项激励发放公示</span>
+                </h1>
+                <p class="cover-subtitle fade-up delay-2">半年度 · 专项激励 · 荣誉发布</p>
+                <div class="cover-meta fade-up delay-3">
+                    <div>6 大专项</div>
+                    <div>34.9 万激励</div>
+                    <div>59 个获奖对象</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 数据总览 -->
+        <section class="slide">
+            <div class="slide-content">
+                <div class="slide-header fade-up">
+                    <div class="kicker">Data Overview</div>
+                    <h2 class="slide-title">半年度激励数据总览</h2>
+                    <p class="slide-subtitle">以结果为导向，事情、客户、贡献者，一目了然</p>
+                </div>
+                <div class="stats-grid fade-up delay-1">
+                    <div class="stat-card">
+                        <div class="stat-value" data-target="349000" data-prefix="¥" data-suffix="">0</div>
+                        <div class="stat-label">激励总金额</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" data-target="6" data-prefix="" data-suffix="">0</div>
+                        <div class="stat-label">专项奖项</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" data-target="59" data-prefix="" data-suffix="">0</div>
+                        <div class="stat-label">获奖对象</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" data-target="8" data-prefix="" data-suffix="">0</div>
+                        <div class="stat-label">标杆大客户</div>
+                    </div>
+                </div>
+                <div class="chart-container fade-up delay-2">
+                    <div class="chart-title">各专项激励金额分布</div>
+                    <div class="bar-chart" id="overviewChart"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 优秀经营战区奖 - 第三名 -->
+        <section class="slide warzone-slide">
+            <div class="slide-content">
+                <div class="warzone-reveal">
+                    <div class="section-tag fade-up"><span class="dot"></span> 优秀经营战区奖 · 半年度组织绩效排名</div>
+                    <div class="rank-medal bronze fade-up delay-1">第三名</div>
+                    <div class="warzone-name fade-up delay-2">西南大区</div>
+                    <div class="warzone-amount fade-up delay-3">¥12,000</div>
+                    <p class="warzone-note fade-up delay-4">
+                        半年度组织绩效总得分排名第三，奖金计入战区薪酬包。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 优秀经营战区奖 - 第二名 -->
+        <section class="slide warzone-slide">
+            <div class="slide-content">
+                <div class="warzone-reveal">
+                    <div class="section-tag fade-up"><span class="dot"></span> 优秀经营战区奖 · 半年度组织绩效排名</div>
+                    <div class="rank-medal silver fade-up delay-1">第二名</div>
+                    <div class="warzone-name fade-up delay-2">西北大区</div>
+                    <div class="warzone-amount fade-up delay-3">¥16,000</div>
+                    <p class="warzone-note fade-up delay-4">
+                        半年度组织绩效总得分排名第二，奖金计入战区薪酬包。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 优秀经营战区奖 - 第一名 -->
+        <section class="slide warzone-slide">
+            <div class="slide-content">
+                <div class="warzone-reveal">
+                    <div class="section-tag fade-up"><span class="dot"></span> 优秀经营战区奖 · 半年度组织绩效排名</div>
+                    <div class="rank-medal gold fade-up delay-1">第一名</div>
+                    <div class="warzone-name fade-up delay-2">苏皖大区</div>
+                    <div class="warzone-amount fade-up delay-3">¥20,000</div>
+                    <p class="warzone-note fade-up delay-4">
+                        半年度组织绩效总得分排名第一，奖金计入战区薪酬包。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 大客户经营能力提升：客户项目 + 贡献者 集成 -->
+        <section class="slide">
+            <div class="slide-content">
+                <div class="slide-header fade-up">
+                    <div class="kicker">Key Account Excellence</div>
+                    <h2 class="slide-title">大客户经营能力提升</h2>
+                    <p class="slide-subtitle">8 家标杆客户项目，每家项目激励总额 ¥15,000；下方为各项目中的贡献者及分配金额</p>
+                </div>
+                <div class="integrated-grid fade-up delay-1" id="keyAccountGrid"></div>
+            </div>
+        </section>
+
+        <!-- 新产品TOP订单奖：JDY 左 / FDL 右 -->
+        <section class="slide">
+            <div class="slide-content">
+                <div class="slide-header fade-up">
+                    <div class="kicker">New Product TOP Orders</div>
+                    <h2 class="slide-title">新产品 TOP 订单奖</h2>
+                    <p class="slide-subtitle">基于具体客户订单金额与购买方式，激励做出高产值订单的销售贡献者</p>
+                </div>
+                <div class="product-rank-rows fade-up delay-1" id="newProductGrid"></div>
+            </div>
+        </section>
+
+        <!-- SP垂直客群：活动 + 客户 + 贡献者 -->
+        <section class="slide">
+            <div class="slide-content">
+                <div class="slide-header fade-up">
+                    <div class="kicker">SP Vertical Customer Group</div>
+                    <h2 class="slide-title">SP 垂直客群 · 市场标杆参观贡献</h2>
+                    <p class="slide-subtitle">3 场全国性跨区域标杆游学活动，以及做出贡献的铁三角同学</p>
+                </div>
+                <div class="sp-grid fade-up delay-1" id="spGrid"></div>
+            </div>
+        </section>
+
+        <!-- 财务破圈：经营签单成果 + 战区 -->
+        <section class="slide">
+            <div class="slide-content">
+                <div class="slide-header fade-up">
+                    <div class="kicker">Finance Breakthrough</div>
+                    <h2 class="slide-title">财务破圈 · 经营签单奖</h2>
+                    <p class="slide-subtitle">面向增长结果，鼓励多拿合同、多签单的战区组织</p>
+                </div>
+                <div class="stats-grid fade-up delay-1" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 3vh;">
+                    <div class="stat-card">
+                        <div class="stat-value" data-target="60000" data-prefix="¥">0</div>
+                        <div class="stat-label">H1 发放总额</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" data-target="3" data-suffix="个">0</div>
+                        <div class="stat-label">获奖战区</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" data-target="20000" data-prefix="¥">0</div>
+                        <div class="stat-label">单战区奖金</div>
+                    </div>
+                </div>
+                <div class="podium fade-up delay-2" id="financePodium"></div>
+            </div>
+        </section>
+
+        <!-- 数字人才：客户 + 人 -->
+        <section class="slide">
+            <div class="slide-content">
+                <div class="slide-header fade-up">
+                    <div class="kicker">Digital Talent</div>
+                    <h2 class="slide-title">数字人才专项激励</h2>
+                    <p class="slide-subtitle">以战绩说话，让优秀的人才和客户成功标杆被看见</p>
+                </div>
+                <div class="digital-split fade-up delay-1" id="digitalTalentGrid"></div>
+            </div>
+        </section>
+
+        <!-- 结尾 -->
+        <section class="slide ending">
+            <div class="slide-content">
+                <h2 class="ending-title fade-up">致敬每一位<br>奋斗者</h2>
+                <p class="ending-subtitle fade-up delay-1">H1 已成过往，H2 继续乘风破浪</p>
+                <div class="ending-cta fade-up delay-2">
+                    <span>🏆</span>
+                    <span>向下半年，再出发</span>
+                </div>
+                <div class="cover-meta fade-up delay-3" style="margin-top: 6vh;">
+                    <div>事情</div>
+                    <div>客户</div>
+                    <div>贡献者</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <div class="nav-hint">
+        <div class="nav-arrows">← → 翻页</div>
+        <div>空格 / 点击 / 滑动</div>
+    </div>
+
+    <script>
+        // 数据
+        const data = {
+            warzone: [
+                { name: '苏皖大区', amount: 20000, rank: 1 },
+                { name: '西北大区', amount: 16000, rank: 2 },
+                { name: '西南大区', amount: 12000, rank: 3 }
+            ],
+            keyAccount: [
+                {
+                    customer: '益海嘉里金龙鱼',
+                    totalAmount: 15000,
+                    people: [
+                        { name: 'Huge.Zhang-张建平', role: '客户成功', amount: 4200 },
+                        { name: 'Ashley.Y-杨迪', role: '售前', amount: 3600 },
+                        { name: 'Marvin.Li-李新宇', role: '销售', amount: 7200 }
+                    ]
+                },
+                {
+                    customer: '中远海运集运',
+                    totalAmount: 15000,
+                    people: [
+                        { name: '丁逸仙', role: '销售', amount: 7500 },
+                        { name: '王洪基', role: '售前', amount: 2500 },
+                        { name: '王栋栋', role: '项目经理', amount: 5000 }
+                    ]
+                },
+                {
+                    customer: '赛力斯集团',
+                    totalAmount: 15000,
+                    people: [
+                        { name: 'Tai.Li-李涛', role: '项目经理', amount: 15000 }
+                    ]
+                },
+                {
+                    customer: '雅迪集团',
+                    totalAmount: 15000,
+                    people: [
+                        { name: '贾训祥', role: '销售', amount: 3000 },
+                        { name: '王勃', role: '售前', amount: 3000 },
+                        { name: '刘宇衡', role: '项目', amount: 3000 },
+                        { name: '朱利莉', role: '客户成功', amount: 3000 },
+                        { name: '陈明明', role: '行销', amount: 3000 }
+                    ]
+                },
+                {
+                    customer: '天津力神电池',
+                    totalAmount: 15000,
+                    people: [
+                        { name: '王星轶', role: '销售', amount: 3750 },
+                        { name: '吴彦君', role: '售前', amount: 3750 },
+                        { name: '于松', role: '项目经理', amount: 3750 },
+                        { name: '毛天戈', role: '行销', amount: 3750 }
+                    ]
+                },
+                {
+                    customer: '北京金风科创',
+                    totalAmount: 15000,
+                    people: [
+                        { name: '于越', role: '销售', amount: 5000 },
+                        { name: '梁晓峰', role: '售前', amount: 5000 },
+                        { name: '王旭凡', role: '项目经理', amount: 5000 }
+                    ]
+                },
+                {
+                    customer: '浙江华友钴业',
+                    totalAmount: 15000,
+                    people: [
+                        { name: 'Handy-黄含', role: '销售', amount: 5000 },
+                        { name: 'neal.zhu-朱聪', role: '售前', amount: 2500 },
+                        { name: 'Kailong.Jia-贾凯龙', role: '项目经理', amount: 5000 },
+                        { name: 'Williams.M-毛天戈', role: '行销', amount: 2500 }
+                    ]
+                },
+                {
+                    customer: '中建三局城投',
+                    totalAmount: 15000,
+                    people: [
+                        { name: 'Benson.Zhou-周冠', role: '项目经理', amount: 9000 },
+                        { name: 'markus-马俊峰', role: '销售', amount: 4500 },
+                        { name: 'vring-刘传卫', role: '售前', amount: 1500 }
+                    ]
+                }
+            ],
+            newProduct: {
+                jdy: [
+                    {
+                        rank: 'TOP1',
+                        customer: '蒙牛乳业（北京）',
+                        deal: '订阅 62.05w × 3',
+                        totalIncentive: 10000,
+                        people: [
+                            { name: 'Halbert.Tang-唐汉超', amount: 10000 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP2',
+                        customer: '福建中烟工业',
+                        deal: '订阅 52.4w × 3',
+                        totalIncentive: 8000,
+                        people: [
+                            { name: 'Renee.Chen-陈露瑶', amount: 4000 },
+                            { name: 'Jeatom-沈子涛', amount: 4000 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP3',
+                        customer: '东风越野车',
+                        deal: '订阅 48.13w × 3',
+                        totalIncentive: 6000,
+                        people: [
+                            { name: 'Holden-王任', amount: 6000 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP4',
+                        customer: '中交建设华东财务共享中心',
+                        deal: '买断 130w',
+                        totalIncentive: 3000,
+                        people: [
+                            { name: 'Bess.Tan-谭德芳', amount: 3000 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP5',
+                        customer: '中远海运集装箱运输',
+                        deal: '买断 129.35w',
+                        totalIncentive: 3000,
+                        people: [
+                            { name: 'eason.ding-丁逸仙', amount: 3000 }
+                        ]
+                    }
+                ],
+                fdl: [
+                    {
+                        rank: 'TOP1',
+                        customer: '中国商用飞机',
+                        deal: '买断 120w',
+                        totalIncentive: 10000,
+                        people: [
+                            { name: 'BeidqeLew-刘喜朝', amount: 10000 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP2',
+                        customer: '重庆长安汽车',
+                        deal: '买断 120w',
+                        totalIncentive: 8000,
+                        people: [
+                            { name: 'Hugang-胡刚', amount: 7700 },
+                            { name: 'Mitchell.Gao-高铭辰', amount: 150 },
+                            { name: 'Paul.Wang-王子乐', amount: 150 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP3',
+                        customer: '广西博联信息通信',
+                        deal: '买断 112w',
+                        totalIncentive: 6000,
+                        people: [
+                            { name: 'Robert.Chi-池国雄', amount: 6000 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP4',
+                        customer: '洛阳栾钼业集团',
+                        deal: '订阅 35w × 3',
+                        totalIncentive: 3000,
+                        people: [
+                            { name: 'Harris-张锴', amount: 3000 }
+                        ]
+                    },
+                    {
+                        rank: 'TOP5',
+                        customer: '厦门厦钨新能源',
+                        deal: '买断 60.52w',
+                        totalIncentive: 3000,
+                        people: [
+                            { name: 'Colin.sun-孙越', amount: 3000 }
+                        ]
+                    }
+                ]
+            },
+            sp: [
+                {
+                    activity: '走进航天803所',
+                    date: '2026.05.15',
+                    people: [
+                        { name: 'Dailiuxiao-戴刘啸', team: '上海战区', amount: 10000 }
+                    ]
+                },
+                {
+                    activity: '走进昆山农商行',
+                    date: '2026.04.24',
+                    featured: true,
+                    people: [
+                        { name: 'Blink-陈宇凌', team: '产品&行业解决方案行销部', amount: 5000 },
+                        { name: 'justin-贾训祥', team: '苏皖战区', amount: 3000 },
+                        { name: 'Eric.DaPeng-张鹏', team: '市场团队', amount: 1000 },
+                        { name: 'Terence-俞天一', team: '苏皖战区', amount: 1000 }
+                    ]
+                },
+                {
+                    activity: '走进北京大学首钢医院',
+                    date: '2026.06.13',
+                    people: [
+                        { name: 'Dank-兰纯杰', team: '产品&行业解决方案行销部', amount: 10000 }
+                    ]
+                }
+            ],
+            finance: [
+                { name: '上海大区', amount: 20000 },
+                { name: '西南大区', amount: 20000 },
+                { name: '苏皖大区', amount: 20000 }
+            ],
+            digitalTalent: [
+                {
+                    award: '战区业绩领航奖',
+                    desc: '销售小组业绩领航，以结果牵引增长',
+                    total: 25000,
+                    people: [
+                        { name: 'Colin.Yin-殷振东', team: '苏皖销售五组', amount: 6250 },
+                        { name: 'Jimmy.Jiang-蒋牮伟', team: '浙闽销售二组', amount: 6250 },
+                        { name: 'One-沙旭东', team: '华北销售六组', amount: 6250 },
+                        { name: 'michael-姜学威', team: '西南销售组', amount: 6250 }
+                    ]
+                },
+                {
+                    award: '数字人才之星奖',
+                    desc: '客户成功标杆，沉淀大客户经营方法',
+                    total: 6000,
+                    people: [
+                        { name: 'Luwei-卢伟', team: '苏皖小组', customer: '兴达钢帘线', amount: 1500 },
+                        { name: 'kaixuan.Liu-刘凯旋', team: '上海小组', customer: '上药康德乐', amount: 1500 },
+                        { name: 'Alins-桑林', team: '京津小组', customer: '羽乐科技', amount: 1500 },
+                        { name: 'Nora-王俊玲', team: '浙闽小组', customer: '敏实机械', amount: 1500 }
+                    ]
+                }
+            ]
+        };
+
+        const categories = [
+            { name: '大客户经营能力提升', amount: 120000, color: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
+            { name: '财务破圈-经营签单奖', amount: 60000, color: 'linear-gradient(90deg, #ef4444, #f87171)' },
+            { name: '新产品TOP订单奖', amount: 60000, color: 'linear-gradient(90deg, #10b981, #34d399)' },
+            { name: '数字人才专项激励', amount: 31000, color: 'linear-gradient(90deg, #8b5cf6, #a78bfa)' },
+            { name: '优秀经营战区奖', amount: 48000, color: 'linear-gradient(90deg, #3b82f6, #60a5fa)' },
+            { name: 'SP垂直客群-市场标杆', amount: 30000, color: 'linear-gradient(90deg, #ec4899, #f472b6)' }
+        ];
+
+        // 初始化
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        document.getElementById('totalPages').textContent = totalSlides;
+
+        // 创建导航点
+        const dotsContainer = document.getElementById('slideDots');
+        slides.forEach((_, index) => {
+            const dot = document.createElement('div');
+            dot.className = 'dot' + (index === 0 ? ' active' : '');
+            dot.addEventListener('click', () => goToSlide(index));
+            dotsContainer.appendChild(dot);
+        });
+
+        // 渲染图表
+        function renderChart() {
+            const chart = document.getElementById('overviewChart');
+            const max = Math.max(...categories.map(c => c.amount));
+            categories.forEach((cat, i) => {
+                const item = document.createElement('div');
+                item.className = 'bar-item';
+                item.innerHTML = `
+                    <div class="bar-label">${cat.name}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 0%; background: ${cat.color};" data-width="${(cat.amount / max * 100).toFixed(1)}">
+                            <span class="bar-value">¥${(cat.amount / 10000).toFixed(1)}万</span>
+                        </div>
+                    </div>
+                `;
+                chart.appendChild(item);
+            });
+        }
+
+        // 渲染领奖台（无排名）
+        function renderPodium(containerId, items) {
+            const container = document.getElementById(containerId);
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'podium-item';
+                div.innerHTML = `
+                    <div class="podium-bar">
+                        <div class="podium-name">${item.name}</div>
+                        <div class="podium-amount">¥${item.amount.toLocaleString()}</div>
+                        <div class="podium-note">经营签单奖获奖战区</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 提取中文名
+        function chineseName(name) {
+            if (name.includes('-')) {
+                return name.split('-').pop();
+            }
+            return name;
+        }
+
+        // 渲染大客户：客户 + 贡献者 集成
+        function renderKeyAccount() {
+            const container = document.getElementById('keyAccountGrid');
+            data.keyAccount.forEach(ka => {
+                const card = document.createElement('div');
+                card.className = 'integrated-card';
+                card.innerHTML = `
+                    <div class="integrated-title">${ka.customer}</div>
+                    <div class="integrated-subtitle">大客户经营标杆项目</div>
+                    <div class="integrated-people">
+                        ${ka.people.map(p => `
+                            <div class="integrated-person">
+                                <div class="integrated-person-info">
+                                    <span class="integrated-person-name">${chineseName(p.name)}</span>
+                                    <span class="integrated-person-role">${p.role}</span>
+                                </div>
+                                <span class="integrated-person-amount">¥${p.amount.toLocaleString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 渲染新产品：JDY | RANK | FDL 排名行
+        function renderNewProduct() {
+            const container = document.getElementById('newProductGrid');
+            const ranks = ['TOP1', 'TOP2', 'TOP3', 'TOP4', 'TOP5'];
+            
+            function renderOrderCard(order) {
+                const peopleHtml = order.people.map(p => 
+                    `<span class="order-person">${p.name} <strong>¥${p.amount.toLocaleString()}</strong></span>`
+                ).join('');
+                
+                return `
+                    <div class="order-card">
+                        <div class="order-top">
+                            <div class="order-customer">${order.customer}</div>
+                            <div class="order-incentive-box">
+                                <div class="order-incentive-label">激励金额</div>
+                                <div class="order-incentive">¥${order.totalIncentive.toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <div class="order-deal">订单金额：${order.deal}</div>
+                        <div class="order-people">${peopleHtml}</div>
+                    </div>
+                `;
+            }
+            
+            ranks.forEach((rank, i) => {
+                const row = document.createElement('div');
+                row.className = 'rank-row';
+                row.innerHTML = `
+                    ${renderOrderCard(data.newProduct.jdy[i])}
+                    <div class="rank-label">${rank}</div>
+                    ${renderOrderCard(data.newProduct.fdl[i])}
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // 渲染SP：活动 + 贡献者
+        function renderSP() {
+            const container = document.getElementById('spGrid');
+            data.sp.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'sp-card' + (s.featured ? ' featured' : '');
+                const peopleClass = s.featured ? 'sp-people grid-2x2' : 'sp-people';
+                card.innerHTML = `
+                    <div class="sp-header">
+                        <div class="sp-activity">${s.activity}</div>
+                        <div class="sp-meta">${s.date}</div>
+                    </div>
+                    <div class="${peopleClass}">
+                        ${s.people.map(p => `
+                            <div class="sp-person">
+                                <span>${p.name}</span>
+                                <span class="sp-person-team">${p.team}</span>
+                                <span class="sp-person-amount">¥${p.amount.toLocaleString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 渲染数字人才
+        function renderDigitalTalent() {
+            const container = document.getElementById('digitalTalentGrid');
+            data.digitalTalent.forEach(dt => {
+                const section = document.createElement('div');
+                section.className = 'digital-section';
+                section.innerHTML = `
+                    <div class="digital-title">${dt.award}</div>
+                    <div class="digital-desc">${dt.desc} · 总额 ¥${dt.total.toLocaleString()}</div>
+                    <div class="digital-people">
+                        ${dt.people.map(p => `
+                            <div class="digital-person">
+                                ${p.customer ? `<div class="digital-person-customer">${p.customer}</div>` : ''}
+                                <div class="digital-person-name">${p.name}</div>
+                                <div class="digital-person-meta">${p.team}</div>
+                                <div class="digital-person-amount">¥${p.amount.toLocaleString()}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(section);
+            });
+        }
+
+        // 数字动画
+        function animateNumbers() {
+            const activeSlide = slides[currentSlide];
+            const numbers = activeSlide.querySelectorAll('[data-target]');
+            numbers.forEach(el => {
+                const target = parseFloat(el.dataset.target);
+                const prefix = el.dataset.prefix || '';
+                const suffix = el.dataset.suffix || '';
+                const duration = 1500;
+                const start = performance.now();
+                
+                function update(now) {
+                    const elapsed = now - start;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const ease = 1 - Math.pow(1 - progress, 3);
+                    const current = target * ease;
+                    
+                    if (target >= 1000) {
+                        el.textContent = prefix + Math.floor(current).toLocaleString() + suffix;
+                    } else {
+                        el.textContent = prefix + Math.floor(current) + suffix;
+                    }
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(update);
+                    }
+                }
+                
+                el.textContent = prefix + '0' + suffix;
+                requestAnimationFrame(update);
+            });
+        }
+
+        // 柱状图动画
+        function animateBars() {
+            const activeSlide = slides[currentSlide];
+            const fills = activeSlide.querySelectorAll('.bar-fill');
+            fills.forEach((fill, i) => {
+                setTimeout(() => {
+                    fill.style.width = fill.dataset.width + '%';
+                }, i * 150 + 300);
+            });
+        }
+
+        // 切换幻灯片
+        function goToSlide(index) {
+            if (index < 0 || index >= totalSlides || index === currentSlide) return;
+            
+            slides[currentSlide].classList.remove('active');
+            slides[currentSlide].classList.add('prev');
+            
+            currentSlide = index;
+            slides[currentSlide].classList.remove('prev');
+            slides[currentSlide].classList.add('active');
+            
+            document.getElementById('currentPage').textContent = currentSlide + 1;
+            document.getElementById('progressBar').style.width = ((currentSlide + 1) / totalSlides * 100) + '%';
+            
+            document.querySelectorAll('.dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+            
+            setTimeout(() => {
+                animateNumbers();
+                animateBars();
+                onSlideChange();
+            }, 300);
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) goToSlide(currentSlide - 1);
+        }
+
+        // 事件监听
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+                e.preventDefault();
+                prevSlide();
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                goToSlide(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                goToSlide(totalSlides - 1);
+            }
+        });
+
+        let clickStartX = 0;
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.slide-dots') || e.target.closest('.deck-theme-toggle')) return;
+            const x = e.clientX;
+            const width = window.innerWidth;
+            if (x > width * 0.7) {
+                nextSlide();
+            } else if (x < width * 0.3) {
+                prevSlide();
+            }
+        });
+
+        document.addEventListener('touchstart', (e) => {
+            clickStartX = e.touches[0].clientX;
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            const endX = e.changedTouches[0].clientX;
+            const diff = clickStartX - endX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) nextSlide();
+                else prevSlide();
+            }
+        }, { passive: true });
+
+        let wheelTimeout;
+        document.addEventListener('wheel', (e) => {
+            if (wheelTimeout) return;
+            wheelTimeout = setTimeout(() => wheelTimeout = null, 800);
+            if (e.deltaY > 0) nextSlide();
+            else prevSlide();
+        }, { passive: true });
+
+        // 彩带效果
+        function createConfetti() {
+            const container = document.getElementById('confettiContainer');
+            container.innerHTML = '';
+            const colors = ['#f59e0b', '#fbbf24', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#fff'];
+            for (let i = 0; i < 80; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                confetti.style.animationDelay = (Math.random() * 1) + 's';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confetti.style.width = (Math.random() * 8 + 6) + 'px';
+                confetti.style.height = (Math.random() * 8 + 6) + 'px';
+                container.appendChild(confetti);
+            }
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        function onSlideChange() {
+            const slide = slides[currentSlide];
+            if (slide.classList.contains('cover') || slide.classList.contains('ending') || slide.classList.contains('warzone-slide')) {
+                setTimeout(createConfetti, 600);
+            }
+        }
+
+        // 初始化渲染
+        renderChart();
+        renderKeyAccount();
+        renderNewProduct();
+        renderSP();
+        renderPodium('financePodium', data.finance);
+        renderDigitalTalent();
+
+        // 初始动画
+        document.getElementById('progressBar').style.width = (1 / totalSlides * 100) + '%';
+        setTimeout(() => {
+            animateNumbers();
+            animateBars();
+            onSlideChange();
+        }, 500);
+
+        // 页面风格切换（系统主题 / 深色大屏），localStorage 持久化
+        (function initDeckThemeToggle() {
+            const toggle = document.getElementById('deckThemeToggle');
+            if (!toggle) return;
+            const buttons = toggle.querySelectorAll('button[data-deck]');
+
+            function syncActive() {
+                const current = document.documentElement.getAttribute('data-deck-theme') || 'system';
+                buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.deck === current));
+            }
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const theme = btn.dataset.deck;
+                    document.documentElement.setAttribute('data-deck-theme', theme);
+                    try { localStorage.setItem('dste-incentive-deck-theme', theme); } catch (e) {}
+                    syncActive();
+                });
+            });
+
+            // 其他窗口/标签切换时同步按钮状态
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'dste-incentive-deck-theme') syncActive();
+            });
+
+            syncActive();
+        })();
+    </script>
+</body>
+</html>

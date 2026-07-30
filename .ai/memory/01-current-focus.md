@@ -8,7 +8,7 @@
 **v0.7.15 已发布并部署生产**（commit `a0b0f12`，tag `v0.7.15`）：报表中心内嵌体验系列修复——内嵌模式紧凑顶栏、隐藏列（localStorage 持久化）、图表速览 TAB 无法滚动修复（`assets/css/main.css` embed flex 链）、关联下拉 `[object Object]` 与重复展示修复（fmtOwner + 年度过滤去重）、「关联」列改「关联举措」chips + 浮框（点 chip 显示单项、+N 显示全部）。涉及 `src/cockpit.html`、`src/pages/marketing-budget/main.js`、`style.css`、`assets/css/main.css`。本地验证：`npm run lint` 0 error / `npm run check:scope` ✓ / unit 535 passed / pytest 184 passed / 相关 E2E 33 passed；全量 E2E 417 passed / 1 failed（`tests/e2e/omp-matrix.spec.js:151`，既有问题）。发布方式：手动 build + tag + push。
 **注意**：`dste.jasonxspace.cc` = Cloudflare Tunnel → 本机 `localhost:3456` vite preview，preview 随 CLI 会话/电脑重启挂掉即 502，重跑 `npm run preview` 恢复。
 **v0.7.14 已发布并部署生产**（commit `08cb291`，tag `v0.7.14`）：营销线预算执行监控表改为「损益主表 / 图表速览」Tab 布局，损益主表提升为默认首屏，图表速览懒加载 ECharts。生产验证：`/src/marketing-budget.html` 200，新 bundle `marketing-budget-Cy3kOzSE.js` 含 tab 代码。
-**发布注意**：release.sh 全量 E2E 被 `tests/e2e/omp-matrix.spec.js:151`「成员单元格内左右拖动调整成员顺序」阻断（417 passed / 1 failed），该用例与本次改动无关、单独跑也稳定失败（期望成员顺序 成员B,成员A,成员C 实际未变），是 main 上的既有问题，待修。本次改为手动 build + tag + push 完成发布。
+**发布注意**：release.sh 全量 E2E 曾被 `tests/e2e/omp-matrix.spec.js:151`「成员单元格内左右拖动调整成员顺序」阻断。已修复（同日）：根因是 seeded 任务排在矩阵末行、位于 720px 视口底缘，Chromium 对视口底缘元素 hit-test 失效致 `dragstart` 不触发，测试用 boundingBox+原生 mouse 未先滚动。修复为拖拽前 `scrollIntoViewIfNeeded()`，spec 5/5 通过。
 **v0.7.13 已发布并部署生产**（commit `fafa195`，tag `v0.7.13`）：包含目录管理配置功能、工作区标签去重、报表中心 iframe 布局修复与业务专题统计卡优化。GitHub Actions Deploy to Production ✅ success。生产验证：`https://dste.fineres.com` 200，`/api/catalogs` / `/api/topics` 正常。
 **临时 CAS 绕过（2026-07-29）**：帆软通行证登录成功后不回跳 DSTE，用户无法进入系统。已临时把 `dste.fineres.com` 加入 `isLocalDev` 白名单（`index.html` / `cockpit.html` / `business-topics.html` / `meetings.html` / `requirement-pool.html` / `rule-engine.html`），实现本地快速登录。已手动部署到生产。**后续必须恢复**，恢复前生产环境无 CAS 认证。建议单独排期 v0.7.18 热修并验证 CAS 回跳链路。
 **待修复（main 既有问题）**：`tests/e2e/omp-matrix.spec.js:151`「成员单元格内左右拖动调整成员顺序」拖拽未生效，稳定失败。修复后 `scripts/release.sh` 可重新启用。
@@ -100,6 +100,14 @@
 - 断点/恢复见 `08-checkpoint.md`，任务配方见 `.ai/tasks/active/T030-resolution-center.md`
 
 ## 刚完成
+
+### 2026年营销线H1专项激励名单页面（Kimi 会话，2026-07-30，未发版本）
+- 在战略评估 → 绩效与激励下新增子页「2026年营销线H1专项激励名单」，复刻用户提供的幻灯式公示 HTML（11 页大屏），内容不变
+- 新建 `src/incentive-h1-2026.html`（embed 标记 + CAS 回调 + 主题初始化头脚本，无 shell 全屏演示）；`vite.config.js` 注册入口；`src/lib/config.js` 新增 `rev/performance-incentive-h1`
+- 侧边栏：「绩效与激励」改为可折叠目录（含 绩效与激励总览 + 名单），干部管理/战略复盘/差距分析归入「战略评估」目录
+- 页面双风格：默认系统主题（DSTE tokens，跟随亮/暗），左上角切换器可切回深色大屏（原始黑金），localStorage `dste-incentive-deck-theme` 持久化
+- 验证：build ✓ / check:scope ✓ / pytest 184 / unit 535 / navigation E2E 20 passed（新增 3 用例）/ 三种风格截图目检 ✓
+- 未提交未发布，随下个版本上线
 
 ### 营销线预算监控表 Tab 布局改造（Kimi 会话，2026-07-29，未发版本）
 - 起因：用户反馈报表中心嵌入页「没有损益主表内容」。查证：损益主表（`renderTableSection`）一直在页面底部，长滚动布局中被 KPI 卡片 + 4 图表挤到首屏之外；数据与桌面 `损益表重塑/pnl-data.js` 完全一致

@@ -71,8 +71,11 @@ export const SIDEBAR_CONFIG = {
     { type: 'item', id: 'exe/meeting-review', icon: 'exe/meeting-review', label: '会议材料审核' }
   ],
   rev: [
+    { type: 'group', title: '绩效与激励', icon: 'rev/performance', items: [
+      { id: 'rev/performance', icon: 'rev/performance', label: '绩效与激励总览' },
+      { id: 'rev/performance-incentive-h1', icon: 'rev/performance', label: '2026年营销线H1专项激励名单' }
+    ]},
     { type: 'group', title: '战略评估', icon: 'rev', items: [
-      { id: 'rev/performance', icon: 'rev/performance', label: '绩效与激励' },
       { id: 'rev/cadre', icon: 'rev/cadre', label: '干部管理' },
       { id: 'rev/review', icon: 'rev/review', label: '战略复盘' },
       { id: 'rev/gap-analysis', icon: 'rev/gap-analysis', label: '差距分析' }
@@ -85,6 +88,7 @@ export const SIDEBAR_CONFIG = {
 
 export const EXTERNAL_PAGES = {
   'admin/employee-directory': 'employee-directory.html',
+  'rev/performance-incentive-h1': 'incentive-h1-2026.html',
   'admin/requirement-pool': 'requirement-pool.html',
   'admin/rule-engine': 'rule-engine.html',
   'exe/business-topics': 'business-topics.html',
@@ -115,6 +119,7 @@ export const PAGE_NAMES = {
   'exe/report-center': '经营分析报表中心',
   'exe/marketing-budget': '营销线预算执行监控表',
   'rev/performance': '绩效与激励',
+  'rev/performance-incentive-h1': '2026年营销线H1专项激励名单',
   'rev/cadre': '干部管理',
   'rev/review': '战略复盘',
   'rev/gap-analysis': '差距分析',
@@ -152,6 +157,7 @@ export const PAGE_META = {
   'exe/report-center': { title: '经营分析报表中心', icon: 'exe/report-center', phase: 'exe' },
   'exe/marketing-budget': { title: '营销线预算执行监控表', icon: 'exe/report-center', phase: 'exe', isExternal: true, externalFile: 'marketing-budget.html' },
   'rev/performance': { title: '绩效与激励', icon: 'rev/performance', phase: 'rev' },
+  'rev/performance-incentive-h1': { title: '2026年营销线H1专项激励名单', icon: 'rev/performance', phase: 'rev', isExternal: true, externalFile: 'incentive-h1-2026.html' },
   'rev/cadre': { title: '干部管理', icon: 'rev/cadre', phase: 'rev' },
   'rev/review': { title: '战略复盘', icon: 'rev/review', phase: 'rev' },
   'rev/gap-analysis': { title: '差距分析', icon: 'rev/gap-analysis', phase: 'rev' },

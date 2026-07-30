@@ -2,6 +2,19 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-30（Kimi，新增 2026年营销线H1专项激励名单页面）
+- **主题**：在战略评估 → 绩效与激励下新增「2026年营销线H1专项激励名单」，复刻用户提供的公示 HTML（幻灯片式大屏，11 页），内容保持不变；二次迭代：绩效与激励改为可折叠目录 + 页面主题化
+- **操作**：
+  - 新建 `src/incentive-h1-2026.html`：完整复制源文件，追加系统集成 `<head>` 内联脚本（embed 模式标记 + CAS 回调 + 主题初始化），页面不挂 shell（全屏演示页），驾驶舱通过工作区 iframe `?embed=1` 嵌入
+  - 页面双风格：默认「系统主题」（引入 `assets/css/tokens.css`，`data-deck-theme="system"` 下把公示页变量映射到 DSTE 设计 token，跟随系统亮/暗 `data-theme`，父窗口切换经共享 localStorage `dste-theme` + storage 事件同步）；「深色大屏」保留原始黑金风格。左上角切换器持久化于 localStorage `dste-incentive-deck-theme`
+  - `vite.config.js`：注册入口 `incentive-h1-2026`
+  - `src/lib/config.js`：rev 侧边栏重构为两个可折叠 group——「绩效与激励」（含 绩效与激励总览 + 2026年营销线H1专项激励名单）与「战略评估」（干部管理/战略复盘/差距分析）；`EXTERNAL_PAGES` / `PAGE_NAMES` / `PAGE_META` 新增 `rev/performance-incentive-h1`
+  - `tests/e2e/navigation.spec.js`：新增 3 个用例（折叠目录 + iframe 嵌入访问、独立页加载与键盘翻页、主题切换与持久化）
+  - `docs/00-功能全景图.md`：绩效与激励行更新为 ⚠️ 并补充子页行
+- **验证**：`npm run build` ✓ / `check:scope` ✓ / eslint ✓ / pytest 184 passed / unit 535 passed / navigation E2E 20 passed / Playwright 截图目检（系统浅色 / 系统暗色 / 深色大屏三种风格 + 折叠目录）✓
+- **状态**：complete（未提交、未发布；如需上线随下个版本发布）
+- **备注**：源文件 `~/Desktop/2026H1专项激励公示 2.html`；页面无系统 shell，直接访问 `src/incentive-h1-2026.html` 为全屏演示模式
+
 ## 2026-07-30（Claude，v0.7.17 热修：预算执行监控看板嵌入底部留白）
 - **主题**：用户反馈预算执行监控看板在报表中心嵌入模式下底部留白（下边框）过窄
 - **操作**：

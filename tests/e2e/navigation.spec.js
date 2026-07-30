@@ -153,6 +153,34 @@ test.describe('Page Content', () => {
     await expect(iframe.contentFrame().locator('.req-page-title')).toContainText('需求管理中心');
     await expect(iframe.contentFrame().locator('.req-table')).toBeVisible();
   });
+
+  test('incentive H1 2026 page accessible from rev sidebar via iframe', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="rev"]').click();
+
+    // 「绩效与激励」为可折叠目录，名单为其子项
+    const group = page.locator('.sidebar-group').filter({ hasText: '绩效与激励' }).first();
+    await expect(group.locator('.sidebar-group-title')).toContainText('绩效与激励');
+    const item = group.locator('.sidebar-item[data-page="rev/performance-incentive-h1"]');
+    await expect(item).toContainText('2026年营销线H1专项激励名单');
+    await expect(item).toBeVisible();
+
+    // 目录可折叠/展开
+    await group.locator('.sidebar-group-title').click();
+    await page.waitForTimeout(200);
+    await expect(item).not.toBeVisible();
+    await group.locator('.sidebar-group-title').click();
+    await page.waitForTimeout(200);
+    await expect(item).toBeVisible();
+
+    await item.click();
+    await expect(page).toHaveURL(/cockpit\.html#rev\/performance-incentive-h1/);
+    const iframe = page.locator('.workspace-iframe');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute('src', /incentive-h1-2026\.html\?embed=1/);
+    await expect(iframe.contentFrame().locator('.cover-title')).toContainText('专项激励发放公示');
+    await expect(iframe.contentFrame().locator('.slide')).toHaveCount(11);
+  });
 });
 
 test.describe('External Pages', () => {
@@ -164,5 +192,39 @@ test.describe('External Pages', () => {
   test('business-topics page loads', async ({ page }) => {
     await page.goto('/src/business-topics.html');
     await expect(page.locator('body')).toContainText('业务专题');
+  });
+
+  test('incentive H1 2026 page loads standalone', async ({ page }) => {
+    await page.goto('/src/incentive-h1-2026.html');
+    await expect(page).toHaveTitle(/2026 H1 专项激励发放公示/);
+    await expect(page.locator('.cover-title')).toContainText('专项激励发放公示');
+    await expect(page.locator('.slide')).toHaveCount(11);
+    // 键盘翻页
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#currentPage')).toHaveText('2');
+  });
+
+  test('incentive H1 2026 deck theme toggle works', async ({ page }) => {
+    await page.goto('/src/incentive-h1-2026.html');
+    const html = page.locator('html');
+    const toggle = page.locator('.deck-theme-toggle');
+
+    // 默认系统主题（匹配 DSTE 风格）
+    await expect(html).toHaveAttribute('data-deck-theme', 'system');
+    await expect(toggle.locator('button[data-deck="system"]')).toHaveClass(/active/);
+
+    // 切换深色大屏并持久化
+    await toggle.locator('button[data-deck="dark"]').click();
+    await expect(html).toHaveAttribute('data-deck-theme', 'dark');
+    await expect(toggle.locator('button[data-deck="dark"]')).toHaveClass(/active/);
+    expect(await page.evaluate(() => localStorage.getItem('dste-incentive-deck-theme'))).toBe('dark');
+
+    // 刷新后保持
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-deck-theme', 'dark');
+
+    // 切回系统主题
+    await page.locator('.deck-theme-toggle button[data-deck="system"]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-deck-theme', 'system');
   });
 });
