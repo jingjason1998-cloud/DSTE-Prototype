@@ -85,7 +85,7 @@ test.describe('Marketing Budget Execution Monitor', () => {
 
   test('embedded mode hides top nav and sidebar', async ({ page }) => {
     await page.goto(`${BUDGET_PAGE_URL}?embed=1`);
-    await page.waitForSelector('.page-title', { timeout: 30000 });
+    await page.waitForSelector('.budget-workspace', { timeout: 30000 });
 
     const topNavDisplay = await page.evaluate(() => {
       const el = document.querySelector('.top-nav');
@@ -98,7 +98,8 @@ test.describe('Marketing Budget Execution Monitor', () => {
 
     expect(topNavDisplay).toBe('none');
     expect(sidebarDisplay).toBe('none');
-    await expect(page.locator('.page-title')).toContainText('营销线预算执行监控表');
+    // 内嵌模式下页内大标题被隐藏，由报表中心外层顶栏显示报表名
+    await expect(page.locator('.page-title')).toBeHidden();
   });
 
   test('cockpit report center opens marketing budget in iframe without nested shell', async ({ page }) => {
@@ -122,7 +123,8 @@ test.describe('Marketing Budget Execution Monitor', () => {
 
     const budgetFrame = page.frames().find(f => f.url().includes('marketing-budget'));
     expect(budgetFrame).toBeDefined();
-    await expect(budgetFrame.locator('.page-title')).toContainText('营销线预算执行监控表');
+    // 内嵌模式下页内大标题由报表中心外层顶栏替代
+    await expect(budgetFrame.locator('.page-title')).toBeHidden();
 
     const topNavDisplay = await budgetFrame.evaluate(() => {
       const el = document.querySelector('.top-nav');
@@ -130,7 +132,7 @@ test.describe('Marketing Budget Execution Monitor', () => {
     });
     expect(topNavDisplay).toBe('none');
 
-    // Container fills the remaining viewport and the iframe fills the container (minus the 41px toolbar)
+    // iframe 铺满 report-center-container（container 已按剩余视口高度填充）
     const layout = await page.evaluate(() => {
       const c = document.getElementById('report-center-container');
       const f = document.getElementById('report-center-iframe');
@@ -141,6 +143,6 @@ test.describe('Marketing Budget Execution Monitor', () => {
       };
     });
     expect(layout.containerStyleHeight).not.toBe('');
-    expect(Math.abs(layout.iframeHeight - (layout.containerHeight - 41))).toBeLessThan(4); // 2px tolerance for container borders
+    expect(Math.abs(layout.iframeHeight - layout.containerHeight)).toBeLessThan(4); // 2px tolerance for container borders
   });
 });
