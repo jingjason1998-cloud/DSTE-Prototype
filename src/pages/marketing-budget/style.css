@@ -807,7 +807,7 @@
 }
 
 [data-embed="true"] .budget-workspace .page-container {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-5);
 }
 
 [data-embed="true"] .budget-workspace .page-header {
