@@ -1,6 +1,41 @@
 {
   "versions": [
     {
+      "version": "v0.7.15",
+      "date": "2026-07-30",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Changed",
+          "desc": "**报表中心内嵌模式顶栏紧凑化**：iframe 嵌入场景下隐藏冗余标题与按钮，减少首屏占用。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**营销预算表隐藏列持久化**：用户隐藏的列通过 `localStorage` 记忆，刷新后保持。"
+        },
+        {
+          "type": "Changed",
+          "desc": "**「关联」列改为「关联举措」chips + 浮框**：点 chip 展示单项，+N 展示全部关联举措。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复报表中心图表速览 tab 无法滚动**：调整 `assets/css/main.css` 中 embed 模式 flex 链，使 `.content-area` 恢复滚动容器。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复负责人下拉显示 `[object Object]`**：`fmtOwner` 统一格式化对象/字符串类型的负责人。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复关联举措下拉重复展示**：增加年度过滤与去重，避免同一年度重复项。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复报表中心侧边栏多个子项同时高亮**：按 `data-reportid` 与 `window._reportCenterActiveReport` 精确匹配，仅当前报表高亮。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.14",
       "date": "2026-07-29",
       "status": "released",
