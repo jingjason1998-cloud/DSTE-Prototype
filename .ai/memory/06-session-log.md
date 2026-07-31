@@ -2,6 +2,12 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-30（Kimi，KMS 空间找材料给王老师 + KMS_API_TOKEN 换新并同步生产）
+- **主题 1**：按用户截图（王旭东要「帆软战略到执行」「帆软战略洞察及规划」两个主题的 KMS 文档，准备常熟农商行拜访），用新 token 探 `pageId=226810546`（「战略&Marketing 主页」，空间 SMK），输出推荐清单：帆软 DSTE 全流程（1150036586）、市场空间宏观洞察与分析 2025（1325564536）、重点行业客群投资逻辑与参考指引 2026-2028（1356007532）、战略解码与执行（1389051440）、SP 战略规划 2025~2027（1147303494）、战略执行过程中问题（443816432）等
+- **主题 2**：旧 `KMS_API_TOKEN` 已全面失效（空间列表为空、搜索 403、按 ID 读 404）。用户提供新 Confluence PAT，已写入本地 `meeting-material-reviewer/src/.env`；通过 root 密码（expect 脚本，本地 `~/.ssh/deploy_key` 已被服务器移出 authorized_keys，GitHub Secrets 的 SSH_PRIVATE_KEY 仍有效）同步至生产 `/opt/meeting-reviewer/src/.env`（备份 `.env.bak.20260730`），`systemctl restart meeting-reviewer` 后 active，服务器上 KMS API 拉取验证 200「战略&Marketing 主页」
+- **注意**：新 token 未提交进任何仓库；生产 root 密码登录可用（publickey 对本机 deploy_key 已失效）
+- **状态**：complete
+
 ## 2026-07-30（Claude，v0.7.18 发布：H1 专项激励名单页面 + omp-matrix E2E 修复）
 - **主题**：将 2026-07-30 Kimi 会话完成的 H1 激励名单页面发布上线，并提交 omp-matrix E2E 修复使 release.sh 重新可用
 - **操作**：
