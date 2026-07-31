@@ -349,11 +349,14 @@ export class AIClient {
 
   /**
    * 流式聊天
+   * @param {Object} options
+   * @param {boolean} options.skipUserAppend 为 true 时不自动追加 user 消息（调用方已自行追加）
    * @returns {AsyncIterable<{ content: string, done: boolean, toolCalls?: Array }>}
    */
   async *streamChat(message, options = {}) {
     const session = options.session || this.getCurrentSession();
     const messages = this._buildMessages(message, session, options);
+    const skipUserAppend = options.skipUserAppend;
 
     const url = `${this.baseUrl}/api/ai/chat`;
     const controller = new AbortController();
@@ -391,7 +394,7 @@ export class AIClient {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
-      let toolCalls = null;
+      const toolCallAcc = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -417,9 +420,10 @@ export class AIClient {
               yield { content: delta.content, done: false };
             }
 
-            if (delta.tool_calls) {
-              toolCalls = toolCalls || [];
-              toolCalls.push(...delta.tool_calls);
+            if (Array.isArray(delta.tool_calls)) {
+              for (const tc of delta.tool_calls) {
+                this._mergeToolCallDelta(toolCallAcc, tc);
+              }
             }
           } catch (e) {
             // ignore malformed SSE lines
@@ -427,11 +431,14 @@ export class AIClient {
         }
       }
 
-      session.addMessage('user', message);
-      session.addMessage('assistant', fullContent, { tool_calls: toolCalls });
+      const finalToolCalls = toolCallAcc.length > 0 ? toolCallAcc : null;
+      if (!skipUserAppend) {
+        session.addMessage('user', message);
+      }
+      session.addMessage('assistant', fullContent, { tool_calls: finalToolCalls });
       this.saveSession(session);
 
-      yield { content: '', done: true, toolCalls };
+      yield { content: '', done: true, toolCalls: finalToolCalls };
     } catch (err) {
       clearTimeout(timeoutId);
       throw err;
@@ -566,6 +573,40 @@ export class AIClient {
       return JSON.stringify(context, null, 2);
     } catch (e) {
       return String(context);
+    }
+  }
+
+  /**
+   * 合并 streaming tool_call 增量。
+   * Kimi/OpenAI 的流式 tool_calls 按 index 分片返回，需要把同一 index 的
+   * id / type / function.name / function.arguments 累加到一起。
+   */
+  _mergeToolCallDelta(acc, delta) {
+    if (!delta || typeof delta !== 'object') return;
+
+    let target;
+    if (typeof delta.index === 'number') {
+      target = acc[delta.index];
+      if (!target) {
+        target = { id: '', type: 'function', function: { name: '', arguments: '' } };
+        acc[delta.index] = target;
+      }
+    } else if (delta.id) {
+      target = acc.find((t) => t.id === delta.id);
+      if (!target) {
+        target = { id: '', type: 'function', function: { name: '', arguments: '' } };
+        acc.push(target);
+      }
+    } else {
+      target = { id: '', type: 'function', function: { name: '', arguments: '' } };
+      acc.push(target);
+    }
+
+    if (delta.id) target.id = delta.id;
+    if (delta.type) target.type = delta.type;
+    if (delta.function && typeof delta.function === 'object') {
+      if (delta.function.name) target.function.name = delta.function.name;
+      if (delta.function.arguments) target.function.arguments += delta.function.arguments;
     }
   }
 

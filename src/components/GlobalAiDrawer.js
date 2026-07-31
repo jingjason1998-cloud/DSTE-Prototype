@@ -328,7 +328,7 @@ function renderMessages() {
   const client = getClient();
   const session = client.getCurrentSession();
   const history = (session?.messages || [])
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .filter((m) => !m.hidden && (m.role === 'user' || m.role === 'assistant'))
     .map((m) => ({ role: m.role, content: m.content }));
 
   let html = '';
@@ -377,27 +377,74 @@ export async function sendMessage(text) {
 
   const pageId = getCurrentPageId();
   const pageCtx = buildPageContext(pageId);
+  const toolContext = { pageId, pageName: pageCtx.pageName };
 
   try {
-    let fullContent = '';
-    const botMsg = { role: 'assistant', content: '' };
+    let streamedContent = '';
+    let toolCalls = null;
 
     for await (const chunk of client.streamChat(messageText, {
       session,
       context: pageCtx.text,
       systemPrompt: `${buildSystemPrompt()}\n\n当前页面：${pageCtx.pageName}（${pageCtx.pageId || '全局'}）。请优先基于当前页面上下文回答。`,
       tools: [AITools.navigateTo, AITools.searchKms],
+      skipUserAppend: true,
     })) {
-      if (chunk.done) break;
-      fullContent += chunk.content;
-      botMsg.content = fullContent;
-      updateLastMessage(fullContent);
+      if (chunk.done) {
+        toolCalls = chunk.toolCalls || null;
+        break;
+      }
+      streamedContent += chunk.content || '';
+      updateLastMessage(streamedContent);
     }
 
-    session.addMessage('assistant', fullContent);
-    client.saveSession(session);
+    if (toolCalls && toolCalls.length > 0) {
+      // 将 streamChat 写入的 assistant（带 tool_calls）占位，避免空白气泡
+      for (let i = session.messages.length - 1; i >= 0; i--) {
+        const m = session.messages[i];
+        if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+          m.content = '正在调用工具…';
+          break;
+        }
+      }
+      client.saveSession(session);
+      updateLastMessage('正在调用工具…');
 
-    if (fullContent.includes('【mock 模式】') || fullContent.includes('当前为 mock')) {
+      for (const call of toolCalls) {
+        const result = await client._executeTool(call, toolContext);
+        session.addMessage('tool', JSON.stringify(result), { tool_call_id: call.id });
+      }
+
+      // 隐藏的 user 消息，让 Kimi 消息顺序合法，但不在 UI 中展示
+      session.addMessage('user', '请基于工具返回结果继续回答。', { hidden: true });
+      client.saveSession(session);
+      renderMessages();
+
+      const finalSystemPrompt = `${buildSystemPrompt()}\n\n当前页面：${pageCtx.pageName}（${pageCtx.pageId || '全局'}）。请优先基于当前页面上下文回答。`;
+      const finalMessages = [{ role: 'system', content: finalSystemPrompt }];
+      if (pageCtx.text) {
+        const ctxText = typeof pageCtx.text === 'string' ? pageCtx.text : JSON.stringify(pageCtx.text);
+        finalMessages.push({ role: 'system', content: '### 当前业务上下文\n' + ctxText });
+      }
+      finalMessages.push(...session.toKimiFormat(false));
+
+      const finalResp = await client.request('/api/ai/chat', {
+        messages: finalMessages,
+        tools: [],
+        stream: false,
+        temperature: 0.7,
+        max_tokens: 2048,
+      });
+      const finalContent = finalResp.choices?.[0]?.message?.content || 'AI 未返回有效回复';
+      session.addMessage('assistant', finalContent);
+      client.saveSession(session);
+
+      if (finalContent.includes('【mock 模式】') || finalContent.includes('当前为 mock')) {
+        if (typeof window !== 'undefined' && window.showToast) {
+          window.showToast('当前为 AI mock 模式，未调用真实模型', 'info', 3000);
+        }
+      }
+    } else if (streamedContent.includes('【mock 模式】') || streamedContent.includes('当前为 mock')) {
       if (typeof window !== 'undefined' && window.showToast) {
         window.showToast('当前为 AI mock 模式，未调用真实模型', 'info', 3000);
       }

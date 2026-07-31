@@ -74,8 +74,8 @@ function sanitizeMessages(messages) {
         };
       }
 
-      // 其余角色空内容直接丢弃
-      if (content.trim() === '') return null;
+      // 其余角色空内容直接丢弃；但 assistant 带 tool_calls 时保留（上面已补空格）
+      if (content.trim() === '' && !(role === 'assistant' && hasToolCalls)) return null;
 
       const sanitized = { role, content };
       if (role === 'assistant' && hasToolCalls) {

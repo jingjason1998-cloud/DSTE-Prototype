@@ -180,6 +180,61 @@ describe('ai-client', () => {
       const contents = chunks.filter((c) => !c.done).map((c) => c.content);
       expect(contents).toEqual(['Hello', ' world']);
     });
+
+    it('assembles partial tool_calls deltas by index', async () => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_nav","type":"function","function":{"name":"navigateTo"}}]}}]}\n\n'));
+          controller.enqueue(encoder.encode(`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":${JSON.stringify('{"pageId": ')}}}]}}]}\n\n`));
+          controller.enqueue(encoder.encode(`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":${JSON.stringify('"exe/tasks"}')}}}]}}]}\n\n`));
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        },
+      });
+
+      fetch.mockResolvedValueOnce({ ok: true, body: stream });
+
+      const client = new AIClient({ baseUrl: 'http://localhost:8766' });
+      const chunks = [];
+      for await (const chunk of client.streamChat('hi')) {
+        chunks.push(chunk);
+      }
+
+      const doneChunk = chunks.find((c) => c.done);
+      expect(doneChunk).toBeDefined();
+      expect(doneChunk.toolCalls).toHaveLength(1);
+      expect(doneChunk.toolCalls[0]).toMatchObject({
+        id: 'call_nav',
+        type: 'function',
+        function: { name: 'navigateTo', arguments: '{"pageId": "exe/tasks"}' },
+      });
+    });
+
+    it('does not append user message when skipUserAppend is true', async () => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n'));
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        },
+      });
+
+      fetch.mockResolvedValueOnce({ ok: true, body: stream });
+
+      const client = new AIClient({ baseUrl: 'http://localhost:8766' });
+      const session = client.getCurrentSession();
+      session.addMessage('user', 'hello');
+
+      const chunks = [];
+      for await (const chunk of client.streamChat('hello', { session, skipUserAppend: true })) {
+        chunks.push(chunk);
+      }
+
+      expect(session.messages.filter((m) => m.role === 'user').length).toBe(1);
+      expect(session.messages.filter((m) => m.role === 'assistant').length).toBe(1);
+    });
   });
 
   describe('AITools', () => {

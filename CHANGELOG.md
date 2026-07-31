@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [v0.7.19] - 2026-07-31
+
+### Fixed
+- **修复全局 AI 抽屉工具调用失败**：`src/components/GlobalAiDrawer.js` 的 `sendMessage()` 现在会执行流式返回的 `tool_calls`（`navigateTo`、`searchKms`），将工具结果以 `role: 'tool'` 追加到会话后再请求最终回答；不再重复添加 user/assistant 消息。
+- **修复 streaming tool-call 增量聚合错误**：`src/lib/ai-client.js` 的 `streamChat()` 按 `index` 合并 Kimi/OpenAI 分片返回的 `tool_calls`，避免 `function.arguments` 残缺。
+- **修复后端消息清洗误删带 tool_calls 的 assistant 消息**：`api-worker/worker.js` 的 `sanitizeMessages()` 保留带 `tool_calls` 的 assistant 消息，避免 Kimi 返回 `tool_call_id is not found` 导致经营分析会 AI 请求 502。
+
+### Added
+- 新增 `AIClient.streamChat()` 的 `skipUserAppend` 选项，方便调用方自行管理会话历史。
+
 ## [v0.7.18] - 2026-07-30
 
 ### Added
