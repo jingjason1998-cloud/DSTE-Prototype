@@ -183,6 +183,14 @@
     .st-action-link.danger:hover {
       color: var(--danger);
     }
+    .st-action-link:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    .st-action-link:disabled:hover {
+      background: none;
+      color: var(--text-secondary);
+    }
     .st-year-card {
       display: flex;
       flex-direction: column;
@@ -4304,7 +4312,13 @@
           icon: '<span class="icon" data-icon="chart-line-up" data-icon-size="14"></span>',
           color: 'var(--success)',
           reports: [
-            // 开口：后续在此处添加专题报表
+            {
+              id: 'fr-capability-map',
+              name: '营销线人才能力分布',
+              description: '2026年营销线人才能力分布，按战区/岗位/职级展示人级能力四象限',
+              url: 'capability-map.html',
+              embed: true
+            }
           ]
         }
       ];
@@ -4436,7 +4450,7 @@
                   const iframeSrc = activeReport
                     ? (activeReport.url === 'marketing-budget.html'
                         ? 'marketing-budget.html?embed=1&pageId=exe%2Fmarketing-budget'
-                        : activeReport.url)
+                        : (/^https?:/i.test(activeReport.url) ? activeReport.url : activeReport.url + '?embed=1'))
                     : 'about:blank';
                   return `<iframe id="report-center-iframe" style="position: absolute; left: ${iframeLeft}; top: 0; width: ${iframeWidth}; height: 100%; border: none;" src="${iframeSrc}"></iframe>`;
                 })()}
@@ -6451,6 +6465,31 @@
         }
       }
 
+      // 为专题补齐序号（seq）：按年份（t.year）分组各自从 1 编号。
+      // 分组内存在缺失/非法 seq 时，按当前数组顺序将该分组重排为 1..N。
+      function siMigrateTopicSeq() {
+        try {
+          const topics = strategyTopicsRepo.get();
+          if (!Array.isArray(topics) || topics.length === 0) return;
+          const byYear = {};
+          topics.forEach(t => {
+            const y = t.year || 'unknown';
+            if (!byYear[y]) byYear[y] = [];
+            byYear[y].push(t);
+          });
+          let changed = false;
+          Object.values(byYear).forEach(group => {
+            if (group.some(t => !Number.isFinite(t.seq) || t.seq < 1)) {
+              group.forEach((t, i) => { t.seq = i + 1; });
+              changed = true;
+            }
+          });
+          if (changed) strategyTopicsRepo.set(topics);
+        } catch (e) {
+          console.warn('[SI] topic seq migration failed:', e);
+        }
+      }
+
       function siLoadInsights() {
         try {
           const data = DSTE.Storage.getString(SI_STORAGE_KEY_INSIGHTS);
@@ -6539,6 +6578,7 @@
         siMigrateTopicsFromV1();
         siMigrateTopicTypes();
         siMigrateRemoveDeprecatedFields();
+        siMigrateTopicSeq();
         try {
           const topics = strategyTopicsRepo.get().filter(t => siSafeTopicId(t.id));
           const { topics: cleaned, changed } = siCleanupOrphanTopicChainLinks(topics);
@@ -7189,14 +7229,15 @@
       }
 
       function siApplyTopicSort(topics) {
-        const key = window._strategySortKey || 'updatedAt';
-        const dir = window._strategySortDir || 'desc';
+        const key = window._strategySortKey || 'seq';
+        const dir = window._strategySortDir || 'asc';
         const statusOrder = { insight: 0, planning: 1, execution: 2, closed: 3 };
         const typeOrder = { macro: 0, customer: 1, self: 2, competition: 3, breakthrough: 0, incremental: 1, maintenance: 2 };
         const sorted = [...topics];
         sorted.sort((a, b) => {
           let va, vb;
           switch (key) {
+            case 'seq': va = Number.isFinite(a.seq) ? a.seq : Number.MAX_SAFE_INTEGER; vb = Number.isFinite(b.seq) ? b.seq : Number.MAX_SAFE_INTEGER; break;
             case 'name': va = a.name || ''; vb = b.name || ''; break;
             case 'type': va = typeOrder[a.type] ?? 99; vb = typeOrder[b.type] ?? 99; break;
             case 'owner': va = siRenderPerson(a.owner); vb = siRenderPerson(b.owner); break;
@@ -7229,14 +7270,33 @@
       };
 
       window.siSetSort = function(key) {
-        const currentKey = window._strategySortKey || 'updatedAt';
-        const currentDir = window._strategySortDir || 'desc';
+        const currentKey = window._strategySortKey || 'seq';
+        const currentDir = window._strategySortDir || 'asc';
         if (currentKey === key) {
           window._strategySortDir = currentDir === 'asc' ? 'desc' : 'asc';
         } else {
           window._strategySortKey = key;
           window._strategySortDir = 'asc';
         }
+        navigate('sp/strategy-topics');
+      };
+
+      // 上移/下移：在同一年份分组内与相邻项交换 seq，随后将该分组重排为 1..N
+      window.siMoveTopicSeq = function(topicId, dir) {
+        const topics = siLoadTopics();
+        const target = topics.find(t => t.id === topicId);
+        if (!target) return;
+        const group = topics
+          .filter(t => !t.deleted && t.year === target.year)
+          .sort((a, b) => (Number.isFinite(a.seq) ? a.seq : Number.MAX_SAFE_INTEGER) - (Number.isFinite(b.seq) ? b.seq : Number.MAX_SAFE_INTEGER));
+        const idx = group.findIndex(t => t.id === topicId);
+        const swapIdx = idx + dir;
+        if (idx < 0 || swapIdx < 0 || swapIdx >= group.length) return;
+        const tmp = group[idx].seq;
+        group[idx].seq = group[swapIdx].seq;
+        group[swapIdx].seq = tmp;
+        group.sort((a, b) => a.seq - b.seq).forEach((t, i) => { t.seq = i + 1; });
+        siPersistTopics(topics);
         navigate('sp/strategy-topics');
       };
 
@@ -7278,12 +7338,25 @@
         });
         const sortedYears = Object.keys(yearGroups).map(Number).sort((a, b) => b - a);
 
+        // 序号位置映射：每个年份分组（基于全部未删除专题）按 seq 升序的位置（1..N）
+        const seqPosById = {};
+        const seqGroups = {};
+        allTopics.forEach(t => {
+          const y = t.year || currentYear;
+          if (!seqGroups[y]) seqGroups[y] = [];
+          seqGroups[y].push(t);
+        });
+        Object.values(seqGroups).forEach(group => {
+          group.sort((a, b) => (Number.isFinite(a.seq) ? a.seq : Number.MAX_SAFE_INTEGER) - (Number.isFinite(b.seq) ? b.seq : Number.MAX_SAFE_INTEGER));
+          group.forEach((t, i) => { seqPosById[t.id] = { pos: i + 1, total: group.length }; });
+        });
+
         const statusClass = { insight: 'status-default', planning: 'status-primary', execution: 'status-warning', closed: 'status-success' };
         const statusLabel = { insight: '洞察阶段', planning: '规划阶段', execution: '执行阶段', closed: '已闭环' };
         const typeLabel = { macro: '看宏观', customer: '看客户', self: '看自己', competition: '看竞争', breakthrough: '看宏观', incremental: '看客户', maintenance: '看自己' };
         const viewMode = window._strategyViewMode || 'list';
-        const sortKey = window._strategySortKey || 'updatedAt';
-        const sortDir = window._strategySortDir || 'desc';
+        const sortKey = window._strategySortKey || 'seq';
+        const sortDir = window._strategySortDir || 'asc';
 
         window.siFilterTopicsByYear = function(year) {
           window._strategySelectedYear = year === 'all' ? 'all' : parseInt(year, 10);
@@ -7373,8 +7446,18 @@
         const topicRows = (yearTopics) => yearTopics.map(t => {
           const hasNext = !!t.nextTopicId;
           const hasPrev = !!t.previousTopicId;
+          const seqInfo = seqPosById[t.id] || { pos: 0, total: 0 };
+          const isFirst = seqInfo.pos <= 1;
+          const isLast = seqInfo.total === 0 || seqInfo.pos >= seqInfo.total;
           return `
             <tr data-topic-id="${t.id}" data-year="${t.year}">
+              <td class="text-center nowrap">
+                <span style="display:inline-flex;align-items:center;gap:2px;">
+                  <span style="min-width:18px;color:var(--text-secondary);font-size:12px;">${seqInfo.pos || '—'}</span>
+                  <button class="st-action-link" onclick="siMoveTopicSeq('${t.id}', -1)" title="上移" aria-label="上移" ${isFirst ? 'disabled' : ''}>${icon('caretUp', { size: 13 })}</button>
+                  <button class="st-action-link" onclick="siMoveTopicSeq('${t.id}', 1)" title="下移" aria-label="下移" ${isLast ? 'disabled' : ''}>${icon('caretDown', { size: 13 })}</button>
+                </span>
+              </td>
               <td>
                 <div class="flex-row gap-xs flex-wrap">
                   ${hasPrev ? `<span class="chain-badge" data-topic-id="${t.previousTopicId}" style="font-size:11px;padding:1px 5px;border-radius:4px;background:var(--info-bg);color:var(--info);cursor:pointer;" title="查看上一年专题">↰ 承继</span>` : ''}
@@ -7417,6 +7500,7 @@
                 <table class="data-table st-compact-table">
                   <thead>
                     <tr>
+                      <th class="cursor-pointer-nowrap" onclick="siSetSort('seq')">序号 ${sortIndicator('seq')}</th>
                       <th class="cursor-pointer-nowrap" onclick="siSetSort('name')">专题名称 ${sortIndicator('name')}</th>
                       <th class="nowrap">KMS</th>
                       <th class="cursor-pointer-nowrap" onclick="siSetSort('type')">类型 ${sortIndicator('type')}</th>
@@ -7425,7 +7509,7 @@
                       <th class="nowrap">操作</th>
                     </tr>
                   </thead>
-                  <tbody>${topicRows(yearTopics) || '<tr><td colspan="6" class="empty-state">暂无专题</td></tr>'}</tbody>
+                  <tbody>${topicRows(yearTopics) || '<tr><td colspan="7" class="empty-state">暂无专题</td></tr>'}</tbody>
                 </table>
               </div>
             </div>
@@ -8282,6 +8366,10 @@
           previousTopicId = fromChainId;
         }
 
+        // 序号：同年份现有专题（未删除）最大 seq + 1
+        const topicsForSeq = siLoadTopics();
+        const maxSeqInYear = topicsForSeq.reduce((m, t) => (!t.deleted && t.year === year && Number.isFinite(t.seq) ? Math.max(m, t.seq) : m), 0);
+
         const newTopic = {
           id: siGenerateTopicId(),
           name,
@@ -8301,11 +8389,12 @@
           previousTopicId,
           nextTopicId: null,
           deleted: false,
+          seq: maxSeqInYear + 1,
           createdAt: new Date().toISOString().slice(0, 10),
           updatedAt: new Date().toISOString().slice(0, 10)
         };
 
-        let topics = siLoadTopics();
+        let topics = topicsForSeq;
         topics.push(newTopic);
 
         // 回写下一年深化链

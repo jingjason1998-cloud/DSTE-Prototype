@@ -192,3 +192,37 @@ def test_gantt_view_exists():
     assert "siRenderGanttChart" in insights_section, "缺少甘特图渲染函数"
     assert "gantt-bar" in insights_section, "甘特图缺少条形元素"
     assert "gantt-milestone" in insights_section, "甘特图缺少里程碑标记"
+
+
+# ========== 序号（seq）与排序 ==========
+
+def test_topic_seq_migration_exists():
+    """应有 seq 迁移函数并挂入 siLoadTopics 迁移链"""
+    insights_section = _strategy_section()
+    assert "function siMigrateTopicSeq()" in insights_section, "缺少 siMigrateTopicSeq 迁移函数"
+    assert "siMigrateTopicSeq();" in insights_section, "siLoadTopics 未调用 siMigrateTopicSeq"
+
+
+def test_topic_table_has_seq_column():
+    """列表表格应新增「序号」首列，空态 colspan 相应 +1"""
+    insights_section = _strategy_section()
+    assert "siSetSort('seq')" in insights_section, "表头缺少可排序的序号列"
+    assert ">序号 " in insights_section, "表头缺少序号列"
+    assert 'colspan="7"' in insights_section, "空态 colspan 未随新增列 +1"
+
+
+def test_topic_move_seq_function_exists():
+    """应有全局上移/下移函数，且持久化走 siPersistTopics"""
+    insights_section = _strategy_section()
+    assert "window.siMoveTopicSeq" in insights_section, "缺少 siMoveTopicSeq 函数"
+    assert "上移" in insights_section and "下移" in insights_section, "缺少上移/下移按钮"
+    move_idx = insights_section.find("window.siMoveTopicSeq")
+    move_body = insights_section[move_idx:move_idx + 1200]
+    assert "siPersistTopics" in move_body, "排序变更未通过 siPersistTopics 持久化"
+
+
+def test_topic_sort_defaults_to_seq():
+    """默认排序应为 seq 升序"""
+    insights_section = _strategy_section()
+    assert "window._strategySortKey || 'seq'" in insights_section, "默认 sortKey 未改为 seq"
+    assert "window._strategySortDir || 'asc'" in insights_section, "默认排序方向未改为 asc"

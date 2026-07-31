@@ -156,3 +156,64 @@ test.describe('战略专题管理 - 搜索与筛选', () => {
   });
 
 });
+
+test.describe('战略专题管理 - 序号与排序', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto(STRATEGY_TOPICS_URL);
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForTimeout(1500);
+  });
+
+  test('序号列按年份分组渲染为 1..N', async ({ page }) => {
+    // 表头包含可排序的「序号」首列
+    await expect(page.locator('th:has-text("序号")').first()).toBeVisible();
+
+    const cards = page.locator('.st-year-card');
+    const cardCount = await cards.count();
+    expect(cardCount).toBeGreaterThan(0);
+    for (let c = 0; c < cardCount; c++) {
+      const rows = cards.nth(c).locator('tbody tr');
+      const rowCount = await rows.count();
+      expect(rowCount).toBeGreaterThan(0);
+      for (let i = 0; i < rowCount; i++) {
+        const seqText = (await rows.nth(i).locator('td').first().textContent()).trim();
+        expect(seqText).toBe(String(i + 1));
+      }
+      // 首项「上移」禁用，末项「下移」禁用
+      await expect(rows.nth(0).locator('button[title="上移"]')).toBeDisabled();
+      await expect(rows.nth(rowCount - 1).locator('button[title="下移"]')).toBeDisabled();
+    }
+  });
+
+  test('点击下移后两行交换且刷新后保持', async ({ page }) => {
+    const firstCard = page.locator('.st-year-card').first();
+    const rows = firstCard.locator('tbody tr');
+    const firstName = (await rows.nth(0).locator('strong').textContent()).trim();
+    const secondName = (await rows.nth(1).locator('strong').textContent()).trim();
+
+    await rows.nth(0).locator('button[title="下移"]').click();
+    await page.waitForTimeout(500);
+
+    const rowsAfter = page.locator('.st-year-card').first().locator('tbody tr');
+    await expect(rowsAfter.nth(0).locator('strong')).toHaveText(secondName);
+    await expect(rowsAfter.nth(1).locator('strong')).toHaveText(firstName);
+
+    // localStorage 持久化校验：两个专题的 seq 已交换
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('dste_strategy_topics_v2') || '[]'));
+    const t1 = stored.find(t => t.name === firstName);
+    const t2 = stored.find(t => t.name === secondName);
+    expect(Number.isFinite(t1.seq)).toBe(true);
+    expect(Number.isFinite(t2.seq)).toBe(true);
+    expect(t2.seq).toBeLessThan(t1.seq);
+
+    // 刷新后顺序保持
+    await page.reload();
+    await page.waitForTimeout(1500);
+    const rowsReloaded = page.locator('.st-year-card').first().locator('tbody tr');
+    await expect(rowsReloaded.nth(0).locator('strong')).toHaveText(secondName);
+    await expect(rowsReloaded.nth(1).locator('strong')).toHaveText(firstName);
+  });
+
+});
