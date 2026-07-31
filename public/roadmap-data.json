@@ -1,6 +1,62 @@
 {
   "versions": [
     {
+      "version": "v0.7.23",
+      "date": "2026-07-31",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Added",
+          "desc": "**战略专题管理新增序号编号与排序功能**：列表视图新增「序号」首列，专题按年份分组从 1 自动编号；每行提供上移/下移按钮调整顺序，调整后同分组序号自动重排并持久化（含单条云端同步）；默认排序由「最近更新」改为「序号升序」，序号列表头支持点击切换排序方向；新建专题自动追加到同分组末尾；旧数据通过 `siMigrateTopicSeq()` 迁移自动补齐序号。"
+        }
+      ]
+    },
+    {
+      "version": "v0.7.22",
+      "date": "2026-07-31",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复旧 AI 会话中的重复 tool_call_id 导致持续 502**：将 AI 会话存储 key 从 `dste_ai_sessions_v1` 升级到 `dste_ai_sessions_v2`，丢弃可能被旧版本污染的历史会话；同时保留 v0.7.20 的每轮前缀机制，防止新会话再次产生重复 id。"
+        }
+      ]
+    },
+    {
+      "version": "v0.7.20",
+      "date": "2026-07-31",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复 AI 工具调用 `tool_call_id` 重复导致 502**：`src/lib/ai-client.js` 在 `chat()` 和 `streamChat()` 中对每轮工具调用的 `tool_call.id` 增加唯一前缀，避免同一会话多轮工具调用时 Kimi 报 `tool call id is duplicated`。"
+        }
+      ]
+    },
+    {
+      "version": "v0.7.19",
+      "date": "2026-07-31",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**修复全局 AI 抽屉工具调用失败**：`src/components/GlobalAiDrawer.js` 的 `sendMessage()` 现在会执行流式返回的 `tool_calls`（`navigateTo`、`searchKms`），将工具结果以 `role: 'tool'` 追加到会话后再请求最终回答；不再重复添加 user/assistant 消息。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复 streaming tool-call 增量聚合错误**：`src/lib/ai-client.js` 的 `streamChat()` 按 `index` 合并 Kimi/OpenAI 分片返回的 `tool_calls`，避免 `function.arguments` 残缺。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**修复后端消息清洗误删带 tool_calls 的 assistant 消息**：`api-worker/worker.js` 的 `sanitizeMessages()` 保留带 `tool_calls` 的 assistant 消息，避免 Kimi 返回 `tool_call_id is not found` 导致经营分析会 AI 请求 502。"
+        },
+        {
+          "type": "Added",
+          "desc": "新增 `AIClient.streamChat()` 的 `skipUserAppend` 选项，方便调用方自行管理会话历史。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.18",
       "date": "2026-07-30",
       "status": "released",
