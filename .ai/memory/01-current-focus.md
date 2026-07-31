@@ -1,6 +1,6 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-30
+> 更新时间: 2026-07-31 09:37
 
 ## 状态
 **v0.7.18 已发布并部署生产**（commit `112c914`，tag `v0.7.18`）：新增 2026年营销线H1专项激励名单页面——位于「评估 → 绩效与激励 → 2026年营销线H1专项激励名单」，11 页幻灯片式公示大屏，支持系统主题/深色大屏切换；`src/lib/config.js` 将「绩效与激励」改为可折叠分组。本地验证：`npm run lint` 0 error / `npm run check:scope` ✓ / unit 535 passed / pytest 184 passed / navigation E2E 20 passed / omp-matrix E2E 5 passed；全量 E2E 443 passed / 0 failed。发布方式：手动 build + tag + push（`scripts/release.sh` 被权限分类器拒绝，改用手动）。
