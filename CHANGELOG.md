@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [v0.7.20] - 2026-07-31
+
+### Fixed
+- **修复 AI 工具调用 `tool_call_id` 重复导致 502**：`src/lib/ai-client.js` 在 `chat()` 和 `streamChat()` 中对每轮工具调用的 `tool_call.id` 增加唯一前缀，避免同一会话多轮工具调用时 Kimi 报 `tool call id is duplicated`。
+
 ## [v0.7.19] - 2026-07-31
 
 ### Fixed

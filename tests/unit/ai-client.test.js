@@ -205,10 +205,10 @@ describe('ai-client', () => {
       expect(doneChunk).toBeDefined();
       expect(doneChunk.toolCalls).toHaveLength(1);
       expect(doneChunk.toolCalls[0]).toMatchObject({
-        id: 'call_nav',
         type: 'function',
         function: { name: 'navigateTo', arguments: '{"pageId": "exe/tasks"}' },
       });
+      expect(doneChunk.toolCalls[0].id).toContain('call_nav');
     });
 
     it('does not append user message when skipUserAppend is true', async () => {

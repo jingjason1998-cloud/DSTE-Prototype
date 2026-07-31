@@ -186,6 +186,13 @@ function generateId(prefix = 'id') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * 生成唯一的 tool-call id 前缀，防止同一会话多轮工具调用时出现重复 id。
+ */
+function makeToolCallIdPrefix() {
+  return `tc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
 export class AISession {
   constructor(id = generateId('ai_session')) {
     this.id = id;
@@ -334,7 +341,11 @@ export class AIClient {
     });
 
     const assistantContent = response.choices?.[0]?.message?.content || '';
-    const toolCalls = response.choices?.[0]?.message?.tool_calls;
+    const rawToolCalls = response.choices?.[0]?.message?.tool_calls;
+    const toolCallPrefix = Array.isArray(rawToolCalls) && rawToolCalls.length > 0 ? makeToolCallIdPrefix() : null;
+    const toolCalls = toolCallPrefix
+      ? rawToolCalls.map((tc) => ({ ...tc, id: `${toolCallPrefix}_${tc.id}` }))
+      : rawToolCalls;
 
     session.addMessage('user', message);
     session.addMessage('assistant', assistantContent, { tool_calls: toolCalls });
@@ -431,7 +442,10 @@ export class AIClient {
         }
       }
 
-      const finalToolCalls = toolCallAcc.length > 0 ? toolCallAcc : null;
+      const toolCallPrefix = toolCallAcc.length > 0 ? makeToolCallIdPrefix() : null;
+      const finalToolCalls = toolCallAcc.length > 0
+        ? toolCallAcc.map((tc) => ({ ...tc, id: `${toolCallPrefix}_${tc.id}` }))
+        : null;
       if (!skipUserAppend) {
         session.addMessage('user', message);
       }
