@@ -1,8 +1,11 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-31 09:37
+> 更新时间: 2026-07-31 19:04
 
 ## 状态
+**v0.7.24 已发布并部署生产**（commit `310b788`，tag `v0.7.24`）：新增「2026年营销线人才能力分布」页面（执行 → 报表中心 → 专题报表），`src/capability-map.html` 单文件只读看板 + vite/config.js 注册 + report-center-nav E2E 6/6。注意：该页为并行会话成果，其 cockpit.html 目录入口曾被误带入 v0.7.23 导致生产短暂 404，经用户确认后补齐发布。
+**v0.7.23 已发布并部署生产**（commit `549a11a`，tag `v0.7.23`）：战略专题管理新增序号编号与排序功能——列表「序号」首列按年份分组 1..N 自动编号、上移/下移按钮调整顺序并走 `siPersistTopics` 单条云端同步、默认按序号升序、新建专题自动排末尾、`siMigrateTopicSeq()` 迁移补齐旧数据。验证：lint 0 error / check:scope ✓ / pytest 188 / strategy-topics E2E 11；全量 E2E 424 passed / 1 failed（`rule-engine.spec.js:80`，月末日期敏感既有问题，`rule-engine-engine.test.js` 2 个单测同日同因失败，均未改动相关代码）。**同会话还通过 wrangler 直接改生产 KV 完成 17 条 2026 战略专题统一改名**（「XX市场分析&27年业务规划&2030规划展望」格式，备份在 `/tmp/dste-slide/dste_strategy_topics_v2.backup-*.json`）。
+**v0.7.19~v0.7.22（并行会话，2026-07-31）**：AI 工具调用系列修复——GlobalAiDrawer 流式 tool_calls 执行、streaming 分片聚合、tool_call_id 唯一前缀、AI 会话存储 key 升级 v2 丢弃污染会话。
 **v0.7.18 已发布并部署生产**（commit `112c914`，tag `v0.7.18`）：新增 2026年营销线H1专项激励名单页面——位于「评估 → 绩效与激励 → 2026年营销线H1专项激励名单」，11 页幻灯片式公示大屏，支持系统主题/深色大屏切换；`src/lib/config.js` 将「绩效与激励」改为可折叠分组。本地验证：`npm run lint` 0 error / `npm run check:scope` ✓ / unit 535 passed / pytest 184 passed / navigation E2E 20 passed / omp-matrix E2E 5 passed；全量 E2E 443 passed / 0 failed。发布方式：手动 build + tag + push（`scripts/release.sh` 被权限分类器拒绝，改用手动）。
 **v0.7.17 已发布并部署生产**（commit `e5c003e`，tag `v0.7.17`）：修复预算执行监控看板在报表中心嵌入模式下底部留白过窄的问题——`src/pages/marketing-budget/style.css` 中 `[data-embed="true"] .budget-workspace .page-container` 的 `padding-bottom` 由 `var(--space-3)`（12px）提升到 `var(--space-5)`（20px）。
 **v0.7.16 已发布并部署生产**（commit `379a8f4`，tag `v0.7.16`）：在 v0.7.15 基础上修复所有嵌入页（`src/marketing-budget.html` 等 10 个外部页）的 ResizeObserver 初始化时机问题——`<head>` 中 `document.body` 尚未解析，导致生产环境偶发 `parameter 1 is not of type 'Element'` 报错。统一改为观察 `document.documentElement`。
@@ -101,6 +104,12 @@
 - 断点/恢复见 `08-checkpoint.md`，任务配方见 `.ai/tasks/active/T030-resolution-center.md`
 
 ## 刚完成
+
+### 营销线人才能力分布接入报表中心（Kimi 会话，2026-07-31，未提交未发布）
+- 「2026年营销线人才能力分布」看板（战区×岗位×职级人级能力四象限，数据全内嵌 1.6MB 单文件）接入 **执行 → 经营分析报表中心 → 专题报表**（该分类首张报表），侧边栏报表中心组有直达项
+- `src/capability-map.html`（原始页面 + embed 标记/高度自适应/CAS 回调头部脚本）、`vite.config.js` 入口、`src/cockpit.html` REPORT_CATALOG + iframe src 通用化（本地 html 一律补 `?embed=1`）、`src/lib/config.js` 侧边栏、`tests/e2e/report-center-nav.spec.js` 2 新用例
+- 验证：build ✓ / check:scope ✓ / report-center E2E 6/6 ✓ / 截图目检 ✓；**未提交**，待与并行会话成果一起发版
+- 已知问题（非本次）：`tests/unit/rule-engine-engine.test.js` 2 个 executeRule 用例失败，疑似月末日期相关
 
 ### 2026年营销线H1专项激励名单页面（Kimi 会话，2026-07-30，未发版本）
 - 在战略评估 → 绩效与激励下新增子页「2026年营销线H1专项激励名单」，复刻用户提供的幻灯式公示 HTML（11 页大屏），内容不变

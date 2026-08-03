@@ -2,6 +2,29 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-07-31（Kimi，战略专题序号排序 + 生产专题改名 + v0.7.23/v0.7.24 发布）
+- **主题 1**：生产 2026 战略专题统一改名。用户确认映射后按「烟草」那条格式（XX市场分析&27年业务规划&2030规划展望）统一 17 条（烟草本身不变）；方式：wrangler 直写生产 KV `dste_strategy_topics_v2`（namespace `69ed6153435d4ba5b3b17c9077ce74c9`），改名同时 bump updatedAt/lastModified/version 保证客户端 SWR 合并生效；备份 `/tmp/dste-slide/dste_strategy_topics_v2.backup-*.json`；生产 API 复验 18 条全统一；桌面《2026年战略专题清单.xlsx》重新导出
+- **主题 2**：战略专题管理新增序号编号+排序功能（v0.7.23，commit `0f9e12b`+`549a11a`）。`seq` 字段按年份分组编号；`siMigrateTopicSeq()` 挂 `siLoadTopics()` 迁移链；`siApplyTopicSort` 默认 key 改 `seq` asc；列表新增「序号」首列 + 上移/下移按钮（`siMoveTopicSeq`，走 `siPersistTopics` 单条同步）；新建专题 seq=同组 max+1；空态 colspan 6→7。E2E +2、pytest +4
+- **主题 3**：发布 v0.7.23（专题功能）+ v0.7.24（capability-map 补齐，commit `8d7ef92`+`310b788`）。**踩坑**：`git add src/cockpit.html` 把并行会话未提交的 fr-capability-map 目录入口一并带入 v0.7.23，生产短暂出现入口 404；经用户确认选择「补齐能力分布页一起发」而非回滚。**教训：多会话并行时提交前必须逐文件核对 diff 归属，不能只按文件名 add**
+- **并行会话动态**：另一个 Kimi 会话当天连发 v0.7.19~v0.7.22（AI 工具调用修复），版本号因此从 v0.7.21 顺延到 v0.7.23
+- **验证**：lint 0 error / check:scope ✓ / pytest 188 / strategy-topics E2E 11 / report-center-nav E2E 6 / 全量 E2E 424 passed / 1 failed（`rule-engine.spec.js:80` 月末日期敏感既有问题，与改动无关）；生产 roadmap v0.7.24、capability-map.html 200、cockpit bundle 含排序代码
+- **状态**：complete
+
+## 2026-07-31（Kimi，营销线人才能力分布接入报表中心 + 本地 preview 修复）
+- **主题**：用户从悟帆AI分享链接（`https://www.wufanai.com/file/szal8mmaeka6cnx1`，元数据接口 `GET /s/file/{token}` 直接返回 HTML）获取「2026年营销线人才能力分布」页面（1.6MB 单文件，数据全内嵌：SALES_DATA 45万字符 + BAIYI_DATA 83万字符，按战区/岗位/职级的人级能力四象限；唯一外部依赖是 POST `fdl-it.fineres.com` jichurenyuan 接口，失败可降级），接入 DSTE
+- **位置决策**：先建议 BP 战略解码，用户指出是"进展页面"应属执行阶段；看完文件确认是只读分析看板（无任何编辑功能），最终放 **执行 → 经营分析报表中心 → 专题报表**（该分类原本为空，代码里留着开口注释），与营销线预算执行监控表同一模式
+- **操作**：
+  - `src/capability-map.html`：原始页面 + 头部适配脚本（embed 标记 + ResizeObserver iframe 高度汇报 + CAS 回调），页面内容零改动
+  - `vite.config.js`：注册 `capability-map` 入口
+  - `src/cockpit.html`：REPORT_CATALOG「专题报表」加 `fr-capability-map`；iframe src 逻辑通用化（本地 html 一律补 `?embed=1`，原先只对 marketing-budget 特判）
+  - `src/lib/config.js`：侧边栏报表中心组加直达项（`reportId: 'fr-capability-map'`，图标复用 `chart-pie-slice`）
+  - `tests/e2e/report-center-nav.spec.js`：新增 2 用例（侧边栏 iframe 嵌入加载 + 独立加载/embed 标记）
+- **验证**：`npm run build` ✓ / `check:scope` ✓ / report-center E2E 6/6 ✓ / navigation 失败用例单跑通过（并发抖动）/ Playwright 截图目检 ✓
+- **本地 preview 修复**：用户报 localhost:3456 登录不上，实为 preview 进程挂了（残留进程占用端口后退出），重启 `npm run preview` 恢复，浏览器实测直接以张总身份进入
+- **已知问题（非本次改动）**：`tests/unit/rule-engine-engine.test.js` 2 个 executeRule 用例失败（疑似月末日期相关，其引用文件本次均未改动）；unit 535 passed / 2 failed
+- **注意**：工作区有并行会话活动（ai-client.js 改动消失、新增 roadmap-data/strategy-topics 改动、v0.7.19 stash、页面底部已显示 v0.7.22）；本次改动**未提交**，待用户确认后与并行会话成果一起发版
+- **状态**：complete（未提交未发布，随下个版本上线）
+
 ## 2026-07-30（Kimi，KMS 空间找材料给王老师 + KMS_API_TOKEN 换新并同步生产）
 - **主题 1**：按用户截图（王旭东要「帆软战略到执行」「帆软战略洞察及规划」两个主题的 KMS 文档，准备常熟农商行拜访），用新 token 探 `pageId=226810546`（「战略&Marketing 主页」，空间 SMK），输出推荐清单：帆软 DSTE 全流程（1150036586）、市场空间宏观洞察与分析 2025（1325564536）、重点行业客群投资逻辑与参考指引 2026-2028（1356007532）、战略解码与执行（1389051440）、SP 战略规划 2025~2027（1147303494）、战略执行过程中问题（443816432）等
 - **主题 2**：旧 `KMS_API_TOKEN` 已全面失效（空间列表为空、搜索 403、按 ID 读 404）。用户提供新 Confluence PAT，已写入本地 `meeting-material-reviewer/src/.env`；通过 root 密码（expect 脚本，本地 `~/.ssh/deploy_key` 已被服务器移出 authorized_keys，GitHub Secrets 的 SSH_PRIVATE_KEY 仍有效）同步至生产 `/opt/meeting-reviewer/src/.env`（备份 `.env.bak.20260730`），`systemctl restart meeting-reviewer` 后 active，服务器上 KMS API 拉取验证 200「战略&Marketing 主页」
