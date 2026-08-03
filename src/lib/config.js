@@ -65,7 +65,8 @@ export const SIDEBAR_CONFIG = {
       { id: 'exe/report-center', reportId: 'fr-001', icon: 'chart-line-up', label: '国内营销线利润表' },
       { id: 'exe/report-center', reportId: 'fr-002', icon: 'chart-line-up', label: '国内营销线利润表（新）' },
       { id: 'exe/report-center', reportId: 'fr-ioc-platform', icon: 'chart-pie-slice', label: '营销线组织绩效IOC平台' },
-      { id: 'exe/report-center', reportId: 'fr-marketing-budget', icon: 'chart-line-up', label: '营销线预算执行监控表' }
+      { id: 'exe/report-center', reportId: 'fr-marketing-budget', icon: 'chart-line-up', label: '营销线预算执行监控表' },
+      { id: 'exe/report-center', reportId: 'fr-capability-map', icon: 'chart-pie-slice', label: '营销线人才能力分布' }
     ]},
     { type: 'quick', label: '快捷工具' },
     { type: 'item', id: 'exe/meeting-review', icon: 'exe/meeting-review', label: '会议材料审核' }

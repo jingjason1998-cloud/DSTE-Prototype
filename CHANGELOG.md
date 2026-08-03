@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [v0.7.24] - 2026-07-31
+
+### Added
+- **新增「2026年营销线人才能力分布」页面**：位于「执行 → 经营分析报表中心 → 专题报表」，按战区/岗位/职级展示人级能力四象限，数据内嵌只读分析看板。
+  - 新增 `src/capability-map.html`（含 embed 标记 + ResizeObserver iframe 高度汇报 + CAS 回调头部适配）。
+  - `vite.config.js` 注册 `capability-map` 构建入口；`src/lib/config.js` 侧边栏报表中心新增直达项。
+  - `src/cockpit.html` REPORT_CATALOG「专题报表」分类新增 `fr-capability-map`；iframe src 逻辑通用化（本地 html 一律补 `?embed=1`）。
+  - `tests/e2e/report-center-nav.spec.js` 新增 2 个用例。
+
 ## [v0.7.23] - 2026-07-31
 
 ### Added

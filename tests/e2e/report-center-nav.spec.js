@@ -79,4 +79,41 @@ test.describe('经营分析报表中心导航', () => {
     await expect(page.locator('.page-content')).toContainText('营销线组织绩效IOC平台');
     await expect(page.locator('.page-content iframe')).toBeVisible();
   });
+
+  test('点击营销线人才能力分布在 iframe 中以 embed 模式加载', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', err => errors.push(err.message));
+
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="exe"]').click();
+    await page.waitForTimeout(500);
+
+    // 侧边栏直达项
+    const item = page.locator('.sidebar-item[data-report-id="fr-capability-map"]');
+    await expect(item).toBeVisible();
+    await expect(item).toContainText('营销线人才能力分布');
+    await item.click();
+    await page.waitForTimeout(1000);
+
+    // iframe 以 ?embed=1 加载本地页面
+    const iframe = page.locator('#report-center-iframe');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute('src', /capability-map\.html\?embed=1/);
+
+    // 页面内容渲染（主标题 + 战区数据）
+    const frame = iframe.contentFrame();
+    await expect(frame.locator('.main-title')).toContainText('人才能力分布');
+    await expect(frame.locator('body')).toContainText('华南');
+
+    expect(errors).toEqual([]);
+  });
+
+  test('capability-map 页面独立加载', async ({ page }) => {
+    await page.goto('/src/capability-map.html');
+    await expect(page).toHaveTitle(/2026年营销线人才能力分布/);
+    await expect(page.locator('.main-title')).toContainText('人才能力分布');
+    // embed 参数应标记到 <html data-embed>
+    await page.goto('/src/capability-map.html?embed=1');
+    await expect(page.locator('html')).toHaveAttribute('data-embed', 'true');
+  });
 });

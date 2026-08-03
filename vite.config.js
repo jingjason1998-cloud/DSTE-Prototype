@@ -29,6 +29,7 @@ export default defineConfig({
         'st-issue-tracking': resolve(__dirname, 'src/st-issue-tracking.html'),
         'marketing-budget': resolve(__dirname, 'src/marketing-budget.html'),
         'incentive-h1-2026': resolve(__dirname, 'src/incentive-h1-2026.html'),
+        'capability-map': resolve(__dirname, 'src/capability-map.html'),
       },
     },
   },
