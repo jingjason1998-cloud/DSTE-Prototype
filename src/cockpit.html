@@ -592,9 +592,8 @@
     import { enhancePersonInput, getPersonInputValue } from './components/person-input.js';
     import { renderPerson, normalizePerson, getEmployees, getEmployeeById, getOrgTree, buildOrgHierarchy, searchEmployees } from './lib/employee-directory.js';
     import { createOrgSelector } from './components/org-selector.js';
-    import { AIClient, AISession, AITools } from './lib/ai-client.js';
-    import { buildSystemPrompt, gatherBusinessContext, getContextSummary, registerAiContextProvider } from './lib/ai-context.js';
-    import { renderMarkdownLite } from './lib/markdown-lite.js';
+    import './strategy-topics/components/TopicAiChat.js';
+    import { buildSystemPrompt, gatherBusinessContext, getContextSummary, registerAiContextProvider, formatContextForAI } from './lib/ai-context.js';
     import {
       isSubtask,
       getSubtasks,
@@ -663,6 +662,73 @@
         const input = document.getElementById(inputId);
         return input ? (input.value.trim() || null) : null;
       };
+
+      // ===== AI 页面上下文提供者 =====
+      registerAiContextProvider('dashboard', {
+        name: '驾驶舱',
+        getContext: () => gatherBusinessContext({ maxMeetings: 10, maxTasks: 10, maxKpis: 10, maxTopics: 10, maxResolutions: 10 }),
+        getSuggestions: () => [
+          '分析当前季度 KPI 达成情况',
+          '列出本月待开经营分析会',
+          '识别高风险重点工作',
+          '生成战略复盘报告模板',
+        ],
+      });
+
+      registerAiContextProvider('sp/insights', {
+        name: '战略洞察',
+        getContext: () => {
+          const insights = (typeof siLoadInsights === 'function') ? siLoadInsights() : [];
+          const topics = (typeof siLoadTopics === 'function') ? siLoadTopics() : [];
+          return {
+            insightCount: insights.length,
+            topicCount: topics.length,
+            recentInsights: insights.slice(0, 10).map(i => ({
+              id: i.id,
+              title: i.title,
+              type: i.type,
+              impact: i.impact,
+              confidence: i.confidence,
+            })),
+            activeTopics: topics.filter(t => t.status !== 'closed').slice(0, 10).map(t => ({
+              id: t.id,
+              name: t.name,
+              owner: t.owner,
+              status: t.status,
+            })),
+          };
+        },
+        getSuggestions: () => [
+          '最近有哪些高影响洞察？',
+          '战略专题执行风险有哪些？',
+          '生成战略洞察月度摘要',
+        ],
+      });
+
+      registerAiContextProvider('sp/strategy-topics', {
+        name: '战略专题管理',
+        getContext: () => {
+          const topics = (typeof siLoadTopics === 'function') ? siLoadTopics() : [];
+          return {
+            topicCount: topics.length,
+            activeCount: topics.filter(t => t.status !== 'closed').length,
+            closedCount: topics.filter(t => t.status === 'closed').length,
+            topics: topics.slice(0, 15).map(t => ({
+              id: t.id,
+              name: t.name,
+              owner: t.owner,
+              status: t.status,
+              year: t.year,
+              kmsUrl: t.kmsUrl,
+            })),
+          };
+        },
+        getSuggestions: () => [
+          '哪些专题进度落后？',
+          '列出今年需要关闭的专题',
+          '专题负责人分布如何？',
+        ],
+      });
 
       // ===== 配置 =====
       const API_BASE = (() => {
@@ -1978,21 +2044,6 @@
         const indicators = omp_load('indicators');
         const state = window._indicatorState;
 
-        // 计算每个指标被引用的次数（KPI 实例 + 任务关联）
-        const kpis = omp_load('kpiInstances');
-        const tasks = omp_load('tasks');
-        const refCounts = {};
-        indicators.forEach(ind => { refCounts[ind.id] = 0; });
-        kpis.forEach(k => { if (refCounts[k.indicatorId] !== undefined) refCounts[k.indicatorId]++; });
-        tasks.forEach(t => {
-          (t.kpiAssociations || []).forEach(a => {
-            const kpi = kpis.find(k => k.id === a.kpiInstanceId);
-            if (kpi && refCounts[kpi.indicatorId] !== undefined) {
-              refCounts[kpi.indicatorId]++;
-            }
-          });
-        });
-
         // 指标类型标签
         const typeLabels = { result: '结果', process: '过程' };
         const typeColors = { result: 'var(--primary)', process: 'var(--warning)' };
@@ -2122,7 +2173,6 @@
                             <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--text-tertiary);font-size:12px;">分类</th>
                             <th class="table-header-cell">数据类型</th>
                             <th class="table-header-cell">频次</th>
-                            <th class="table-header-cell">引用</th>
                             <th class="table-header-cell">状态</th>
                             <th class="table-header-cell">操作</th>
                           </tr>
@@ -2146,9 +2196,6 @@
                               </td>
                               <td class="table-cell-center">
                                 <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${freqColors[ind.frequency]}15;color:${freqColors[ind.frequency]};">${freqLabels[ind.frequency]}</span>
-                              </td>
-                              <td class="table-cell-center">
-                                <span style="font-size:12px;font-weight:600;color:${refCounts[ind.id] > 0 ? 'var(--primary)' : 'var(--text-tertiary)'}">${refCounts[ind.id]}</span>
                               </td>
                               <td class="table-cell-center">
                                 <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${statusColors[ind.status]}15;color:${statusColors[ind.status]};">${statusLabels[ind.status]}</span>
@@ -6620,6 +6667,12 @@
         return siLoadTopics().filter(t => !t.deleted);
       }
 
+      window.siResolveTopicForAiChat = function(idOrTopic) {
+        if (idOrTopic && typeof idOrTopic === 'object') return idOrTopic;
+        if (!siSafeTopicId(idOrTopic)) return null;
+        return siGetActiveTopics().find(t => t.id === idOrTopic) || null;
+      };
+
       function siGenerateTopicId() {
         return 'st_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
       }
@@ -6807,230 +6860,6 @@
           textarea.value = suggestion;
           showToast('已生成下一年研究目标建议，请根据实际调整', 'success');
         }
-      };
-
-      window.siOpenTopicAiChat = function(topicId) {
-        if (!siSafeTopicId(topicId)) return;
-        const topic = siGetActiveTopics().find(t => t.id === topicId);
-        if (!topic) return;
-        if (!topic.kmsUrl) {
-          showToast('该专题未关联 KMS 页面，无法使用 AI 问答', 'warning');
-          return;
-        }
-
-        const pageIdMatch = /pageId=(\d+)/.exec(String(topic.kmsUrl));
-        if (!pageIdMatch) {
-          showToast('KMS 链接格式无法解析 pageId', 'warning');
-          return;
-        }
-        const pageId = pageIdMatch[1];
-
-        // 关闭可能已存在的面板
-        document.getElementById('topic-ai-chat-overlay')?.remove();
-
-        const overlay = document.createElement('div');
-        overlay.id = 'topic-ai-chat-overlay';
-        overlay.className = 'omp-modal-overlay';
-        overlay.style.zIndex = '100002';
-        overlay.innerHTML = `
-          <div id="topic-ai-chat-modal" class="omp-modal omp-modal-wide" style="background:var(--bg-card);border-radius:12px;max-width:680px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-color);flex-shrink:0;">
-              <div class="min-width-0">
-                <h3 style="margin:0;font-size:16px;display:flex;align-items:center;gap:8px;">${icon('robot', { size: 16 })} AI 问答 · ${siEscapeHtml(topic.name)}</h3>
-                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                  <a href="${siEscapeHtml(topic.kmsUrl)}" target="_blank" rel="noopener noreferrer" class="primary-text">${siEscapeHtml(topic.kmsUrl)}</a>
-                </div>
-              </div>
-              <button onclick="document.getElementById('topic-ai-chat-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);flex-shrink:0;">×</button>
-            </div>
-            <div id="topic-ai-chat-area" style="flex:1;overflow-y:auto;padding:16px 20px;min-height:260px;">
-              <div class="ai-message bot dste-ai-msg assistant">
-                <div class="ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>
-                <div class="ai-message-content dste-ai-bubble"><span class="dste-ai-thinking">正在从 KMS 提取《${siEscapeHtml(topic.name)}》页面内容，请稍候…</span></div>
-              </div>
-            </div>
-            <div style="padding:12px 20px;border-top:1px solid var(--border-color);flex-shrink:0;">
-              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;" id="topic-ai-status"><span class="dste-ai-thinking">正在提取 KMS 页面…</span></div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;" id="topic-ai-quick-actions">
-                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="这个专题的核心结论是什么？">核心结论</button>
-                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="关键里程碑与时间节点有哪些？">里程碑</button>
-                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="主要风险与应对措施是什么？">风险与应对</button>
-                <button class="btn btn-sm btn-secondary dste-ai-chip" data-ai-topic-prompt="这个专题对年度经营计划有什么影响？">经营影响</button>
-              </div>
-              <div class="dste-ai-composer">
-                <input type="text" id="topic-ai-chat-input" placeholder="输入关于该专题的问题，例如：关键举措有哪些？" onkeypress="if(event.key==='Enter') window.siSendTopicAiMessage()" oninput="document.getElementById('topic-ai-chat-send').disabled=!this.value.trim()">
-                <button class="dste-ai-send-btn" id="topic-ai-chat-send" aria-label="发送" onclick="window.siSendTopicAiMessage()" disabled>${icon('arrowUp', { size: 16 })}</button>
-              </div>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(overlay);
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-        // 快捷问题芯片
-        overlay.addEventListener('click', (e) => {
-          const chip = e.target.closest('[data-ai-topic-prompt]');
-          if (!chip) return;
-          const input = document.getElementById('topic-ai-chat-input');
-          if (input) {
-            input.value = chip.dataset.aiTopicPrompt;
-            window.siSendTopicAiMessage();
-          }
-        });
-
-        // 初始化临时会话，不污染全局 AI 会话列表
-        window._topicAiSession = new AISession();
-        window._topicAiKmsPage = null;
-
-        // 拉取 KMS 页面内容
-        (async () => {
-          const statusEl = document.getElementById('topic-ai-status');
-          const area = document.getElementById('topic-ai-chat-area');
-          try {
-            const client = getAIClient();
-            const res = await client.request('/api/ai/tools/execute', {
-              name: 'getKmsPage',
-              arguments: { pageId },
-            });
-
-            if (!res.success || !res.result || !res.result.success) {
-              const err = res.result?.error || res.error || '提取失败';
-              if (statusEl) statusEl.innerHTML = `${icon('warning', { size: 12 })} KMS 提取失败：${siEscapeHtml(err)}`;
-              if (area) {
-                area.innerHTML = `
-                  <div class="ai-message bot dste-ai-msg assistant">
-                    <div class="ai-avatar dste-ai-avatar">${icon('warning', { size: 14 })}</div>
-                    <div class="ai-message-content dste-ai-bubble">无法提取 KMS 页面内容：${siEscapeHtml(err)}。你可以直接访问上方 KMS 链接查看原文。</div>
-                  </div>
-                `;
-              }
-              const input = document.getElementById('topic-ai-chat-input');
-              if (input) input.disabled = true;
-              const sendBtn = document.getElementById('topic-ai-chat-send');
-              if (sendBtn) sendBtn.disabled = true;
-              return;
-            }
-
-            const kmsPage = res.result;
-            window._topicAiKmsPage = { ...kmsPage, topic };
-
-            const cachedTag = kmsPage.cached ? '（缓存命中）' : '（新提取）';
-            const truncatedTag = kmsPage.truncated ? '，已截断' : '';
-            if (statusEl) {
-              statusEl.innerHTML = `${icon('check', { size: 12 })} 已加载 KMS 页面《${siEscapeHtml(kmsPage.title || topic.name)}》${kmsPage.charCount || 0} 字${siEscapeHtml(truncatedTag)} ${siEscapeHtml(cachedTag)}`;
-            }
-
-            if (area) {
-              area.innerHTML = `
-                <div class="ai-message bot dste-ai-msg assistant">
-                  <div class="ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>
-                  <div class="ai-message-content dste-ai-bubble dste-ai-md">
-                    <p>已加载专题 <strong>${siEscapeHtml(topic.name)}</strong> 的 KMS 页面《${siEscapeHtml(kmsPage.title || '未命名')}》，共 ${kmsPage.charCount || 0} 字${siEscapeHtml(truncatedTag)}。你可以围绕该专题内容提问，例如：</p>
-                    <ul>
-                      <li>这个专题的核心结论是什么？</li>
-                      <li>关键里程碑与时间节点有哪些？</li>
-                      <li>主要风险与应对措施是什么？</li>
-                    </ul>
-                  </div>
-                </div>
-              `;
-            }
-          } catch (err) {
-            console.error('[TopicAI] fetch KMS page error:', err);
-            if (statusEl) statusEl.innerHTML = `${icon('warning', { size: 12 })} KMS 提取异常：${siEscapeHtml(err.message || String(err))}`;
-            const input = document.getElementById('topic-ai-chat-input');
-            if (input) input.disabled = true;
-            const sendBtn = document.getElementById('topic-ai-chat-send');
-            if (sendBtn) sendBtn.disabled = true;
-          }
-        })();
-      };
-
-      window.siSendTopicAiMessage = async function() {
-        const input = document.getElementById('topic-ai-chat-input');
-        const sendBtn = document.getElementById('topic-ai-chat-send');
-        const area = document.getElementById('topic-ai-chat-area');
-        if (!input || !area) return;
-
-        const text = input.value.trim();
-        if (!text) return;
-
-        if (!window._topicAiKmsPage || !window._topicAiKmsPage.text) {
-          showToast('KMS 页面内容尚未加载完成，请稍候', 'warning');
-          return;
-        }
-
-        appendMessage(area, 'user', text);
-        const thinkingId = appendThinking(area);
-        hydrateIcons(area);
-        input.value = '';
-        input.disabled = true;
-        if (sendBtn) sendBtn.disabled = true;
-        area.scrollTop = area.scrollHeight;
-
-        try {
-          const client = getAIClient();
-          const session = window._topicAiSession;
-          const topic = window._topicAiKmsPage.topic;
-          const kmsPage = window._topicAiKmsPage;
-
-          removeThinking(thinkingId);
-          const botEl = appendMessage(area, 'bot', '', { streaming: true });
-          hydrateIcons(area);
-          let fullContent = '';
-
-          const systemPrompt = `你是 DSTE 战略管理平台的 AI 助手，正在回答用户关于某一战略专题的问题。
-你必须严格基于以下「专题元数据」和「KMS 页面正文」回答，不确定时明确说明，不要编造。
-回答要求：
-- 使用中文，简洁专业
-- 关键结论后用括号标注数据来源（如「来源：KMS 页面《标题》」、「来源：专题元数据」）
-- 如果用户问题超出下面提供的上下文，提示用户查看 KMS 原文`;
-
-          for await (const chunk of client.streamChat(text, {
-            session,
-            systemPrompt,
-            context: {
-              topic: {
-                id: topic?.id,
-                name: topic?.name,
-                year: topic?.year,
-                owner: topic?.owner,
-                status: topic?.status,
-                researchObjectives: topic?.researchObjectives,
-                deliverables: topic?.deliverables,
-                summary: topic?.summary,
-              },
-              kmsPage: {
-                title: kmsPage.title,
-                url: kmsPage.url,
-                version: kmsPage.version,
-                text: kmsPage.text,
-              },
-            },
-          })) {
-            if (chunk.done) break;
-            fullContent += chunk.content;
-            updateStreamingMessage(botEl, fullContent);
-            area.scrollTop = area.scrollHeight;
-          }
-
-          finalizeMessage(botEl, fullContent);
-          hydrateIcons(area);
-
-          if (fullContent.includes('【mock 模式】') || fullContent.includes('当前为 mock')) {
-            showToast('当前为 AI mock 模式，未调用真实模型', 'info', 3000);
-          }
-        } catch (err) {
-          removeThinking(thinkingId);
-          appendMessage(area, 'bot', `抱歉，AI 服务暂时不可用：${err.message}。请检查网络连接或稍后重试。`);
-          hydrateIcons(area);
-          console.error('[TopicAI] send message error:', err);
-        } finally {
-          input.disabled = false;
-          if (sendBtn) sendBtn.disabled = !input.value.trim();
-          input.focus();
-        }
-        area.scrollTop = area.scrollHeight;
       };
 
       // 默认洞察数据（首次加载无数据时使用）
@@ -7755,7 +7584,7 @@
               <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="document.getElementById('topic-detail-overlay').remove()">关闭</button>
                 <button class="btn btn-info" onclick="window.siShowTopicQualityAnalysis('${topic.id}')">AI 质量分析</button>
-                ${topic.kmsUrl ? `<button class="btn btn-info" onclick="window.siOpenTopicAiChat('${topic.id}')">AI 问答</button>` : ''}
+                ${topic.kmsUrl ? `<button class="btn btn-info" onclick="window.openTopicAiChat('${topic.id}')">AI 问答</button>` : ''}
                 ${showDeepen ? `<button class="btn btn-primary next-year-deepening-btn" data-topic-id="${topic.id}">${deepenText}</button>` : ''}
                 ${topic.nextTopicId ? `<button class="btn btn-primary view-chain-topic-btn" data-topic-id="${topic.nextTopicId}">查看下一年深化专题</button>` : ''}
                 <button class="btn btn-primary" onclick="document.getElementById('topic-detail-overlay').remove(); window.siOpenTopicEdit('${topic.id}')">编辑</button>
@@ -8903,13 +8732,6 @@
 
       }
 
-      // ===== AI 助手 =====
-      function getAIClient() {
-        if (!window._aiClient) {
-          window._aiClient = new AIClient();
-        }
-        return window._aiClient;
-      }
 
       // ===== 面包屑辅助函数 =====
       const PHASE_MAP = {
@@ -9000,57 +8822,6 @@
         }
       });
 
-      function appendMessage(area, role, content, options = {}) {
-        const el = document.createElement('div');
-        const isUser = role === 'user';
-        el.className = `ai-message ${role} dste-ai-msg ${isUser ? 'user' : 'assistant'}${options.streaming ? ' ai-streaming' : ''}`;
-        if (options.id) el.id = options.id;
-        el.innerHTML = `
-          ${isUser ? '' : `<div class="ai-avatar dste-ai-avatar"><span class="icon" data-icon="robot" data-icon-size="14"></span></div>`}
-          <div class="ai-message-content dste-ai-bubble">${options.streaming ? '' : escapeHtml(content)}</div>
-        `;
-        area.appendChild(el);
-        area.scrollTop = area.scrollHeight;
-        return el;
-      }
-
-      function appendThinking(area) {
-        const id = 'ai-thinking-' + Date.now();
-        const el = document.createElement('div');
-        el.className = 'ai-message bot ai-thinking dste-ai-msg assistant';
-        el.id = id;
-        el.innerHTML = `
-          <div class="ai-avatar dste-ai-avatar"><span class="icon" data-icon="robot" data-icon-size="14"></span></div>
-          <div class="ai-message-content dste-ai-bubble"><span class="dste-ai-thinking">正在分析战略数据…</span></div>
-        `;
-        area.appendChild(el);
-        area.scrollTop = area.scrollHeight;
-        return id;
-      }
-
-      function removeThinking(id) {
-        const el = document.getElementById(id);
-        if (el) el.remove();
-        return el;
-      }
-
-      function updateStreamingMessage(elOrId, content) {
-        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
-        if (!el) return;
-        const contentEl = el.querySelector('.ai-message-content');
-        if (contentEl) contentEl.textContent = content;
-      }
-
-      function finalizeMessage(elOrId, content) {
-        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
-        if (!el) return;
-        el.classList.remove('ai-streaming');
-        const contentEl = el.querySelector('.ai-message-content');
-        if (contentEl) {
-          contentEl.innerHTML = renderMarkdownLite(content);
-          contentEl.classList.add('dste-ai-md');
-        }
-      }
 
       
 

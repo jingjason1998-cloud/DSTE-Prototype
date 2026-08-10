@@ -19,15 +19,18 @@ import { icon } from '../../../assets/js/icons.js';
 import { AIClient, AITools } from '../../lib/ai-client.js';
 import { gatherBusinessContext, formatContextForAI } from '../../lib/ai-context.js';
 import { renderMarkdownLite } from '../../lib/markdown-lite.js';
+import { AiRequestState } from '../../lib/ai-state.js';
+import { buildMeetingAssistantPrompt } from '../../lib/ai-prompts.js';
+import { renderAiFeedbackBar } from '../../components/AiFeedbackBar.js';
 
 let _aiMessages = [];
-let _aiLoading = false;
 let _currentMeetingForAi = null;
 let _globalMeetingsContext = null;
 let _activeAiTab = 'chat'; // 'chat' | 'agenda'
 let _aiClient = null;
 let _aiSession = null;
 let _pendingAiDrafts = []; // AI 生成的待确认草案（行动项/决议等）
+const aiState = new AiRequestState();
 
 function getAiClient() {
   if (!_aiClient) {
@@ -189,7 +192,7 @@ function renderChatMessages() {
     html = _aiMessages.map(renderMessage).join('');
   }
 
-  if (_aiLoading) {
+  if (aiState.loading) {
     html += `
       <div class="ai-message assistant dste-ai-msg assistant">
         <div class="dste-ai-avatar">${icon('robot', {size: 14})}</div>
@@ -202,6 +205,11 @@ function renderChatMessages() {
 
   container.innerHTML = html;
   container.scrollTop = container.scrollHeight;
+
+  // 为助手消息添加反馈条
+  container.querySelectorAll('.ai-message.assistant').forEach((el) => {
+    renderAiFeedbackBar(el, { sessionId: getAiSession()?.id });
+  });
 }
 
 function renderMessages() {
@@ -255,9 +263,9 @@ function renderContextChip() {
 
 function initMeetingAiState() {
   _aiMessages = [];
-  _aiLoading = false;
   _aiSession = null;
   _pendingAiDrafts = [];
+  aiState.reset();
 
   const meetingId = getCurrentMeetingId();
   const meeting = meetingId ? getSafeFindMeeting()(meetingId) : null;
@@ -303,6 +311,7 @@ function openMeetingAiAssistantFromEditor() {
 
 function closeMeetingAiAssistant() {
   document.body.classList.remove('meeting-ai-open');
+  aiState.abortCurrent('panel-closed');
 }
 
 function buildResponse(text) {
@@ -399,12 +408,26 @@ ${ctxText}
 async function streamAiResponse(text) {
   const client = getAiClient();
   const session = getAiSession();
-  const systemPrompt = buildMeetingSystemPrompt();
+  const globalCtxText = _globalMeetingsContext ? formatContextForAI(_globalMeetingsContext) : '';
+  const tools = [
+    AITools.queryMeetingAgenda,
+    AITools.queryMeetingActions,
+    AITools.queryMeetingResolutions,
+    AITools.createActionItem,
+    AITools.createMeeting,
+  ];
+  const systemPrompt = buildMeetingAssistantPrompt({
+    meetingContext: _currentMeetingForAi,
+    globalContext: globalCtxText,
+    tools,
+  });
   const meetingId = getCurrentMeetingId();
 
+  const { signal } = aiState.startRequest();
   _aiMessages.push({ role: 'assistant', content: '' });
   renderMessages();
 
+  let requestError = null;
   try {
     const tools = [
       AITools.queryMeetingAgenda,
@@ -417,7 +440,13 @@ async function streamAiResponse(text) {
       session,
       systemPrompt,
       maxTokens: 2048,
+      signal,
     });
+
+    if (signal.aborted) {
+      return;
+    }
+
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
       // AI 返回为纯文本，交由 renderMessage 的 markdown-lite 渲染（内部已 escape）
@@ -439,13 +468,22 @@ async function streamAiResponse(text) {
       _pendingAiDrafts.push(...drafts);
     }
   } catch (err) {
+    requestError = err;
+    if (signal.aborted || err.name === 'AbortError') {
+      // 用户主动取消，移除空 assistant 消息
+      const lastMsg = _aiMessages[_aiMessages.length - 1];
+      if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content) {
+        _aiMessages.pop();
+      }
+      return;
+    }
     console.error('AI chat error:', err);
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
       lastMsg.content = `${icon('x', {size: 14})} AI 请求失败：${escapeHtmlLocal(err.message || '网络错误')}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
     }
   } finally {
-    _aiLoading = false;
+    aiState.finish(requestError);
     renderMessages();
   }
 }
@@ -591,10 +629,9 @@ function sendMeetingAiMessage() {
   const input = document.getElementById('meeting-ai-input');
   if (!input) return;
   const text = input.value.trim();
-  if (!text || _aiLoading) return;
+  if (!text || aiState.loading) return;
 
   _aiMessages.push({ role: 'user', content: text });
-  _aiLoading = true;
   input.value = '';
   renderMessages();
 
@@ -618,7 +655,7 @@ function updateMeetingAiSendState() {
   const input = document.getElementById('meeting-ai-input');
   const btn = document.querySelector('.meeting-ai-send');
   if (!input || !btn) return;
-  btn.disabled = !input.value.trim() || _aiLoading;
+  btn.disabled = !input.value.trim() || aiState.loading;
 }
 
 function refreshMeetingAiAssistant() {

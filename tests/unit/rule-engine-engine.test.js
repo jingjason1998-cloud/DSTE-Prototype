@@ -282,6 +282,7 @@ describe('rule-engine-engine', () => {
         ],
         indicators: INDICATORS,
         warzones: DEFAULT_WARZONES,
+        basePeriod: '2026-07',
       };
       const execution = executeRule(rule, context, { findById: () => null, findByMetadata: () => null });
       expect(execution.results).toHaveLength(1);
@@ -297,6 +298,7 @@ describe('rule-engine-engine', () => {
         ],
         indicators: INDICATORS,
         warzones: DEFAULT_WARZONES,
+        basePeriod: '2026-07',
       };
       const existing = { id: 'lg_202406_indsalesd_上海_rulelg001' };
       const execution = executeRule(rule, context, {

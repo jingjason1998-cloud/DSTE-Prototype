@@ -16,12 +16,13 @@ import {
 } from '../utils/agenda-recommender.js';
 import { icon } from '../../../assets/js/icons.js';
 import { escapeHtml } from '../../lib/utils.js';
+import { AiRequestState } from '../../lib/ai-state.js';
 
 let _candidates = [];
 let _selectedIds = new Set();
-let _isLoading = false;
 let _theme = '';
 let _error = '';
+const aiState = new AiRequestState();
 
 function getSafeShowToast() {
   return typeof window !== 'undefined' && typeof window.showToast === 'function'
@@ -54,7 +55,7 @@ function initAiAgendaState() {
   _candidates = [];
   _selectedIds.clear();
   _error = '';
-  _isLoading = false;
+  aiState.reset();
 }
 
 function setAiAgendaTheme(value) {
@@ -67,6 +68,7 @@ function updateThemeFromInput() {
 }
 
 async function generateAiAgendaCandidates() {
+  if (aiState.loading) return;
   updateThemeFromInput();
   const meeting = getMeetingEditData();
   if (!meeting) {
@@ -74,15 +76,18 @@ async function generateAiAgendaCandidates() {
     return;
   }
 
-  _isLoading = true;
+  const { signal } = aiState.startRequest();
   _error = '';
   _candidates = [];
   _selectedIds.clear();
   renderAiAgendaPanel();
 
-  const result = await recommendAgenda(meeting, { theme: _theme });
+  const result = await recommendAgenda(meeting, { theme: _theme, signal });
 
-  _isLoading = false;
+  aiState.finish(result.success ? null : new Error(result.error || '推荐失败'));
+  if (signal.aborted) {
+    return;
+  }
   if (!result.success) {
     _error = result.error || '推荐失败，请稍后重试';
     renderAiAgendaPanel();
@@ -242,15 +247,15 @@ function renderPanelBody(meetingTitle) {
         oninput="setAiAgendaTheme(this.value)" />
     </div>
     <div style="margin-bottom: 14px;">
-      <button type="button" onclick="generateAiAgendaCandidates()" ${ _isLoading ? 'disabled' : '' }
-        style="width: 100%; padding: 7px 10px; font-size: 12px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500; opacity: ${ _isLoading ? '0.7' : '1' };">
-        ${_isLoading ? `${icon('hourglass', {size: 14})} AI 分析中...` : `${icon('robot', {size: 14})} 生成候选议程`}
+      <button type="button" onclick="generateAiAgendaCandidates()" ${ aiState.loading ? 'disabled' : '' }
+        style="width: 100%; padding: 7px 10px; font-size: 12px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-weight: 500; opacity: ${ aiState.loading ? '0.7' : '1' };">
+        ${aiState.loading ? `${icon('hourglass', {size: 14})} AI 分析中...` : `${icon('robot', {size: 14})} 生成候选议程`}
       </button>
     </div>
-    ${_isLoading ? renderLoading() : ''}
+    ${aiState.loading ? renderLoading() : ''}
     ${_error ? renderError(_error) : ''}
-    ${!_isLoading && _candidates.length === 0 && !_error ? renderEmptyState(meetingTitle) : ''}
-    ${!_isLoading && _candidates.length > 0 ? renderCandidatesList() : ''}
+    ${!aiState.loading && _candidates.length === 0 && !_error ? renderEmptyState(meetingTitle) : ''}
+    ${!aiState.loading && _candidates.length > 0 ? renderCandidatesList() : ''}
   `;
   return html;
 }

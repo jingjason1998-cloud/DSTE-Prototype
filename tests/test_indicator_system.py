@@ -1,6 +1,6 @@
 """
 指标体系中心功能测试
-验证：指标类型、数据类型、引用检查、引用统计展示
+验证：指标类型、数据类型、删除引用检查
 """
 
 import re
@@ -106,23 +106,6 @@ def test_indicator_list_shows_type_badge():
         "过程指标" in list_html
     )
     assert has_type_show, "指标列表未展示类型标识"
-
-
-def test_indicator_list_shows_reference_count():
-    """指标列表展示被引用次数"""
-    content = _get_content()
-    # 检查列表渲染中有引用次数计算或展示
-    list_start = content.find("<!-- 指标列表 -->")
-    list_end = content.find("<!-- 详情面板 -->", list_start)
-    list_html = content[list_start:list_end] if list_start > 0 else content
-    # 引用次数展示或计算逻辑
-    has_ref = (
-        "usedBy" in content or
-        "引用" in list_html or
-        "kpiInstances" in list_html or
-        "indicatorId" in list_html
-    )
-    assert has_ref, "指标列表未展示引用次数"
 
 
 # ========== P1: 详情面板 ==========

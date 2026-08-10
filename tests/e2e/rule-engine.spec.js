@@ -9,10 +9,18 @@ const MOCK_INDICATORS = [
   { id: 'ind_sales_d', name: '销售额-D', unit: '万元' },
 ];
 
+// 规则默认 schedule.periodOffset=-1，UI 执行时以当前月份为基准，
+// 因此 mock KPI 的 period 需动态对齐上个月，避免跨月测试失败。
+const now = new Date();
+const basePeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+const targetDate = new Date(`${basePeriod}-01`);
+targetDate.setMonth(targetDate.getMonth() - 1);
+const MOCK_KPI_PERIOD = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
+
 const MOCK_KPI_INSTANCES = [
-  { id: 'kpi_bj', indicatorId: 'ind_sales_d', period: '2026-06', dept: '北京大区', actualValue: 90, targetValue: 100, achievementRate: 90 },
-  { id: 'kpi_sh', indicatorId: 'ind_sales_d', period: '2026-06', dept: '上海大区', actualValue: 95, targetValue: 100, achievementRate: 95 },
-  { id: 'kpi_db', indicatorId: 'ind_sales_d', period: '2026-06', dept: '东北大区', actualValue: 60, targetValue: 100, achievementRate: 60 },
+  { id: 'kpi_bj', indicatorId: 'ind_sales_d', period: MOCK_KPI_PERIOD, dept: '北京大区', actualValue: 90, targetValue: 100, achievementRate: 90 },
+  { id: 'kpi_sh', indicatorId: 'ind_sales_d', period: MOCK_KPI_PERIOD, dept: '上海大区', actualValue: 95, targetValue: 100, achievementRate: 95 },
+  { id: 'kpi_db', indicatorId: 'ind_sales_d', period: MOCK_KPI_PERIOD, dept: '东北大区', actualValue: 60, targetValue: 100, achievementRate: 60 },
 ];
 
 async function setupRuleEngineData(page) {

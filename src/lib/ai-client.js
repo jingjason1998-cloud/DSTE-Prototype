@@ -6,6 +6,9 @@
  */
 
 import { Storage } from './utils.js';
+import { fetchWithRetry } from './fetch-retry.js';
+import { AIError } from './ai-error.js';
+import { logAiEvent } from './ai-telemetry.js';
 
 const DEFAULT_API_BASE = ''; // 生产环境走同域 /api/ 代理
 const SESSIONS_KEY = 'dste_ai_sessions_v2';
@@ -46,7 +49,7 @@ export const AITools = {
     type: 'function',
     function: {
       name: 'searchKms',
-      description: '搜索帆软 KMS 知识库',
+      description: '搜索帆软 KMS 知识库，返回相关页面标题、链接和摘要片段',
       parameters: {
         type: 'object',
         properties: {
@@ -187,6 +190,57 @@ function generateId(prefix = 'id') {
 }
 
 /**
+ * 根据 HTTP 状态构造 AIError。
+ * 401 会触发全局登录过期事件。
+ */
+function parseErrorMessage(status, errText) {
+  try {
+    const errJson = JSON.parse(errText);
+    if (errJson.error) return errJson.error;
+  } catch (e) {
+    // not JSON
+  }
+  return `AI request failed: ${status} ${errText}`;
+}
+
+function createAIError(status, message) {
+  let err;
+  if (status === 401) {
+    err = AIError.authExpired(message || '登录已过期，请重新登录');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('dste:auth-expired', { detail: { source: 'AIClient' } }));
+      if (typeof window.showToast === 'function') {
+        window.showToast('登录已过期，请重新登录后 AI 请求将自动恢复', 'error');
+      }
+    }
+  } else if (status === 408) {
+    err = AIError.timeout(message || 'AI 请求超时');
+  } else if (status === 429) {
+    err = AIError.rateLimit(message || 'AI 服务限流，请稍后重试');
+  } else if (status >= 500) {
+    err = AIError.server(message || `AI 服务异常：${status}`, { status });
+  } else {
+    err = new AIError(message || `AI request failed: ${status}`, { status });
+  }
+  return err;
+}
+
+/**
+ * 组合外部 signal 与内部 AbortController。
+ * 任一方触发 abort，返回的 signal 都会触发。
+ */
+function composeSignal(controller, externalSignal) {
+  if (!externalSignal) return controller.signal;
+  if (typeof AbortSignal !== 'undefined' && AbortSignal.any) {
+    return AbortSignal.any([controller.signal, externalSignal]);
+  }
+  // 降级：外部 abort 时同时取消内部 controller
+  const handler = () => controller.abort(externalSignal.reason);
+  externalSignal.addEventListener('abort', handler, { once: true });
+  return controller.signal;
+}
+
+/**
  * 生成唯一的 tool-call id 前缀，防止同一会话多轮工具调用时出现重复 id。
  */
 function makeToolCallIdPrefix() {
@@ -260,8 +314,8 @@ export class AISession {
 export class AIClient {
   constructor(options = {}) {
     this.baseUrl = (options.baseUrl || getAIGatewayUrl()).replace(/\/$/, '');
-    this.apiKey = options.apiKey || Storage.getString('kimi_api_key', '');
-    this.model = options.model || 'kimi-k2.6';
+    this.token = options.token || Storage.getString('dste-token', '');
+    this.model = options.model || 'kimi-k2.7-code-highspeed';
     this.timeout = options.timeout || 60000;
   }
 
@@ -336,9 +390,10 @@ export class AIClient {
       messages,
       tools: options.tools,
       stream: false,
+      model: this.model,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 4096,
-    });
+    }, { signal: options.signal });
 
     const assistantContent = response.choices?.[0]?.message?.content || '';
     const rawToolCalls = response.choices?.[0]?.message?.tool_calls;
@@ -362,6 +417,7 @@ export class AIClient {
    * 流式聊天
    * @param {Object} options
    * @param {boolean} options.skipUserAppend 为 true 时不自动追加 user 消息（调用方已自行追加）
+   * @param {AbortSignal} [options.signal] 外部取消信号
    * @returns {AsyncIterable<{ content: string, done: boolean, toolCalls?: Array }>}
    */
   async *streamChat(message, options = {}) {
@@ -371,37 +427,40 @@ export class AIClient {
 
     const url = `${this.baseUrl}/api/ai/chat`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const timeoutId = setTimeout(() => controller.abort('timeout'), this.timeout);
+    const signal = composeSignal(controller, options.signal);
+    let reader = null;
+    const start = performance.now();
+    let tokenCount = 0;
 
     try {
-      const resp = await fetch(url, {
+      const resp = await fetchWithRetry(url, {
         method: 'POST',
-        signal: controller.signal,
+        signal,
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: JSON.stringify({
           messages,
           tools: options.tools,
           stream: true,
+          model: this.model,
           temperature: options.temperature ?? 0.7,
           max_tokens: options.maxTokens ?? 4096,
         }),
       });
 
-      clearTimeout(timeoutId);
-
       if (!resp.ok) {
         const errText = await resp.text();
-        throw new Error(`AI request failed: ${resp.status} ${errText}`);
+        throw createAIError(resp.status, parseErrorMessage(resp.status, errText));
       }
 
       if (!resp.body) {
         throw new Error('AI response body is empty');
       }
 
-      const reader = resp.body.getReader();
+      reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
@@ -428,6 +487,7 @@ export class AIClient {
 
             if (delta.content) {
               fullContent += delta.content;
+              tokenCount += delta.content.length;
               yield { content: delta.content, done: false };
             }
 
@@ -452,10 +512,29 @@ export class AIClient {
       session.addMessage('assistant', fullContent, { tool_calls: finalToolCalls });
       this.saveSession(session);
 
+      logAiEvent({
+        type: 'chat',
+        endpoint: '/api/ai/chat',
+        model: this.model,
+        latencyMs: Math.round(performance.now() - start),
+        tokenCount,
+      });
+
       yield { content: '', done: true, toolCalls: finalToolCalls };
     } catch (err) {
-      clearTimeout(timeoutId);
+      logAiEvent({
+        type: 'error',
+        endpoint: '/api/ai/chat',
+        model: this.model,
+        latencyMs: Math.round(performance.now() - start),
+        errorCode: err.code || err.name || 'UNKNOWN',
+      });
       throw err;
+    } finally {
+      clearTimeout(timeoutId);
+      if (reader) {
+        try { reader.releaseLock(); } catch (_) { /* ignore */ }
+      }
     }
   }
 
@@ -473,7 +552,7 @@ export class AIClient {
     const toolContext = options.toolContext || {};
     const toolResults = [];
     for (const call of first.toolCalls) {
-      const result = await this._executeTool(call, toolContext);
+      const result = await this._executeTool(call, toolContext, { signal: options.signal });
       toolResults.push({
         call,
         result,
@@ -498,7 +577,7 @@ export class AIClient {
    * @param {Object} toolCall Kimi 返回的 tool_call 对象
    * @param {Object} toolContext 工具执行上下文（如 { meeting }）
    */
-  async _executeTool(toolCall, toolContext = {}) {
+  async _executeTool(toolCall, toolContext = {}, options = {}) {
     const name = toolCall.function?.name;
     let args = {};
     try {
@@ -518,11 +597,12 @@ export class AIClient {
 
     // 其他工具统一走 Worker ToolExecutor
     try {
-      const resp = await fetch(`${this.baseUrl}/api/ai/tools/execute`, {
+      const resp = await fetchWithRetry(`${this.baseUrl}/api/ai/tools/execute`, {
         method: 'POST',
+        signal: options.signal,
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: JSON.stringify({
           name,
@@ -554,7 +634,7 @@ export class AIClient {
    * @returns {Promise<Object>}
    */
   async request(endpoint, body, options = {}) {
-    return this._post(endpoint, body, options.timeout);
+    return this._post(endpoint, body, options);
   }
 
   // ========== 内部方法 ==========
@@ -624,33 +704,52 @@ export class AIClient {
     }
   }
 
-  async _post(endpoint, body, timeout = this.timeout) {
+  async _post(endpoint, body, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    const timeout = typeof options === 'number' ? options : (options.timeout ?? this.timeout);
+    const externalSignal = typeof options === 'number' ? null : options.signal;
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const timeoutId = setTimeout(() => controller.abort('timeout'), timeout);
+    const signal = composeSignal(controller, externalSignal);
+    const start = performance.now();
+    const eventType = endpoint.includes('agenda') ? 'agenda' : endpoint.includes('tools') ? 'tool' : 'chat';
 
     try {
-      const resp = await fetch(url, {
+      const resp = await fetchWithRetry(url, {
         method: 'POST',
-        signal: controller.signal,
+        signal,
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: JSON.stringify(body),
       });
 
-      clearTimeout(timeoutId);
-
       if (!resp.ok) {
         const errText = await resp.text();
-        throw new Error(`AI request failed: ${resp.status} ${errText}`);
+        throw createAIError(resp.status, parseErrorMessage(resp.status, errText));
       }
 
-      return await resp.json();
+      const result = await resp.json();
+      logAiEvent({
+        type: eventType,
+        endpoint,
+        model: this.model,
+        latencyMs: Math.round(performance.now() - start),
+      });
+      return result;
     } catch (err) {
-      clearTimeout(timeoutId);
+      logAiEvent({
+        type: 'error',
+        endpoint,
+        model: this.model,
+        latencyMs: Math.round(performance.now() - start),
+        errorCode: err.code || err.name || 'UNKNOWN',
+      });
       throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

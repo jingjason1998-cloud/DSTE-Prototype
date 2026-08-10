@@ -4,6 +4,7 @@ import {
   renumberTopicsSeq,
   sortTopicsBySeq,
   isNaturalSeqOrder,
+  isSeqContinuous,
 } from '../../src/pages/business-topics/seq-utils.js';
 
 describe('business-topics seq-utils helpers', () => {
@@ -76,6 +77,32 @@ describe('business-topics seq-utils helpers', () => {
 });
 
 describe('business-topics seq-utils natural order', () => {
+  describe('isSeqContinuous', () => {
+    it('returns true for empty array', () => {
+      expect(isSeqContinuous([])).toBe(true);
+    });
+
+    it('returns true for contiguous seq starting from 1', () => {
+      const topics = [{ id: 'a', seq: 1 }, { id: 'b', seq: 2 }, { id: 'c', seq: 3 }];
+      expect(isSeqContinuous(topics)).toBe(true);
+    });
+
+    it('returns false when seq starts from 2', () => {
+      const topics = [{ id: 'a', seq: 2 }, { id: 'b', seq: 3 }];
+      expect(isSeqContinuous(topics)).toBe(false);
+    });
+
+    it('returns false when seq has a gap', () => {
+      const topics = [{ id: 'a', seq: 1 }, { id: 'b', seq: 3 }];
+      expect(isSeqContinuous(topics)).toBe(false);
+    });
+
+    it('returns false when seq is missing', () => {
+      const topics = [{ id: 'a' }, { id: 'b', seq: 2 }];
+      expect(isSeqContinuous(topics)).toBe(false);
+    });
+  });
+
   describe('isNaturalSeqOrder', () => {
     it('returns true only for seq asc', () => {
       expect(isNaturalSeqOrder({ field: 'seq', direction: 'asc' })).toBe(true);

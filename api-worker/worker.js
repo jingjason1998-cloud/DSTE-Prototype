@@ -3,7 +3,11 @@
  * 数据同步后端：业务专题、议题、经营分析会
  */
 
-import { cleanConfluenceHtml, truncateText } from './kms-utils.js';
+import { cleanConfluenceHtml, truncateText, splitIntoSemanticChunks } from './kms-utils.js';
+import { validateAgendaCandidates } from './schema-validator.js';
+
+const DEFAULT_AI_MODEL = 'kimi-k2.7-code-highspeed';
+const AI_MODEL_ALLOWLIST = new Set(['kimi-k2.7-code-highspeed', 'kimi-k2.6']);
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3456',
@@ -167,6 +171,17 @@ async function requireAuth(request, env) {
   } catch (e) {
     return { valid: false, error: 'Invalid token', status: 401 };
   }
+}
+
+// AI 端点认证开关（本地开发可关闭）
+async function requireAiAuth(request, env) {
+  if (env.AI_AUTH_REQUIRED === 'false') {
+    const origin = request.headers.get('Origin') || '';
+    if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
+      return { valid: true, user: null };
+    }
+  }
+  return requireAuth(request, env);
 }
 
 // ========== 通用 CRUD 辅助函数（支持单条冲突检测）==========
@@ -504,6 +519,8 @@ async function handleAiAgendaRecommend(request, env) {
     return errorResponse('Missing meeting.title', 400, request);
   }
 
+  const model = AI_MODEL_ALLOWLIST.has(body.model) ? body.model : DEFAULT_AI_MODEL;
+
   const userContent = JSON.stringify({
     meeting: {
       title: meeting.title,
@@ -515,7 +532,7 @@ async function handleAiAgendaRecommend(request, env) {
     context: body.context || {},
   }, null, 2);
 
-  try {
+  async function callKimi(systemContent) {
     const resp = await fetchWithRetry('https://api.moonshot.cn/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -523,11 +540,11 @@ async function handleAiAgendaRecommend(request, env) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'kimi-k2.7-code-highspeed',
+        model,
         max_tokens: 2048,
         response_format: { type: 'json_object' },
         messages: sanitizeMessages([
-          { role: 'system', content: AI_AGENDA_PROMPT },
+          { role: 'system', content: systemContent },
           { role: 'user', content: userContent },
         ]),
       }),
@@ -536,35 +553,31 @@ async function handleAiAgendaRecommend(request, env) {
     if (!resp.ok) {
       const errorText = await resp.text();
       console.error('Kimi API error:', resp.status, errorText);
-      return errorResponse(`AI service error: ${resp.status} ${errorText}`, 502, request);
+      throw new Error(`AI service error: ${resp.status} ${errorText}`);
     }
 
     const aiData = await resp.json();
     const rawContent = aiData.choices && aiData.choices[0] ? aiData.choices[0].message?.content || '' : '';
-    const parsed = safeExtractJson(rawContent);
+    return safeExtractJson(rawContent);
+  }
 
-    if (!parsed || !Array.isArray(parsed.candidates)) {
-      console.error('AI response parse failed:', rawContent);
-      return errorResponse('AI response format invalid', 502, request);
+  try {
+    let parsed = await callKimi(AI_AGENDA_PROMPT);
+    let validation = validateAgendaCandidates(parsed);
+
+    if (!validation.valid) {
+      console.warn('AI agenda validation failed, retry with stricter prompt:', validation.error);
+      const strictPrompt = `${AI_AGENDA_PROMPT}\n\n[strict mode] 你必须严格返回 JSON，candidates 数组中每个对象必须包含且仅包含：title(string)、type(string)、sourceType(string)、duration(number 5-120)、confidence(number 0-1)，不要输出任何 markdown 或解释。`;
+      parsed = await callKimi(strictPrompt);
+      validation = validateAgendaCandidates(parsed);
     }
 
-    const candidates = parsed.candidates.map((c, idx) => {
-      const rawDuration = Number(c.duration);
-      const duration = Number.isFinite(rawDuration) ? rawDuration : 20;
-      return {
-        id: `ai_${Date.now()}_${idx}`,
-        title: String(c.title || '').slice(0, 60),
-        type: ['goal_management', 'key_task_management', 'budget_finance', 'human_resources', 'business_special'].includes(c.type) ? c.type : 'other',
-        duration: Math.min(120, Math.max(5, duration)),
-        owner: String(c.owner || '').slice(0, 30),
-        reason: String(c.reason || '').slice(0, 200),
-        sourceType: ['postponed_agenda', 'open_action', 'open_resolution', 'key_work', 'historical', 'theme'].includes(c.sourceType) ? c.sourceType : 'theme',
-        sourceId: String(c.sourceId || '').slice(0, 50),
-        confidence: Math.min(1, Math.max(0, Number(c.confidence) || 0.8)),
-      };
-    });
+    if (!validation.valid) {
+      console.error('AI agenda validation failed after retry:', validation.error);
+      return errorResponse(`AI response format invalid: ${validation.error}`, 502, request);
+    }
 
-    return jsonResponse({ success: true, candidates }, 200, request);
+    return jsonResponse({ success: true, candidates: validation.candidates }, 200, request);
   } catch (err) {
     if (err.name === 'AbortError') {
       return errorResponse('AI request timeout', 504, request);
@@ -600,6 +613,7 @@ async function handleChat(request, env) {
   const stream = !!body.stream;
   const tools = body.tools;
   const max_tokens = body.max_tokens || 4096;
+  const model = AI_MODEL_ALLOWLIST.has(body.model) ? body.model : DEFAULT_AI_MODEL;
 
   try {
     const resp = await fetchWithRetry('https://api.moonshot.cn/v1/chat/completions', {
@@ -609,7 +623,7 @@ async function handleChat(request, env) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'kimi-k2.7-code-highspeed',
+        model,
         messages,
         stream,
         tools: tools && tools.length > 0 ? tools : undefined,
@@ -641,6 +655,38 @@ async function handleChat(request, env) {
     }
     console.error('AI chat error:', err);
     return errorResponse(err.message || 'AI request failed', 502, request);
+  }
+}
+
+// ========== AI Telemetry ==========
+
+async function handleAiLog(request, env, auth) {
+  if (request.method !== 'POST') {
+    return errorResponse('Method not allowed', 405, request);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return errorResponse('Invalid JSON body', 400, request);
+  }
+
+  const events = Array.isArray(body.events) ? body.events : [];
+  if (events.length === 0) {
+    return errorResponse('Missing events', 400, request);
+  }
+
+  const userId = auth?.user?.id || 'anonymous';
+  const key = `ai_logs_v1:${userId}:${Date.now()}`;
+  const TTL_SECONDS = 90 * 24 * 60 * 60;
+
+  try {
+    await env.DSTE_KV.put(key, JSON.stringify({ events, receivedAt: new Date().toISOString() }), { expirationTtl: TTL_SECONDS });
+    return jsonResponse({ success: true }, 200, request);
+  } catch (err) {
+    console.error('AI log write error:', err);
+    return errorResponse('Failed to write logs', 502, request);
   }
 }
 
@@ -726,6 +772,8 @@ async function getKmsPage(pageId, env) {
             url: cached.url || pageUrl,
             version: cached.version,
             text: cached.text,
+            chunks: cached.chunks || [],
+            chunkCount: cached.chunkCount || (cached.chunks || []).length,
             charCount: cached.text.length,
             truncated: false,
             cached: true,
@@ -753,6 +801,7 @@ async function getKmsPage(pageId, env) {
     const html = String(bodyData.body?.storage?.value || '');
     const cleaned = cleanConfluenceHtml(html);
     const { text, truncated } = truncateText(cleaned, 8000);
+    const chunks = splitIntoSemanticChunks(cleaned, { maxChunkSize: 800 });
 
     const result = {
       pageId,
@@ -760,6 +809,8 @@ async function getKmsPage(pageId, env) {
       url: pageUrl,
       version: Number(bodyData.version?.number || version || 1),
       text,
+      chunks,
+      chunkCount: chunks.length,
       charCount: text.length,
       truncated,
       fetchedAt: new Date().toISOString(),
@@ -773,6 +824,29 @@ async function getKmsPage(pageId, env) {
     console.error('getKmsPage error:', err.message);
     return { success: false, error: err.message };
   }
+}
+
+/**
+ * 按查询关键词对 KMS chunks 进行相关性打分，返回 Top-K。
+ */
+function rankKmsChunks(query, chunks, topK = 5) {
+  if (!Array.isArray(chunks) || chunks.length === 0) return [];
+  const qTokens = String(query).toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+  if (qTokens.length === 0) return chunks.slice(0, topK);
+
+  const scored = chunks.map((chunk) => {
+    const text = String(chunk.text || '').toLowerCase();
+    const heading = String(chunk.heading || '').toLowerCase();
+    let score = 0;
+    for (const t of qTokens) {
+      if (heading.includes(t)) score += 3;
+      if (text.includes(t)) score += 1;
+    }
+    return { ...chunk, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, topK);
 }
 
 async function executeTool(name, args, context, env) {
@@ -878,7 +952,15 @@ async function executeTool(name, args, context, env) {
   }
 
   if (name === 'getKmsPage') {
-    return getKmsPage(String(args.pageId || ''), env);
+    const pageResult = await getKmsPage(String(args.pageId || ''), env);
+    if (!pageResult.success || !args.query) {
+      return pageResult;
+    }
+    const topChunks = rankKmsChunks(args.query, pageResult.chunks, args.topK || 5);
+    return {
+      ...pageResult,
+      rankedChunks: topChunks,
+    };
   }
 
   if (name === 'navigateTo') {
@@ -1493,17 +1575,38 @@ export default {
 
       // --- AI 议程推荐 ---
       if (path === '/api/ai/agenda') {
+        const auth = await requireAiAuth(request, env);
+        if (!auth.valid) {
+          return errorResponse(auth.error, auth.status, request);
+        }
         return handleAiAgendaRecommend(request, env);
       }
 
       // --- AI 通用对话 ---
       if (path === '/api/ai/chat') {
+        const auth = await requireAiAuth(request, env);
+        if (!auth.valid) {
+          return errorResponse(auth.error, auth.status, request);
+        }
         return handleChat(request, env);
       }
 
       // --- AI 工具执行 ---
       if (path === '/api/ai/tools/execute') {
+        const auth = await requireAiAuth(request, env);
+        if (!auth.valid) {
+          return errorResponse(auth.error, auth.status, request);
+        }
         return handleToolsExecute(request, env);
+      }
+
+      // --- AI Telemetry ---
+      if (path === '/api/ai/log') {
+        const auth = await requireAiAuth(request, env);
+        if (!auth.valid) {
+          return errorResponse(auth.error, auth.status, request);
+        }
+        return handleAiLog(request, env, auth);
       }
 
       // --- 健康检查 ---

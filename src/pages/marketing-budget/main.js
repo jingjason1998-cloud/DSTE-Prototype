@@ -5,6 +5,7 @@
 import { Storage, escapeHtml, showToast } from '../../lib/utils.js';
 import { icon, hydrateIcons } from '../../../assets/js/icons.js';
 import { AIClient } from '../../lib/ai-client.js';
+import { registerAiContextProvider, gatherBusinessContext } from '../../lib/ai-context.js';
 import { PNL_DATA } from './demo-data.js';
 import { parseExcelFile, downloadTemplate, RATIO_ROWS } from './xlsx-parser.js';
 import {
@@ -16,8 +17,11 @@ import { getTopicYears } from '../business-topics/year-utils.js';
 
 // ===== 常量 =====
 const LS_DATA_KEY = 'dste_marketing_budget_data_v1';
-const LS_AI_CACHE_KEY = 'dste_budget_ai_cache_v1';
+const LS_AI_CACHE_KEY = 'dste_budget_ai_cache_v2';
+const LS_AI_CACHE_V1 = 'dste_budget_ai_cache_v1';
 const LS_COLS_KEY = 'dste_marketing_budget_hidden_cols_v1';
+const AI_CACHE_TTL_ROW = 60 * 60 * 1000;      // 行级分析缓存 1 小时
+const AI_CACHE_TTL_GLOBAL = 24 * 60 * 60 * 1000; // 全局分析缓存 24 小时
 // 可隐藏列（科目名称列固定显示）
 const COL_DEFS = [
   { key: 'cur', label: '当月实际' },
@@ -58,6 +62,7 @@ let parentOf = {};            // rowId -> parent rowId
 let parents = [];             // 所有有子节点的行
 let collapsed = {};           // 折叠状态
 let showZero = false;         // 隐藏零行
+let aiAnalysisController = null; // 当前 AI 分析请求的 AbortController
 let hiddenCols = Storage.get(LS_COLS_KEY, []); // 隐藏列（COL_DEFS key 数组）
 let linkages = {};            // 关联映射
 let allTasks = [];            // OMP 任务（含年度重点、子任务）
@@ -66,6 +71,32 @@ let drawerRowId = null;       // 当前抽屉打开的科目行
 let currentDrawerTab = 'summary';
 let currentView = 'table';    // 主视图 tab：table（损益主表）/ charts（图表速览）
 let charts = [];              // ECharts 实例
+
+// AI 页面上下文提供者
+registerAiContextProvider('exe/marketing-budget', {
+  name: '营销线预算执行监控表',
+  getContext: () => {
+    const summary = {
+      rowCount: rows.length,
+      parentCount: parents.length,
+      linkCount: Object.values(linkages).reduce((sum, l) => sum + (l.taskIds?.length || 0) + (l.subtaskIds?.length || 0) + (l.topicIds?.length || 0), 0),
+    };
+    const kpiRows = KPI_DEFS.map(def => {
+      const r = rowById[def.row];
+      return r ? { label: def.label, ytd: r.ytd, budget: r.budget, rate: r.rate } : null;
+    }).filter(Boolean);
+    return {
+      ...summary,
+      kpis: kpiRows,
+      globalSummary: gatherBusinessContext({ maxMeetings: 3, maxTasks: 5, maxKpis: 3, maxTopics: 3, maxResolutions: 3 }).summary,
+    };
+  },
+  getSuggestions: () => [
+    '分析贡献利润达成情况',
+    '哪些科目预算执行偏差最大？',
+    '生成营销预算执行摘要',
+  ],
+});
 
 // ===== 初始化 =====
 function init() {
@@ -247,6 +278,7 @@ function setData(newData, persist) {
   if (persist) {
     try { Storage.set(LS_DATA_KEY, D); } catch (e) {}
   }
+  invalidateAiCache();
   renderPage();
 }
 
@@ -1096,6 +1128,7 @@ function handleAddLink(type) {
   else if (type === 'topic') addTopicLink(linkages, drawerRowId, select.value);
 
   saveLinkages(linkages);
+  invalidateAiCache();
   renderDrawer();
   renderTableOnly();
 }
@@ -1106,6 +1139,7 @@ function handleRemoveLink(type, id) {
   else if (type === 'topic') removeTopicLink(linkages, drawerRowId, id);
 
   saveLinkages(linkages);
+  invalidateAiCache();
   renderDrawer();
   renderTableOnly();
 }
@@ -1128,11 +1162,61 @@ function openAiDrawer() {
 function closeAiDrawer() {
   document.getElementById('aiOverlay').style.display = 'none';
   document.getElementById('aiDrawer').style.display = 'none';
+  if (aiAnalysisController) {
+    try { aiAnalysisController.abort('drawer-closed'); } catch (_) {}
+    aiAnalysisController = null;
+  }
+}
+
+// 读取 v1 缓存作为只读 fallback（迁移兼容）
+function getLegacyAiCache() {
+  try {
+    return Storage.get(LS_AI_CACHE_V1, {});
+  } catch (_) {
+    return {};
+  }
+}
+
+function getAiCache() {
+  const cache = Storage.get(LS_AI_CACHE_KEY, {});
+  if (Object.keys(cache).length > 0) return cache;
+  const legacy = getLegacyAiCache();
+  return legacy;
+}
+
+function getAiCacheEntry(cacheKey, scope) {
+  const cache = getAiCache();
+  const entry = cache[cacheKey];
+  if (!entry || typeof entry !== 'object') return null;
+  if (entry.version !== 2) {
+    // v1 兜底：无 TTL，直接当作命中
+    return { text: entry.text || entry, expired: true };
+  }
+  const ttl = scope === 'row' ? AI_CACHE_TTL_ROW : AI_CACHE_TTL_GLOBAL;
+  const expired = !entry.timestamp || Date.now() - entry.timestamp >= ttl;
+  return { text: entry.text, expired };
+}
+
+function setAiCacheEntry(cacheKey, text) {
+  const cache = Storage.get(LS_AI_CACHE_KEY, {});
+  cache[cacheKey] = { version: 2, text, timestamp: Date.now() };
+  Storage.set(LS_AI_CACHE_KEY, cache);
+}
+
+function invalidateAiCache() {
+  Storage.set(LS_AI_CACHE_KEY, {});
 }
 
 async function runAiAnalysis(scope, rowId) {
   const resultEl = scope === 'row' ? document.getElementById('rowAiResult') : document.getElementById('aiResult');
   if (!resultEl) return;
+
+  // 取消上一次分析
+  if (aiAnalysisController) {
+    try { aiAnalysisController.abort('new-analysis'); } catch (_) {}
+  }
+  aiAnalysisController = new AbortController();
+  const signal = aiAnalysisController.signal;
 
   resultEl.innerHTML = '<div class="ai-loading">AI 正在分析...</div>';
 
@@ -1161,9 +1245,9 @@ async function runAiAnalysis(scope, rowId) {
     : buildGlobalPrompt(D, allTasks, allTopics, linkages);
 
   const cacheKey = hashString(prompt);
-  const cache = Storage.get(LS_AI_CACHE_KEY, {});
-  if (cache[cacheKey]) {
-    resultEl.innerHTML = escapeHtml(cache[cacheKey]).replace(/\n/g, '<br>');
+  const cached = getAiCacheEntry(cacheKey, scope);
+  if (cached && !cached.expired) {
+    resultEl.innerHTML = escapeHtml(cached.text).replace(/\n/g, '<br>');
     return;
   }
 
@@ -1174,13 +1258,24 @@ async function runAiAnalysis(scope, rowId) {
         { role: 'system', content: '你是 DSTE 战略管理执行平台的 AI 战略助手。' },
         { role: 'user', content: prompt }
       ]
-    });
+    }, { signal });
+    if (signal.aborted) return;
     const text = res?.content || res?.text || res?.message || 'AI 未返回有效内容';
-    cache[cacheKey] = text;
-    Storage.set(LS_AI_CACHE_KEY, cache);
+    setAiCacheEntry(cacheKey, text);
     resultEl.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
   } catch (err) {
+    if (signal.aborted || err.name === 'AbortError') {
+      return;
+    }
+    // 有过期缓存时，失败则降级展示旧结果
+    if (cached?.text) {
+      resultEl.innerHTML = escapeHtml(cached.text).replace(/\n/g, '<br>');
+      resultEl.innerHTML += `<div style="color:var(--color-warning);font-size:12px;margin-top:8px;">⚠️ AI 请求失败，以上为缓存结果</div>`;
+      return;
+    }
     resultEl.innerHTML = `<div style="color:var(--color-danger)">AI 分析失败：${escapeHtml(err.message || '未知错误')}</div>`;
+  } finally {
+    aiAnalysisController = null;
   }
 }
 

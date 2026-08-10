@@ -50,3 +50,18 @@ export function renumberTopicsSeq(topics) {
 export function isNaturalSeqOrder(sortConfig) {
   return !!sortConfig && sortConfig.field === 'seq' && sortConfig.direction === 'asc';
 }
+
+/**
+ * 检查 seq 是否从 1 开始连续无断点
+ * @param {object[]} topics
+ * @returns {boolean}
+ */
+export function isSeqContinuous(topics) {
+  if (!Array.isArray(topics) || topics.length === 0) return true;
+  const sorted = [...topics].sort((a, b) => {
+    const seqA = typeof a?.seq === 'number' ? a.seq : 0;
+    const seqB = typeof b?.seq === 'number' ? b.seq : 0;
+    return seqA - seqB;
+  });
+  return sorted.every((t, idx) => typeof t.seq === 'number' && t.seq === idx + 1);
+}

@@ -9,17 +9,21 @@
 
 import { icon, hydrateIcons } from '../../assets/js/icons.js';
 import { AIClient, AITools } from '../lib/ai-client.js';
-import { buildSystemPrompt, buildPageContext, getContextSummary } from '../lib/ai-context.js';
+import { buildPageContext, getContextSummary } from '../lib/ai-context.js';
 import { renderMarkdownLite } from '../lib/markdown-lite.js';
 import { updateAiDrawerToggleActive } from '../lib/shell.js';
+import { AiRequestState } from '../lib/ai-state.js';
+import { buildGlobalSystemPrompt } from '../lib/ai-prompts.js';
+import { selectContextForQuestion } from '../lib/ai-context-selector.js';
+import { renderAiFeedbackBar } from './AiFeedbackBar.js';
 
 const DRAWER_WIDTH = 420;
 const DRAWER_BODY_ID = 'global-ai-drawer';
 
 let _client = null;
 let _messages = [];
-let _loading = false;
 let _isOpen = false;
+const aiState = new AiRequestState();
 
 function getClient() {
   if (!_client) {
@@ -235,7 +239,7 @@ function bindDrawerEvents(drawer) {
   drawer.addEventListener('input', (e) => {
     if (e.target.id === 'global-ai-input') {
       const sendBtn = document.getElementById('global-ai-send');
-      if (sendBtn) sendBtn.disabled = !e.target.value.trim() || _loading;
+      if (sendBtn) sendBtn.disabled = !e.target.value.trim() || aiState.loading;
     }
   });
 
@@ -313,8 +317,9 @@ function renderMessage(msg) {
   const content = isUser
     ? nl2br(escapeHtml(msg.content || ''))
     : renderMarkdownLite(msg.content || '');
+  const dataAttr = (!isUser && msg.id) ? ` data-message-id="${escapeHtml(msg.id)}"` : '';
   return `
-    <div class="global-ai-message ${isUser ? 'user' : 'assistant'} dste-ai-msg ${isUser ? 'user' : 'assistant'}">
+    <div class="global-ai-message ${isUser ? 'user' : 'assistant'} dste-ai-msg ${isUser ? 'user' : 'assistant'}"${dataAttr}>
       ${isUser ? '' : `<div class="global-ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>`}
       <div class="global-ai-content dste-ai-bubble${isUser ? '' : ' dste-ai-md'}">${content}</div>
     </div>
@@ -329,7 +334,7 @@ function renderMessages() {
   const session = client.getCurrentSession();
   const history = (session?.messages || [])
     .filter((m) => !m.hidden && (m.role === 'user' || m.role === 'assistant'))
-    .map((m) => ({ role: m.role, content: m.content }));
+    .map((m) => ({ role: m.role, content: m.content, id: m.id }));
 
   let html = '';
   if (history.length === 0) {
@@ -338,7 +343,7 @@ function renderMessages() {
     html = history.map(renderMessage).join('');
   }
 
-  if (_loading) {
+  if (aiState.loading) {
     html += `
       <div class="global-ai-message assistant dste-ai-msg assistant">
         <div class="global-ai-avatar dste-ai-avatar">${icon('robot', { size: 14 })}</div>
@@ -351,6 +356,11 @@ function renderMessages() {
 
   container.innerHTML = html;
   container.scrollTop = container.scrollHeight;
+
+  // 为历史助手消息添加反馈条
+  container.querySelectorAll('.global-ai-message.assistant[data-message-id]').forEach((el) => {
+    renderAiFeedbackBar(el, { sessionId: session?.id, messageId: el.dataset.messageId });
+  });
 
   renderSessionSelect();
   renderQuickActions();
@@ -372,23 +382,30 @@ export async function sendMessage(text) {
   session.addMessage('user', messageText);
   client.saveSession(session);
 
-  _loading = true;
+  const { signal } = aiState.startRequest();
   renderMessages();
 
   const pageId = getCurrentPageId();
   const pageCtx = buildPageContext(pageId);
   const toolContext = { pageId, pageName: pageCtx.pageName };
 
+  // 根据用户问题选择最相关的上下文，避免全量 dump
+  const selectedContext = (pageCtx.context && typeof pageCtx.context === 'object')
+    ? selectContextForQuestion(messageText, pageCtx.context, { maxChars: 4000 })
+    : (pageCtx.text || '');
+
+  let requestError = null;
   try {
     let streamedContent = '';
     let toolCalls = null;
 
     for await (const chunk of client.streamChat(messageText, {
       session,
-      context: pageCtx.text,
-      systemPrompt: `${buildSystemPrompt()}\n\n当前页面：${pageCtx.pageName}（${pageCtx.pageId || '全局'}）。请优先基于当前页面上下文回答。`,
+      context: selectedContext,
+      systemPrompt: buildGlobalSystemPrompt({ pageName: pageCtx.pageName, pageId: pageCtx.pageId }),
       tools: [AITools.navigateTo, AITools.searchKms],
       skipUserAppend: true,
+      signal,
     })) {
       if (chunk.done) {
         toolCalls = chunk.toolCalls || null;
@@ -396,6 +413,11 @@ export async function sendMessage(text) {
       }
       streamedContent += chunk.content || '';
       updateLastMessage(streamedContent);
+    }
+
+    if (signal.aborted) {
+      // 用户已取消，不再执行后续工具/二次请求
+      return;
     }
 
     if (toolCalls && toolCalls.length > 0) {
@@ -411,7 +433,7 @@ export async function sendMessage(text) {
       updateLastMessage('正在调用工具…');
 
       for (const call of toolCalls) {
-        const result = await client._executeTool(call, toolContext);
+        const result = await client._executeTool(call, toolContext, { signal });
         session.addMessage('tool', JSON.stringify(result), { tool_call_id: call.id });
       }
 
@@ -420,11 +442,10 @@ export async function sendMessage(text) {
       client.saveSession(session);
       renderMessages();
 
-      const finalSystemPrompt = `${buildSystemPrompt()}\n\n当前页面：${pageCtx.pageName}（${pageCtx.pageId || '全局'}）。请优先基于当前页面上下文回答。`;
+      const finalSystemPrompt = buildGlobalSystemPrompt({ pageName: pageCtx.pageName, pageId: pageCtx.pageId });
       const finalMessages = [{ role: 'system', content: finalSystemPrompt }];
-      if (pageCtx.text) {
-        const ctxText = typeof pageCtx.text === 'string' ? pageCtx.text : JSON.stringify(pageCtx.text);
-        finalMessages.push({ role: 'system', content: '### 当前业务上下文\n' + ctxText });
+      if (selectedContext) {
+        finalMessages.push({ role: 'system', content: '### 当前业务上下文\n' + selectedContext });
       }
       finalMessages.push(...session.toKimiFormat(false));
 
@@ -434,7 +455,7 @@ export async function sendMessage(text) {
         stream: false,
         temperature: 0.7,
         max_tokens: 2048,
-      });
+      }, { signal });
       const finalContent = finalResp.choices?.[0]?.message?.content || 'AI 未返回有效回复';
       session.addMessage('assistant', finalContent);
       client.saveSession(session);
@@ -450,11 +471,16 @@ export async function sendMessage(text) {
       }
     }
   } catch (err) {
+    requestError = err;
+    if (signal.aborted || err.name === 'AbortError') {
+      // 用户主动取消，不显示错误
+      return;
+    }
     session.addMessage('assistant', `抱歉，AI 服务暂时不可用：${err.message}。请检查网络连接或稍后重试。`);
     client.saveSession(session);
     console.error('[GlobalAI] send message error:', err);
   } finally {
-    _loading = false;
+    aiState.finish(requestError);
     if (sendBtn) sendBtn.disabled = !(input && input.value.trim());
     renderMessages();
   }
@@ -490,6 +516,7 @@ export function openGlobalAiDrawer() {
 
 export function closeGlobalAiDrawer() {
   _isOpen = false;
+  aiState.abortCurrent('drawer-closed');
   document.body.classList.remove('ai-drawer-open');
   updateAiDrawerToggleActive();
 }

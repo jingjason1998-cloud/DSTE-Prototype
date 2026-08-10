@@ -192,7 +192,7 @@ test.describe.serial('AI Agenda Recommendation Panel', () => {
         return;
       }
       await route.fulfill({
-        status: 503,
+        status: 500,
         contentType: 'application/json',
         body: JSON.stringify({ error: 'AI service unavailable' }),
       });

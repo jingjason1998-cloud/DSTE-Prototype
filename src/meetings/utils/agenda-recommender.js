@@ -216,13 +216,13 @@ export async function recommendAgenda(meeting, options = {}) {
         theme: options.theme || meeting.theme || '',
         context: buildRecommendationContext(meeting, options),
       },
-      { timeout: AI_AGENDA_TIMEOUT }
+      { timeout: AI_AGENDA_TIMEOUT, signal: options.signal }
     );
 
     return data;
   } catch (err) {
-    if (err.name === 'AbortError') {
-      return { success: false, error: 'AI 推荐请求超时，请稍后重试' };
+    if (err.name === 'AbortError' || (options.signal && options.signal.aborted)) {
+      return { success: false, error: 'AI 推荐已取消' };
     }
     return { success: false, error: err.message || '网络错误' };
   }

@@ -59,6 +59,46 @@ export function truncateText(text, max = 8000) {
   };
 }
 
+/**
+ * 按语义边界（段落/标题）切分文本为 chunk 列表。
+ * @param {string} text
+ * @param {number} maxChunkSize 默认 800 字符
+ * @returns {Array<{ id: number, text: string, heading?: string }>}
+ */
+export function splitIntoSemanticChunks(text, { maxChunkSize = 800 } = {}) {
+  if (!text) return [];
+  const paragraphs = text.split(/\n{2,}/).map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const chunks = [];
+  let currentHeading = '';
+  let currentText = '';
+  let id = 0;
+
+  function flush() {
+    if (currentText.trim()) {
+      chunks.push({ id: id++, text: currentText.trim(), heading: currentHeading || undefined });
+      currentText = '';
+    }
+  }
+
+  for (const para of paragraphs) {
+    // 把看起来像标题的短段落（<=30 字、无标点）记为 heading
+    const looksLikeHeading = para.length <= 30 && !/[，。！？；：,.!?;:：]/.test(para);
+    if (looksLikeHeading) {
+      flush();
+      currentHeading = para;
+      continue;
+    }
+
+    if (currentText.length + para.length + 1 > maxChunkSize) {
+      flush();
+    }
+    currentText += (currentText ? '\n' : '') + para;
+  }
+  flush();
+
+  return chunks;
+}
+
 function decodeHtmlEntities(input) {
   const entityMap = {
     '&nbsp;': ' ',

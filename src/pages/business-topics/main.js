@@ -3,6 +3,7 @@ import { icon } from '../../../assets/js/icons.js';
 import { Repository } from '../../lib/repository.js';
 import { getDefaultSyncQueue } from '../../lib/sync-queue.js';
 import { ensureLastModified } from '../../lib/conflict-resolver.js';
+import { registerAiContextProvider, gatherBusinessContext } from '../../lib/ai-context.js';
 import {
   computeEntityDiff,
   mergeEntities,
@@ -38,6 +39,7 @@ import {
     renumberTopicsSeq,
     sortTopicsBySeq,
     isNaturalSeqOrder,
+    isSeqContinuous,
 } from './seq-utils.js';
 import {
     getTopicYears,
@@ -69,6 +71,34 @@ window.getPersonValue = function(inputId) {
   const input = document.getElementById(inputId);
   return input ? (input.value.trim() || null) : null;
 };
+
+// AI 页面上下文提供者
+registerAiContextProvider('exe/business-topics', {
+  name: '业务专题管理',
+  getContext: () => {
+    const topics = loadAllTopics();
+    return {
+      topicCount: topics.length,
+      byStatus: topics.reduce((acc, t) => {
+        acc[t.status] = (acc[t.status] || 0) + 1;
+        return acc;
+      }, {}),
+      recentTopics: topics.slice(0, 15).map(t => ({
+        id: t.id,
+        title: t.title,
+        owner: t.owner,
+        status: t.status,
+        year: t.year,
+      })),
+      globalSummary: gatherBusinessContext({ maxMeetings: 5, maxTasks: 5, maxKpis: 3, maxTopics: 0, maxResolutions: 3 }).summary,
+    };
+  },
+  getSuggestions: () => [
+    '哪些业务专题进度落后？',
+    '列出高风险的业务专题',
+    '生成业务专题跟进摘要',
+  ],
+});
 
 // ===================== Data Layer =====================
 const STORAGE_KEY = 'dste_business_topics_v2';
@@ -648,7 +678,8 @@ function renderTable() {
     empty.style.display = 'none';
     tbody.innerHTML = '';
 
-    for (const t of topics) {
+    for (let i = 0; i < topics.length; i++) {
+        const t = topics[i];
         const sid = safeId(t.id);
         if (!sid) continue;
 
@@ -660,10 +691,10 @@ function renderTable() {
             }
         };
 
-        // 序号
+        // 序号：按当前视图行号显示，筛选/排序后仍从 1 开始连续
         const tdSeq = document.createElement('td');
         tdSeq.style.cssText = 'text-align:center; font-weight:600; color:var(--text-primary); width:48px;';
-        tdSeq.textContent = typeof t.seq === 'number' ? String(t.seq) : '-';
+        tdSeq.textContent = String(i + 1);
         tr.appendChild(tdSeq);
 
         // 名称 + 描述
@@ -1572,8 +1603,8 @@ async function init() {
 
     let topics = loadTopics();
     const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
-    // 防御：任何缺失 seq 的数据都重新整平（兼容测试/异常状态）
-    if (Array.isArray(topics) && topics.some(t => typeof t.seq !== 'number')) {
+    // 防御：缺失 seq 或不连续都重新整平（兼容测试/异常状态）
+    if (Array.isArray(topics) && !isSeqContinuous(topics)) {
         renumberTopicsSeq(topics);
         saveTopics(topics);
     }

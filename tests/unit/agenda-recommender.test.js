@@ -248,14 +248,14 @@ describe('agenda-recommender', () => {
       expect(result.error).toContain('Network error');
     });
 
-    it('returns timeout error on abort', async () => {
+    it('returns cancelled message on abort', async () => {
       window.location.hostname = 'localhost';
       const err = new Error('timeout');
       err.name = 'AbortError';
       mockRequest.mockRejectedValueOnce(err);
       const result = await recommendAgenda({ title: 'Test' });
       expect(result.success).toBe(false);
-      expect(result.error).toContain('超时');
+      expect(result.error).toContain('取消');
     });
   });
 

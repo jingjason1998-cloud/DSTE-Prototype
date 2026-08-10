@@ -400,9 +400,38 @@
     import './meetings/renderers/todo-panel.js';
     import { renderTopNav, renderSidebar } from './lib/shell.js';
     import { EXTERNAL_PAGES } from './lib/config.js';
+    import { registerAiContextProvider, formatContextForAI, gatherBusinessContext } from './lib/ai-context.js';
     window.__dsteShell = { renderTopNav, renderSidebar, EXTERNAL_PAGES };
     // 暴露给 AI 助手组件使用
     window.findMeetingById = findMeetingById;
+
+    // AI 页面上下文提供者
+    registerAiContextProvider('exe/meetings', {
+      name: '经营分析会',
+      getContext: () => {
+        const meetings = getMeetings() || [];
+        return {
+          meetingCount: meetings.length,
+          upcomingCount: meetings.filter(m => m.status === 'planned').length,
+          completedCount: meetings.filter(m => m.status === 'completed').length,
+          recentMeetings: meetings.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 10).map(m => ({
+            id: m.id,
+            title: m.title,
+            date: m.date,
+            status: m.status,
+            scenario: m.scenario,
+            host: m.host,
+          })),
+          globalSummary: gatherBusinessContext({ maxMeetings: 0, maxTasks: 5, maxKpis: 5, maxTopics: 3, maxResolutions: 5 }).summary,
+        };
+      },
+      getSuggestions: () => [
+        '本月还有哪些会议没开？',
+        '汇总所有待闭环行动项',
+        '最近会议决议执行情况如何？',
+        '生成经营分析会周报草稿',
+      ],
+    });
     (async function() {
       'use strict';
         function getReviewScores() {

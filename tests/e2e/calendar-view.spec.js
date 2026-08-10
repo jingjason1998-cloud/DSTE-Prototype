@@ -1,5 +1,17 @@
 import { test, expect } from '@playwright/test';
 
+async function gotoCalendarMonth(page, year, month) {
+  // month 为 0-based（0=一月）
+  await page.evaluate(({ year, month }) => {
+    window._calendarState.year = year;
+    window._calendarState.month = month;
+    if (typeof window.renderCalendarMonth === 'function') {
+      window.renderCalendarMonth(year, month);
+    }
+  }, { year, month });
+  await page.waitForTimeout(200);
+}
+
 test('calendar view replaces only meeting list panel', async ({ page }) => {
   await page.goto('/src/meetings.html');
   await page.waitForLoadState('networkidle');
@@ -80,6 +92,7 @@ test('calendar meeting items show status dot and location', async ({ page }) => 
   await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(200);
+  await gotoCalendarMonth(page, 2026, 5); //  mock 会议集中在 2026-06
 
   // Calendar grid should have meeting items with status indicator
   const calendarBody = page.locator('#calendar-body');
@@ -104,6 +117,7 @@ test('calendar footer list shows host and location', async ({ page }) => {
   await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(200);
+  await gotoCalendarMonth(page, 2026, 5); //  mock 会议集中在 2026-06
 
   // Footer should show meeting list with host info
   const footer = page.locator('#calendar-footer');
@@ -122,6 +136,7 @@ test('hovering meeting item shows tooltip with details', async ({ page }) => {
   await expect(btn).toBeVisible();
   await btn.click();
   await page.waitForTimeout(200);
+  await gotoCalendarMonth(page, 2026, 5); //  mock 会议集中在 2026-06
 
   // Find a meeting item in the calendar grid
   const meetingItem = page.locator('[data-calendar-meeting]').first();
