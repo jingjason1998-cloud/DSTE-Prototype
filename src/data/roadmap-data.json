@@ -1,10 +1,78 @@
 {
   "versions": [
     {
-      "version": "v0.7.24",
-      "date": "2026-07-31",
+      "version": "v0.7.25",
+      "date": "2026-08-10",
       "status": "released",
       "changes": [
+        {
+          "type": "Added",
+          "desc": "**AI 客户端重构与可观测性增强**："
+        },
+        {
+          "type": "Added",
+          "desc": "**战略专题 AI 问答组件化**："
+        },
+        {
+          "type": "Added",
+          "desc": "**AI 反馈条组件**：新增 `src/components/AiFeedbackBar.js`，用于 AI 回复的点赞/点踩/复制反馈。"
+        },
+        {
+          "type": "Added",
+          "desc": "**后端 schema 校验与模型白名单**："
+        },
+        {
+          "type": "Added",
+          "desc": "**KMS 语义分块**：`api-worker/kms-utils.js` 新增 `splitIntoSemanticChunks`，`getKmsPage` 返回结果增加 `chunks` / `chunkCount`，支持基于 chunks 的 RAG。"
+        },
+        {
+          "type": "Added",
+          "desc": "**营销预算 AI 分析增强**：`src/pages/marketing-budget/main.js` 增加 AI 抽屉 AbortController、行级/全局分析缓存（v2，带 TTL）、缓存失效与 AI 页面上下文 provider。"
+        },
+        {
+          "type": "Added",
+          "desc": "**驾驶舱 AI 上下文 provider**：`src/cockpit.html` 为多个页面注册 `registerAiContextProvider`，为全局 AI 抽屉提供结构化页面上下文。"
+        },
+        {
+          "type": "Added",
+          "desc": "**脚本工具**：新增 `scripts/build_dste_ai_progress_deck.py`，用于生成 AI 进展汇报 PPT。"
+        },
+        {
+          "type": "Added",
+          "desc": "**单元测试**：新增 `tests/unit/ai-context-selector.test.js`、`ai-error.test.js`、`ai-state.test.js`、`fetch-retry.test.js`、`schema-validator.test.js`。"
+        },
+        {
+          "type": "Changed",
+          "desc": "`GlobalAiDrawer.js`、`MeetingAiAssistant.js`、`AiAgendaDrawer.js`、`agenda-recommender.js`：适配新的 `AIClient` / `AIError` 错误处理与流式输出接口。"
+        },
+        {
+          "type": "Changed",
+          "desc": "`src/pages/business-topics/seq-utils.js`：序列号逻辑微调，并补充 `tests/unit/business-topics-seq.test.js` 用例。"
+        },
+        {
+          "type": "Changed",
+          "desc": "`tests/test_indicator_system.py` 与驾驶舱指标库同步：移除「引用」列及 `refCounts` 实时计算逻辑的断言；删除保护仍保留。"
+        },
+        {
+          "type": "Changed",
+          "desc": "认证方式：`AIClient` 不再使用 `kimi_api_key`，改为从 `dste-token` 读取并携带 `Authorization: Bearer <dste-token>`，与 CAS 登录体系对齐。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**AI 请求取消与资源释放**：`AIClient.streamChat` 在 `finally` 中释放 reader lock 并清除 timeout，避免抽屉关闭后仍有 pending stream 导致内存/网络泄漏。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**401 过期登录处理**：AI 请求返回 401 时触发 `dste:auth-expired` 全局事件并 toast 提示，避免静默失败。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**议程推荐错误展示**：后端返回结构化错误时，前端不再显示 raw HTTP 状态码字符串，而是展示 `error` 字段内容。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**测试稳定性**：修复 `tests/unit/rule-engine-engine.test.js`、`tests/e2e/calendar-view.spec.js`、`tests/e2e/rule-engine.spec.js` 的日期敏感问题，使其在当前月份（2026-08）也能稳定通过。"
+        },
         {
           "type": "Added",
           "desc": "**新增「2026年营销线人才能力分布」页面**：位于「执行 → 经营分析报表中心 → 专题报表」，按战区/岗位/职级展示人级能力四象限，数据内嵌只读分析看板。"

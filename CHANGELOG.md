@@ -9,7 +9,45 @@
 
 ## [Unreleased]
 
-## [v0.7.24] - 2026-07-31
+## [v0.7.25] - 2026-08-10
+
+### Added
+- **AI 客户端重构与可观测性增强**：
+  - 新增 `src/lib/ai-error.js`（结构化 AI 错误：authExpired / timeout / rateLimit / server）。
+  - 新增 `src/lib/fetch-retry.js`（指数退避 + 可取消的 fetch 封装，自动重试 408/429/502/503/504）。
+  - 新增 `src/lib/ai-state.js`（AI 请求状态机与加载态管理）。
+  - 新增 `src/lib/ai-telemetry.js`（AI 请求延迟、模型、错误事件埋点与批量上报）。
+  - 新增 `src/lib/ai-context-selector.js`（上下文优先级选择器）。
+  - 新增 `src/lib/ai-prompts.js`（集中管理 AI system prompts）。
+  - `src/lib/ai-client.js` 全面接入以上模块；统一使用 `dste-token` 认证；`streamChat` 支持外部 `AbortSignal`；非 2xx 响应自动提取后端 `error` 字段并包装为 `AIError`。
+- **战略专题 AI 问答组件化**：
+  - 新增 `src/strategy-topics/components/TopicAiChat.js`，将驾驶舱内联的专题 KMS AI 问答抽离为独立 Web Component。
+  - `src/cockpit.html` 移除内联专题 AI 问答代码，改为导入 `TopicAiChat.js`。
+- **AI 反馈条组件**：新增 `src/components/AiFeedbackBar.js`，用于 AI 回复的点赞/点踩/复制反馈。
+- **后端 schema 校验与模型白名单**：
+  - 新增 `api-worker/schema-validator.js`，提供 `validateAgendaCandidates` 与通用 `validateObject`。
+  - `api-worker/worker.js` 增加 AI 模型白名单，仅允许 `kimi-k2.7-code-highspeed` / `kimi-k2.6`。
+  - `api-worker/worker.js` 新增 `/api/ai/log` 端点，接收前端 `ai-telemetry.js` 上报并写入 KV。
+- **KMS 语义分块**：`api-worker/kms-utils.js` 新增 `splitIntoSemanticChunks`，`getKmsPage` 返回结果增加 `chunks` / `chunkCount`，支持基于 chunks 的 RAG。
+- **营销预算 AI 分析增强**：`src/pages/marketing-budget/main.js` 增加 AI 抽屉 AbortController、行级/全局分析缓存（v2，带 TTL）、缓存失效与 AI 页面上下文 provider。
+- **驾驶舱 AI 上下文 provider**：`src/cockpit.html` 为多个页面注册 `registerAiContextProvider`，为全局 AI 抽屉提供结构化页面上下文。
+- **脚本工具**：新增 `scripts/build_dste_ai_progress_deck.py`，用于生成 AI 进展汇报 PPT。
+- **单元测试**：新增 `tests/unit/ai-context-selector.test.js`、`ai-error.test.js`、`ai-state.test.js`、`fetch-retry.test.js`、`schema-validator.test.js`。
+
+### Changed
+- `GlobalAiDrawer.js`、`MeetingAiAssistant.js`、`AiAgendaDrawer.js`、`agenda-recommender.js`：适配新的 `AIClient` / `AIError` 错误处理与流式输出接口。
+- `src/pages/business-topics/seq-utils.js`：序列号逻辑微调，并补充 `tests/unit/business-topics-seq.test.js` 用例。
+- `tests/test_indicator_system.py` 与驾驶舱指标库同步：移除「引用」列及 `refCounts` 实时计算逻辑的断言；删除保护仍保留。
+- 认证方式：`AIClient` 不再使用 `kimi_api_key`，改为从 `dste-token` 读取并携带 `Authorization: Bearer <dste-token>`，与 CAS 登录体系对齐。
+
+### Fixed
+- **AI 请求取消与资源释放**：`AIClient.streamChat` 在 `finally` 中释放 reader lock 并清除 timeout，避免抽屉关闭后仍有 pending stream 导致内存/网络泄漏。
+- **401 过期登录处理**：AI 请求返回 401 时触发 `dste:auth-expired` 全局事件并 toast 提示，避免静默失败。
+- **议程推荐错误展示**：后端返回结构化错误时，前端不再显示 raw HTTP 状态码字符串，而是展示 `error` 字段内容。
+- **测试稳定性**：修复 `tests/unit/rule-engine-engine.test.js`、`tests/e2e/calendar-view.spec.js`、`tests/e2e/rule-engine.spec.js` 的日期敏感问题，使其在当前月份（2026-08）也能稳定通过。
+
+### Infrastructure
+- 同步 `package-lock.json` 与 `sonar-project.properties` 版本号至 `0.7.25`，解决此前仅 `package.json` 更新的遗留不一致问题。
 
 ### Added
 - **新增「2026年营销线人才能力分布」页面**：位于「执行 → 经营分析报表中心 → 专题报表」，按战区/岗位/职级展示人级能力四象限，数据内嵌只读分析看板。
