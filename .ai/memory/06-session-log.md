@@ -2,6 +2,23 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-10（Kimi，PPT 整合 + 帆软母版切换，非产品变更）
+- **主题**：把历次会话产出的 PPT 整合为一份并落到固定目录，再切换到帆软母版
+- **操作**：
+  - 重建三份散失 PPT：作战地图双闭环（HTML→Playwright 截图→python-pptx 全幅嵌入，源文件在 `/tmp/dste-slide/`）、DSTE+AI内部进展汇报-v2（`scripts/build_dste_ai_progress_deck.py` 17 页）、DSTE汇报合集（`scripts/build_final_deck.py`，基底 `经分会事不过三机制-帆软母版版.pptx` 曾丢失，从 Keynote `经分会事不过三机制3.key` AppleScript 导出重建，现为 3 页基底+1 页 AI 总览=4 页）
+  - `scripts/merge_pptx.py` 合并 22 页（1 作战地图 + 17 进展汇报 + 4 合集）→ 固定目录 `iCloud/Desktop/工作文件夹/000_DSTE系统开发/DSTE汇报-整合版.pptx`；三份源文件移废纸篓（用户要求：只保留合并文件）
+  - 帆软母版切换：以 `素材库/母版-1.pptx` 为底重建（对比过「统一公司母版」效果一致）
+- **关键踩坑（PPT 换母版）**：母版装饰（顶部细条+右上角帆软 logo 在「内容页」版式里）被内容页**自绘的全幅白色矩形背景**挡住，视觉上等于没换；修复=删除各页全幅白底矩形 + 把版式的细条/logo 显式注入每页（脚本 `/tmp/dste-slide/apply_master_visuals.py`）。深色整页图页与自带帆软样式页（事不过三）跳过
+- **工具技法**：Keynote AppleScript 可互导 pptx↔key 并导出全页 PNG 用于无 LibreOffice 环境下的视觉校验；python-pptx 换母版实质是「以母版为底重建+逐页复制形状并重映射图片 rId」，非一键换肤（内联样式的形状不随母版变）
+- **状态**：complete
+
+## 2026-08-04（Kimi，战略指标库「引用」列功能删除）
+- **主题**：用户质疑战略指标库列表「引用」列（销售额-D 46 次等）是否真实。查证结论：数字是 `renderIndicatorSystem()` 实时计算的引用计数（KPI 实例数 + 重点工作 kpiAssociations 关联数），算法真实，但底层是 `omp_buildYearSeed()` 的 2025/2026/2027 三年种子演示数据，非真实业务使用量；且不包含任何使用行为埋点。用户决定删除该功能
+- **操作**：`src/cockpit.html` 删除 refCounts 计算块（~line 2047）+ 列表表头「引用」列 + 数据单元格；`tests/test_indicator_system.py` 删除 `test_indicator_list_shows_reference_count` 用例并更新头注释
+- **决策**：保留 `ind_delete` 的删除保护（被 KPI/重点工作占用的指标仍禁止删除）——独立实现的安全校验，与展示列无关
+- **验证**：pytest 指标系统 11 passed / `npm run build` ✓ / `check:scope` ✓ / lint 0 error
+- **状态**：complete（未提交，工作区仍有此前 AI 底座改造的未提交改动）
+
 ## 2026-07-31（Kimi，战略专题序号排序 + 生产专题改名 + v0.7.23/v0.7.24 发布）
 - **主题 1**：生产 2026 战略专题统一改名。用户确认映射后按「烟草」那条格式（XX市场分析&27年业务规划&2030规划展望）统一 17 条（烟草本身不变）；方式：wrangler 直写生产 KV `dste_strategy_topics_v2`（namespace `69ed6153435d4ba5b3b17c9077ce74c9`），改名同时 bump updatedAt/lastModified/version 保证客户端 SWR 合并生效；备份 `/tmp/dste-slide/dste_strategy_topics_v2.backup-*.json`；生产 API 复验 18 条全统一；桌面《2026年战略专题清单.xlsx》重新导出
 - **主题 2**：战略专题管理新增序号编号+排序功能（v0.7.23，commit `0f9e12b`+`549a11a`）。`seq` 字段按年份分组编号；`siMigrateTopicSeq()` 挂 `siLoadTopics()` 迁移链；`siApplyTopicSort` 默认 key 改 `seq` asc；列表新增「序号」首列 + 上移/下移按钮（`siMoveTopicSeq`，走 `siPersistTopics` 单条同步）；新建专题 seq=同组 max+1；空态 colspan 6→7。E2E +2、pytest +4

@@ -1,6 +1,6 @@
 # 当前开发焦点
 
-> 更新时间: 2026-07-31 19:04
+> 更新时间: 2026-08-10 12:02
 
 ## 状态
 **v0.7.24 已发布并部署生产**（commit `310b788`，tag `v0.7.24`）：新增「2026年营销线人才能力分布」页面（执行 → 报表中心 → 专题报表），`src/capability-map.html` 单文件只读看板 + vite/config.js 注册 + report-center-nav E2E 6/6。注意：该页为并行会话成果，其 cockpit.html 目录入口曾被误带入 v0.7.23 导致生产短暂 404，经用户确认后补齐发布。
@@ -104,6 +104,12 @@
 - 断点/恢复见 `08-checkpoint.md`，任务配方见 `.ai/tasks/active/T030-resolution-center.md`
 
 ## 刚完成
+
+### 战略指标库「引用」列功能删除（Kimi 会话，2026-08-04，未提交）
+- 起因：用户质疑「引用」列数字真实性。查证：数字是 `renderIndicatorSystem()` 实时计算的引用计数（KPI 实例 + 任务 kpiAssociations 关联），算法真实但底层是 `omp_buildYearSeed()` 种子演示数据，非真实业务使用量
+- 改动：`src/cockpit.html` 删 refCounts 计算块 + 「引用」表头列 + 数据单元格；`tests/test_indicator_system.py` 删对应用例
+- 保留：`ind_delete` 删除保护（被占用指标禁删）不受影响
+- 验证：pytest 11 passed / build ✓ / check:scope ✓ / lint 0 error；**未提交**
 
 ### 营销线人才能力分布接入报表中心（Kimi 会话，2026-07-31，未提交未发布）
 - 「2026年营销线人才能力分布」看板（战区×岗位×职级人级能力四象限，数据全内嵌 1.6MB 单文件）接入 **执行 → 经营分析报表中心 → 专题报表**（该分类首张报表），侧边栏报表中心组有直达项
