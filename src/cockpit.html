@@ -447,8 +447,8 @@
       flex: none;
       display: flex;
       align-items: flex-end;
-      gap: var(--space-1);
-      padding: var(--space-2) var(--space-4) 0;
+      gap: 2px;
+      padding: var(--space-1) var(--space-4) 0;
       background: var(--color-bg-surface);
       border-bottom: 1px solid var(--color-border-divider);
       overflow-x: auto;
@@ -460,21 +460,21 @@
     .page-tabs .tab {
       display: inline-flex;
       align-items: center;
-      gap: var(--space-2);
-      padding: var(--space-2) var(--space-3);
+      gap: 6px;
+      padding: 4px 10px;
       border: 1px solid transparent;
       border-bottom: none;
       border-radius: var(--radius-md) var(--radius-md) 0 0;
       cursor: pointer;
       white-space: nowrap;
-      font-size: var(--text-sm);
+      font-size: var(--text-xs);
       color: var(--color-text-tertiary);
       background: transparent;
       user-select: none;
       transition: background var(--duration-fast) var(--ease-productive), color var(--duration-fast) var(--ease-productive), border-color var(--duration-fast) var(--ease-productive);
-      max-width: 200px;
+      max-width: 176px;
     }
-    .page-tabs .tab.pinned { padding: var(--space-2); }
+    .page-tabs .tab.pinned { padding: 4px 8px; }
     .page-tabs .tab.pinned .tab-title { display: none; }
     .page-tabs .tab-icon {
       display: inline-flex;
@@ -520,8 +520,8 @@
       width: 100%;
     }
     @media (max-width: 768px) {
-      .content-area--tabs .page-tabs { padding: 8px 12px 0; }
-      .page-tabs .tab { padding: 5px 8px; font-size: 12px; }
+      .content-area--tabs .page-tabs { padding: 4px 12px 0; }
+      .page-tabs .tab { padding: 4px 8px; font-size: 12px; }
     }
   </style>
 </head>
@@ -538,7 +538,7 @@
       </div>
       <ul class="top-nav-links" id="top-nav-links"></ul>
       <div class="top-nav-actions">
-        <select id="global-cycle-select" data-action="global-switch-cycle" style="padding:4px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;margin-right:8px;">
+        <select id="global-cycle-select" data-action="global-switch-cycle" style="padding:3px 6px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:12px;cursor:pointer;margin-right:4px;">
           <!-- 由 renderCycleSelector 填充 -->
         </select>
         <button class="icon-btn" id="theme-toggle" title="切换主题"><span class="icon" data-icon="moon" data-icon-size="18"></span></button>

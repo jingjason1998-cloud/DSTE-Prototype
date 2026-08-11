@@ -135,10 +135,10 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
   /* ===== Shell ===== */
-  --shell-topbar-height: 56px;
+  --shell-topbar-height: 48px;
   --shell-sidebar-width: 220px;
   --shell-sidebar-collapsed: 64px;
-  --shell-tabbar-height: 36px;
+  --shell-tabbar-height: 32px;
   --shell-content-max-width: 1440px;
   --shell-content-padding: var(--space-5);
 

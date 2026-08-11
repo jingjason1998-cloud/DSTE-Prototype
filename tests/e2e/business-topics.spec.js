@@ -6,7 +6,7 @@ const BASE_URL = '/src/business-topics.html';
 test.beforeEach(async ({ page }) => {
   await page.goto(BASE_URL, { timeout: 120000 });
   await page.waitForSelector('#topicTableBody tr', { timeout: 60000 });
-  // 页面默认年度为 2026，测试前重置为“全部年度”以保持与其他用例的独立性和可预期数据量
+  // 页面默认年度为当年，测试前重置为“全部年度”以保持与其他用例的独立性和可预期数据量
   await page.selectOption('#filterYear', '');
   await page.waitForTimeout(200);
 });
@@ -341,8 +341,9 @@ test.describe('Business Topics - Filters', () => {
     }
   });
 
-  test('year filter defaults to 2026', async ({ page }) => {
-    // 重新加载页面，验证初始默认选中 2026（beforeEach 会重置为全部年度）
+  test('year filter defaults to current year', async ({ page }) => {
+    // 重新加载页面，验证初始默认选中当年（beforeEach 会重置为全部年度）
+    const currentYear = String(new Date().getFullYear());
     await page.goto(BASE_URL, { timeout: 120000 });
 
     // 等待年度筛选初始化完成（选项数大于 1，即至少包含“全部年度”和一个年份）
@@ -352,10 +353,10 @@ test.describe('Business Topics - Filters', () => {
     }, { timeout: 10000 });
 
     const value = await page.locator('#filterYear').inputValue();
-    expect(value).toBe('2026');
+    expect(value).toBe(currentYear);
 
     const text = await page.locator('#filterYear option:checked').textContent();
-    expect(text?.trim()).toBe('2026');
+    expect(text?.trim()).toBe(currentYear);
   });
 
   test('year filter updates table', async ({ page }) => {

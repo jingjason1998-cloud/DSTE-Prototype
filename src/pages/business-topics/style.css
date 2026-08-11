@@ -683,7 +683,7 @@
             }
             .top-nav-links a { padding: 6px 10px; font-size: 12px; }
             .nav-full-label { display: none; }
-            .sidebar { position: fixed; left: -220px; top: 56px; height: calc(100vh - 56px); z-index: 99; transition: left 0.3s; }
+            .sidebar { position: fixed; left: -220px; top: 48px; height: calc(100vh - 48px); z-index: 99; transition: left 0.3s; }
             .sidebar.open { left: 0; }
             /* 表格横向滚动 */
             .table-scroll-wrapper {

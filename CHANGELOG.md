@@ -9,6 +9,17 @@
 
 ## [Unreleased]
 
+## [v0.7.26] - 2026-08-11
+
+### Changed
+- **顶栏与页签栏紧凑化**：`--shell-topbar-height` 56→48px、`--shell-tabbar-height` 36→32px；顶栏 logo / 导航项 / 图标按钮 / 头像同步收窄，页签栏改为 12px 字号与更紧凑的内边距，年度周期选择器缩小一号。
+- **业务专题年度筛选默认当年**：默认值由硬编码 `2026` 改为 `String(new Date().getFullYear())` 动态当年。
+
+### Fixed
+- **业务专题管理生产环境列表空白、年度筛选失效**：生产 `/api/issues` 挂起（永不返回）时 `init()` 永远阻塞在 `await loadRemoteIssues()`，导致 `renderTable` / `renderStats` / `populateYearFilter` 全部不执行——表格空、统计全 0、年度筛选只剩「全部年度」。改为先用本地缓存数据完成首屏渲染，云端 topics / issues 同步改到后台进行并各加 10s 超时兜底（`withSyncTimeout`），成功后刷新界面且保留当前筛选选择。
+- **顶栏「AI 助手」按钮样式异常**：原 `.top-nav-links a` 选择器未覆盖 `<button class="top-nav-item">`，AI 助手残留浏览器默认按钮边框；统一改为 `.top-nav-item` 选择器并补齐 button 重置样式。
+- 同步修正 `src/pages/business-topics/style.css`、`src/pages/reviewer/style.css` 中硬编码 `top: 56px` 的移动端侧边栏/面板偏移为 48px。
+
 ## [v0.7.25] - 2026-08-10
 
 ### Added

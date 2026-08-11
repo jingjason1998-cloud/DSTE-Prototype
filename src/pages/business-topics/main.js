@@ -969,9 +969,9 @@ function populateYearFilter() {
     if (!select) return;
     const currentVal = select.value;
     const years = getAllYears();
-    const defaultYear = '2026';
+    const defaultYear = String(new Date().getFullYear());
     if (!years.includes(defaultYear)) years.unshift(defaultYear);
-    // 默认选中 2026 年度（首次加载时 currentVal 为空）
+    // 默认选中当年（首次加载时 currentVal 为空）
     const defaultVal = currentVal || defaultYear;
     select.innerHTML = '<option value="">全部年度</option>' + years.map(y =>
         `<option value="${y}">${y}</option>`
@@ -1591,16 +1591,22 @@ function sendAI() {
 }
 
 // ===================== Init =====================
+const REMOTE_SYNC_TIMEOUT_MS = 10000;
+
+// 为云端同步加超时兜底：接口挂起（迟迟无响应）时按失败处理，避免阻塞页面初始化
+function withSyncTimeout(promise, label) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${REMOTE_SYNC_TIMEOUT_MS}ms`)), REMOTE_SYNC_TIMEOUT_MS);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function init() {
     migrateV1ToV2(); // v2.1: auto-migrate v1.2 data on load
 
-    // 优先从云端加载数据；失败时不阻塞页面初始化，确保筛选器等 UI 正常渲染
-    try {
-        await loadRemoteTopics();
-    } catch (e) {
-        console.warn('[init] loadRemoteTopics failed:', e);
-    }
-
+    // 先用本地缓存数据完成首屏渲染，确保列表、统计、年度筛选等 UI 立即可用；
+    // 云端数据同步在后台进行（失败或超时均不阻塞页面），完成后刷新界面
     let topics = loadTopics();
     const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
     // 防御：缺失 seq 或不连续都重新整平（兼容测试/异常状态）
@@ -1630,19 +1636,33 @@ async function init() {
 
     _cachedTopics = topics;
 
-    // 同步加载云端议题数据并与本地合并；失败时不阻塞页面初始化
-    try {
-        await loadRemoteIssues();
-    } catch (e) {
-        console.warn('[init] loadRemoteIssues failed:', e);
-    }
-
     renderTable();
     renderStats();
     populateYearFilter(); // 动态填充年度筛选，必须执行以保证年份筛选可用
     updateStatItemsActiveState();
 
     bindDelegatedEvents();
+
+    // 后台同步云端专题数据；成功后刷新列表、统计与年度筛选（保留当前筛选选择）
+    try {
+        const hasRemote = await withSyncTimeout(loadRemoteTopics(), 'loadRemoteTopics');
+        if (hasRemote) {
+            renderTable();
+            renderStats();
+            populateYearFilter();
+            updateStatItemsActiveState();
+        }
+    } catch (e) {
+        console.warn('[init] loadRemoteTopics failed:', e);
+    }
+
+    // 后台同步云端议题数据；成功后刷新议题关联列
+    try {
+        await withSyncTimeout(loadRemoteIssues(), 'loadRemoteIssues');
+        renderTable();
+    } catch (e) {
+        console.warn('[init] loadRemoteIssues failed:', e);
+    }
 
     // Nav active state removed (integrated into DSTE nav)
 }

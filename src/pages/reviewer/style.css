@@ -1037,8 +1037,8 @@
                 max-width: 100vw !important;
                 right: 0 !important;
                 border-radius: 0 !important;
-                top: 56px !important;
-                height: calc(100vh - 56px) !important;
+                top: 48px !important;
+                height: calc(100vh - 48px) !important;
             }
             /* 对比模态框全屏 */
             #compareModal > div,
