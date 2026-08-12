@@ -451,14 +451,14 @@ test.describe('OMP 重点工作管理', () => {
     const putUrls = [];
 
     // Mock 云端 OMP tasks 为空，使 ompSyncFromApi 触发首次上传
-    await page.route('/api/omp/tasks', route => {
+    await page.route(/.*\/api\/omp\/tasks$/, route => {
       if (route.request().method() === 'GET') {
         route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: [] }) });
       } else {
         route.continue();
       }
     });
-    await page.route(/\/api\/omp\/tasks\/[^/]+$/, route => {
+    await page.route(/.*\/api\/omp\/tasks\/[^/]+$/, route => {
       if (route.request().method() === 'PUT') {
         putUrls.push(route.request().url());
         route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: {} }) });
@@ -467,7 +467,7 @@ test.describe('OMP 重点工作管理', () => {
       }
     });
 
-    await page.goto('/src/cockpit.html');
+    await page.goto(OMP_URL);
     await page.evaluate(() => {
       localStorage.clear();
       localStorage.setItem('dste_omp_data_version', 'canvas-v18');
@@ -499,7 +499,7 @@ test.describe('OMP 重点工作管理', () => {
       localStorage.setItem('dste_omp_milestones_v1', '[]');
       localStorage.setItem('dste_omp_progress_v1', '[]');
     });
-    await page.goto(OMP_URL);
+    await page.reload();
     await page.waitForTimeout(2000);
 
     // 验证发起了 /api/omp/tasks/sync_test_task 的 PUT
