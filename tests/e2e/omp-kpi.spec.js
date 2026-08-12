@@ -10,10 +10,10 @@ test.describe('OMP KPI 管理页面', () => {
     await page.goto('/src/cockpit.html#exe/kpi');
     await page.waitForTimeout(2000);
 
-    // 页面标题与面包屑
+    // 页面标题与侧边栏高亮（面包屑已在 cockpit 工作区统一隐藏，标签栏承担定位）
     await expect(page.locator('.page-title')).toContainText('KPI管理');
-    await expect(page.locator('.breadcrumb')).toContainText('组织绩效管理');
-    await expect(page.locator('.breadcrumb')).toContainText('KPI管理');
+    await expect(page.locator('.sidebar-item[data-page="exe/kpi"]')).toHaveClass(/active/);
+    await expect(page).toHaveURL(/#exe\/kpi/);
 
     // KPI 列表/树内容区域
     const contentArea = page.locator('.page-content');

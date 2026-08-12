@@ -11,7 +11,9 @@ SRC = PROJECT_ROOT / "src"
 
 
 def _get_content():
-    return (SRC / "cockpit.html").read_text(encoding="utf-8")
+    # 战略指标库已抽为独立页面 src/bp.html + src/pages/bp/main.js，源码断言需同时覆盖两处
+    return (SRC / "cockpit.html").read_text(encoding="utf-8") \
+        + (SRC / "pages" / "bp" / "main.js").read_text(encoding="utf-8")
 
 
 # ========== P0: 数据模型 ==========
@@ -30,7 +32,8 @@ def test_indicator_has_data_type():
 
 def test_mock_indicators_have_new_fields():
     """mock 数据中所有指标都包含 indicatorType 和 dataType"""
-    content = _get_content()
+    # OMP 数据层（含指标种子数据）已抽取至 src/lib/omp-store.js 共享模块
+    content = _get_content() + (SRC / "lib" / "omp-store.js").read_text(encoding="utf-8")
     # 找到 mock indicators 数组区域
     start = content.find("const indicators = [")
     end = content.find("];", start)

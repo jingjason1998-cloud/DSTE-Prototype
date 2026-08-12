@@ -76,7 +76,8 @@ test.describe('Navigation', () => {
     await page.locator('.sidebar-item[data-page="exe/tasks"]').click();
     await page.waitForTimeout(500);
     await expect(page.locator('.page-title')).toContainText('重点工作管理');
-    await expect(page.locator('.breadcrumb')).toContainText('组织绩效管理');
+    // 面包屑已在 cockpit 工作区统一隐藏（标签栏承担定位），改为断言侧边栏高亮
+    await expect(page.locator('.sidebar-item[data-page="exe/tasks"]')).toHaveClass(/active/);
   });
 
   test('tab bar renders with dashboard tab', async ({ page }) => {
@@ -181,6 +182,34 @@ test.describe('Page Content', () => {
     await expect(iframe.contentFrame().locator('.cover-title')).toContainText('专项激励发放公示');
     await expect(iframe.contentFrame().locator('.slide')).toHaveCount(11);
   });
+
+  test('HC analysis 2026 page accessible from rev sidebar via iframe', async ({ page }) => {
+    await page.goto('/src/cockpit.html');
+    await page.locator('.top-nav-item[data-phase="rev"]').click();
+
+    // 「干部管理」为可折叠目录，报告为其子项
+    const group = page.locator('.sidebar-group').filter({ hasText: '干部管理' }).first();
+    await expect(group.locator('.sidebar-group-title')).toContainText('干部管理');
+    const item = group.locator('.sidebar-item[data-page="rev/hc-analysis-2026"]');
+    await expect(item).toContainText('2026年销售小组HC配置分析报告');
+    await expect(item).toBeVisible();
+
+    // 目录可折叠/展开
+    await group.locator('.sidebar-group-title').click();
+    await page.waitForTimeout(200);
+    await expect(item).not.toBeVisible();
+    await group.locator('.sidebar-group-title').click();
+    await page.waitForTimeout(200);
+    await expect(item).toBeVisible();
+
+    await item.click();
+    await expect(page).toHaveURL(/cockpit\.html#rev\/hc-analysis-2026/);
+    const iframe = page.locator('.workspace-iframe');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute('src', /hc-analysis-2026\.html\?embed=1/);
+    await expect(iframe.contentFrame().locator('header h1')).toContainText('2026年销售小组 HC 配置分析报告');
+    await expect(iframe.contentFrame().locator('.kpi-card').first()).toBeVisible();
+  });
 });
 
 test.describe('External Pages', () => {
@@ -192,6 +221,14 @@ test.describe('External Pages', () => {
   test('business-topics page loads', async ({ page }) => {
     await page.goto('/src/business-topics.html');
     await expect(page.locator('body')).toContainText('业务专题');
+  });
+
+  test('HC analysis 2026 page loads standalone', async ({ page }) => {
+    await page.goto('/src/hc-analysis-2026.html');
+    await expect(page).toHaveTitle(/2026年销售小组HC配置分析报告/);
+    await expect(page.locator('header h1')).toContainText('2026年销售小组 HC 配置分析报告');
+    await expect(page.locator('.kpi-card').first()).toBeVisible();
+    await expect(page.locator('.main-tabs')).toBeVisible();
   });
 
   test('incentive H1 2026 page loads standalone', async ({ page }) => {

@@ -6,10 +6,12 @@ from pathlib import Path
 
 SRC = Path(__file__).parent.parent / "src"
 COCKPIT = SRC / "cockpit.html"
+BP_MAIN = SRC / "pages" / "bp" / "main.js"
 
 
 def _read_cockpit() -> str:
-    return COCKPIT.read_text(encoding="utf-8")
+    # 年度经营计划已抽为独立页面 src/bp.html + src/pages/bp/main.js，源码断言需同时覆盖两处
+    return COCKPIT.read_text(encoding="utf-8") + BP_MAIN.read_text(encoding="utf-8")
 
 
 def test_kpi_detail_panel_exists():

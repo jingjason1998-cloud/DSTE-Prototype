@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-const COCKPIT_URL = '/src/cockpit.html#bp/annual-plan';
+// BP 模块已抽为独立页面：年度经营计划 standalone 直接测 bp.html
+const BP_URL = '/src/bp.html#bp/annual-plan';
 
 async function acceptConfirms(page) {
   page.on('dialog', async dialog => {
@@ -19,7 +20,7 @@ test.describe('年度经营计划', () => {
       localStorage.clear();
       localStorage.setItem('dste_api_base', '');
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
   });
 
@@ -245,7 +246,7 @@ test.describe('年度经营计划', () => {
       const cleaned = tasks.filter(t => !t.annualPlanTaskId);
       localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(cleaned));
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
 
     // 发布到执行
@@ -393,7 +394,7 @@ test.describe('年度经营计划', () => {
       if (idx > -1) cycles[idx].phase = 'planning';
       localStorage.setItem('dste_cycles_v1', JSON.stringify(cycles));
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
 
     await expect(page.locator('.page-header')).toContainText('阶段: 规划中');
@@ -458,7 +459,7 @@ test.describe('年度经营计划', () => {
       const cleaned = tasks.filter(t => !t.annualPlanTaskId);
       localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(cleaned));
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
 
     // 第一次发布
@@ -477,7 +478,7 @@ test.describe('年度经营计划', () => {
       if (idx > -1) cycles[idx].phase = 'planning';
       localStorage.setItem('dste_cycles_v1', JSON.stringify(cycles));
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
 
     // 第二次发布
@@ -547,7 +548,7 @@ test.describe('年度经营计划', () => {
       const cleaned = kpis.filter(k => !(k.cycleId === 'cycle_2026_marketing' && k.source === 'omp'));
       localStorage.setItem('dste_omp_kpi_instances_v1', JSON.stringify(cleaned));
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
 
     // 第一次发布
@@ -566,7 +567,7 @@ test.describe('年度经营计划', () => {
       if (idx > -1) cycles[idx].phase = 'planning';
       localStorage.setItem('dste_cycles_v1', JSON.stringify(cycles));
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
 
     // 第二次发布

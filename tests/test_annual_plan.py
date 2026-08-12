@@ -13,10 +13,13 @@ from pathlib import Path
 
 SRC = Path(__file__).parent.parent / "src"
 COCKPIT = SRC / "cockpit.html"
+BP_MAIN = SRC / "pages" / "bp" / "main.js"
 
 
 def _read_cockpit() -> str:
-    return COCKPIT.read_text(encoding="utf-8")
+    # BP 模块（年度经营计划/战略指标库）已抽为独立页面 src/bp.html + src/pages/bp/main.js，
+    # 源码断言需同时覆盖两处
+    return COCKPIT.read_text(encoding="utf-8") + BP_MAIN.read_text(encoding="utf-8")
 
 
 # ========== 页面渲染测试 ==========
@@ -147,7 +150,8 @@ def test_annual_plan_overview_filters_out_omp_tasks():
 
 
 def test_omp_sync_helper_exists():
-    """年度计划到 OMP 的同步工具函数存在"""
-    content = _read_cockpit()
+    """年度计划到 OMP 的同步工具函数存在（OMP 数据层已抽取至 src/lib/omp-store.js 共享模块）"""
+    omp_store = (SRC / "lib" / "omp-store.js").read_text(encoding="utf-8")
+    content = _read_cockpit() + omp_store
     assert "function omp_syncAnnualPlanTasksToExecution(" in content, "未找到 omp_syncAnnualPlanTasksToExecution 函数"
     assert "function omp_deriveTaskIdFromAnnualPlan(" in content, "未找到 omp_deriveTaskIdFromAnnualPlan 函数"

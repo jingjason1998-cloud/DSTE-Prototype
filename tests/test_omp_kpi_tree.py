@@ -29,7 +29,9 @@ def test_cockpit_kpi_data_has_level():
 
 def test_cockpit_kpi_mock_has_hierarchy():
     """Mock KPI 数据包含至少 3 层层级结构"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    # OMP 数据层（含 KPI 种子数据）已抽取至 src/lib/omp-store.js 共享模块
+    content = (SRC / "cockpit.html").read_text(encoding="utf-8") \
+        + (SRC / "lib" / "omp-store.js").read_text(encoding="utf-8")
     # 查找 mock 数据初始化区域
     assert "level: 0" in content or "level:0" in content, "缺少公司级(level=0) KPI"
     assert "level: 1" in content or "level:1" in content, "缺少部门级(level=1) KPI"

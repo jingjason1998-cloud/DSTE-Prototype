@@ -1,36 +1,38 @@
 import { test, expect } from '@playwright/test';
 
-const COCKPIT_URL = '/src/cockpit.html#bp/annual-plan';
+// BP 模块已抽为独立页面：standalone bp.html 页头自带周期选择器（#bp-cycle-select，读写 dste_current_cycle_id）
+const BP_URL = '/src/bp.html#bp/annual-plan';
 
 test.describe('年度经营计划 - 多年度切换', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/src/cockpit.html');
+    // 先落地同源页面再清空 localStorage（种子数据由 bp.html 首次渲染自动生成）
+    await page.goto('/src/bp.html');
     await page.evaluate(() => {
       localStorage.clear();
       localStorage.setItem('dste_api_base', '');
     });
-    await page.goto(COCKPIT_URL);
+    await page.goto(BP_URL);
     await page.waitForTimeout(1500);
   });
 
   test('周期选择器包含 2025/2026/2027 三个选项', async ({ page }) => {
-    const options = await page.locator('#global-cycle-select option').allTextContents();
+    const options = await page.locator('#bp-cycle-select option').allTextContents();
     expect(options).toContain('2025年度 — 营销线');
     expect(options).toContain('2026年度 — 营销线');
     expect(options).toContain('2027年度 — 营销线');
   });
 
   test('默认显示 2026 年度数据', async ({ page }) => {
-    const selected = await page.locator('#global-cycle-select').inputValue();
+    const selected = await page.locator('#bp-cycle-select').inputValue();
     expect(selected).toBe('cycle_2026_marketing');
     await expect(page.locator('#ap-tab-content')).toContainText('178,623');
   });
 
   test('切换到 2025 年度显示该年度 KPI 数据', async ({ page }) => {
-    await page.locator('#global-cycle-select').selectOption('cycle_2025_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2025_marketing');
     await page.waitForTimeout(800);
 
-    const selected = await page.locator('#global-cycle-select').inputValue();
+    const selected = await page.locator('#bp-cycle-select').inputValue();
     expect(selected).toBe('cycle_2025_marketing');
 
     // 2025 年销售额-D 目标 = 178623 * 0.9 = 160761
@@ -40,10 +42,10 @@ test.describe('年度经营计划 - 多年度切换', () => {
   });
 
   test('切换到 2027 年度显示该年度 KPI 数据', async ({ page }) => {
-    await page.locator('#global-cycle-select').selectOption('cycle_2027_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2027_marketing');
     await page.waitForTimeout(800);
 
-    const selected = await page.locator('#global-cycle-select').inputValue();
+    const selected = await page.locator('#bp-cycle-select').inputValue();
     expect(selected).toBe('cycle_2027_marketing');
 
     // 2027 年销售额-D 目标 = 178623 * 1.1 = 196486
@@ -55,20 +57,20 @@ test.describe('年度经营计划 - 多年度切换', () => {
     await expect(page.locator('[data-action="ap-edit-keytask"]')).toHaveCount(6);
 
     // 切换到 2025
-    await page.locator('#global-cycle-select').selectOption('cycle_2025_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2025_marketing');
     await page.waitForTimeout(800);
     await expect(page.locator('[data-action="ap-edit-keytask"]')).toHaveCount(6);
 
     // 切换到 2027
-    await page.locator('#global-cycle-select').selectOption('cycle_2027_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2027_marketing');
     await page.waitForTimeout(800);
     await expect(page.locator('[data-action="ap-edit-keytask"]')).toHaveCount(6);
   });
 
   test('切换回 2026 年度数据保持不变', async ({ page }) => {
-    await page.locator('#global-cycle-select').selectOption('cycle_2025_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2025_marketing');
     await page.waitForTimeout(800);
-    await page.locator('#global-cycle-select').selectOption('cycle_2026_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2026_marketing');
     await page.waitForTimeout(800);
 
     await expect(page.locator('#ap-tab-content')).toContainText('178,623');
@@ -80,7 +82,7 @@ test.describe('年度经营计划 - 多年度切换', () => {
       else await dialog.dismiss();
     });
 
-    await page.locator('#global-cycle-select').selectOption('cycle_2027_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2027_marketing');
     await page.waitForTimeout(800);
 
     await page.locator('[data-action="ap-add-keytask"]').click();
@@ -92,7 +94,7 @@ test.describe('年度经营计划 - 多年度切换', () => {
     await expect(page.locator('#ap-tab-content')).toContainText('2027专属测试重点工作');
 
     // 切换到 2026，不应看到 2027 新增的重点工作
-    await page.locator('#global-cycle-select').selectOption('cycle_2026_marketing');
+    await page.locator('#bp-cycle-select').selectOption('cycle_2026_marketing');
     await page.waitForTimeout(800);
     await expect(page.locator('#ap-tab-content')).not.toContainText('2027专属测试重点工作');
   });

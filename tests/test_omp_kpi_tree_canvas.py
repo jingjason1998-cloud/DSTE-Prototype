@@ -122,7 +122,9 @@ def test_node_positions_sanitized():
 
 def test_data_version_force_reset():
     """DATA_VERSION 必须递增以触发 localStorage 强制清理"""
-    content = (SRC / "cockpit.html").read_text(encoding="utf-8")
+    # OMP 数据层（含 DATA_VERSION）已抽取至 src/lib/omp-store.js 共享模块
+    content = (SRC / "cockpit.html").read_text(encoding="utf-8") \
+        + (SRC / "lib" / "omp-store.js").read_text(encoding="utf-8")
     assert "DATA_VERSION" in content, "必须有 DATA_VERSION 版本控制"
     # 提取当前版本号
     m = re.search(r"DATA_VERSION\s*=\s*['\"]([^'\"]+)['\"]", content)

@@ -52,3 +52,29 @@ for (const pageConfig of EXTERNAL_PAGES) {
     });
   });
 }
+
+/**
+ * BP 模块（bp.html）iframe 嵌入集成测试
+ * 防止「BP 抽为独立页面」回归：cockpit 内打开 #bp/kpi / #bp/annual-plan 应嵌入 bp.html 并正常渲染
+ */
+test.describe('BP 模块 embed 集成（cockpit iframe）', () => {
+  test('cockpit #bp/kpi 嵌入 bp.html 并渲染战略指标库', async ({ page }) => {
+    await page.goto('/src/cockpit.html#bp/kpi');
+    const iframe = page.locator('iframe.workspace-iframe');
+    await expect(iframe).toHaveAttribute('src', /bp\.html\?embed=1/);
+    const frame = page.frameLocator('iframe.workspace-iframe');
+    await expect(frame.locator('h1.page-title')).toContainText('战略指标库');
+    await expect(frame.locator('body')).toContainText('销售额-D');
+    // embed 模式隐藏页内周期栏（由 cockpit 顶栏全局选择器接管）
+    await expect(frame.locator('#bp-cycle-bar')).toBeHidden();
+  });
+
+  test('cockpit #bp/annual-plan 嵌入 bp.html 并渲染年度经营计划', async ({ page }) => {
+    await page.goto('/src/cockpit.html#bp/annual-plan');
+    const iframe = page.locator('iframe.workspace-iframe');
+    await expect(iframe).toHaveAttribute('src', /bp\.html\?embed=1/);
+    const frame = page.frameLocator('iframe.workspace-iframe');
+    await expect(frame.locator('h1.page-title')).toContainText('年度经营计划');
+    await expect(frame.locator('#ap-tab-content')).toContainText('KPI指标');
+  });
+});

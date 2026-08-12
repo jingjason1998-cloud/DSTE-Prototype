@@ -4,7 +4,7 @@ test('Indicator system page loads and shows indicators', async ({ page }) => {
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
   
-  await page.goto('/src/cockpit.html#bp/kpi');
+  await page.goto('/src/bp.html#bp/kpi');
   await page.waitForTimeout(2000);
   
   const body = await page.locator('body').innerHTML();
@@ -17,7 +17,7 @@ test('Indicator system page loads and shows indicators', async ({ page }) => {
 });
 
 test('Indicator category filter works', async ({ page }) => {
-  await page.goto('/src/cockpit.html#bp/kpi');
+  await page.goto('/src/bp.html#bp/kpi');
   await page.waitForTimeout(2000);
   
   await page.locator('[data-action="ind-select-cat"][data-cat="财务"]').first().click();
@@ -29,7 +29,7 @@ test('Indicator category filter works', async ({ page }) => {
 });
 
 test('Indicator detail panel shows on row click', async ({ page }) => {
-  await page.goto('/src/cockpit.html#bp/kpi');
+  await page.goto('/src/bp.html#bp/kpi');
   await page.waitForTimeout(2000);
 
   // 等待指标表格渲染完成
@@ -46,7 +46,7 @@ test('Indicator detail panel shows on row click', async ({ page }) => {
 });
 
 test('New indicator modal opens', async ({ page }) => {
-  await page.goto('/src/cockpit.html#bp/kpi');
+  await page.goto('/src/bp.html#bp/kpi');
   await page.waitForTimeout(2000);
   
   await page.locator('[data-action="ind-new"]').first().click();
@@ -60,7 +60,7 @@ test('New indicator modal opens', async ({ page }) => {
 });
 
 test('Search filter works', async ({ page }) => {
-  await page.goto('/src/cockpit.html#bp/kpi');
+  await page.goto('/src/bp.html#bp/kpi');
   await page.waitForTimeout(2000);
 
   await page.locator('#ind-search').fill('销售额');
@@ -71,7 +71,7 @@ test('Search filter works', async ({ page }) => {
 });
 
 test('New indicator modal uses org selector for responsible department', async ({ page }) => {
-  await page.goto('/src/cockpit.html#bp/kpi');
+  await page.goto('/src/bp.html#bp/kpi');
   await page.waitForTimeout(2000);
 
   await page.locator('[data-action="ind-new"]').first().click();

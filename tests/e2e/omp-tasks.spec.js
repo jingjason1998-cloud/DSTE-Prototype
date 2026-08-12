@@ -102,7 +102,7 @@ test.describe('OMP 重点工作管理', () => {
     await acceptConfirms(page);
 
     // 先跳转到年度计划并发布
-    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.goto('/src/bp.html#bp/annual-plan');
     await page.waitForTimeout(1500);
 
     await page.evaluate(() => {
@@ -118,7 +118,7 @@ test.describe('OMP 重点工作管理', () => {
       const cleaned = tasks.filter(t => !t.annualPlanTaskId);
       localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(cleaned));
     });
-    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.goto('/src/bp.html#bp/annual-plan');
     await page.waitForTimeout(1500);
 
     await page.locator('[data-action="ap-publish"]').click();
@@ -137,7 +137,7 @@ test.describe('OMP 重点工作管理', () => {
     await acceptConfirms(page);
 
     // 先发布年度计划
-    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.goto('/src/bp.html#bp/annual-plan');
     await page.waitForTimeout(1500);
 
     await page.evaluate(() => {
@@ -153,7 +153,7 @@ test.describe('OMP 重点工作管理', () => {
       const cleaned = tasks.filter(t => !t.annualPlanTaskId);
       localStorage.setItem('dste_omp_tasks_v1', JSON.stringify(cleaned));
     });
-    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.goto('/src/bp.html#bp/annual-plan');
     await page.waitForTimeout(1500);
 
     await page.locator('[data-action="ap-publish"]').click();
@@ -180,7 +180,7 @@ test.describe('OMP 重点工作管理', () => {
   test('年度计划发布同时生成派生任务和派生 KPI', async ({ page }) => {
     await acceptConfirms(page);
 
-    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.goto('/src/bp.html#bp/annual-plan');
     await page.waitForTimeout(1500);
 
     await page.evaluate(() => {
@@ -199,7 +199,7 @@ test.describe('OMP 重点工作管理', () => {
       const cleanedKpis = kpis.filter(k => !(k.cycleId === 'cycle_2026_marketing' && k.source === 'omp'));
       localStorage.setItem('dste_omp_kpi_instances_v1', JSON.stringify(cleanedKpis));
     });
-    await page.goto('/src/cockpit.html#bp/annual-plan');
+    await page.goto('/src/bp.html#bp/annual-plan');
     await page.waitForTimeout(1500);
 
     await page.locator('[data-action="ap-publish"]').click();
