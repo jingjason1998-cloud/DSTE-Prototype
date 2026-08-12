@@ -87,7 +87,8 @@ def add_box(slide, x, y, w, h, fill, shape=MSO_SHAPE.ROUNDED_RECTANGLE):
 
 
 def build_ai_overview_slide(prs):
-    blank = next(l for l in prs.slide_masters[0].slide_layouts if l.name == "空白")
+    layouts = prs.slide_masters[0].slide_layouts
+    blank = next((l for l in layouts if l.name in ("空白", "Blank")), layouts[6])
     slide = prs.slides.add_slide(blank)
 
     # 标题区（与母版版内容页一致：0.72 / 0.55 / 1.2）
