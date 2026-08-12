@@ -116,5 +116,13 @@ import { hydrateIcons } from '../../assets/js/icons.js';
         window.parent.postMessage({ type: 'dste-navigate', pageId: targetPageId }, window.location.origin);
       }
     });
+
+    // 内嵌页内 Cmd+K / Ctrl+K：桥接给父窗口打开全局命令面板
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        window.parent.postMessage({ type: 'dste-open-palette' }, window.location.origin);
+      }
+    });
   }
 })();

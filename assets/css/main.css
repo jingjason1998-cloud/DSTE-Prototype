@@ -407,18 +407,12 @@ body {
   opacity: 0.5;
 }
 
-/* 页面标题区 */
+/* 页面标题区（.page-title 唯一权威定义在 src/styles/shell.css） */
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--spacing-lg);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .page-actions {
@@ -556,7 +550,7 @@ body {
 }
 
 .status-success {
-  background: rgba(82, 196, 26, 0.1);
+  background: var(--color-success-subtle);
   color: var(--success);
 }
 
@@ -565,7 +559,7 @@ body {
 }
 
 .status-warning {
-  background: rgba(250, 173, 20, 0.1);
+  background: var(--color-warning-subtle);
   color: var(--warning);
 }
 
@@ -574,7 +568,7 @@ body {
 }
 
 .status-danger {
-  background: rgba(245, 34, 45, 0.1);
+  background: var(--color-danger-subtle);
   color: var(--danger);
 }
 
@@ -771,7 +765,6 @@ body {
   .sidebar.open { left: 0; }
   .kpi-grid { grid-template-columns: 1fr; }
   .global-search { display: none; }
-  .page-title { font-size: 20px; }
   .content-area { padding: var(--spacing-md); }
   .ai-panel {
     width: calc(100vw - 48px);
@@ -782,7 +775,6 @@ body {
 /* Small Phone (<480px) */
 @media (max-width: 480px) {
   .card { padding: var(--spacing-md); }
-  .page-title { font-size: 18px; }
   .btn { padding: 6px 12px; font-size: 13px; }
   .content-area { padding: var(--spacing-sm); }
   .kpi-value { font-size: 24px; }

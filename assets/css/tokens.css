@@ -155,6 +155,37 @@
 
 /* ===== Dark Theme ===== */
 [data-theme="dark"] {
+  /* Semantic colors: 提亮主色与状态色，subtle 背景改为半透明叠加以适配深色底 */
+  --color-primary: var(--color-blue-400);
+  --color-primary-hover: var(--color-blue-300);
+  --color-primary-active: var(--color-blue-200);
+  --color-primary-subtle: rgba(22, 119, 255, 0.16);
+  --color-primary-emphasis: var(--color-blue-300);
+
+  --color-success: #73D13D;
+  --color-success-hover: #95DE64;
+  --color-success-active: #B7EB8F;
+  --color-success-subtle: rgba(82, 196, 26, 0.16);
+
+  --color-warning: #FFC53D;
+  --color-warning-hover: #FFD666;
+  --color-warning-active: #FFE58F;
+  --color-warning-subtle: rgba(250, 173, 20, 0.16);
+
+  --color-danger: #FF4D4F;
+  --color-danger-hover: #FF7875;
+  --color-danger-active: #FFA39E;
+  --color-danger-subtle: rgba(245, 34, 45, 0.16);
+
+  --color-info: var(--color-blue-400);
+  --color-info-hover: var(--color-blue-300);
+  --color-info-subtle: rgba(22, 119, 255, 0.16);
+
+  --color-text-on-primary: var(--color-gray-0);
+  --color-text-on-success: var(--color-gray-1000);
+  --color-text-on-warning: var(--color-gray-1000);
+  --color-text-on-danger: var(--color-gray-0);
+
   --color-bg-page: var(--color-gray-950);
   --color-bg-surface: var(--color-gray-900);
   --color-bg-surface-elevated: var(--color-gray-800);

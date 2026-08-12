@@ -32,6 +32,52 @@ function renderIcon(el, key, size = 18) {
   el.innerHTML = icon(key, { size, ariaLabel: '' });
 }
 
+/* ===== 最近访问 / 收藏 ===== */
+
+const RECENT_PAGES_KEY = 'dste-recent-pages-v1';
+const FAVORITE_PAGES_KEY = 'dste-favorite-pages-v1';
+const MAX_RECENT_PAGES = 5;
+/** 不进最近访问的页面（首页类默认入口） */
+const RECENT_EXCLUDE = new Set(['dashboard', 'ai']);
+
+function readPageIdList(key) {
+  try {
+    const list = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(list) ? list.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getRecentPages() {
+  return readPageIdList(RECENT_PAGES_KEY);
+}
+
+export function getFavoritePages() {
+  return readPageIdList(FAVORITE_PAGES_KEY);
+}
+
+/**
+ * 记录一次页面访问（最新在前，去重，截断到 MAX_RECENT_PAGES）
+ */
+export function recordRecentPage(pageId) {
+  if (!pageId || RECENT_EXCLUDE.has(pageId)) return;
+  const list = [pageId, ...readPageIdList(RECENT_PAGES_KEY).filter((p) => p !== pageId)];
+  localStorage.setItem(RECENT_PAGES_KEY, JSON.stringify(list.slice(0, MAX_RECENT_PAGES)));
+}
+
+/**
+ * 切换收藏状态，返回切换后的收藏列表
+ */
+export function toggleFavoritePage(pageId) {
+  const list = readPageIdList(FAVORITE_PAGES_KEY);
+  const idx = list.indexOf(pageId);
+  if (idx >= 0) list.splice(idx, 1);
+  else list.push(pageId);
+  localStorage.setItem(FAVORITE_PAGES_KEY, JSON.stringify(list));
+  return list;
+}
+
 /**
  * 获取顶部导航链接地址
  * @param {Object} item - TOP_NAV 项
@@ -71,44 +117,41 @@ export function renderTopNav(activePhase, onNavigate, options = {}) {
   TOP_NAV.forEach(item => {
     const li = document.createElement('li');
 
+    // 短标签与全称重复时只渲染一个（如 驾驶舱/驾驶舱 → 驾驶舱；AI/AI 助手 → AI 助手）
+    const labelText = item.full && item.full.startsWith(item.label) ? item.full : item.label;
+    const showFull = item.full && item.full !== item.label && !item.full.startsWith(item.label);
+    const buildContent = () => {
+      const frag = document.createDocumentFragment();
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'top-nav-icon';
+      renderIcon(iconSpan, item.icon, 18);
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = labelText;
+      frag.appendChild(iconSpan);
+      frag.appendChild(labelSpan);
+      if (showFull) {
+        const fullSpan = document.createElement('span');
+        fullSpan.className = 'nav-full-label';
+        fullSpan.textContent = item.full;
+        frag.appendChild(fullSpan);
+      }
+      return frag;
+    };
+
     if (item.type === 'drawer') {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'top-nav-item top-nav-drawer-toggle';
       btn.dataset.phase = item.id;
       btn.dataset.drawer = 'true';
-
-      const iconSpan = document.createElement('span');
-      iconSpan.className = 'top-nav-icon';
-      renderIcon(iconSpan, item.icon, 18);
-      const labelSpan = document.createElement('span');
-      labelSpan.textContent = item.label;
-      const fullSpan = document.createElement('span');
-      fullSpan.className = 'nav-full-label';
-      fullSpan.textContent = item.full;
-
-      btn.appendChild(iconSpan);
-      btn.appendChild(labelSpan);
-      btn.appendChild(fullSpan);
+      btn.appendChild(buildContent());
       li.appendChild(btn);
     } else {
       const a = document.createElement('a');
       a.href = getTopNavHref(item, external);
       a.dataset.phase = item.id;
       a.className = 'top-nav-item';
-
-      const iconSpan = document.createElement('span');
-      iconSpan.className = 'top-nav-icon';
-      renderIcon(iconSpan, item.icon, 18);
-      const labelSpan = document.createElement('span');
-      labelSpan.textContent = item.label;
-      const fullSpan = document.createElement('span');
-      fullSpan.className = 'nav-full-label';
-      fullSpan.textContent = item.full;
-
-      a.appendChild(iconSpan);
-      a.appendChild(labelSpan);
-      a.appendChild(fullSpan);
+      a.appendChild(buildContent());
       li.appendChild(a);
     }
 
@@ -185,25 +228,66 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
   }
   container.classList.remove('collapsed');
 
+  // 记录最近访问（renderSidebar 是 SPA/独立页唯一的侧边栏渲染入口）
+  if (activePage) recordRecentPage(activePage);
+
+  const favorites = getFavoritePages();
+  const favoritesSet = new Set(favorites);
+
+  // 创建侧边栏条目（含收藏星标）
+  // asQuick=true 时使用 sidebar-quick-entry 类：快捷分组与常规配置允许同一 pageId 并存，
+  // 避免 .sidebar-item[data-page] 选择器命中两个元素（E2E strict mode）
+  const buildItem = (pageId, label, iconKey, reportId, asQuick = false) => {
+    const a = document.createElement('a');
+    a.className = asQuick ? 'sidebar-quick-entry' : 'sidebar-item';
+    a.dataset.page = pageId;
+    if (reportId) a.dataset.reportId = reportId;
+    a.href = getSidebarHref(pageId, external);
+    // eslint-disable-next-line security/detect-object-injection
+    if (external && EXTERNAL_PAGES[pageId]) {
+      a.dataset.external = 'true';
+    }
+    if (favoritesSet.has(pageId)) a.classList.add('favorited');
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'icon';
+    renderIcon(iconSpan, iconKey, 18);
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'sidebar-label';
+    labelSpan.textContent = label;
+    a.title = label;
+    a.appendChild(iconSpan);
+    a.appendChild(labelSpan);
+    const fav = document.createElement('span');
+    fav.className = 'sidebar-fav';
+    fav.dataset.favId = pageId;
+    fav.title = favoritesSet.has(pageId) ? '取消收藏' : '收藏';
+    renderIcon(fav, 'star', 14);
+    a.appendChild(fav);
+    return a;
+  };
+
+  // 渲染「收藏」「最近访问」快捷分组（空则不渲染）
+  const renderQuickGroup = (label, pageIds) => {
+    const valid = pageIds.filter((id) => PAGE_META[id]);
+    if (!valid.length) return;
+    const div = document.createElement('div');
+    div.className = 'sidebar-quick';
+    div.textContent = label;
+    container.appendChild(div);
+    valid.forEach((id) => {
+      // eslint-disable-next-line security/detect-object-injection
+      const meta = PAGE_META[id];
+      container.appendChild(buildItem(id, meta.title, meta.icon, undefined, true));
+    });
+  };
+
   container.innerHTML = '';
+  renderQuickGroup('收藏', favorites);
+  renderQuickGroup('最近访问', getRecentPages());
+
   config.forEach(item => {
     if (item.type === 'item') {
-      const a = document.createElement('a');
-      a.className = 'sidebar-item';
-      a.dataset.page = item.id;
-      a.href = getSidebarHref(item.id, external);
-      // eslint-disable-next-line security/detect-object-injection
-      if (external && EXTERNAL_PAGES[item.id]) {
-        a.dataset.external = 'true';
-      }
-      const iconSpan = document.createElement('span');
-      iconSpan.className = 'icon';
-      renderIcon(iconSpan, item.icon, 18);
-      const labelSpan = document.createElement('span');
-      labelSpan.textContent = item.label;
-      a.appendChild(iconSpan);
-      a.appendChild(labelSpan);
-      container.appendChild(a);
+      container.appendChild(buildItem(item.id, item.label, item.icon));
     } else if (item.type === 'quick') {
       const div = document.createElement('div');
       div.className = 'sidebar-quick';
@@ -232,31 +316,25 @@ export function renderSidebar(phase, activePage, onNavigate, options = {}) {
       });
       group.appendChild(title);
       item.items.forEach(sub => {
-        const a = document.createElement('a');
-        a.className = 'sidebar-item';
-        a.dataset.page = sub.id;
-        if (sub.reportId) a.dataset.reportId = sub.reportId;
-        a.href = getSidebarHref(sub.id, external);
-        // eslint-disable-next-line security/detect-object-injection
-        if (external && EXTERNAL_PAGES[sub.id]) {
-          a.dataset.external = 'true';
-        }
-        const iconSpan = document.createElement('span');
-        iconSpan.className = 'icon';
-        renderIcon(iconSpan, sub.icon, 18);
-        const labelSpan = document.createElement('span');
-        labelSpan.textContent = sub.label;
-        a.appendChild(iconSpan);
-        a.appendChild(labelSpan);
-        group.appendChild(a);
+        group.appendChild(buildItem(sub.id, sub.label, sub.icon, sub.reportId));
       });
       container.appendChild(group);
     }
   });
 
+  // 收藏星标：点击切换收藏并重渲染，不触发导航
+  container.querySelectorAll('.sidebar-fav').forEach((fav) => {
+    fav.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFavoritePage(fav.dataset.favId);
+      renderSidebar(phase, activePage, onNavigate, options);
+    });
+  });
+
   // SPA 模式下绑定点击事件
   if (!external && typeof onNavigate === 'function') {
-    container.querySelectorAll('.sidebar-item').forEach(item => {
+    container.querySelectorAll('.sidebar-item, .sidebar-quick-entry').forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
         const reportId = item.dataset.reportId;

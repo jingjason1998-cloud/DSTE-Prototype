@@ -342,6 +342,43 @@
             ro.observe(document.documentElement);
           }
         }
+
+        // 命令面板桥接：内嵌时 Cmd+K / Ctrl+K 转发父窗口打开全局命令面板
+        document.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            window.parent.postMessage({ type: 'dste-open-palette' }, window.location.origin);
+          }
+        });
+      }
+
+      // 命令面板记录级跳转：父窗口（或同源）投递 dste-open-record 定位会议详情
+      // 注意：消息在 iframe load 时投递，此时会议数据可能尚未异步初始化完成，
+      // openTodoMeeting 找不到会议会静默返回，因此做有限重试直到详情浮层打开
+      window.__dsteTryOpenMeetingRecord = function(meetingId, section) {
+        let attempts = 0;
+        const tryOpen = () => {
+          attempts += 1;
+          if (typeof window.openTodoMeeting === 'function') window.openTodoMeeting(meetingId, section);
+          const ov = document.getElementById('meeting-detail-overlay');
+          const opened = ov && ov.style.display === 'flex';
+          if (!opened && attempts < 15) setTimeout(tryOpen, 300);
+        };
+        tryOpen();
+      };
+      window.addEventListener('message', (e) => {
+        if (e.origin !== window.location.origin) return;
+        const d = e.data;
+        if (!d || d.type !== 'dste-open-record' || d.recordType !== 'meeting' || !d.id) return;
+        window.__dsteTryOpenMeetingRecord(d.id, d.section);
+      });
+
+      // 独立访问深链：?record=<meetingId> 打开会议详情（与记录跳转共用重试逻辑）
+      const deepLinkMeetingId = new URLSearchParams(location.search).get('record');
+      if (deepLinkMeetingId) {
+        window.addEventListener('DOMContentLoaded', () => {
+          setTimeout(() => window.__dsteTryOpenMeetingRecord(deepLinkMeetingId), 300);
+        });
       }
     })();
   </script>
@@ -773,7 +810,12 @@
         const rawMeetings = getMeetings();
         if (!Array.isArray(rawMeetings) || rawMeetings.length === 0) {
           console.warn('[renderMeetings] 会议数据尚未初始化');
-          return '<div style="padding: 40px; text-align: center; color: var(--text-tertiary);">加载中...</div>';
+          return '<div class="skeleton-list" style="padding: var(--space-5);">'
+            + '<div class="skeleton skeleton-text" style="width:24%;"></div>'
+            + '<div class="skeleton skeleton-rect"></div>'
+            + '<div class="skeleton skeleton-rect"></div>'
+            + '<div class="skeleton skeleton-rect"></div>'
+            + '</div>';
         }
         window._calendarState = { year: new Date().getFullYear(), month: new Date().getMonth(), view: 'month' };
         const meetings = rawMeetings.slice(); // 复制数组避免修改原始数据
