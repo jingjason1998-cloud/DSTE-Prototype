@@ -1,8 +1,13 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-10 12:02
+> 更新时间: 2026-08-12
 
 ## 状态
+**v0.7.27 已发布并部署生产**（2026-08-12 Claude 会话，bundle 多个并行会话）：合并前端升级 A+B（视觉打磨 + Cmd+K + 侧边栏收藏/最近访问）、十五五规划知识库网页版、驾驶舱首页真实数据改造、战略解码 BP 页、2026 年销售小组 HC 配置分析报告、业务专题议题按需加载 + 年度筛选默认值修复、PPT/图标脚本辅助工具。版本号 `0.7.26 → 0.7.27`，CHANGELOG 与 roadmap-data 已更新。本地验证：lint 0 error / check:scope ✓ / pytest 198 passed / unit 609 / build ✓ / 全量 E2E 待跑。tag `v0.7.27` 已推送，GitHub Actions 部署完成后生产 smoke 通过。
+
+**前端升级 A+B（视觉打磨+导航效率）已随 v0.7.27 发布**（2026-08-11 Kimi 会话，已随 v0.7.27 发布）：dark 状态色补全、.page-title 统一、语义排版类、骨架屏组件与 iframe/列表加载占位、reviewer 硬编码色 token 化、**Cmd+K 全局命令面板**（页面+6 类记录索引、postMessage 记录级跳转带重试、?record= 深链、iframe 按键桥）、**侧边栏收藏+最近访问**（快捷条目用 .sidebar-quick-entry 独立类）。验证：lint/check:scope/unit 609/pytest 210/新增 E2E 9/相关回归全绿；全量 E2E 401 passed（失败均为 indicator-system 既有端口问题 + 并行会话 OMP 重构 WIP）。**用户已决定等并行会话一起发版**；本会话文件清单与发版提醒见 session-log 顶部条目。
+**十五五规划知识库网页版已随 v0.7.27 发布**（2026-08-11 Kimi 会话）：独立页 `src/knowledge.html`（洞察首页+文档树+阅读+搜索）+ 内容管线 `scripts/build-knowledge.cjs`(fyp-kb → public/kb,97 篇预渲染）+ 架构注册四件套 + sp/insights 入口。验证：pytest 210 / knowledge E2E 9/9 / build ✓。内容刷新跑 `npm run build:kb`。
+**驾驶舱首页真实数据改造已随 v0.7.27 发布**（2026-08-11 Kimi 会话）：`renderDashboard()` 重点工作/完成率、BSC 概览、预警、经营分析会卡全部接真实数据（OMP tasks/kpiInstances/meetings），无数据源指标加「演示数据」角标；pytest 210 / dashboard E2E 7/7 / 全量 E2E 443 通过。详见 session-log 顶部条目。
 **v0.7.24 已发布并部署生产**（commit `310b788`，tag `v0.7.24`）：新增「2026年营销线人才能力分布」页面（执行 → 报表中心 → 专题报表），`src/capability-map.html` 单文件只读看板 + vite/config.js 注册 + report-center-nav E2E 6/6。注意：该页为并行会话成果，其 cockpit.html 目录入口曾被误带入 v0.7.23 导致生产短暂 404，经用户确认后补齐发布。
 **v0.7.23 已发布并部署生产**（commit `549a11a`，tag `v0.7.23`）：战略专题管理新增序号编号与排序功能——列表「序号」首列按年份分组 1..N 自动编号、上移/下移按钮调整顺序并走 `siPersistTopics` 单条云端同步、默认按序号升序、新建专题自动排末尾、`siMigrateTopicSeq()` 迁移补齐旧数据。验证：lint 0 error / check:scope ✓ / pytest 188 / strategy-topics E2E 11；全量 E2E 424 passed / 1 failed（`rule-engine.spec.js:80`，月末日期敏感既有问题，`rule-engine-engine.test.js` 2 个单测同日同因失败，均未改动相关代码）。**同会话还通过 wrangler 直接改生产 KV 完成 17 条 2026 战略专题统一改名**（「XX市场分析&27年业务规划&2030规划展望」格式，备份在 `/tmp/dste-slide/dste_strategy_topics_v2.backup-*.json`）。
 **v0.7.19~v0.7.22（并行会话，2026-07-31）**：AI 工具调用系列修复——GlobalAiDrawer 流式 tool_calls 执行、streaming 分片聚合、tool_call_id 唯一前缀、AI 会话存储 key 升级 v2 丢弃污染会话。
@@ -104,6 +109,12 @@
 - 断点/恢复见 `08-checkpoint.md`，任务配方见 `.ai/tasks/active/T030-resolution-center.md`
 
 ## 刚完成
+
+### 干部管理下新增「2026年销售小组HC配置分析报告」（Kimi 会话，2026-08-11，未提交）
+- KMS `pageId=1417993864`（PQLX 空间）的 `iframe.html.wrapper` 控件代码（87KB 自包含看板，ECharts 走 CDN）接入 **战略评估 → 干部管理**：新建 `src/hc-analysis-2026.html`（embed/高度自适应/CAS 回调头脚本，内容零改动），`vite.config.js` 注册入口，`src/lib/config.js` 把「干部管理」拆为可折叠分组（总览 + 报告）
+- 验证：lint 0 error / check:scope ✓ / build ✓ / navigation E2E 22 passed（新增 2 用例）；pytest 12 个失败全在并行会话未跟踪的 `tests/test_dashboard.py`，与本改动无关
+- 同日追加：侧边栏长目录名被裁掉修复（省略号+title 悬浮提示，`shell.js`/`shell.css`），截图目检 ✓
+- 未提交未发布，随下个版本上线
 
 ### 战略指标库「引用」列功能删除（Kimi 会话，2026-08-04，未提交）
 - 起因：用户质疑「引用」列数字真实性。查证：数字是 `renderIndicatorSystem()` 实时计算的引用计数（KPI 实例 + 任务 kpiAssociations 关联），算法真实但底层是 `omp_buildYearSeed()` 种子演示数据，非真实业务使用量
@@ -248,7 +259,8 @@
 - 全量 E2E 并行运行时偶发 `page.goto` 超时（`business-topics.spec.js`、`navigation.spec.js`、`reviewer-embed.spec.js`），单独重跑可 pass
 
 ## 下一步
-1. ✅ **v0.7.2 已发布并部署生产**
+1. **提交并发布驾驶舱首页真实数据改造**（v0.7.25 patch 候选）——已验证全绿，只摘 3 个文件（见上方状态说明），用户尚未拍板发版
+2. ✅ **v0.7.2 已发布并部署生产**
 2. **发布 parked 的工作区标签去重修复（v0.7.13）** — 修复已完成并验证，因并行会话反复 reset 工作区、用户决定后续一起发布，已存为 `.ai/patches/workspace-tabs-dedup-v0.7.13.patch`；应用与发布步骤见 `.ai/patches/README-workspace-tabs-fix.md`
 3. ✅ **服务器更新 Flask KMS_API_TOKEN** — 已于 2026-07-30 完成：新 token 同步至生产 `/opt/meeting-reviewer/src/.env` 并重启 meeting-reviewer，服务器上 KMS API 拉取验证 200；建议下次使用时跑一次真实材料审核端到端确认
 4. **继续经分会-督办中心阶段 2** — 逾期催办、独立督办工作台页面、数据看板（详见 T050）

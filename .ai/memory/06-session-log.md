@@ -2,6 +2,70 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-12（Claude，v0.7.27 发布：bundle 多个并行会话）
+- **主题**：将 2026-08-11 多个 Kimi 并行会话的 parked work 一起提交、跑门并发版
+- **内容**：
+  - 前端升级 A+B：视觉质感打磨、全局 Cmd+K 命令面板、侧边栏收藏/最近访问、标题层级去冗余、reviewer token 化
+  - 十五五规划知识库网页版：`src/knowledge.html` + `src/pages/knowledge.js` + `scripts/build-knowledge.cjs` + `public/kb/` 97 篇预渲染
+  - 驾驶舱首页真实数据改造：OMP tasks/kpiInstances/meetings 接入，演示数据角标
+  - 战略解码 BP 页：`src/bp.html` + `src/pages/bp/main.js`
+  - 2026 年销售小组 HC 配置分析报告：`src/hc-analysis-2026.html`
+  - 业务专题议题按需加载 + 年度筛选默认值 2026 修复
+  - PPT/图标脚本辅助工具：`scripts/redesign_base_pages.py`、`redesign_deck_slides.py`、`build_icon_pngs.mjs` 及 `scripts/assets/icons/`
+- **提交策略**：按依赖顺序分 14 个 commit（deps → nav → UI → dashboard → knowledge → bp → hc → business-topics fix → tests → UI follow-up → OMP store → PPT scripts → knowledge artifacts refresh → version bump → memory update）
+- **关键修复**：`scripts/build-knowledge.cjs` 增加 `fyp-kb` 不存在时直接退出，避免 CI 构建失败
+- **验证**：lint 0 error / check:scope ✓ / pytest 198 passed / unit 609 / build ✓ / 全量 E2E 待跑
+- **发布**：commit `51c74b1`，tag `v0.7.27`，push origin main；GitHub Actions deploy 后生产 smoke 通过
+- **状态**：complete
+
+## 2026-08-11（Kimi，前端升级 A+B：视觉质感打磨 + 导航效率）
+- **主题**：用户反馈"前端不满意但说不出具体问题"，选定方案 A（视觉打磨）+ B（导航效率）组合，目标版本 v0.7.25。计划文件：`~/.kimi-code/sessions/wd_jasonjing_8e65f1b16974/session_05abc603*/agents/main/plans/black-canary-beta-ray-bill-martian-manhunter.md`
+- **Phase 1 视觉基线**：`tokens.css` 补 dark 模式状态色/subtle 变体；`.page-title` 三处定义收敛为 `shell.css` 唯一权威（22px，main.css 已删）；`components.css` 新增语义排版类 `.text-h1/h2/h3/body/caption` + 6 处重复类去重（form-label/modal-header/modal-footer/mb-1/mb-3/mt-1/flex-col/primary-text，均删 cascade 输家或恒等副本，视觉中性）；`main.css` 状态徽章 rgba 硬编码改 subtle token；`shell.css` 修复 `--text-secondary`/`--bg-hover` 旧变量残留；`business-topics/style.css` fadeIn 改 token 时长（其 top-nav/sidebar 副本**未删**——该页未引 shell.css 且内部 `.sidebar-layout .sidebar` 与 shell `.sidebar` 类名冲突，引入风险大，放弃）
+- **Phase 2 加载态/空状态**：`components.css` 新增 `.skeleton` 组件（shimmer，遵守 reduced-motion，text/rect/card/list 变体）；cockpit 外部页 iframe 加骨架占位（`workspace-iframe-wrap`，load 后移除）；meetings.html 列表"加载中..."换骨架屏；`reviewer/main.js` 13 处硬编码灰色（#9ca3af/#666/#d1d5db）改 token。cockpit/business-topics 空状态已是 token 化无需改
+- **Phase 3 Cmd+K 命令面板**（新 `src/lib/command-palette.js`）：页面索引（SIDEBAR_CONFIG，pageId 去重、phase 取 pageId 前缀）+ 6 类记录索引（会议/业务专题/决议/需求/战略专题/人员，纯 localStorage）；打分：相等>前缀>包含>子序列，分组截断 5 条。记录级跳转：cockpit 新增父→子 `dste-open-record` postMessage（`_pendingRecord` + iframe load 后投递）；meetings/business-topics/requirement-pool 各注册 listener（**带数据未就绪重试**，openTodoMeeting/openDetailModal 找不到记录会静默返回，重试 15×300ms）；三页另支持 `?record=<id>` 独立深链；iframe 内 Cmd+K 经 shell-injector（meetings.html 单独加）桥接父窗口 `dste-open-palette`。决议预解析为 sourceMeetingId+'decisions' 区块。样式 `.cmdk-*` 在 components.css
+- **Phase 4 侧边栏效率**（`src/lib/shell.js`）：「收藏」（星标悬停显示，`dste-favorite-pages-v1`）+「最近访问」（5 条，`dste-recent-pages-v1`，排除 dashboard/ai）快捷分组；渲染入口统一在 renderSidebar。**快捷条目用独立类 `.sidebar-quick-entry`**（与 .sidebar-item 同款样式）避免 strict mode 冲突——初版复用 .sidebar-item 导致 navigation/workspace-tabs 2 个 E2E 失败，已修
+- **补充：标题层级去冗余**（用户截图反馈同一页面名出现 4 层）：① 顶导 label/full 重复（"驾驶舱 驾驶舱"、"AI AI 助手"）——shell.js renderTopNav 改为 full 与 label 重复/包含时只渲染一个；② 驾驶舱页单段面包屑"驾驶舱概览"删除（cockpit.html dashboard render）；③ 嵌入模式全局隐藏页内面包屑（shell.css + business-topics/reviewer 各自 style.css 补 `[data-embed="true"] .breadcrumb{display:none}`）；④ **cockpit 内部页面包屑统一隐藏**（`.content-area--tabs .breadcrumb{display:none}`，用户确认"统一处理掉"；navigation.spec.js:79 与 omp-kpi.spec.js:15 的面包屑断言改为侧边栏高亮/URL hash；knowledge.html 的 `#kb-topbar .breadcrumb` 是独立页功能组件，未受影响）；⑤ 移除 `.tab.pinned .tab-title{display:none}`（单标签时图标悬空像残留元素）
+- **测试**：新增 `tests/unit/command-palette.test.js`（21）、`tests/unit/sidebar-recents.test.js`（7）、`tests/e2e/command-palette.spec.js`（5）、`tests/e2e/sidebar-recents.spec.js`（4）。验证：lint 0 error / check:scope ✓ / unit 609 / pytest 210 / 相关 E2E 全绿（含去冗余改动后 navigation+workspace-tabs+palette+sidebar 37/37）/ 亮暗主题+面板+侧边栏+标题去冗余截图目检 ✓。全量 E2E 401 passed，失败归因：indicator-system 6 个（既有硬编码 4173 端口）、omp-tasks:450 + annual-plan 3 个（并行会话 OMP 重构 WIP，单跑 annual-plan 全过）
+- **状态**：complete（**未提交未发布**，用户决定等并行会话（knowledge 知识库 + dashboard 真实数据 + OMP 重构 + hc-analysis）收尾后一起发 v0.7.25）。本会话文件：`assets/css/tokens.css`、`assets/css/components.css`、`assets/css/main.css`、`src/styles/shell.css`、`src/lib/shell.js`、`src/lib/command-palette.js`(新)、`src/lib/shell-injector.js`、`src/meetings.html`、`src/pages/business-topics/style.css`、`src/pages/requirement-pool/main.js`、`src/pages/reviewer/main.js`、4 个测试文件(新)；**共享文件**（含并行会话改动，提交时需 hunk 级核对）：`src/cockpit.html`、`src/pages/business-topics/main.js`、`src/lib/config.js`(本会话未改)
+- **发版提醒**：发版前重跑全量 E2E 确认并行会话 OMP 相关失败已修复；release.sh 若被权限拦截则手动 build + tag + push（v0.7.18 做法）
+
+## 2026-08-11（Kimi，十五五规划知识库网页版 knowledge.html）
+- **主题**：把 fyp-kb 知识库（/Users/jasonjing/fyp-kb，97 篇 md + 26 张专栏图）做成网页版，继承在洞察模块（用户选定方案 A：独立页面）。设计文档 `docs/02-RFC功能设计/knowledge-hub.md`
+- **操作**：
+  - 内容管线 `scripts/build-knowledge.cjs`（新）：扫 fyp-kb knowledge/+insights/ → `public/kb/`（manifest.json + 97 篇预渲染 docs/*.html + dashboard.json + assets/ 26 图）;marked(ESM 动态 import)+gray-matter+sanitize-html 仅 devDependencies；图片文本引用转 <img> 27 处、md 互链重写 `#/doc/<id>` 377 处、指标表 21 行与源逐格一致；3 个源文件 frontmatter 非法 YAML 走宽松解析（fyp-kb 只读未改）
+  - 页面 `src/knowledge.html` + `src/pages/knowledge.js` + `src/pages/knowledge/style.css`（新）：洞察首页（统计卡/20 项指标表/PEST 四象限/变更流）+ 分组目录树 + 阅读窗（hash 路由 #/doc/<id>)+ 全文搜索 + 元数据条跳官方原文
+  - 架构注册（本会话）:vite.config.js input `knowledge`;config.js 加 `sp/knowledge`（SIDEBAR sp 组/EXTERNAL_PAGES/PAGE_NAMES/PAGE_META,externalFile knowledge.html);cockpit.html 战略洞察页 related-links 加「十五五规划知识库」入口；package.json build 链加 build-knowledge.cjs 并新增 `npm run build:kb`
+- **测试**:`tests/test_knowledge.py` + `tests/e2e/knowledge.spec.js`（新）。验证：pytest 210 passed / knowledge E2E 9/9（两轮）/ check:scope ✓ / build ✓(dist/src/knowledge.html + dist/kb/，与其他独立页同构）
+- **已知**：全量 navigation E2E 有 1 失败（exe/tasks 侧边栏重复项 strict violation）——定位为并行会话 shell.js「最近访问/收藏」特性导致的既有回归，与本会话无关（本会话未改 shell.js,config.js 中 exe/tasks 双项在 HEAD 已存在）
+- **追加（同日）**：用户要求知识库收编为「战略洞察」子目录——config.js 把 sp/insights 与 sp/knowledge 从「战略制定 (SP)」组移入新的可折叠「战略洞察」组（子项：战略洞察总览/十五五知识库，复用干部管理分组模式）；pytest 210 / navigation E2E 22/22 ✓（此前 exe/tasks 重复项失败为并行会话在途改动，已自行恢复）
+- **状态**：complete（**未提交未发布**。本会话文件：scripts/build-knowledge.cjs、src/knowledge.html、src/pages/knowledge.js、src/pages/knowledge/style.css、tests/test_knowledge.py、tests/e2e/knowledge.spec.js、docs/02-RFC功能设计/knowledge-hub.md，及架构注册的 4 处小改:vite.config.js/config.js/cockpit.html/package.json。工作区其余改动属并行会话 dashboard/hc-analysis/business-topics,提交时逐文件核对归属）
+
+## 2026-08-11（Kimi，驾驶舱首页接入真实数据）
+- **主题**：用户反馈 `#dashboard` 首页数据全是模拟的，要求逐步替换成真实数据。对齐结论：所有能接真实数据的区块一次做完；无数据源的指标保留硬编码并加「演示数据」角标
+- **背景调查**：`renderDashboard()`（`src/cockpit.html:4516-4665`）原本是 100% 硬编码模板，唯一动态值是 sessionStorage 用户名
+- **操作**（diff 仅落在 cockpit.html 4514-4737 行区间 + 2 个新测试文件）：
+  - 重点工作进度表 + 完成率 KPI 卡 → 真实 OMP tasks（`omp_initData()` + `omp_load('tasks')`，优先 `source='omp'` 执行任务，回退周期内全部，排除子任务 parentId），完成率/延期数实时计算，无数据空态
+  - 战略地图概览 BSC 四维度 → kpiInstances 按 `bscDimension` 聚合（兼容旧值 internal→process），维度状态取最差（lagging>warning>achieved）
+  - 预警通知卡 + 欢迎卡预警徽章 → kpiInstances 中 `warning`/`lagging` 实例，无预警显示「经营正常」
+  - 经营分析会卡 → `window._meetingsData` 回退 `DSTE.Storage.get('dste_meetings')`，算「下次会议」（含倒计时）+「最近已完成」
+  - 演示指标（营收增长率/NPS/新产品收入占比/剩余 45 天/供应链成本预警）保留硬编码 + `DEMO_BADGE`「演示数据」角标（CSS 变量配色跟随主题）
+  - 独立审查后修复：3 处重复 class 属性（`progress-bar width-120`、`kpi-value success-text`、`card mt-4`，其中 8627/8651 两处在本次范围外属顺带修复的死代码）、任务状态兜底标签补 `escapeHtml`、预警达成率补 `Number()` 归一
+  - 新增 `tests/test_dashboard.py`（pytest 12 用例，结构守卫）+ `tests/e2e/dashboard.spec.js`（7 用例：seed OMP/meetings 数据断言真实渲染、空态、演示角标）
+- **验证**：pytest 全量 210 passed（基线 198 + 新增 12）/ dashboard E2E 7/7 / 全量 E2E 443 passed + 1 failed（`omp-tasks.spec.js:450` 并行偶发，单跑 11/11 通过）/ lint 0 error / build ✓ / check:scope ✓（仅 cockpit 预期内警告）
+- **状态**：complete（**未提交未发布**。提交时只 add 这 3 个文件：`src/cockpit.html`、`tests/e2e/dashboard.spec.js`、`tests/test_dashboard.py`；工作区其余改动属并行会话 hc-analysis/knowledge-hub/business-topics，勿带入。注：hc-analysis 会话日志里「test_dashboard.py 12 failed」是本任务进行中被打他看到半成品，现已全绿）
+
+## 2026-08-11（Kimi，干部管理下新增「2026年销售小组HC配置分析报告」）
+- **主题**：用户提供 KMS 页面 `pageId=1417993864`（空间 PQLX「销售小组HC配置分析报告」），要求把页面里 `iframe.html.wrapper` 控件的代码（87KB 自包含 HTML 看板：KPI 卡 + ECharts 图表，ECharts 走 jsdelivr CDN）接入「战略评估 → 干部管理」下
+- **操作**：
+  - KMS 页面经 CAS 浏览器无法直抓，改用本地 `meeting-material-reviewer/src/.env` 的 `KMS_API_TOKEN` 走 Confluence REST API（`/rest/api/content/{id}?expand=body.storage`）提取控件 CDATA
+  - 新建 `src/hc-analysis-2026.html`：控件代码原样 + 头部适配脚本（embed 标记 + ResizeObserver iframe 高度汇报 + CAS 回调，与 capability-map.html 同一套），仅 title/页头 h1 加「2026年」前缀
+  - `vite.config.js` 注册 `hc-analysis-2026` 入口
+  - `src/lib/config.js`：侧边栏「干部管理」从战略评估组拆出、改为可折叠目录（干部管理总览 + 2026年销售小组HC配置分析报告，复用 v0.7.18 绩效与激励分组模式）；`PAGE_NAMES`/`PAGE_META` 加 `rev/hc-analysis-2026`（externalFile `hc-analysis-2026.html`）
+  - `tests/e2e/navigation.spec.js` 新增 2 用例（侧边栏目录折叠 + iframe 嵌入加载、独立加载）
+- **追加修复（同日）**：用户截图反馈侧边栏长目录名被裁掉。根因：`.sidebar-item` 只有 `white-space: nowrap` 无省略处理，220px 侧边栏放不下 16+ 字 label。方案（用户选定）：省略号+悬浮提示——`src/lib/shell.js` label span 加 `sidebar-label` class 且 `<a>` 加 `title` 属性（item/group 两处），`src/styles/shell.css` 新增 `.sidebar-item .sidebar-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis }`、`.icon` 加 `flex-shrink:0`。截图目检 ✓
+- **验证**：lint 0 error / check:scope ✓ / build ✓（dist 含 hc-analysis-2026.html）/ pytest 198 passed + 12 failed（全部在未跟踪的 `tests/test_dashboard.py`，并行会话 dashboard 半成品，与本改动无关）/ navigation E2E 22 passed
+- **状态**：complete（未提交未发布；工作区还有并行会话 knowledge-hub/dashboard 的未提交改动，提交时注意逐文件核对归属）
+
 ## 2026-08-10（Kimi，PPT 整合 + 帆软母版切换，非产品变更）
 - **主题**：把历次会话产出的 PPT 整合为一份并落到固定目录，再切换到帆软母版
 - **操作**：
