@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026年销售小组HC配置分析报告 - DSTE战略管理平台</title>
+    <script>
+        // 嵌入模式标记 + iframe 高度自适应（与 marketing-budget.html 等独立页面一致）
+        (function() {
+            if (new URLSearchParams(location.search).get('embed') === '1') {
+                document.documentElement.setAttribute('data-embed', 'true');
+
+                // 向父页面汇报高度，实现 iframe 自适应
+                if (window !== window.top) {
+                    let lastHeight = 0;
+                    const reportHeight = () => {
+                        const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+                        if (h !== lastHeight) {
+                            lastHeight = h;
+                            window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*');
+                        }
+                    };
+                    reportHeight();
+                    let timer;
+                    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                    if (typeof ResizeObserver !== 'undefined') {
+                        const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                        ro.observe(document.documentElement);
+                    }
+                }
+            }
+        })();
+    </script>
+    <script>
+        // CAS 回调处理（与 incentive-h1-2026.html 等独立页面一致）
+        (function() {
+            'use strict';
+            const CAS_REDIRECT_HISTORY_KEY = 'dste-cas-redirect-history';
+
+            function clearCasRedirectHistory() {
+                try { sessionStorage.removeItem(CAS_REDIRECT_HISTORY_KEY); } catch (e) {}
+            }
+
+            async function handleCasCallback() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const ticket = urlParams.get('ticket');
+                if (!ticket) return false;
+
+                const cleanUrl = window.location.pathname + window.location.hash;
+                history.replaceState(null, '', cleanUrl);
+
+                try {
+                    const service = encodeURIComponent(window.location.origin + '/src/cockpit.html');
+                    const resp = await fetch(`/api/auth/cas/validate?ticket=${encodeURIComponent(ticket)}&service=${service}`);
+                    if (!resp.ok) throw new Error('CAS 验证失败');
+                    const data = await resp.json();
+                    if (data.success && data.token) {
+                        localStorage.setItem('dste-token', data.token);
+                        localStorage.setItem('dste-user', data.user?.name || data.user?.username || '');
+                        sessionStorage.setItem('dste-user', data.user?.name || data.user?.username || '');
+                        sessionStorage.setItem('dste-cas-login-at', String(Date.now()));
+                        clearCasRedirectHistory();
+                    }
+                } catch (err) {
+                    console.error('[Auth]', err);
+                }
+                return true;
+            }
+
+            handleCasCallback();
+        })();
+    </script>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#f1f5f9;--card:#ffffff;--text:#0f172a;--muted:#64748b;--light:#94a3b8;
+  --primary:#0f172a;--accent:#3b82f6;--accent2:#6366f1;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#3b82f6;
+  --purple:#8b5cf6;--teal:#0d9488;
+  --border:#e2e8f0;--shadow:0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:0 2px 4px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 8px rgba(0,0,0,0.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;font-size:13px;min-height:100vh}
+.container{max-width:1280px;margin:0 auto;padding:16px}
+
+header{text-align:center;padding:28px 16px 24px;background:linear-gradient(160deg,#0f172a 0%,#1e293b 100%);margin:-16px -16px 20px -16px;border-radius:0 0 20px 20px;color:#fff}
+header h1{font-size:22px;font-weight:800;letter-spacing:-0.3px}
+header p{margin-top:6px;font-size:12px;color:#94a3b8}
+
+.kpi-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+.kpi-card{background:var(--card);border-radius:12px;padding:14px 10px;text-align:center;box-shadow:var(--shadow-sm);border:1px solid var(--border);transition:all .2s}
+.kpi-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.kpi-value{font-size:24px;font-weight:800;line-height:1}
+.kpi-label{font-size:11px;color:var(--muted);margin-top:5px;font-weight:500}
+.kpi-sub{font-size:10px;color:var(--light);margin-top:2px}
+
+.main-tabs{display:flex;gap:6px;margin-bottom:16px;background:#fff;padding:5px;border-radius:12px;box-shadow:var(--shadow-sm);border:1px solid var(--border);position:sticky;top:10px;z-index:50}
+.main-tab{flex:1;padding:10px 14px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.main-tab:hover{background:#f8fafc;color:var(--text)}
+.main-tab.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 2px 8px rgba(59,130,246,0.25)}
+.main-tab-content{display:none;animation:fadeIn .3s ease}
+.main-tab-content.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.section{background:var(--card);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow-sm);border:1px solid var(--border)}
+.section-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.section-title .icon{font-size:18px}
+.section-title .actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+.chart-box{width:100%;height:300px}
+#chartLeader{height:360px}
+.chart-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
+.plan-chart-row{grid-template-columns:1.6fr 1fr}
+
+.alert{border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;border:1px solid;font-size:12px}
+.alert-danger{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+.alert-warning{background:#fffbeb;border-color:#fde68a;color:#78350f}
+.alert-info{background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a}
+.alert-icon{font-size:16px;flex-shrink:0;line-height:1.2}
+.alert-title{font-weight:700;margin-bottom:2px;font-size:12px}
+.alert-body{font-size:11px;line-height:1.5;opacity:0.85}
+
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow-sm);max-height:440px;overflow-y:auto;position:relative}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+th{background:#f8fafc;color:#475569;font-weight:600;text-align:left;padding:6px 12px;white-space:nowrap;position:sticky;top:0;z-index:10;font-size:11px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:2px solid var(--border)}
+td{padding:5px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tr:hover td{background:#f8fafc}
+tr.filtered-out{display:none}
+tfoot td{background:#f1f5f9;font-weight:700;color:#0f172a;border-top:2px solid #cbd5e1;border-bottom:none;font-size:12px;padding:6px 12px;position:sticky;bottom:0;z-index:10}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap}
+.tag-red{background:#fee2e2;color:#991b1b}
+.tag-orange{background:#ffedd5;color:#9a3412}
+.tag-green{background:#dcfce7;color:#166534}
+.tag-blue{background:#dbeafe;color:#1e40af}
+.tag-purple{background:#ede9fe;color:#5b21b6}
+
+.filter-tag{display:none;align-items:center;gap:4px;padding:3px 10px;border-radius:16px;font-size:11px;font-weight:600;background:linear-gradient(135deg,#dbeafe,#ede9fe);color:#1e40af}
+.filter-tag.show{display:inline-flex}
+.reset-btn{display:none;align-items:center;gap:4px;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;border:none;cursor:pointer;transition:all .15s}
+.reset-btn.show{display:inline-flex}
+.reset-btn:hover{background:#e2e8f0;color:#334155}
+
+.footer{text-align:center;padding:30px 0 16px;color:var(--light);font-size:11px}
+
+/* ===== 多选下拉框 ===== */
+.multi-select{position:relative;display:inline-block;min-width:160px}
+.multi-select-trigger{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:12px;color:var(--text);cursor:pointer;transition:all .15s}
+.multi-select-trigger:hover{border-color:#cbd5e1}
+.multi-select-trigger .count{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
+.multi-select-dropdown{position:absolute;top:calc(100% + 4px);left:0;z-index:30;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);min-width:200px;display:none;overflow:hidden}
+.multi-select-dropdown.show{display:block;animation:fadeIn .15s ease}
+.multi-select-item{padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:12px;transition:background .1s}
+.multi-select-item:hover{background:#f8fafc}
+.multi-select-item input[type="checkbox"]{margin:0;cursor:pointer}
+.multi-select-actions{padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:space-between;background:#f8fafc}
+.multi-select-actions button{border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.multi-select-actions .btn-all{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.multi-select-actions .btn-clear{background:#e2e8f0;color:#475569}
+.multi-select-actions button:hover{opacity:.85}
+
+/* ===== 变动高亮 ===== */
+.changed-up{color:#059669 !important;background:#dcfce7 !important;font-weight:700 !important}
+.changed-down{color:#dc2626 !important;background:#fee2e2 !important;font-weight:700 !important}
+
+/* ===== 悬浮配置框 ===== */
+.cfg-floating{position:fixed;top:80px;right:20px;width:280px;z-index:100;background:var(--card);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.12);border:1px solid var(--border);overflow:hidden;transition:box-shadow .2s}
+.cfg-floating:hover{box-shadow:0 12px 40px rgba(0,0,0,0.16)}
+.cfg-floating-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);cursor:grab;user-select:none;background:#f8fafc}
+.cfg-floating-header:active{cursor:grabbing}
+.cfg-floating-body{padding:10px}
+.cfg-floating-body.collapsed{display:none}
+.cfg-floating-actions{display:flex;gap:4px}
+.cfg-btn{padding:1px 6px;border:1px solid var(--border);border-radius:5px;background:#fff;font-size:12px;cursor:pointer;color:var(--muted);line-height:1}
+.cfg-btn:hover{background:#e2e8f0;color:var(--text)}
+.cfg-floating-resize{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 45%,#94a3b8 45%,#94a3b8 55%,transparent 55%,transparent 65%,#94a3b8 65%);opacity:.5}
+.cfg-floating-resize:hover{opacity:1}
+
+@media(max-width:768px){
+  header h1{font-size:18px}
+  .chart-row{grid-template-columns:1fr}
+  .plan-chart-row{grid-template-columns:1fr !important}
+  .kpi-bar{grid-template-columns:repeat(3,1fr)}
+  .main-tab{font-size:12px;padding:8px}
+  .multi-select{min-width:120px}
+  .multi-select-dropdown{min-width:160px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>&#x1f4ca; 2026年销售小组 HC 配置分析报告</h1>
+  <p>66 个销售小组 · 10 个大区 · 战区负责人 + 小组长分层视角</p>
+</header>
+
+<div class="kpi-bar">
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#6366f1">12</div>
+    <div class="kpi-label">战区直管组</div>
+    <div class="kpi-sub">10 位负责人</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#8b5cf6">53</div>
+    <div class="kpi-label">战区直管人数</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#3b82f6">54</div>
+    <div class="kpi-label">小组长管理组</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#0ea5e9">250</div>
+    <div class="kpi-label">小组实际 HC</div>
+    <div class="kpi-sub">上限 299</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#ef4444">49</div>
+    <div class="kpi-label">小组缺口</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#f59e0b">83.6%</div>
+    <div class="kpi-label">小组满编率</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#8b5cf6" id="kpiFissionLeaders">0</div>
+    <div class="kpi-label">裂变组长人数</div>
+    <div class="kpi-sub">超出职级上限</div>
+  </div>
+</div>
+
+<div class="main-tabs">
+  <button class="main-tab active" onclick="switchTab('team',this)">&#x1f465; 销售小组长分析</button>
+  <button class="main-tab" onclick="switchTab('leader',this)">&#x1f396;️ 战区负责人直管组</button>
+  <button class="main-tab" onclick="switchTab('shanghai',this)">&#x1f3d7;️ 战区销售小组编制限制方案更新</button>
+</div>
+
+<!-- ====== 模块一：销售小组长 ====== -->
+<div id="tab-team" class="main-tab-content active">
+
+  <div class="chart-row">
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f6a8;</span>风险预警
+        <div class="actions">
+          <span class="filter-tag" id="riskFilterTag"></span>
+          <button class="reset-btn" id="resetRisk" onclick="resetAllFilters()">↺ 重置</button>
+        </div>
+      </div>
+      <div class="alert alert-danger">
+        <div class="alert-icon">⚠️</div>
+        <div><div class="alert-title">空编小组 · 华中大区 · 华中销售六组</div>
+        <div class="alert-body">组长 Jay.Zhang-张辉（P2-2）| HC 上限 5 人，实际 0 人。建议立即启动招聘或人员调配。</div></div>
+      </div>
+      <div class="alert alert-warning">
+        <div class="alert-icon">&#x1f4db;</div>
+        <div><div class="alert-title">超编小组 · 上海大区 · 上海销售四组</div>
+        <div class="alert-body">组长 BeidgeLew-刘喜朝（P2-3）| HC 上限 5 人，实际 6 人，超编 1 人。建议调整编制或分流。</div></div>
+      </div>
+      <div class="alert alert-info">
+        <div class="alert-icon">&#x1f4c9;</div>
+        <div><div class="alert-title">低满编小组共 14 个</div>
+        <div class="alert-body">满编率低于 80% 的小组涉及多个大区，其中 3 个小组严重不足（&lt;60%）。详见下方「详细数据」。</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f9ec;</span>职级上限与裂变组长分析</div>
+      <div class="alert alert-info">
+        <div class="alert-icon">&#x1f4d6;</div>
+        <div>
+          <div class="alert-title">制度依据：《销售组组织架构发展纲要 V3.0》</div>
+          <div class="alert-body">基层组织建制：P2 序列组长小组建制为 1+5（职级上限 5 人），P3 序列组长小组建制为 1+7（职级上限 7 人）。实际 HC 上限超出职级上限的部分，即为已裂变（或预留裂变）的小组长人数。</div>
+        </div>
+      </div>
+      <div class="alert alert-warning">
+        <div class="alert-icon">&#x1f4a1;</div>
+        <div>
+          <div class="alert-title">典型案例：leon-陈鹏（上海销售南区小组 · P3-1）</div>
+          <div class="alert-body">职级上限 7 人（P3 序列 1+7），实际 HC 上限 9 人。裂变小组长人数 = 9 − 7 = 2 人。即陈鹏团队已具备 2 名裂变组长的配置空间。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f4c8;</span>各团队 HC 配置与满编率
+        <div class="actions">
+          <span class="filter-tag" id="comboFilterTag"></span>
+          <button class="reset-btn" id="resetCombo" onclick="resetComboFilter()">↺ 重置</button>
+        </div>
+      </div>
+      <div id="chartCombo" class="chart-box"></div>
+    </div>
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f3af;</span>满编率分布</div>
+      <div id="chartFillRate" class="chart-box"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="icon">&#x1f4cb;</span>小组长详细数据
+      <div class="actions">
+        <span class="filter-tag" id="tableFilterTag"></span>
+        <button class="reset-btn" id="resetTable" onclick="resetAllFilters()">↺ 重置</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="teamTable">
+        <thead>
+          <tr><th>团队</th><th>小组</th><th>组长</th><th>职级</th><th class="num">职级上限</th><th class="num">裂变小组长人数</th><th class="num">HC上限</th><th class="num">实际HC</th><th class="num">缺口</th><th>满编率</th><th>备注</th></tr>
+        </thead>
+        <tbody id="teamTableBody">
+          <tr data-team="上海大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>上海大区</td>
+      <td>上海销售七组</td>
+      <td>Tony.Liu-刘思远</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="上海大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>上海大区</td>
+      <td>上海销售三组</td>
+      <td>William-陆伟</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="上海大区" data-rate="71.4" data-limit="7" data-actual="5" data-gap="2" data-status="low">
+      <td>上海大区</td>
+      <td>上海销售中区小组</td>
+      <td>tom-洪赟林</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">2</td>
+      <td class="num">7</td>
+      <td class="num">5</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">71.4%</span></td>
+      <td><span style="color:#92400e;font-size:11px;background:#fffbeb;padding:2px 6px;border-radius:4px;border:1px solid #fde68a">战区内部暂限制上限为5，不新增</span></td>
+    </tr>
+<tr data-team="上海大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>上海大区</td>
+      <td>上海销售五组</td>
+      <td>Dong-薛金东</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="上海大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>上海大区</td>
+      <td>上海销售六组</td>
+      <td>Xiangxiang-向翔</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="上海大区" data-rate="100.0" data-limit="9" data-actual="9" data-gap="0" data-status="normal">
+      <td>上海大区</td>
+      <td>上海销售南区小组</td>
+      <td>leon-陈鹏</td>
+      <td>P3-1</td>
+      <td class="num">7</td>
+      <td class="num">2</td>
+      <td class="num">9</td>
+      <td class="num">9</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="上海大区" data-rate="120.0" data-limit="5" data-actual="6" data-gap="-1" data-status="over">
+      <td>上海大区</td>
+      <td>上海销售四组</td>
+      <td>BeidgeLew-刘喜朝</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">6</td>
+      <td class="num">-1</td>
+      <td><span class="tag tag-blue">120.0%</span></td>
+      <td><span style="color:#92400e;font-size:11px;background:#fffbeb;padding:2px 6px;border-radius:4px;border:1px solid #fde68a">遗留问题，待有离职即取消溢出编制</span></td>
+    </tr>
+<tr data-team="东北大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>东北大区</td>
+      <td>东北销售大吉组</td>
+      <td>answer-刘森</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="东北大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>东北大区</td>
+      <td>东北销售沈阳组</td>
+      <td>Parker-朴弘</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="东北大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>东北大区</td>
+      <td>东北销售龙江组</td>
+      <td>Miaoxinyuan-苗芯源</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="北京大区" data-rate="88.9" data-limit="9" data-actual="8" data-gap="1" data-status="normal">
+      <td>北京大区</td>
+      <td>北京销售一组</td>
+      <td>grace-刘姝彤</td>
+      <td>P3-1</td>
+      <td class="num">7</td>
+      <td class="num">2</td>
+      <td class="num">9</td>
+      <td class="num">8</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">88.9%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="北京大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>北京大区</td>
+      <td>北京销售七组</td>
+      <td>Field.Tian-田野</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="北京大区" data-rate="88.9" data-limit="9" data-actual="8" data-gap="1" data-status="normal">
+      <td>北京大区</td>
+      <td>北京销售二组</td>
+      <td>gavin-陆晓锋</td>
+      <td>P3-1</td>
+      <td class="num">7</td>
+      <td class="num">2</td>
+      <td class="num">9</td>
+      <td class="num">8</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">88.9%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="北京大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>北京大区</td>
+      <td>北京销售五组</td>
+      <td>George.yu-于越</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="北京大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>北京大区</td>
+      <td>北京销售八组</td>
+      <td>Dick.Zhang-张永超</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="北京大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>北京大区</td>
+      <td>北京销售十组</td>
+      <td>sibon-徐斌</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="北京大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>北京大区</td>
+      <td>北京销售四组</td>
+      <td>vin-祁磊</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华中大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>华中大区</td>
+      <td>华中销售三组</td>
+      <td>yingyu-李映钰</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华中大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>华中大区</td>
+      <td>华中销售五组</td>
+      <td>Zhangchen-张晨</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华中大区" data-rate="0.0" data-limit="5" data-actual="0" data-gap="5" data-status="empty">
+      <td>华中大区</td>
+      <td>华中销售六组</td>
+      <td>Jay.Zhang-张辉</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td><span class="tag tag-red">0.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华中大区" data-rate="83.3" data-limit="6" data-actual="5" data-gap="1" data-status="normal">
+      <td>华中大区</td>
+      <td>华中销售四组</td>
+      <td>markus-马俊峰</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">1</td>
+      <td class="num">6</td>
+      <td class="num">5</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">83.3%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华北大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>华北大区</td>
+      <td>华北销售一组</td>
+      <td>lion-王伟</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华北大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>华北大区</td>
+      <td>华北销售三组</td>
+      <td>will-孙鸿斌</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华北大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>华北大区</td>
+      <td>华北销售五组</td>
+      <td>Kerwin-李宏旭</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华北大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>华北大区</td>
+      <td>华北销售六组</td>
+      <td>One-沙旭东</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华北大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>华北大区</td>
+      <td>华北销售四组</td>
+      <td>Burke-丛进</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华南大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>华南大区</td>
+      <td>华南销售一组</td>
+      <td>levine-张鑫</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华南大区" data-rate="71.4" data-limit="7" data-actual="5" data-gap="2" data-status="low">
+      <td>华南大区</td>
+      <td>华南销售七组</td>
+      <td>Rong-全振荣</td>
+      <td>P3-1</td>
+      <td class="num">7</td>
+      <td class="num">0</td>
+      <td class="num">7</td>
+      <td class="num">5</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">71.4%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华南大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>华南大区</td>
+      <td>华南销售三组</td>
+      <td>chris.gao-高元福</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华南大区" data-rate="83.3" data-limit="6" data-actual="5" data-gap="1" data-status="normal">
+      <td>华南大区</td>
+      <td>华南销售二组</td>
+      <td>vincent-余江南</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">1</td>
+      <td class="num">6</td>
+      <td class="num">5</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">83.3%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华南大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>华南大区</td>
+      <td>华南销售五组</td>
+      <td>liemon-黎成彬</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华南大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>华南大区</td>
+      <td>华南销售八组</td>
+      <td>Benedict-李东麒</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="华南大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>华南大区</td>
+      <td>华南销售六组</td>
+      <td>Kimber-金展鹏</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="浙闽大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>浙闽大区</td>
+      <td>浙闽销售七组</td>
+      <td>golden-何晓川</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="浙闽大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>浙闽大区</td>
+      <td>浙闽销售三组</td>
+      <td>Linwanxiao-林万晓</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="浙闽大区" data-rate="75.0" data-limit="8" data-actual="6" data-gap="2" data-status="low">
+      <td>浙闽大区</td>
+      <td>浙闽销售二组</td>
+      <td>arthur-刘威</td>
+      <td>P3-1</td>
+      <td class="num">7</td>
+      <td class="num">1</td>
+      <td class="num">8</td>
+      <td class="num">6</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">75.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="浙闽大区" data-rate="100.0" data-limit="7" data-actual="7" data-gap="0" data-status="normal">
+      <td>浙闽大区</td>
+      <td>浙闽销售五组</td>
+      <td>Wenwu.wang-王文武</td>
+      <td>P3-1</td>
+      <td class="num">7</td>
+      <td class="num">0</td>
+      <td class="num">7</td>
+      <td class="num">7</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="浙闽大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>浙闽大区</td>
+      <td>浙闽销售八组</td>
+      <td>Fanli-范理</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="浙闽大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>浙闽大区</td>
+      <td>浙闽销售四组</td>
+      <td>Jeatom-沈子涛</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="苏皖大区" data-rate="100.0" data-limit="9" data-actual="9" data-gap="0" data-status="normal">
+      <td>苏皖大区</td>
+      <td>苏皖销售一组</td>
+      <td>justin-贾训祥</td>
+      <td>P3-2</td>
+      <td class="num">7</td>
+      <td class="num">2</td>
+      <td class="num">9</td>
+      <td class="num">9</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="苏皖大区" data-rate="40.0" data-limit="5" data-actual="2" data-gap="3" data-status="low">
+      <td>苏皖大区</td>
+      <td>苏皖销售七组</td>
+      <td>Chenxinyang-陈心洋</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">2</td>
+      <td class="num">3</td>
+      <td><span class="tag tag-red">40.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="苏皖大区" data-rate="100.0" data-limit="7" data-actual="7" data-gap="0" data-status="normal">
+      <td>苏皖大区</td>
+      <td>苏皖销售三组</td>
+      <td>nico-丁敬赛</td>
+      <td>P3-1</td>
+      <td class="num">7</td>
+      <td class="num">0</td>
+      <td class="num">7</td>
+      <td class="num">7</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="苏皖大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>苏皖大区</td>
+      <td>苏皖销售二组</td>
+      <td>Russell-姜吉斌</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="苏皖大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>苏皖大区</td>
+      <td>苏皖销售五组</td>
+      <td>Liuxun-刘讯</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="苏皖大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>苏皖大区</td>
+      <td>苏皖销售六组</td>
+      <td>Micheal-曹峥</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西北大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>西北大区</td>
+      <td>西北销售内蒙组</td>
+      <td>Stone.Cao-曹磊</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西北大区" data-rate="80.0" data-limit="5" data-actual="4" data-gap="1" data-status="normal">
+      <td>西北大区</td>
+      <td>西北销售新疆组</td>
+      <td>crx-曹瑞轩</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td><span class="tag tag-orange">80.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西北大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>西北大区</td>
+      <td>西北销售甘青宁组</td>
+      <td>Karl-陈小辉</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西北大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>西北大区</td>
+      <td>西北销售陕西一组</td>
+      <td>Bryant.L-刘海宇</td>
+      <td>P2-1</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西南大区" data-rate="60.0" data-limit="5" data-actual="3" data-gap="2" data-status="low">
+      <td>西南大区</td>
+      <td>西南云南一组</td>
+      <td>brady-张建飞</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">3</td>
+      <td class="num">2</td>
+      <td><span class="tag tag-red">60.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西南大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>西南大区</td>
+      <td>西南四川二组</td>
+      <td>Long.Zhang-张龙飞</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西南大区" data-rate="40.0" data-limit="5" data-actual="2" data-gap="3" data-status="low">
+      <td>西南大区</td>
+      <td>西南贵州一组</td>
+      <td>jax-刘军</td>
+      <td>P2-2</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">2</td>
+      <td class="num">3</td>
+      <td><span class="tag tag-red">40.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西南大区" data-rate="100.0" data-limit="5" data-actual="5" data-gap="0" data-status="normal">
+      <td>西南大区</td>
+      <td>西南重庆一组</td>
+      <td>Owen-罗健</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td><span class="tag tag-green">100.0%</span></td>
+      <td></td>
+    </tr>
+<tr data-team="西南大区" data-rate="40.0" data-limit="5" data-actual="2" data-gap="3" data-status="low">
+      <td>西南大区</td>
+      <td>西南重庆二组</td>
+      <td>Hugang-胡刚</td>
+      <td>P2-3</td>
+      <td class="num">5</td>
+      <td class="num">0</td>
+      <td class="num">5</td>
+      <td class="num">2</td>
+      <td class="num">3</td>
+      <td><span class="tag tag-red">40.0%</span></td>
+      <td></td>
+    </tr>
+
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" style="text-align:right">筛选汇总</td>
+            <td class="num" id="sumRankLimit">—</td>
+            <td class="num" id="sumFissionLeaders">—</td>
+            <td class="num" id="sumLimit">299</td>
+            <td class="num" id="sumActual">250</td>
+            <td class="num" id="sumGap">49</td>
+            <td><span class="tag tag-blue" id="sumRate">均值 83.0%</span></td>
+            <td>—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====== 模块二：战区负责人 ====== -->
+<div id="tab-leader" class="main-tab-content">
+
+  <div class="chart-row">
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f4c8;</span>战区直管人数 vs 可补充数 vs 直管负荷率（含调整后）</div>
+      <div id="chartLeader" class="chart-box"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f4cb;</span>战区负责人明细
+      <div class="actions">
+        <button id="leaderSortBtn" class="reset-btn" style="display:inline-flex" onclick="toggleLeaderSort()">▼ 负荷率降序</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="min-width:140px">战区</th><th>负责人</th><th class="num">直管组</th><th class="num">直管人数</th><th class="num">可补充</th><th class="num">方案新增HC</th><th class="num">直管负荷率</th><th class="num">调整后负荷率</th></tr>
+        </thead>
+        <tbody id="leaderTableBody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="text-align:right">汇总</td>
+            <td class="num" id="ld-total-groups">12</td>
+            <td class="num" id="ld-total-people">53</td>
+            <td class="num" id="ld-total-gap">49</td>
+            <td class="num" id="ld-total-inc">0</td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<!-- ====== 模块三：战区销售小组编制限制方案更新 ====== -->
+<div id="tab-shanghai" class="main-tab-content">
+
+  <div class="section">
+    <div class="section-title"><span class="icon">&#x1f4e2;</span>会议结论与核心原则</div>
+    <div class="alert alert-info">
+      <div class="alert-icon">&#x1f3af;</div>
+      <div>
+        <div class="alert-title">结论：公司级统一制度刷新，非上海单独特殊政策</div>
+        <div class="alert-body">经讨论，该课题属于公司级编制制度优化，建议沿职级方案做全国统一刷新，保持各战区规则一致。能力足够的组长可考虑放宽带人上限，但需在统一的评价框架下执行。</div>
+      </div>
+    </div>
+    <div class="alert alert-warning">
+      <div class="alert-icon">⚖️</div>
+      <div>
+        <div class="alert-title">指导原则：能力匹配 + 全国一致 + 薪酬配套</div>
+        <div class="alert-body">1）带人上限提升必须配套科学的评价逻辑（e/r、客户数、人才培养）；2）制度全国同步执行，避免区域差异；3）组长薪酬需与新增管理幅度匹配，体现风险与收益对等。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-bar" style="margin-bottom:14px">
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#3b82f6">职级对应</div>
+      <div class="kpi-label">按P级定上限</div>
+      <div class="kpi-sub">全国统一标准</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#10b981">能力匹配</div>
+      <div class="kpi-label">达标方可放宽</div>
+      <div class="kpi-sub">e/r+客户数+人才</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#8b5cf6">13</div>
+      <div class="kpi-label">当前裂变组长人数</div>
+      <div class="kpi-sub">全国已裂变</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#f59e0b">薪酬配套</div>
+      <div class="kpi-label">风险与收益对等</div>
+      <div class="kpi-sub">管理幅度对应薪酬</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+  <div class="section">
+    <div class="section-title"><span class="icon">&#x1f4ca;</span>参数配置器</div>
+    <div style="display:flex;flex-direction:column;gap:36px;padding:8px 4px;min-width:0">
+      <!-- 行标题 -->
+      <div style="display:flex;align-items:center;gap:8px;padding-left:90px;flex-wrap:wrap">
+        <div style="width:60px;text-align:center;font-size:11px;font-weight:700;color:#475569">P2-1</div>
+        <div style="width:60px;text-align:center;font-size:11px;font-weight:700;color:#475569">P2-2</div>
+        <div style="width:60px;text-align:center;font-size:11px;font-weight:700;color:#475569">P2-3</div>
+        <div style="width:60px;text-align:center;font-size:11px;font-weight:700;color:#475569">P3-1</div>
+        <div style="width:60px;text-align:center;font-size:11px;font-weight:700;color:#475569">P3-2</div>
+      </div>
+      <!-- ① 最高上限 -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="width:82px;font-size:12px;font-weight:700;color:#ef4444;white-space:nowrap">① 最高上限</div>
+        <input type="number" id="cfg-max-p21" value="10" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #ef4444;border-radius:6px;font-size:13px;font-weight:700;color:#b91c1c;text-align:center;background:#fef2f2" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-max-p22" value="10" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #ef4444;border-radius:6px;font-size:13px;font-weight:700;color:#b91c1c;text-align:center;background:#fef2f2" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-max-p23" value="10" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #ef4444;border-radius:6px;font-size:13px;font-weight:700;color:#b91c1c;text-align:center;background:#fef2f2" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-max-p31" value="12" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #ef4444;border-radius:6px;font-size:13px;font-weight:700;color:#b91c1c;text-align:center;background:#fef2f2" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-max-p32" value="12" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #ef4444;border-radius:6px;font-size:13px;font-weight:700;color:#b91c1c;text-align:center;background:#fef2f2" oninput="updateShanghaiPlan()">
+      </div>
+      <!-- ② 激励型HC增加 + 筛选条件 -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="width:82px;font-size:12px;font-weight:700;color:#059669;white-space:nowrap">② 激励型HC增加</div>
+        <div class="num" style="width:100px;text-align:center;font-size:12px;font-weight:700;color:#059669">裂变组长/+1</div>
+        <div style="width:1px;height:16px;background:#cbd5e1;margin:0 4px"></div>
+        <select id="cfg-filter" style="width:155px;padding:5px 8px;border:1px solid #c4b5fd;border-radius:6px;font-size:12px;font-weight:600;color:#5b21b6;background:#f5f3ff;cursor:pointer" onchange="updateShanghaiPlan()">
+          <option value="">附加条件：全部</option>
+          <option value="sale">培养1000万销售一名</option>
+          <option value="performance">上年度绩效为A</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <!-- ③ 职级上限 -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="width:82px;font-size:12px;font-weight:700;color:#3b82f6;white-space:nowrap">③ 职级上限</div>
+        <input type="number" id="cfg-p21" value="5" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #3b82f6;border-radius:6px;font-size:13px;font-weight:700;color:#1e40af;text-align:center;background:#eff6ff" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-p22" value="5" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #3b82f6;border-radius:6px;font-size:13px;font-weight:700;color:#1e40af;text-align:center;background:#eff6ff" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-p23" value="6" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #3b82f6;border-radius:6px;font-size:13px;font-weight:700;color:#1e40af;text-align:center;background:#eff6ff" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-p31" value="8" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #3b82f6;border-radius:6px;font-size:13px;font-weight:700;color:#1e40af;text-align:center;background:#eff6ff" oninput="updateShanghaiPlan()">
+        <input type="number" id="cfg-p32" value="8" min="1" max="20" style="width:60px;padding:5px 4px;border:1px solid #3b82f6;border-radius:6px;font-size:13px;font-weight:700;color:#1e40af;text-align:center;background:#eff6ff" oninput="updateShanghaiPlan()">
+      </div>
+    </div>
+  </div>
+
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1fa9c;</span>阶梯式职级带人上限模型</div>
+      <div id="chartLadderModel" class="chart-box"></div>
+    </div>
+  </div>
+
+  <div class="chart-row plan-chart-row">
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f4cb;</span>基于职级的编制方案对比（全国统一）</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>职级</th><th class="num">当前制度上限</th><th class="num">更新后职级上限</th><th class="num">提升幅度</th><th class="num">单组长增量</th><th class="num">该职级组长人数</th><th class="num">全国预计总增量</th><th class="num">当前裂变人数</th></tr>
+          </thead>
+          <tbody id="cfgPlanBody">
+            <!-- 动态渲染 -->
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="text-align:right">说明</td>
+              <td colspan="8" style="font-size:11px;color:#64748b">更新后职级上限为"可申请上限"，实际执行以季度评价结果为准。未达标者维持当前上限，达标后方可按新制度执行。更新后上限 = 更新后职级上限 + 裂变小组长人数。全国预计总增量 = 单组长增量 × 该职级组长人数。</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="icon">&#x1f4c8;</span>战区预计增加HC数量</div>
+      <div id="chartRegionIncrease" style="width:100%;height:420px"></div>
+    </div>
+  </div>
+
+  <div class="section" id="regionPlanSection">
+    <div class="section-title"><span class="icon">&#x1f9ee;</span>大区适用测算（在满足能力评估前提下）
+      <div class="actions">
+        <div class="multi-select" id="regionSelect">
+          <div class="multi-select-trigger" onclick="toggleRegionDropdown(event)">
+            <span id="regionSelectText">上海大区</span>
+            <span class="count" id="regionSelectCount">1</span>
+            <span style="font-size:10px;color:#94a3b8">▼</span>
+          </div>
+          <div class="multi-select-dropdown" id="regionDropdown">
+            <div id="regionOptions"></div>
+            <div class="multi-select-actions">
+              <button class="btn-all" onclick="selectAllRegions(event)">全选</button>
+              <button class="btn-clear" onclick="clearAllRegions(event)">清空</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>大区</th><th>小组</th><th>组长</th><th>职级</th><th class="num">职级上限</th><th class="num">裂变小组长人数</th><th class="num">当前上限</th><th class="num">实际人数</th><th class="num">更新后职级上限</th><th class="num">更新后上限</th><th class="num">可增加</th><th>说明</th><th>能力评估假设</th></tr>
+        </thead>
+        <tbody id="shTableBody">
+          <!-- 动态渲染 -->
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" style="text-align:right">合计</td>
+            <td class="num" id="sh-total-rankLimit">—</td>
+            <td class="num" id="sh-total-fission">—</td>
+            <td class="num" id="sh-total-limit">—</td>
+            <td class="num" id="sh-total-actual">—</td>
+            <td class="num" id="sh-total-newRankLimit">—</td>
+            <td class="num" id="sh-total-newLimit">—</td>
+            <td class="num" id="sh-total-inc">—</td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="icon">&#x1f4b0;</span>薪酬配套方案要点</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+      <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">&#x1f4cc; 管理幅度激励</div>
+        <div style="font-size:12px;color:#475569;line-height:1.6">带人上限提升后，组长薪酬结构中「团队管理系数」需同步调整。建议按实际带人数与职级标准上限的比例，设置阶梯式管理奖金。</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">&#x1f4cc; 风险与收益对等</div>
+        <div style="font-size:12px;color:#475569;line-height:1.6">管理人数增加意味着管理风险上升。建议在薪酬设计中引入「团队达成对赌」机制：团队未达标时，管理系数向下浮动；超额达成时，向上浮动。</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">&#x1f4cc; 人才培养奖励</div>
+        <div style="font-size:12px;color:#475569;line-height:1.6">为呼应"培养千万级销售"的评价维度，建议增设「人才输出奖」。组长每培养出1名千万级销售，给予一次性或持续性的额外激励。</div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<div class="footer">报告生成时间：2026-04-21 · 数据来源：销售小组HC数量控制表 · kelak-陆沈磊 基于苏皖销售八组业务逻辑补充</div>
+
+</div>
+
+<script>
+const TEAM_DETAIL = [
+{"team":"上海大区","group":"上海销售七组","leader":"Tony.Liu-刘思远","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"上海大区","group":"上海销售三组","leader":"William-陆伟","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"上海大区","group":"上海销售中区小组","leader":"tom-洪赟林","rank":"P2-3","rankLimit":5,"fission":2,"limit":7,"actual":5,"gap":2,"note":"战区内部暂限制上限为5，不新增"},
+{"team":"上海大区","group":"上海销售五组","leader":"Dong-薛金东","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"上海大区","group":"上海销售六组","leader":"Xiangxiang-向翔","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"上海大区","group":"上海销售南区小组","leader":"leon-陈鹏","rank":"P3-1","rankLimit":7,"fission":2,"limit":9,"actual":9,"gap":0,"note":""},
+{"team":"上海大区","group":"上海销售四组","leader":"BeidgeLew-刘喜朝","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":6,"gap":-1,"note":"遗留问题，待有离职即取消溢出编制"},
+{"team":"东北大区","group":"东北销售大吉组","leader":"answer-刘森","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"东北大区","group":"东北销售沈阳组","leader":"Parker-朴弘","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"东北大区","group":"东北销售龙江组","leader":"Miaoxinyuan-苗芯源","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"北京大区","group":"北京销售一组","leader":"grace-刘姝彤","rank":"P3-1","rankLimit":7,"fission":2,"limit":9,"actual":8,"gap":1,"note":""},
+{"team":"北京大区","group":"北京销售七组","leader":"Field.Tian-田野","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"北京大区","group":"北京销售二组","leader":"gavin-陆晓锋","rank":"P3-1","rankLimit":7,"fission":2,"limit":9,"actual":8,"gap":1,"note":""},
+{"team":"北京大区","group":"北京销售五组","leader":"George.yu-于越","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"北京大区","group":"北京销售八组","leader":"Dick.Zhang-张永超","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"北京大区","group":"北京销售十组","leader":"sibon-徐斌","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"北京大区","group":"北京销售四组","leader":"vin-祁磊","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"华中大区","group":"华中销售三组","leader":"yingyu-李映钰","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"华中大区","group":"华中销售五组","leader":"Zhangchen-张晨","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"华中大区","group":"华中销售六组","leader":"Jay.Zhang-张辉","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":0,"gap":5,"note":""},
+{"team":"华中大区","group":"华中销售四组","leader":"markus-马俊峰","rank":"P2-3","rankLimit":5,"fission":1,"limit":6,"actual":5,"gap":1,"note":""},
+{"team":"华北大区","group":"华北销售一组","leader":"lion-王伟","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"华北大区","group":"华北销售三组","leader":"will-孙鸿斌","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"华北大区","group":"华北销售五组","leader":"Kerwin-李宏旭","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"华北大区","group":"华北销售六组","leader":"One-沙旭东","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"华北大区","group":"华北销售四组","leader":"Burke-丛进","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"华南大区","group":"华南销售一组","leader":"levine-张鑫","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"华南大区","group":"华南销售七组","leader":"Rong-全振荣","rank":"P3-1","rankLimit":7,"fission":0,"limit":7,"actual":5,"gap":2,"note":""},
+{"team":"华南大区","group":"华南销售三组","leader":"chris.gao-高元福","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"华南大区","group":"华南销售二组","leader":"vincent-余江南","rank":"P2-3","rankLimit":5,"fission":1,"limit":6,"actual":5,"gap":1,"note":""},
+{"team":"华南大区","group":"华南销售五组","leader":"liemon-黎成彬","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"华南大区","group":"华南销售八组","leader":"Benedict-李东麒","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"华南大区","group":"华南销售六组","leader":"Kimber-金展鹏","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"浙闽大区","group":"浙闽销售七组","leader":"golden-何晓川","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"浙闽大区","group":"浙闽销售三组","leader":"Linwanxiao-林万晓","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"浙闽大区","group":"浙闽销售二组","leader":"arthur-刘威","rank":"P3-1","rankLimit":7,"fission":1,"limit":8,"actual":6,"gap":2,"note":""},
+{"team":"浙闽大区","group":"浙闽销售五组","leader":"Wenwu.wang-王文武","rank":"P3-1","rankLimit":7,"fission":0,"limit":7,"actual":7,"gap":0,"note":""},
+{"team":"浙闽大区","group":"浙闽销售八组","leader":"Fanli-范理","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"浙闽大区","group":"浙闽销售四组","leader":"Jeatom-沈子涛","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"苏皖大区","group":"苏皖销售一组","leader":"justin-贾训祥","rank":"P3-2","rankLimit":7,"fission":2,"limit":9,"actual":9,"gap":0,"note":""},
+{"team":"苏皖大区","group":"苏皖销售七组","leader":"Chenxinyang-陈心洋","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":2,"gap":3,"note":""},
+{"team":"苏皖大区","group":"苏皖销售三组","leader":"nico-丁敬赛","rank":"P3-1","rankLimit":7,"fission":0,"limit":7,"actual":7,"gap":0,"note":""},
+{"team":"苏皖大区","group":"苏皖销售二组","leader":"Russell-姜吉斌","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"苏皖大区","group":"苏皖销售五组","leader":"Liuxun-刘讯","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"苏皖大区","group":"苏皖销售六组","leader":"Micheal-曹峥","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"西北大区","group":"西北销售内蒙组","leader":"Stone.Cao-曹磊","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"西北大区","group":"西北销售新疆组","leader":"crx-曹瑞轩","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":4,"gap":1,"note":""},
+{"team":"西北大区","group":"西北销售甘青宁组","leader":"Karl-陈小辉","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"西北大区","group":"西北销售陕西一组","leader":"Bryant.L-刘海宇","rank":"P2-1","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"西南大区","group":"西南云南一组","leader":"brady-张建飞","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":3,"gap":2,"note":""},
+{"team":"西南大区","group":"西南四川二组","leader":"Long.Zhang-张龙飞","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"西南大区","group":"西南贵州一组","leader":"jax-刘军","rank":"P2-2","rankLimit":5,"fission":0,"limit":5,"actual":2,"gap":3,"note":""},
+{"team":"西南大区","group":"西南重庆一组","leader":"Owen-罗健","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":5,"gap":0,"note":""},
+{"team":"西南大区","group":"西南重庆二组","leader":"Hugang-胡刚","rank":"P2-3","rankLimit":5,"fission":0,"limit":5,"actual":2,"gap":3,"note":""}
+];
+
+const ALL_REGIONS = [...new Set(TEAM_DETAIL.map(t=>t.team))].sort();
+let selectedRegions = ['上海大区'];
+let selectedRankFilter = ''; // 职级筛选：空表示全部
+
+const DATA = {"sorted_names": ["上海大区", "北京大区", "苏皖大区", "东北大区", "浙闽大区", "西北大区", "华南大区", "华北大区", "华中大区", "西南大区"], "sorted_limit": [41.0, 43.0, 36.0, 15.0, 35.0, 20.0, 38.0, 25.0, 21.0, 25.0], "sorted_actual": [40, 39, 32, 13, 30, 16, 29, 19, 15, 17], "sorted_rate": [97.6, 90.7, 88.9, 86.7, 85.7, 80.0, 76.3, 76.0, 71.4, 68.0], "sorted_gap": [1, 4, 4, 2, 5, 4, 9, 6, 6, 8], "fill_labels": ["空编(0%)", "严重不足(<60%)", "不足(60-80%)", "接近满编(80-99%)", "满编(100%)", "超编(>100%)"], "fill_values": [1, 3, 11, 14, 24, 1], "leader_names": ["jflszz-蒋飞", "bruce-田帅", "kelak-陆沈磊", "michael-姜学威", "martin-殷建飞", "mattel-李虹达", "aaron-赵一昭", "john-赵燚", "jack-朱垒", "tim-陈刚"], "leader_teams": ["华中大区", "华南大区", "苏皖大区", "西南大区", "西北大区", "北京大区", "上海大区", "华北大区", "浙闽大区", "东北大区"], "leader_group_count": [3, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leader_people_count": [9, 8, 8, 7, 5, 5, 4, 4, 2, 1], "leader_gap": [6, 9, 4, 8, 4, 4, 1, 6, 5, 2]};
+
+function switchTab(tab,btn){
+  document.querySelectorAll('.main-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.main-tab-content').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  setTimeout(()=>{
+    if(tab==='team'){ chartCombo.resize(); chartFill.resize(); }
+    else if(tab==='leader'){ chartLeader.resize(); }
+    else if(tab==='shanghai'){ chartLadderModel.resize(); chartRegionIncrease.resize(); }
+  },50);
+}
+
+let activeTeamFilter = null;
+let activeRateRange = null;
+
+function updateSummary(){
+  const rows = Array.from(document.querySelectorAll('#teamTableBody tr:not(.filtered-out)'));
+  let totalLimit = 0, totalActual = 0, totalGap = 0, rates = [], rankLimit = 0, fissionLeaders = 0;
+  rows.forEach(r=>{
+    const limit = parseFloat(r.dataset.limit)||0;
+    const actual = parseFloat(r.dataset.actual)||0;
+    const rate = parseFloat(r.dataset.rate)||0;
+    const rank = r.querySelector('td:nth-child(4)')?.textContent?.trim()||'';
+    totalLimit += limit;
+    totalActual += actual;
+    totalGap += parseFloat(r.dataset.gap)||0;
+    rates.push(rate);
+    let rl = rank.startsWith('P3') ? 7 : 5;
+    rankLimit += rl;
+    fissionLeaders += Math.max(0, limit - rl);
+  });
+  const avgRate = rates.length ? (rates.reduce((a,b)=>a+b,0)/rates.length).toFixed(1) : 0;
+  document.getElementById('sumLimit').textContent = totalLimit;
+  document.getElementById('sumActual').textContent = totalActual;
+  document.getElementById('sumGap').textContent = totalGap;
+  document.getElementById('sumRate').innerHTML = '<span class="tag tag-blue">均值 ' + avgRate + '%</span>';
+  document.getElementById('sumRankLimit').textContent = rankLimit;
+  document.getElementById('sumFissionLeaders').textContent = fissionLeaders;
+  document.getElementById('kpiFissionLeaders').textContent = fissionLeaders;
+}
+
+function applyFilters(){
+  const rows = document.querySelectorAll('#teamTableBody tr');
+  rows.forEach(r=>{
+    let show = true;
+    if(activeTeamFilter && r.dataset.team !== activeTeamFilter) show = false;
+    if(activeRateRange){
+      const rate = parseFloat(r.dataset.rate);
+      if(rate < activeRateRange.min || rate > activeRateRange.max) show = false;
+    }
+    r.classList.toggle('filtered-out',!show);
+  });
+  updateSummary();
+  updateFilterTags();
+}
+
+function updateFilterTags(){
+  const tags = [];
+  if(activeTeamFilter) tags.push('团队: '+activeTeamFilter);
+  if(activeRateRange) tags.push('满编率区间');
+  const text = tags.join(' + ');
+  ['comboFilterTag','tableFilterTag','riskFilterTag'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(text){ el.textContent = text; el.classList.add('show'); }
+    else{ el.classList.remove('show'); }
+  });
+  ['resetCombo','resetTable','resetRisk'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(text) el.classList.add('show'); else el.classList.remove('show');
+  });
+}
+
+function resetAllFilters(){
+  activeTeamFilter = null; activeRateRange = null;
+  applyFilters();
+}
+function resetComboFilter(){ activeTeamFilter = null; applyFilters(); }
+
+function renderRegionOptions(){
+  const container = document.getElementById('regionOptions');
+  if(!container) return;
+  container.innerHTML = ALL_REGIONS.map(r=>{
+    const checked = selectedRegions.includes(r) ? 'checked' : '';
+    return '<div class="multi-select-item" onclick="toggleRegion(\''+r+'\',event)">'+
+      '<input type="checkbox" '+checked+' onclick="event.stopPropagation()">'+
+      '<span>'+r+'</span>'+
+    '</div>';
+  }).join('');
+}
+function toggleRegionDropdown(e){
+  e.stopPropagation();
+  const dd = document.getElementById('regionDropdown');
+  dd.classList.toggle('show');
+  renderRegionOptions();
+}
+function toggleRegion(r,e){
+  e.stopPropagation();
+  const cb = e.currentTarget.querySelector('input[type="checkbox"]');
+  cb.checked = !cb.checked;
+  if(cb.checked){
+    if(!selectedRegions.includes(r)) selectedRegions.push(r);
+  } else {
+    selectedRegions = selectedRegions.filter(x=>x!==r);
+  }
+  updateRegionUI();
+  updateShanghaiPlan();
+}
+function selectAllRegions(e){
+  e.stopPropagation();
+  selectedRegions = [...ALL_REGIONS];
+  updateRegionUI();
+  updateShanghaiPlan();
+}
+function clearAllRegions(e){
+  e.stopPropagation();
+  selectedRegions = [];
+  updateRegionUI();
+  updateShanghaiPlan();
+}
+function updateRegionUI(){
+  const text = selectedRegions.length === 1 ? selectedRegions[0] :
+               selectedRegions.length === 0 ? '请选择大区' :
+               selectedRegions.length === ALL_REGIONS.length ? '全部大区' :
+               '已选 ' + selectedRegions.length + ' 个大区';
+  document.getElementById('regionSelectText').textContent = text;
+  document.getElementById('regionSelectCount').textContent = selectedRegions.length;
+  renderRegionOptions();
+}
+document.addEventListener('click',function(e){
+  const sel = document.getElementById('regionSelect');
+  if(sel && !sel.contains(e.target)){
+    document.getElementById('regionDropdown').classList.remove('show');
+  }
+});
+
+function toggleRankFilter(rank){
+  selectedRankFilter = (selectedRankFilter === rank) ? '' : rank;
+  updateShanghaiPlan();
+}
+
+function getNoteText(item){
+  if(item.note) return item.note;
+  if(item.actual === 0) return '空编，建议立即招聘';
+  if(item.actual > item.limit) return '当前超编 ' + (item.actual - item.limit) + ' 人';
+  if(item.actual === item.limit) return '满编';
+  const rate = (item.actual / item.limit * 100).toFixed(1);
+  return '缺口 ' + item.gap + ' 人，满编率 ' + rate + '%';
+}
+
+function getAssumptionText(item, newLimit){
+  if(item.note) return '<span style="color:#92400e;font-size:11px;background:#fffbeb;padding:2px 6px;border-radius:4px;border:1px solid #fde68a">'+item.note+'</span>';
+  const inc = newLimit - item.actual;
+  if(inc > 0) return '<span class="tag tag-green">'+item.rank+'达标</span>';
+  if(item.actual > item.limit) return '<span class="tag tag-orange">当前超编，调整后正常化</span>';
+  return '<span class="tag tag-green">'+item.rank+'达标</span>';
+}
+
+function updateShanghaiPlan(){
+  const v = {
+    'P2-1': parseInt(document.getElementById('cfg-p21').value)||5,
+    'P2-2': parseInt(document.getElementById('cfg-p22').value)||5,
+    'P2-3': parseInt(document.getElementById('cfg-p23').value)||6,
+    'P3-1': parseInt(document.getElementById('cfg-p31').value)||8,
+    'P3-2': parseInt(document.getElementById('cfg-p32').value)||8
+  };
+  const maxLimits = {
+    'P2-1': parseInt(document.getElementById('cfg-max-p21').value)||10,
+    'P2-2': parseInt(document.getElementById('cfg-max-p22').value)||10,
+    'P2-3': parseInt(document.getElementById('cfg-max-p23').value)||10,
+    'P3-1': parseInt(document.getElementById('cfg-max-p31').value)||12,
+    'P3-2': parseInt(document.getElementById('cfg-max-p32').value)||12
+  };
+  const base = {'P2-1':5,'P2-2':5,'P2-3':5,'P3-1':7,'P3-2':7};
+  const maxLimit = Math.max(...Object.values(maxLimits));
+  const count = {'P2-1':8,'P2-2':16,'P2-3':22,'P3-1':7,'P3-2':1};
+
+  // Update param config table
+  ['P2-1','P2-2','P2-3','P3-1','P3-2'].forEach(rank=>{
+    const key = rank.replace('-','');
+    const incEl = document.getElementById('cfg-incentive-'+key);
+    if(incEl){
+      incEl.textContent = '裂变组长/+1';
+    }
+  });
+
+  // Render regional detail table
+  const tbody = document.getElementById('shTableBody');
+  if(tbody){
+    let filtered = TEAM_DETAIL.filter(t => selectedRegions.includes(t.team));
+    if(selectedRankFilter){
+      filtered = filtered.filter(t => t.rank === selectedRankFilter);
+    }
+    let totalRankLimit = 0, totalFission = 0, totalLimit = 0, totalActual = 0, totalNewRankLimit = 0, totalNewLimit = 0, totalInc = 0;
+    let html = '';
+    filtered.forEach(item => {
+      const newRankLimit = v[item.rank];
+      const newLimit = newRankLimit + item.fission;
+      const inc = newLimit - item.actual;
+      totalRankLimit += item.rankLimit;
+      totalFission += item.fission;
+      totalLimit += item.limit;
+      totalActual += item.actual;
+      totalNewRankLimit += newRankLimit;
+      totalNewLimit += newLimit;
+      totalInc += inc;
+      const rankLimitClass = newRankLimit !== item.rankLimit ? 'changed-up' : '';
+      const limitClass = newLimit !== item.limit ? 'changed-up' : '';
+      const incClass = inc > 0 ? 'changed-up' : (inc < 0 ? 'changed-down' : '');
+      html += '<tr>' +
+        '<td>' + item.team + '</td>' +
+        '<td>' + item.group + '</td>' +
+        '<td>' + item.leader + '</td>' +
+        '<td><span class="tag ' + (item.rank.startsWith('P3')?'tag-purple':'tag-blue') + '">' + item.rank + '</span></td>' +
+        '<td class="num">' + item.rankLimit + '</td>' +
+        '<td class="num" style="color:#8b5cf6;font-weight:700">' + item.fission + '</td>' +
+        '<td class="num">' + item.limit + '</td>' +
+        '<td class="num">' + item.actual + '</td>' +
+        '<td class="num ' + rankLimitClass + '">' + newRankLimit + '</td>' +
+        '<td class="num ' + limitClass + '">' + newLimit + '</td>' +
+        '<td class="num ' + incClass + '">' + (inc>=0?'+':'') + inc + '</td>' +
+        '<td>' + getNoteText(item) + '</td>' +
+        '<td>' + getAssumptionText(item, newLimit) + '</td>' +
+      '</tr>';
+    });
+    tbody.innerHTML = html;
+    document.getElementById('sh-total-rankLimit').textContent = totalRankLimit;
+    document.getElementById('sh-total-fission').textContent = totalFission;
+    document.getElementById('sh-total-limit').textContent = totalLimit;
+    document.getElementById('sh-total-actual').textContent = totalActual;
+    const trlEl = document.getElementById('sh-total-newRankLimit');
+    trlEl.textContent = totalNewRankLimit;
+    trlEl.className = 'num ' + (totalNewRankLimit !== totalRankLimit ? 'changed-up' : '');
+    const tlEl = document.getElementById('sh-total-newLimit');
+    tlEl.textContent = totalNewLimit;
+    tlEl.className = 'num ' + (totalNewLimit !== totalLimit ? 'changed-up' : '');
+    const tiEl = document.getElementById('sh-total-inc');
+    tiEl.textContent = (totalInc>=0?'+':'') + totalInc;
+    tiEl.className = 'num ' + (totalInc > 0 ? 'changed-up' : (totalInc < 0 ? 'changed-down' : ''));
+    // Update title filter indicator
+    const titleEl = document.querySelector('#regionPlanSection .section-title');
+    if(titleEl){
+      const baseTitle = '&#x1f9ee; 大区适用测算（在满足能力评估前提下）';
+      const filterText = selectedRankFilter ? ' · 职级筛选：' + selectedRankFilter : '';
+      // Preserve the actions div
+      const actionsHtml = titleEl.querySelector('.actions') ? titleEl.querySelector('.actions').outerHTML : '';
+      titleEl.innerHTML = '<span class="icon">&#x1f9ee;</span>' + baseTitle.replace('&#x1f9ee; ','') + filterText + actionsHtml;
+    }
+  }
+
+  // Render merged plan table
+  const planBody = document.getElementById('cfgPlanBody');
+  if(planBody){
+    const ranks = ['P2-1','P2-2','P2-3','P3-1','P3-2'];
+    const rankDesc = {'P2-1':'维持基准标准，无变化','P2-2':'管理幅度+1人，基础验证通过即可','P2-3':'管理幅度+2人，裂变空间扩大','P3-1':'管理幅度+4人，团队管理验证','P3-2':'管理幅度+5人，最高上限12人'};
+    const fissionCount = {};
+    TEAM_DETAIL.forEach(t=>{ fissionCount[t.rank] = (fissionCount[t.rank]||0) + t.fission; });
+    let html = '';
+    let sumBase = 0, sumNew = 0, sumCount = 0, sumTotalInc = 0, sumFission = 0;
+    ranks.forEach(rank=>{
+      const diff = v[rank] - base[rank];
+      const pct = base[rank] ? Math.round(diff / base[rank] * 100) : 0;
+      const inc = diff;
+      const totalInc = inc * count[rank];
+      const fission = fissionCount[rank] || 0;
+      sumBase += base[rank];
+      sumNew += v[rank];
+      sumCount += count[rank];
+      sumTotalInc += totalInc;
+      sumFission += fission;
+      const isSelected = selectedRankFilter === rank;
+      const rowStyle = isSelected ? 'background:#ecfdf5;cursor:pointer' : 'cursor:pointer';
+      const tagStyle = isSelected ? 'style="box-shadow:0 0 0 2px #10b981"' : '';
+      html += '<tr onclick="toggleRankFilter(\'' + rank + '\')" style="' + rowStyle + '">' +
+        '<td><span class="tag ' + (rank.startsWith('P3')?'tag-purple':'tag-blue') + '" ' + tagStyle + '>' + rank + '</span></td>' +
+        '<td class="num">' + base[rank] + '</td>' +
+        '<td class="num ' + (v[rank] !== base[rank] ? 'changed-up' : '') + '">' + v[rank] + '</td>' +
+        '<td class="num ' + (diff > 0 ? 'changed-up' : (diff < 0 ? 'changed-down' : '')) + '">' + (diff > 0 ? '+' + pct + '%' : (diff < 0 ? pct + '%' : '—')) + '</td>' +
+        '<td class="num ' + (inc > 0 ? 'changed-up' : '') + '">' + (inc > 0 ? '+' + inc : inc) + '</td>' +
+        '<td class="num">' + count[rank] + '</td>' +
+        '<td class="num ' + (totalInc > 0 ? 'changed-up' : '') + '">' + (totalInc > 0 ? '+' + totalInc : totalInc) + '</td>' +
+        '<td class="num" style="color:#8b5cf6;font-weight:700">' + fission + '</td>' +
+      '</tr>';
+    });
+    html += '<tr style="background:#f8fafc;font-weight:700;border-top:2px solid #e2e8f0;cursor:default">' +
+      '<td style="text-align:center"><span class="tag tag-gray">合计</span></td>' +
+      '<td class="num">' + sumBase + '</td>' +
+      '<td class="num changed-up">' + sumNew + '</td>' +
+      '<td class="num">—</td>' +
+      '<td class="num">—</td>' +
+      '<td class="num">' + sumCount + '</td>' +
+      '<td class="num changed-up">+' + sumTotalInc + '</td>' +
+      '<td class="num" style="color:#8b5cf6;font-weight:700">' + sumFission + '</td>' +
+    '</tr>';
+    planBody.innerHTML = html;
+  }
+
+  if(typeof chartLadderModel !== 'undefined'){
+    updateLadderChart(v, maxLimits);
+  }
+
+  // Update region increase chart
+  if(typeof chartRegionIncrease !== 'undefined'){
+    const regionInc = {};
+    TEAM_DETAIL.forEach(item => {
+      const inc = v[item.rank] - item.rankLimit;
+      if(inc > 0){
+        regionInc[item.team] = (regionInc[item.team] || 0) + inc;
+      }
+    });
+    const sortedRegions = Object.keys(regionInc).sort((a,b)=>regionInc[b]-regionInc[a]);
+    chartRegionIncrease.setOption({
+      tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>p[0].name+'大区<br/>预计增加: <b>'+p[0].value+'人</b>'},
+      grid:{left:'2%',right:'14%',bottom:'8%',top:'2%',containLabel:true},
+      xAxis:{type:'value',axisLabel:{fontSize:10,color:'#94a3b8',interval:0},splitLine:{lineStyle:{color:'#f1f5f9'}}},
+      yAxis:{type:'category',data:sortedRegions,inverse:true,axisLabel:{fontSize:11,color:'#475569'},axisLine:{show:false},axisTick:{show:false}},
+      series:[{
+        type:'bar',
+        data:sortedRegions.map(r=>regionInc[r]),
+        barWidth:22,
+        barCategoryGap:'16%',
+        itemStyle:{color:'#10b981',borderRadius:[0,4,4,0]},
+        label:{show:true,position:'right',formatter:'{c}人',fontSize:12,fontWeight:700,color:'#475569',distance:6}
+      }]
+    });
+  }
+
+  // Cross-tab linkage: update Tab 2 chart & table with adjusted load rates
+  const regionIncMap = {};
+  TEAM_DETAIL.forEach(item => {
+    const inc = v[item.rank] - item.rankLimit;
+    if(inc > 0) regionIncMap[item.team] = (regionIncMap[item.team] || 0) + inc;
+  });
+  window._currentRegionIncMap = regionIncMap;
+  const order = leaderSortDesc ? leaderDescOrder : leaderAscOrder;
+  updateChartLeader(order, regionIncMap);
+  updateLeaderTable(regionIncMap);
+}
+
+const chartRegionIncrease = echarts.init(document.getElementById('chartRegionIncrease'));
+
+const chartCombo = echarts.init(document.getElementById('chartCombo'));
+chartCombo.setOption({
+  tooltip:{
+    trigger:'axis',
+    axisPointer:{type:'cross'},
+    formatter:function(params){
+      const team = params[0].name;
+      const limit = params.find(p=>p.seriesName==='HC上限')?.value||0;
+      const actual = params.find(p=>p.seriesName==='实际HC')?.value||0;
+      const rate = params.find(p=>p.seriesName==='满编率')?.value||0;
+      const gap = limit - actual;
+      let html = '<div style="font-weight:700;margin-bottom:4px;font-size:13px">'+team+'</div>';
+      html += '<div style="font-size:12px">HC上限: <b>'+limit+'</b></div>';
+      html += '<div style="font-size:12px">实际HC: <b>'+actual+'</b></div>';
+      html += '<div style="font-size:12px;color:'+(gap>0?'#10b981':'#ef4444')+'">可增加数: <b>'+gap+'人</b></div>';
+      html += '<div style="font-size:12px;color:#64748b">满编率: <b>'+rate+'%</b></div>';
+      return html;
+    }
+  },
+  legend:{data:['HC上限','实际HC','满编率'],bottom:0,textStyle:{fontSize:11}},
+  grid:{left:'2%',right:'3%',bottom:'10%',top:'10%',containLabel:true},
+  xAxis:{type:'category',data:DATA.sorted_names,axisLabel:{rotate:30,fontSize:10,color:'#64748b'}},
+  yAxis:[
+    {type:'value',name:'人数',nameTextStyle:{fontSize:10,color:'#94a3b8'},axisLabel:{fontSize:10,color:'#94a3b8'},splitLine:{lineStyle:{color:'#f1f5f9'}}},
+    {type:'value',name:'满编率%',nameTextStyle:{fontSize:10,color:'#94a3b8'},axisLabel:{formatter:'{value}%',fontSize:10,color:'#94a3b8'},splitLine:{show:false},max:130}
+  ],
+  series:[
+    {name:'HC上限',type:'bar',data:DATA.sorted_limit,itemStyle:{color:'#e2e8f0',borderRadius:[4,4,0,0]},barWidth:16},
+    {name:'实际HC',type:'bar',data:DATA.sorted_actual,itemStyle:{color:'#1d4ed8',borderRadius:[4,4,0,0]},barWidth:16,
+      label:{show:true,position:'insideTop',color:'#fff',fontSize:10,fontWeight:800,formatter:'{c}'}},
+    {name:'满编率',type:'line',yAxisIndex:1,data:DATA.sorted_rate,itemStyle:{color:'#0d9488'},lineStyle:{width:2.5},symbol:'circle',symbolSize:6,label:{show:true,formatter:'{c}%',fontSize:9,color:'#0d9488',fontWeight:700}},
+    {name:'可增加数',type:'scatter',data:DATA.sorted_gap.map((g,i)=>([i,DATA.sorted_actual[i]])),symbolSize:1,itemStyle:{color:'transparent'},
+      label:{show:true,position:'top',formatter:p=>{const g=DATA.sorted_gap[p.dataIndex];return g>0?('+'+g):'';},color:'#059669',fontSize:12,fontWeight:900,distance:8},
+      tooltip:{show:false}}
+  ]
+});
+chartCombo.on('click',function(params){
+  if(params.seriesName==='可增加数') return;
+  activeTeamFilter = params.name;
+  applyFilters();
+});
+
+const chartFill = echarts.init(document.getElementById('chartFillRate'));
+chartFill.setOption({
+  tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>p[0].name+'<br/>'+p[0].value+'组'},
+  grid:{left:'2%',right:'10%',bottom:'2%',top:'2%',containLabel:true},
+  xAxis:{type:'value',axisLabel:{fontSize:10,color:'#94a3b8'},splitLine:{lineStyle:{color:'#f1f5f9'}}},
+  yAxis:{type:'category',data:DATA.fill_labels,axisLabel:{fontSize:10,color:'#475569'},axisLine:{show:false},axisTick:{show:false}},
+  series:[{
+    type:'bar',data:DATA.fill_values,barWidth:18,
+    itemStyle:{color:(p)=>{const c=['#991b1b','#ea580c','#f59e0b','#3b82f6','#10b981','#ef4444'];return c[p.dataIndex];},borderRadius:[0,4,4,0]},
+    label:{show:true,position:'right',formatter:'{c}组',fontSize:11,fontWeight:700,color:'#475569'}
+  }]
+});
+chartFill.on('click',function(params){
+  const name = params.name;
+  let minR=0,maxR=200;
+  if(name.includes('空编')){minR=0;maxR=0;}
+  else if(name.includes('严重不足')){minR=0.1;maxR=59.9;}
+  else if(name.includes('不足(60')){minR=60;maxR=79.9;}
+  else if(name.includes('接近')){minR=80;maxR=99.9;}
+  else if(name.includes('满编(100')){minR=100;maxR=100;}
+  else if(name.includes('超编')){minR=100.1;maxR=200;}
+  activeRateRange = {min:minR,max:maxR};
+  applyFilters();
+});
+
+let leaderSortDesc = true;
+const leaderDescOrder = [6,2,0,4,5,1,3,7,9,8];
+const leaderAscOrder = [8,9,7,3,1,5,4,0,2,6];
+
+function getLeaderSortedData(order, regionIncMap){
+  const names = order.map(i=>DATA.leader_names[i]+'\n('+DATA.leader_teams[i]+')');
+  const people = order.map(i=>DATA.leader_people_count[i]);
+  const gaps = order.map(i=>DATA.leader_gap[i]);
+  const regionIncs = order.map(i=>regionIncMap ? (regionIncMap[DATA.leader_teams[i]] || 0) : 0);
+  const adjustedGaps = order.map(i=>DATA.leader_gap[i] + (regionIncMap ? (regionIncMap[DATA.leader_teams[i]] || 0) : 0));
+  const ratios = order.map(i=>{
+    const g = DATA.leader_gap[i];
+    return g>0 ? +(DATA.leader_people_count[i]/g).toFixed(2) : 0;
+  });
+  const adjustedRatios = order.map(i=>{
+    const ag = DATA.leader_gap[i] + (regionIncMap ? (regionIncMap[DATA.leader_teams[i]] || 0) : 0);
+    return ag>0 ? +(DATA.leader_people_count[i]/ag).toFixed(2) : 0;
+  });
+  const groups = order.map(i=>DATA.leader_group_count[i]);
+  return {names, people, gaps, regionIncs, adjustedGaps, ratios, adjustedRatios, groups};
+}
+
+function updateChartLeader(order, regionIncMap){
+  const d = getLeaderSortedData(order, regionIncMap);
+  chartLeader.setOption({
+    xAxis:{data:d.names},
+    series:[
+      {data:d.people},
+      {data:d.gaps},
+      {data:d.ratios},
+      {data:d.adjustedRatios}
+    ]
+  });
+}
+
+const chartLeader = echarts.init(document.getElementById('chartLeader'));
+chartLeader.setOption({
+  tooltip:{trigger:'axis',formatter:p=>{
+    const idx=p[0].dataIndex;
+    const order = leaderSortDesc ? leaderDescOrder : leaderAscOrder;
+    const origIdx = order[idx];
+    const people = DATA.leader_people_count[origIdx];
+    const gap = DATA.leader_gap[origIdx];
+    const regionInc = (window._currentRegionIncMap && window._currentRegionIncMap[DATA.leader_teams[origIdx]]) || 0;
+    const adjustedGap = gap + regionInc;
+    const d = getLeaderSortedData(order, window._currentRegionIncMap);
+    const ratio = d.ratios[idx];
+    const adjustedRatio = d.adjustedRatios[idx];
+    let html = '<b>'+p[0].name+'</b><br/>战区直管: <b>'+people+'人</b><br/>小组长可补充: <b>'+gap+'人</b>';
+    if(regionInc > 0) html += '<br/>方案新增HC: <b style="color:#10b981">+'+regionInc+'人</b>';
+    html += '<br/>直管负荷率: <b>'+ratio+'</b><br/>调整后负荷率: <b style="color:#8b5cf6">'+adjustedRatio+'</b><br/>直管组数: '+DATA.leader_group_count[origIdx]+'个';
+    return html;
+  }},
+  legend:{data:['战区直管人数','小组长可补充','直管负荷率','调整后负荷率'],bottom:0,textStyle:{fontSize:11}},
+  grid:{left:'2%',right:'3%',bottom:'16%',top:'8%',containLabel:true},
+  xAxis:{type:'category',data:getLeaderSortedData(leaderDescOrder).names,axisLabel:{rotate:30,fontSize:9,color:'#64748b'}},
+  yAxis:[
+    {type:'value',name:'人数',nameTextStyle:{fontSize:10,color:'#94a3b8'},axisLabel:{fontSize:10,color:'#94a3b8'},splitLine:{lineStyle:{color:'#f1f5f9'}}},
+    {type:'value',name:'负荷率',nameTextStyle:{fontSize:10,color:'#94a3b8'},axisLabel:{fontSize:10,color:'#94a3b8'},splitLine:{show:false},min:0}
+  ],
+  series:[
+    {name:'战区直管人数',type:'bar',data:getLeaderSortedData(leaderDescOrder).people,barWidth:16,itemStyle:{color:'#1e3a8a',borderRadius:[4,4,0,0]},
+      label:{show:true,position:'top',formatter:'{c}',fontSize:10,fontWeight:700,color:'#1e3a8a'}},
+    {name:'小组长可补充',type:'bar',data:getLeaderSortedData(leaderDescOrder).gaps,barWidth:16,itemStyle:{color:'#10b981',borderRadius:[4,4,0,0]},
+      label:{show:true,position:'top',formatter:'{c}',fontSize:10,fontWeight:700,color:'#10b981'}},
+    {name:'直管负荷率',type:'line',yAxisIndex:1,data:getLeaderSortedData(leaderDescOrder).ratios,itemStyle:{color:'#f59e0b'},lineStyle:{width:2.5},symbol:'circle',symbolSize:6,
+      label:{show:true,formatter:'{c}',fontSize:10,color:'#d97706',fontWeight:700}},
+    {name:'调整后负荷率',type:'line',yAxisIndex:1,data:getLeaderSortedData(leaderDescOrder).adjustedRatios,itemStyle:{color:'#8b5cf6'},lineStyle:{width:2.5,type:'dashed'},symbol:'diamond',symbolSize:8,
+      label:{show:true,formatter:'{c}',fontSize:10,color:'#7c3aed',fontWeight:700}}
+  ]
+});
+
+const chartLadderModel = echarts.init(document.getElementById('chartLadderModel'));
+function updateLadderChart(v, maxLimits){
+  const base = {'P2-1':5,'P2-2':5,'P2-3':5,'P3-1':7,'P3-2':7};
+  const ranks = ['P2-1','P2-2','P2-3','P3-1','P3-2'];
+  const totalData = ranks.map(r=>v[r]);
+  const maxLimitArr = ranks.map(r=>maxLimits[r]);
+  const globalMaxLimit = Math.max(...maxLimitArr);
+  const yMax = Math.max(globalMaxLimit + 2, Math.ceil(globalMaxLimit * 1.15));
+
+  chartLadderModel.setOption({
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>{
+      const item = p[0];
+      const name = item.name;
+      const total = item.value;
+      return '<div style="font-weight:700;margin-bottom:4px">'+name+'</div><div style="font-size:12px">总上限: <b>'+total+'人</b></div>';
+    }},
+    legend:{data:['最高上限线'],bottom:0,textStyle:{fontSize:11}},
+    grid:{left:'3%',right:'6%',bottom:'10%',top:'10%',containLabel:true},
+    xAxis:{type:'category',data:ranks,axisLabel:{fontSize:12,color:'#475569',fontWeight:700},axisLine:{lineStyle:{color:'#cbd5e1'}},axisTick:{show:false}},
+    yAxis:{type:'value',name:'人数',max:yMax,nameTextStyle:{fontSize:11,color:'#94a3b8',fontWeight:600},axisLabel:{fontSize:11,color:'#94a3b8'},splitLine:{lineStyle:{type:'dashed',color:'#e2e8f0'}}},
+    series:[
+      {
+        name:'职级总上限',
+        type:'bar',
+        data:totalData,
+        barWidth:32,
+        itemStyle:{color:'#60a5fa',borderRadius:[6,6,0,0]},
+        label:{
+          show:true,
+          position:'top',
+          formatter:p=>{
+            return p.value;
+          },
+          fontSize:15,
+          color:'#1e40af',
+          fontWeight:900,
+          distance:8
+        }
+      },
+      {
+        name:'差额虚框',
+        type:'custom',
+        renderItem:function(params,api){
+          const idx = api.value(0);
+          const total = api.value(1);
+          const rankMax = maxLimitArr[idx];
+          if(total >= rankMax) return;
+          const x = api.coord([idx, total])[0];
+          const yTop = api.coord([idx, rankMax])[1];
+          const yBottom = api.coord([idx, total])[1];
+          const w = 32;
+          const h = yBottom - yTop;
+          const children = [];
+
+          children.push({
+            type:'rect',
+            shape:{x:x-w/2, y:yTop, width:w, height:h},
+            style:{
+              fill:'rgba(52,211,153,0.10)',
+              stroke:'#34d399',
+              lineDash:[3,3],
+              lineWidth:1
+            }
+          });
+
+          const dotSize = 9;
+          const cols = Math.max(1, Math.floor(w / dotSize));
+          const rows = Math.max(1, Math.floor(h / dotSize));
+          for(let c=0; c<cols; c++){
+            for(let r=0; r<rows; r++){
+              children.push({
+                type:'circle',
+                shape:{cx:x-w/2+dotSize/2+c*dotSize, cy:yTop+dotSize/2+r*dotSize, r:0.8},
+                style:{fill:'#34d399', opacity:0.35}
+              });
+            }
+          }
+
+          return {type:'group', children:children};
+        },
+        data:ranks.map((r,i)=>[i, totalData[i]]),
+        z:-1
+      },
+      {
+        name:'最高上限线',
+        type:'line',
+        data:maxLimitArr,
+        step:'middle',
+        symbol:'circle',
+        symbolSize:6,
+        itemStyle:{color:'#ef4444'},
+        lineStyle:{type:'dashed', color:'#ef4444', width:2},
+        label:{
+          show:true,
+          position:'top',
+          formatter:'{c}',
+          fontSize:11,
+          color:'#ef4444',
+          fontWeight:700,
+          distance:6
+        }
+      }
+    ]
+  });
+}
+
+function updateLeaderTable(regionIncMap){
+  const tbody = document.getElementById('leaderTableBody');
+  if(!tbody) return;
+  const order = leaderSortDesc ? leaderDescOrder : leaderAscOrder;
+  let html = '';
+  let totalGroups = 0, totalPeople = 0, totalGaps = 0, totalRegionIncs = 0;
+  order.forEach(i => {
+    const team = DATA.leader_teams[i];
+    const regionInc = regionIncMap ? (regionIncMap[team] || 0) : 0;
+    const adjustedGap = DATA.leader_gap[i] + regionInc;
+    const ratio = DATA.leader_gap[i] > 0 ? (DATA.leader_people_count[i] / DATA.leader_gap[i]).toFixed(2) : '0.00';
+    const adjustedRatio = adjustedGap > 0 ? (DATA.leader_people_count[i] / adjustedGap).toFixed(2) : '0.00';
+    totalGroups += DATA.leader_group_count[i];
+    totalPeople += DATA.leader_people_count[i];
+    totalGaps += DATA.leader_gap[i];
+    totalRegionIncs += regionInc;
+    const incClass = regionInc > 0 ? 'changed-up' : '';
+    const adjRatioClass = adjustedGap > 0 && parseFloat(adjustedRatio) < parseFloat(ratio) ? 'changed-down' : '';
+    html += '<tr>' +
+      '<td style="min-width:140px">' + team + '</td>' +
+      '<td><span class="tag tag-purple">' + DATA.leader_names[i] + '</span></td>' +
+      '<td class="num">' + DATA.leader_group_count[i] + '</td>' +
+      '<td class="num">' + DATA.leader_people_count[i] + '</td>' +
+      '<td class="num">' + DATA.leader_gap[i] + '</td>' +
+      '<td class="num ' + incClass + '">' + (regionInc > 0 ? '+' + regionInc : regionInc) + '</td>' +
+      '<td class="num">' + ratio + '</td>' +
+      '<td class="num ' + adjRatioClass + '">' + adjustedRatio + '</td>' +
+    '</tr>';
+  });
+  tbody.innerHTML = html;
+  const tg = document.getElementById('ld-total-groups');
+  const tp = document.getElementById('ld-total-people');
+  const tgap = document.getElementById('ld-total-gap');
+  const tinc = document.getElementById('ld-total-inc');
+  if(tg) tg.textContent = totalGroups;
+  if(tp) tp.textContent = totalPeople;
+  if(tgap) tgap.textContent = totalGaps;
+  if(tinc){
+    tinc.textContent = (totalRegionIncs > 0 ? '+' : '') + totalRegionIncs;
+    tinc.className = 'num ' + (totalRegionIncs > 0 ? 'changed-up' : '');
+  }
+}
+
+window.addEventListener('resize',()=>{
+  chartCombo.resize();chartFill.resize();chartLeader.resize();chartLadderModel.resize();chartRegionIncrease.resize();
+});
+
+updateSummary();
+updateShanghaiPlan();
+
+
+
+function toggleLeaderSort(){
+  leaderSortDesc = !leaderSortDesc;
+  const btn = document.getElementById('leaderSortBtn');
+  btn.textContent = leaderSortDesc ? '▼ 负荷率降序' : '▲ 负荷率升序';
+  const order = leaderSortDesc ? leaderDescOrder : leaderAscOrder;
+  updateChartLeader(order, window._currentRegionIncMap);
+  updateLeaderTable(window._currentRegionIncMap);
+}
+
+
+</script>
+</body>
+</html>
