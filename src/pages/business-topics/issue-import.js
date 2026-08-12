@@ -114,6 +114,24 @@ export async function loadRemoteIssues() {
     return true;
 }
 
+let _remoteIssuesPromise = null;
+
+// 按需加载云端议题数据：议题全量约 5MB，生产链路（国内服务器 ↔ Cloudflare）传输缓慢，
+// 不能随页面初始化自动拉取，仅在关联议题弹窗 / AI 匹配 / 议题详情等场景首次需要时加载。
+// 加载中去重（共享同一 Promise）；成功后缓存不再重复拉取；失败后下次调用自动重试。
+export function ensureRemoteIssuesLoaded() {
+    if (!_remoteIssuesPromise) {
+        _remoteIssuesPromise = loadRemoteIssues()
+            .then(ok => { if (!ok) _remoteIssuesPromise = null; return ok; })
+            .catch(e => {
+                _remoteIssuesPromise = null;
+                console.warn('[issues] remote load failed:', e);
+                return false;
+            });
+    }
+    return _remoteIssuesPromise;
+}
+
 export function validateIssueRow(row, sourceSystem) {
     const errors = [];
     const warnings = [];

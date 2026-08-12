@@ -1,3 +1,5 @@
+import { loadAllIssues, ensureRemoteIssuesLoaded } from './issue-import.js';
+
 let _currentLinkTopicId = null;
 
 export function linkIssueToTopic(topicId, issueId, relationType) {
@@ -60,6 +62,23 @@ export function openLinkIssuesModal(topicId) {
     window._linkIssuesFilter = 'all';
     renderLinkIssuesList();
     openModal('linkIssuesModal');
+
+    // 云端议题按需加载（全量数据量大、生产链路慢，不随页面初始化拉取）；
+    // 本地缓存为空时先显示加载提示，完成后刷新列表
+    if (loadAllIssues().length === 0) {
+        document.getElementById('linkIssuesList').innerHTML =
+            '<div style="text-align:center; padding: 40px; color: var(--text-muted);">正在加载云端议题数据…</div>';
+    }
+    ensureRemoteIssuesLoaded().then(ok => {
+        // 仅在弹窗仍停留在该专题时刷新
+        if (_currentLinkTopicId !== topicId) return;
+        if (ok || loadAllIssues().length > 0) {
+            renderLinkIssuesList();
+        } else {
+            document.getElementById('linkIssuesList').innerHTML =
+                '<div style="text-align:center; padding: 40px; color: var(--text-muted);">云端议题加载失败，请关闭后重试</div>';
+        }
+    });
 }
 
 export function renderLinkIssuesList() {

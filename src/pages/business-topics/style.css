@@ -146,7 +146,7 @@
         /* ===== 内容区 ===== */
         .content-area {
             flex: 1; overflow-y: auto; overflow-x: hidden;
-            animation: fadeIn 0.25s ease;
+            animation: fadeIn var(--duration-normal) var(--ease-entrance);
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -1062,6 +1062,10 @@
         .breadcrumb-separator {
             opacity: 0.4;
             margin: 0 4px;
+        }
+        /* 嵌入驾驶舱工作区时隐藏页内面包屑（定位由工作区标签承担，避免标题堆叠） */
+        [data-embed="true"] .breadcrumb {
+            display: none;
         }
         /* 数据表格 */
         .data-table {

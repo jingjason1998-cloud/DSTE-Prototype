@@ -1,7 +1,7 @@
 import { showToast } from '../../lib/utils.js';
 import { icon } from '../../../assets/js/icons.js';
 import { Repository } from '../../lib/repository.js';
-import { loadIssues, loadAllIssues } from './issue-import.js';
+import { loadIssues, loadAllIssues, ensureRemoteIssuesLoaded } from './issue-import.js';
 
 let _aiMatchTopicId = null;
 let _aiMatchResults = [];
@@ -280,9 +280,8 @@ export function openAiMatchModal() {
     document.getElementById('aiMatchApplyBtn').style.display = 'none';
     openModal('aiMatchModal');
 
-    setTimeout(() => {
-        runAiMatch(topic);
-    }, 600);
+    // 议题数据按需加载（首次使用时拉取云端全量），完成后执行匹配
+    ensureRemoteIssuesLoaded().then(() => runAiMatch(topic));
 }
 
 export function runAiMatch(topic) {
@@ -596,10 +595,15 @@ export function analyzeDistribution(issues) {
 
 
 
-export function openIssueDetailModal(issueId) {
+export async function openIssueDetailModal(issueId) {
+    // 议题详情依赖全量议题数据，按需确保云端数据已加载
+    await ensureRemoteIssuesLoaded();
     const allIssues = loadAllIssues();
     const issue = allIssues.find(i => i.issueId === issueId);
-    if (!issue) return;
+    if (!issue) {
+        showToast('议题数据加载失败或不存在，请稍后重试', 'warning');
+        return;
+    }
 
     document.getElementById('issueDetailTitle').innerHTML = `${issue.sourceSystem === 'ST' ? icon('building', {size: 14}) : icon('buildings', {size: 14})} ${escapeHtml(issue.issueId)}`;
     document.getElementById('issueDetailSubtitle').textContent = escapeHtml(issue.issueType || issue.department || '未分类') + ' · ' + escapeHtml(issue.proposer || '未指定') + ' · ' + escapeHtml(issue.status);

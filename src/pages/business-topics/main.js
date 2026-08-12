@@ -19,7 +19,7 @@ import {
     checkStorageCapacity, parseCSV, buildIssueFromRow, importIssuesFromPaste,
     openImportModal, handleDragOver, handleDragLeave, handleFileDrop,
     handleFileSelect, processImportFile, isIssueClosed, importIssuesFromRows,
-    updateImportPreview, confirmImport, loadAllIssues, loadRemoteIssues,
+    updateImportPreview, confirmImport, loadAllIssues,
     issuesStRepo, issuesAtRepo
 } from './issue-import.js';
 
@@ -1606,7 +1606,8 @@ async function init() {
     migrateV1ToV2(); // v2.1: auto-migrate v1.2 data on load
 
     // 先用本地缓存数据完成首屏渲染，确保列表、统计、年度筛选等 UI 立即可用；
-    // 云端数据同步在后台进行（失败或超时均不阻塞页面），完成后刷新界面
+    // 云端专题数据同步在后台进行（失败或超时均不阻塞页面），完成后刷新界面；
+    // 议题全量数据量大，改为按需加载（见文件底部说明）
     let topics = loadTopics();
     const isLocalDev = ['localhost', '127.0.0.1', 'dste.jasonxspace.cc'].includes(window.location.hostname);
     // 防御：缺失 seq 或不连续都重新整平（兼容测试/异常状态）
@@ -1656,13 +1657,8 @@ async function init() {
         console.warn('[init] loadRemoteTopics failed:', e);
     }
 
-    // 后台同步云端议题数据；成功后刷新议题关联列
-    try {
-        await withSyncTimeout(loadRemoteIssues(), 'loadRemoteIssues');
-        renderTable();
-    } catch (e) {
-        console.warn('[init] loadRemoteIssues failed:', e);
-    }
+    // 议题全量数据（约 5MB）不随初始化拉取：议题关联列计数来自 topic.linkedIssues，
+    // 云端议题在打开「关联议题」弹窗 / AI 匹配 / 议题详情时按需加载（ensureRemoteIssuesLoaded）
 
     // Nav active state removed (integrated into DSTE nav)
 }
@@ -2008,4 +2004,26 @@ window._dste = {
     removeYear
 };
 
-init();
+const initPromise = init();
+
+// 命令面板记录级跳转：父窗口（cockpit iframe 场景）投递 dste-open-record 定位专题详情
+// 消息在 iframe load 时投递，专题数据可能尚未就绪（openDetailModal 找不到会静默返回），有限重试
+window.addEventListener('message', (e) => {
+    if (e.origin !== window.location.origin) return;
+    const d = e.data;
+    if (!d || d.type !== 'dste-open-record' || d.recordType !== 'topic' || !d.id) return;
+    let attempts = 0;
+    const tryOpen = () => {
+        attempts += 1;
+        openDetailModal(d.id);
+        const opened = document.getElementById('bizTopicModal')?.classList.contains('active');
+        if (!opened && attempts < 15) setTimeout(tryOpen, 300);
+    };
+    tryOpen();
+});
+
+// 独立访问深链：?record=<topicId> 打开专题详情
+const deepLinkTopicId = new URLSearchParams(window.location.search).get('record');
+if (deepLinkTopicId) {
+    Promise.resolve(initPromise).then(() => openDetailModal(deepLinkTopicId));
+}
