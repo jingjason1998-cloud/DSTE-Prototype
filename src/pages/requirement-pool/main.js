@@ -519,3 +519,31 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+// 命令面板记录级跳转：父窗口（cockpit iframe 场景）投递 dste-open-record 定位需求详情
+// 消息在 iframe load 时投递，需求数据可能尚未就绪（openDetailModal 找不到会静默返回），有限重试
+window.addEventListener('message', (e) => {
+  if (e.origin !== window.location.origin) return;
+  const d = e.data;
+  if (!d || d.type !== 'dste-open-record' || d.recordType !== 'requirement' || !d.id) return;
+  let attempts = 0;
+  const tryOpen = () => {
+    attempts += 1;
+    openDetailModal(d.id);
+    const modal = document.getElementById('req-detail-modal');
+    const opened = modal && modal.style.display === 'flex';
+    if (!opened && attempts < 15) setTimeout(tryOpen, 300);
+  };
+  tryOpen();
+});
+
+// 独立访问深链：?record=<requirementId> 打开需求详情
+const deepLinkReqId = new URLSearchParams(window.location.search).get('record');
+if (deepLinkReqId) {
+  const openWhenReady = () => openDetailModal(deepLinkReqId);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(openWhenReady, 300));
+  } else {
+    setTimeout(openWhenReady, 300);
+  }
+}

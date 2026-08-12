@@ -303,7 +303,7 @@ import { icon } from '../../../assets/js/icons.js';
 
             // 重置分项评分表
             const tbody = document.getElementById('dimensionTableBody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;">等待审核结果...</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--color-text-tertiary);">等待审核结果...</td></tr>';
 
             // 隐藏问题清单、改进建议、亮点、结论
             ['issuesCard','suggestionsCard','highlightsCard','conclusionCard'].forEach(id => {
@@ -504,7 +504,7 @@ import { icon } from '../../../assets/js/icons.js';
                 const listEl = document.getElementById('historyList');
                 const trendEl = document.getElementById('trendChartBox');
                 if (!history.length) {
-                    listEl.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px;">暂无审核记录<br><span style="font-size:0.8em;color:#d1d5db;">成功审核后记录会自动保存到服务器</span></p>';
+                    listEl.innerHTML = '<p style="color:var(--color-text-tertiary);text-align:center;padding:20px;">暂无审核记录<br><span style="font-size:0.8em;color:var(--color-text-disabled);">成功审核后记录会自动保存到服务器</span></p>';
                     if (trendEl) trendEl.style.display = 'none';
                     const vcBox = document.getElementById('versionCompareBox');
                     if (vcBox) vcBox.style.display = 'none';
@@ -551,10 +551,10 @@ import { icon } from '../../../assets/js/icons.js';
                     html += '<div class="history-group" style="margin-bottom:16px;padding:16px;background:#f9fafb;border-radius:12px;border:1px solid #e8e8e8;">';
                     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
                     html += '<div style="font-weight:600;color:#1f2937;font-size:0.95em;">' + escapeHtml(latest.title || '无标题') + '</div>';
-                    html += '<span style="font-size:0.8em;color:#9ca3af;">' + escapeHtml(latest.scene_name || '默认') + '</span>';
+                    html += '<span style="font-size:0.8em;color:var(--color-text-tertiary);">' + escapeHtml(latest.scene_name || '默认') + '</span>';
                     html += '</div>';
                     html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;max-width:100%;">' + tagsHtml + '</div>';
-                    html += '<div style="display:flex;gap:8px;align-items:center;">' + compareBtn + '<span style="font-size:0.75em;color:#9ca3af;">' + recs.length + ' 个版本</span></div>';
+                    html += '<div style="display:flex;gap:8px;align-items:center;">' + compareBtn + '<span style="font-size:0.75em;color:var(--color-text-tertiary);">' + recs.length + ' 个版本</span></div>';
                     html += '</div>';
                 });
                 
@@ -744,7 +744,7 @@ import { icon } from '../../../assets/js/icons.js';
                         <span style="color:#888;font-size:0.8em;">· ${issue.dimension || '通用'}</span>
                     </div>
                     <div style="font-size:0.85em;color:#ccc;padding-left:18px;">${renderRichComment(issue.desc || '')}</div>
-                    <div style="font-size:0.75em;color:#666;padding-left:18px;margin-top:2px;">${labels[type]}</div>
+                    <div style="font-size:0.75em;color:var(--color-text-tertiary);padding-left:18px;margin-top:2px;">${labels[type]}</div>
                 </div>
             `;
         }
@@ -784,7 +784,7 @@ import { icon } from '../../../assets/js/icons.js';
                 <div style="background:#f9fafb;padding:12px 16px;border-radius:8px;margin-bottom:16px;border:1px solid #e8e8e8;">
                     <div style="font-size:0.85em;color:#6b7280;margin-bottom:4px;">对比材料</div>
                     <div style="font-size:1em;color:#1f2937;font-weight:600;">${materialTitle}</div>
-                    <div style="font-size:0.75em;color:#9ca3af;margin-top:2px;">${escapeHtml(v2.url || v1.url || '')}</div>
+                    <div style="font-size:0.75em;color:var(--color-text-tertiary);margin-top:2px;">${escapeHtml(v2.url || v1.url || '')}</div>
                 </div>
                 
                 <div style="background:rgba(59,130,246,0.08);padding:12px 16px;border-radius:8px;margin-bottom:20px;border-left:3px solid #2563eb;">
@@ -849,7 +849,7 @@ import { icon } from '../../../assets/js/icons.js';
                 </div>
                 
                 ${compareResult.issues.resolved.length === 0 && compareResult.issues.new.length === 0 && compareResult.issues.persistent.length === 0 ? `
-                    <div style="text-align:center;padding:30px;color:#666;">两次审核的问题清单基本一致，无显著变化</div>
+                    <div style="text-align:center;padding:30px;color:var(--color-text-tertiary);">两次审核的问题清单基本一致，无显著变化</div>
                 ` : ''}
             `;
             modal.classList.remove('hidden');
@@ -1133,7 +1133,7 @@ import { icon } from '../../../assets/js/icons.js';
                 html += '<span style="font-size:1.1em;font-weight:800;color:' + (idx < 3 ? rankColors[idx] : '#6b7280') + ';">#' + (idx + 1) + '</span>';
                 html += '<span style="font-size:0.75em;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="' + escapeHtml(s.title || s.url) + '">' + escapeHtml(titleShort) + '</span>';
                 html += '</div>';
-                html += '<div style="font-size:2em;font-weight:800;color:' + scoreColor + ';line-height:1;">' + (s.total_score || 0) + '<span style="font-size:0.5em;color:#9ca3af;font-weight:400;">/100</span></div>';
+                html += '<div style="font-size:2em;font-weight:800;color:' + scoreColor + ';line-height:1;">' + (s.total_score || 0) + '<span style="font-size:0.5em;color:var(--color-text-tertiary);font-weight:400;">/100</span></div>';
                 html += '<div style="margin-top:6px;">' + statusBadge + '</div>';
                 html += '</div>';
             });
@@ -1220,7 +1220,7 @@ import { icon } from '../../../assets/js/icons.js';
             html += '</tbody></table></div>';
             
             // ===== 图例 =====
-            html += '<div style="display:flex;gap:16px;justify-content:center;margin-top:16px;font-size:0.75em;color:#9ca3af;">';
+            html += '<div style="display:flex;gap:16px;justify-content:center;margin-top:16px;font-size:0.75em;color:var(--color-text-tertiary);">';
             html += '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(22,163,74,0.15);margin-right:4px;vertical-align:middle;"></span>优秀 (≥8)</span>';
             html += '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(202,138,4,0.15);margin-right:4px;vertical-align:middle;"></span>一般 (5-7)</span>';
             html += '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(220,38,38,0.1);margin-right:4px;vertical-align:middle;"></span>需改进 (&lt;5)</span>';
@@ -2070,7 +2070,7 @@ import { icon } from '../../../assets/js/icons.js';
         function fillFactCheck(facts) {
             const box = document.getElementById('factCheckBox');
             if (!facts) {
-                box.innerHTML = '<div style="color:#666;font-size:0.85em;text-align:center;">暂无事实检查数据</div>';
+                box.innerHTML = '<div style="color:var(--color-text-tertiary);font-size:0.85em;text-align:center;">暂无事实检查数据</div>';
                 return;
             }
             
@@ -2236,7 +2236,7 @@ import { icon } from '../../../assets/js/icons.js';
                 container.innerHTML = `
                     <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #1677ff;">
                         <h1 style="font-size:22px;font-weight:700;color:#1f1f1f;margin:0 0 8px 0;">会议材料审核报告</h1>
-                        <p style="font-size:13px;color:#666;margin:0;">${escapeHtml(title)}</p>
+                        <p style="font-size:13px;color:var(--color-text-tertiary);margin:0;">${escapeHtml(title)}</p>
                         <p style="font-size:12px;color:#999;margin:4px 0 0 0;">生成时间：${new Date().toLocaleString('zh-CN')}</p>
                     </div>
                 `;
@@ -2337,7 +2337,7 @@ import { icon } from '../../../assets/js/icons.js';
             document.getElementById('analysisStatusBadge').className = 'analysis-status-badge';
             document.getElementById('scoreBoardDims').innerHTML = '';
             document.getElementById('scoreBoardBottomLine').innerHTML = '';
-            document.getElementById('dimensionTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;">等待审核结果...</td></tr>';
+            document.getElementById('dimensionTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--color-text-tertiary);">等待审核结果...</td></tr>';
             document.getElementById('issuesCard').style.display = 'none';
             document.getElementById('issueTableBody').innerHTML = '';
             document.getElementById('suggestionsCard').style.display = 'none';
