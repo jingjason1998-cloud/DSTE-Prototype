@@ -34,8 +34,11 @@ export const SIDEBAR_CONFIG = {
   sp: [
     { type: 'group', title: '战略制定 (SP)', icon: 'sp', items: [
       { id: 'sp/strategy-map', icon: 'sp/strategy-map', label: '战略地图' },
-      { id: 'sp/insights', icon: 'sp/insights', label: '战略洞察' },
       { id: 'sp/strategy-topics', icon: 'sp/strategy-topics', label: '战略专题管理' }
+    ]},
+    { type: 'group', title: '战略洞察', icon: 'sp/insights', items: [
+      { id: 'sp/insights', icon: 'sp/insights', label: '战略洞察总览' },
+      { id: 'sp/knowledge', icon: 'sp/insights', label: '十五五知识库' }
     ]},
     { type: 'quick', label: '快捷工具' },
     { type: 'item', id: 'exe/meeting-review', icon: 'exe/meeting-review', label: '会议材料审核' }
@@ -76,8 +79,11 @@ export const SIDEBAR_CONFIG = {
       { id: 'rev/performance', icon: 'rev/performance', label: '绩效与激励总览' },
       { id: 'rev/performance-incentive-h1', icon: 'rev/performance', label: '2026年营销线H1专项激励名单' }
     ]},
+    { type: 'group', title: '干部管理', icon: 'rev/cadre', items: [
+      { id: 'rev/cadre', icon: 'rev/cadre', label: '干部管理总览' },
+      { id: 'rev/hc-analysis-2026', icon: 'rev/cadre', label: '2026年销售小组HC配置分析报告' }
+    ]},
     { type: 'group', title: '战略评估', icon: 'rev', items: [
-      { id: 'rev/cadre', icon: 'rev/cadre', label: '干部管理' },
       { id: 'rev/review', icon: 'rev/review', label: '战略复盘' },
       { id: 'rev/gap-analysis', icon: 'rev/gap-analysis', label: '差距分析' }
     ]},
@@ -88,6 +94,8 @@ export const SIDEBAR_CONFIG = {
 };
 
 export const EXTERNAL_PAGES = {
+  'bp/kpi': 'bp.html',
+  'bp/annual-plan': 'bp.html#bp/annual-plan',
   'admin/employee-directory': 'employee-directory.html',
   'rev/performance-incentive-h1': 'incentive-h1-2026.html',
   'admin/requirement-pool': 'requirement-pool.html',
@@ -98,7 +106,8 @@ export const EXTERNAL_PAGES = {
   'exe/at-issue-tracking': 'at-issue-tracking.html',
   'exe/marketing-budget': 'marketing-budget.html',
   'sp/strategy-map': 'strategy-map-list.html',
-  'sp/strategy-map-detail': 'strategy-map.html'
+  'sp/strategy-map-detail': 'strategy-map.html',
+  'sp/knowledge': 'knowledge.html'
 };
 
 export const PAGE_NAMES = {
@@ -106,6 +115,7 @@ export const PAGE_NAMES = {
   'sp/strategy-map': '战略地图',
   'sp/strategy-map-detail': '战略地图详情',
   'sp/insights': '战略洞察',
+  'sp/knowledge': '十五五规划知识库',
   'sp/strategy-topics': '战略专题管理',
   'bp/kpi': 'KPI 指标体系',
   'bp/bem': 'BEM 战略解码',
@@ -122,6 +132,7 @@ export const PAGE_NAMES = {
   'rev/performance': '绩效与激励',
   'rev/performance-incentive-h1': '2026年营销线H1专项激励名单',
   'rev/cadre': '干部管理',
+  'rev/hc-analysis-2026': '2026年销售小组HC配置分析报告',
   'rev/review': '战略复盘',
   'rev/gap-analysis': '差距分析',
   'ai': 'AI 战略助手',
@@ -144,10 +155,11 @@ export const PAGE_META = {
   'sp/strategy-map': { title: '战略地图', icon: 'sp/strategy-map', phase: 'sp', isExternal: true, externalFile: 'strategy-map-list.html' },
   'sp/strategy-map-detail': { title: '战略地图详情', icon: 'sp/strategy-map-detail', phase: 'sp', isExternal: true, externalFile: 'strategy-map.html' },
   'sp/insights': { title: '战略洞察', icon: 'sp/insights', phase: 'sp' },
+  'sp/knowledge': { title: '十五五规划知识库', icon: 'sp/insights', phase: 'sp', isExternal: true, externalFile: 'knowledge.html' },
   'sp/strategy-topics': { title: '战略专题管理', icon: 'sp/strategy-topics', phase: 'sp' },
-  'bp/kpi': { title: 'KPI 指标体系', icon: 'bp/kpi', phase: 'bp' },
+  'bp/kpi': { title: 'KPI 指标体系', icon: 'bp/kpi', phase: 'bp', isExternal: true, externalFile: 'bp.html' },
   'bp/bem': { title: 'BEM 战略解码', icon: 'bp/bem', phase: 'bp' },
-  'bp/annual-plan': { title: '年度经营计划', icon: 'bp/annual-plan', phase: 'bp' },
+  'bp/annual-plan': { title: '年度经营计划', icon: 'bp/annual-plan', phase: 'bp', isExternal: true, externalFile: 'bp.html' },
   'exe/kpi': { title: 'KPI管理', icon: 'exe/kpi', phase: 'exe' },
   'exe/tasks': { title: '重点工作管理', icon: 'exe/tasks', phase: 'exe' },
   'exe/business-topics': { title: '业务专题管理', icon: 'exe/business-topics', phase: 'exe', isExternal: true, externalFile: 'business-topics.html' },
@@ -160,6 +172,7 @@ export const PAGE_META = {
   'rev/performance': { title: '绩效与激励', icon: 'rev/performance', phase: 'rev' },
   'rev/performance-incentive-h1': { title: '2026年营销线H1专项激励名单', icon: 'rev/performance', phase: 'rev', isExternal: true, externalFile: 'incentive-h1-2026.html' },
   'rev/cadre': { title: '干部管理', icon: 'rev/cadre', phase: 'rev' },
+  'rev/hc-analysis-2026': { title: '2026年销售小组HC配置分析报告', icon: 'rev/cadre', phase: 'rev', isExternal: true, externalFile: 'hc-analysis-2026.html' },
   'rev/review': { title: '战略复盘', icon: 'rev/review', phase: 'rev' },
   'rev/gap-analysis': { title: '差距分析', icon: 'rev/gap-analysis', phase: 'rev' },
   'ai': { title: 'AI 战略助手', icon: 'ai', phase: 'ai' },
