@@ -94,6 +94,15 @@ function formatDate(v) {
   return v == null ? undefined : String(v);
 }
 
+// 仅在内容变化时写入，避免无意义地刷新 generatedAt 时间戳
+function writeIfChanged(filePath, content) {
+  if (fs.existsSync(filePath)) {
+    const existing = fs.readFileSync(filePath, 'utf8');
+    if (existing === content) return;
+  }
+  fs.writeFileSync(filePath, content);
+}
+
 // 部分源文件 frontmatter 存在未加引号却含双引号的 title(如 GLOSSARY.md),
 // js-yaml 严格解析会失败;fyp-kb 只读,故退化到宽松解析(仅支持 key: value 与 [a, b] 列表)。
 function parseFrontmatterLenient(raw, relFile) {
@@ -345,7 +354,7 @@ function main() {
     totalDocs,
     groups,
   };
-  fs.writeFileSync(path.join(OUT_ROOT, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  writeIfChanged(path.join(OUT_ROOT, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
   // 5. dashboard.json
   const changelogSrc = fs.readFileSync(path.join(KB_ROOT, 'CHANGELOG.md'), 'utf8');
@@ -358,7 +367,7 @@ function main() {
     changelog: parseChangelog(changelogSrc),
     stats: { groups: groupStats, totalDocs, images: imageCount },
   };
-  fs.writeFileSync(path.join(OUT_ROOT, 'dashboard.json'), JSON.stringify(dashboard, null, 2));
+  writeIfChanged(path.join(OUT_ROOT, 'dashboard.json'), JSON.stringify(dashboard, null, 2));
 
   // 6. 校验日志
   console.log('===== 知识库构建完成 =====');
