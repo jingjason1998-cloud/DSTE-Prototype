@@ -350,7 +350,6 @@ function main() {
   // 4. manifest.json
   const totalDocs = GROUP_ORDER.reduce((n, g) => n + groups[g].docs.length, 0);
   const manifest = {
-    generatedAt: new Date().toISOString(),
     totalDocs,
     groups,
   };
@@ -361,7 +360,6 @@ function main() {
   const groupStats = {};
   for (const g of GROUP_ORDER) groupStats[g] = groups[g].docs.length;
   const dashboard = {
-    generatedAt: manifest.generatedAt,
     indicators: indicatorsRows,
     pest: pestDims.sort((a, b) => 'PEST'.indexOf(a.dimension) - 'PEST'.indexOf(b.dimension)),
     changelog: parseChangelog(changelogSrc),
