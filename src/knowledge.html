@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>十五五规划知识库 - DSTE 战略管理平台</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+    <link rel="stylesheet" href="./styles/shell.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="../assets/js/main.js"></script>
+    <script>
+        // DSTE 主题同步 + 嵌入模式检测（提前初始化，避免 FOUC）
+        (function() {
+            const theme = DSTE.Storage.getString('dste-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            window.__APP_BUILD__ = 'v0.7.25';
+
+            // 嵌入模式：在 iframe 中使用时隐藏导航外壳
+            if (new URLSearchParams(location.search).get('embed') === '1') {
+                document.documentElement.setAttribute('data-embed', 'true');
+
+                if (window !== window.top) {
+                    let lastHeight = 0;
+                    const reportHeight = () => {
+                        const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+                        if (h !== lastHeight) {
+                            lastHeight = h;
+                            window.parent.postMessage({ type: 'dste-embed-resize', height: h }, '*');
+                        }
+                    };
+                    reportHeight();
+                    let timer;
+                    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                    if (typeof ResizeObserver !== 'undefined') {
+                        const ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(reportHeight, 100); });
+                        ro.observe(document.documentElement);
+                    }
+                }
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="./pages/knowledge/style.css">
+    <script type="module" src="./lib/shell-injector.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部导航 (与 cockpit.html 一致，由 shell-injector 渲染链接) -->
+        <nav class="top-nav">
+            <div style="display: flex; align-items: center;">
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="打开菜单"><span class="icon" data-icon="menu" data-icon-size="18"></span></button>
+                <div class="top-nav-brand">
+                    <div class="top-nav-logo">D</div>
+                    <span class="top-nav-title">DSTE 战略管理平台</span>
+                </div>
+            </div>
+            <ul class="top-nav-links" id="top-nav-links"></ul>
+            <div class="top-nav-actions">
+                <button class="icon-btn" id="theme-toggle" title="切换主题"><span class="icon" data-icon="moon" data-icon-size="18"></span></button>
+                <button class="icon-btn" title="通知"><span class="icon" data-icon="notification" data-icon-size="18"></span></button>
+                <div class="user-avatar" id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;">张</div>
+            </div>
+        </nav>
+
+        <div class="app-body">
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+            <aside class="sidebar" id="sidebar"></aside>
+
+            <main class="content-area">
+                <div class="kb-page" id="kb-app">
+                    <!-- 面包屑 + 搜索（JS 渲染） -->
+                    <div class="kb-topbar" id="kb-topbar"></div>
+                    <!-- 主视图：洞察首页 / 文档浏览（JS 渲染） -->
+                    <div class="kb-main" id="kb-main">
+                        <div class="kb-loading">知识库加载中…</div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="./pages/knowledge.js"></script>
+</body>
+</html>

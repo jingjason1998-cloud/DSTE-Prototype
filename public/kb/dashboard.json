@@ -1,0 +1,273 @@
+{
+  "generatedAt": "2026-08-12T03:13:52.631Z",
+  "indicators": [
+    {
+      "category": "经济发展",
+      "indicator": "1. 国内生产总值(GDP)增长(%)",
+      "base2025": "5",
+      "target2030": "—",
+      "average": "保持在合理区间、各年度视情提出",
+      "attribute": "预期性"
+    },
+    {
+      "category": "经济发展",
+      "indicator": "2. 全员劳动生产率增长(%)",
+      "base2025": "6.1",
+      "target2030": "—",
+      "average": "高于 GDP 增长",
+      "attribute": "预期性"
+    },
+    {
+      "category": "经济发展",
+      "indicator": "3. 常住人口城镇化率(%)",
+      "base2025": "67.9",
+      "target2030": "71",
+      "average": "—",
+      "attribute": "预期性"
+    },
+    {
+      "category": "创新驱动",
+      "indicator": "4. 全社会研发经费投入增长(%)",
+      "base2025": "9.1",
+      "target2030": "—",
+      "average": ">7",
+      "attribute": "预期性"
+    },
+    {
+      "category": "创新驱动",
+      "indicator": "5. 每万人口高价值发明专利拥有量(件)",
+      "base2025": "16",
+      "target2030": ">22",
+      "average": "—",
+      "attribute": "预期性"
+    },
+    {
+      "category": "创新驱动",
+      "indicator": "6. 数字经济核心产业增加值占 GDP 比重(%)",
+      "base2025": "10.5*",
+      "target2030": "12.5",
+      "average": "—",
+      "attribute": "预期性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "7. 城镇调查失业率(%)",
+      "base2025": "5.2",
+      "target2030": "—",
+      "average": "<5.5",
+      "attribute": "预期性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "8. 居民人均可支配收入增长(%)",
+      "base2025": "5",
+      "target2030": "—",
+      "average": "与 GDP 增长同步",
+      "attribute": "预期性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "9. 劳动年龄人口平均受教育年限(年)",
+      "base2025": "11.3",
+      "target2030": "11.7",
+      "average": "—",
+      "attribute": "约束性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "10. 每千人口拥有医护人员数——执业医师数(人)",
+      "base2025": "3.1",
+      "target2030": "3.7",
+      "average": "—",
+      "attribute": "预期性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "10. 每千人口拥有医护人员数——注册护士数(人)",
+      "base2025": "4.3",
+      "target2030": "5.1",
+      "average": "—",
+      "attribute": "预期性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "11. 养老机构护理型床位占比(%)",
+      "base2025": "68",
+      "target2030": "73",
+      "average": "—",
+      "attribute": "预期性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "12. 3 岁以下婴幼儿入托率提高(百分点)",
+      "base2025": "—",
+      "target2030": "—",
+      "average": "〔6〕",
+      "attribute": "预期性"
+    },
+    {
+      "category": "民生福祉",
+      "indicator": "13. 人均预期寿命(岁)",
+      "base2025": "79.25",
+      "target2030": "80",
+      "average": "—",
+      "attribute": "预期性"
+    },
+    {
+      "category": "绿色低碳",
+      "indicator": "14. 单位 GDP 二氧化碳排放降低(%)",
+      "base2025": "〔17.7〕",
+      "target2030": "—",
+      "average": "〔17〕",
+      "attribute": "约束性"
+    },
+    {
+      "category": "绿色低碳",
+      "indicator": "15. 非化石能源占能源消费总量比重(%)",
+      "base2025": "21.7",
+      "target2030": "25",
+      "average": "—",
+      "attribute": "约束性"
+    },
+    {
+      "category": "绿色低碳",
+      "indicator": "16. 地级及以上城市细颗粒物(PM2.5)浓度(微克/立方米)",
+      "base2025": "28",
+      "target2030": "<27",
+      "average": "—",
+      "attribute": "约束性"
+    },
+    {
+      "category": "绿色低碳",
+      "indicator": "17. 优良水体比例(%)",
+      "base2025": "80",
+      "target2030": "85",
+      "average": "—",
+      "attribute": "约束性"
+    },
+    {
+      "category": "绿色低碳",
+      "indicator": "18. 森林覆盖率(%)",
+      "base2025": "25.1*",
+      "target2030": "25.8",
+      "average": "—",
+      "attribute": "约束性"
+    },
+    {
+      "category": "安全保障",
+      "indicator": "19. 粮食综合生产能力(万亿斤)",
+      "base2025": "1.39",
+      "target2030": "1.45 左右",
+      "average": "—",
+      "attribute": "约束性"
+    },
+    {
+      "category": "安全保障",
+      "indicator": "20. 能源综合生产能力(亿吨标准煤)",
+      "base2025": "51.3",
+      "target2030": "58",
+      "average": "—",
+      "attribute": "约束性"
+    }
+  ],
+  "pest": [
+    {
+      "dimension": "P",
+      "title": "PEST 维度总览 · P 政策与治理",
+      "judgments": [
+        "规划治理完成法治化跃升,规划从政策文件升级为法律治理工具",
+        "指标体系的约束性结构本身就是治理信号:增长不设硬约束,底线全上约束",
+        "规划对宏观政策的约束力被制度化,财政货币政策须\"向规划看齐\"",
+        "\"统筹发展和安全\"从原则升格为独立篇目加约束性指标的双重硬化安排"
+      ]
+    },
+    {
+      "dimension": "E",
+      "title": "PEST 维度总览 · E 经济",
+      "judgments": [
+        "增长目标\"去定量化\"但留有隐性锚:GDP 不设五年定量目标,2035 远景构成速度下限",
+        "需求侧被提到前所未有的目标层级:\"居民消费率明显提高\"进入主要目标,政策组合围绕\"敢消费、能消费\"展开",
+        "研发经费年均 >7%(不变价)增速目标与 2025 年 9.1% 的实际增速、2.8% 的投入强度叠加,隐含研发强度在规划期继续被动抬升",
+        "数字经济是少数有明确量化产业目标的领域:核心产业增加值占 GDP 比重五年提高 2 个百分点(10.5% → 12.5%)"
+      ]
+    },
+    {
+      "dimension": "S",
+      "title": "PEST 维度总览 · S 社会",
+      "judgments": [
+        "人口政策从单一\"应对老龄化\"升级为覆盖全生命周期的独立战略篇目,生育支持首次以\"政策包\"形式出现",
+        "民生福祉类指标数量最多(20 项中占 7 项)但仅 1 项约束性,民生承诺以引导性为主、硬约束集中在人力资本",
+        "人工智能对就业的冲击被正式纳入规划视野,且发展与就业政策在纲要内部形成交叉对冲",
+        "健康与养老双指标量化收官:人均预期寿命 79.25 → 80 岁,护理型床位占比 68% → 73%"
+      ]
+    },
+    {
+      "dimension": "T",
+      "title": "PEST 维度总览 · T 技术",
+      "judgments": [
+        "关键核心技术攻关的措辞升级为\"超常规措施+决定性突破\",六大领域被点名聚焦",
+        "研发投入\"总量有硬指标、结构只有软表述\",基础研究占比是规划期最值得跟踪的技术政策变量",
+        "人工智能在纲要中获得\"专栏级+全篇渗透\"的双重地位,定位从产业工具升级为数智化底座",
+        "AI 治理框架与发展目标同篇部署,治理清单具体化:算法备案、透明度管理、安全评估、全生命周期风险管理"
+      ]
+    }
+  ],
+  "changelog": [
+    {
+      "date": "2026-08-10",
+      "items": [
+        "[更新] 内蒙古\"十五五\"规划纲要 (`t3-neimenggu`) → `raw/t3-neimenggu/20260810-neimenggu-gangyao.html`"
+      ]
+    },
+    {
+      "date": "2026-08-11",
+      "items": [
+        "[更新] 国家能源局-官网首页(政策栏目入口) (`t2-nea`) → `raw/t2-nea/20260811-nea-home.html`",
+        "[新增] 扩大消费\"十五五\"规划 (`t2-plan-kuodaxiaofei`) → `raw/t2-plan-kuodaxiaofei/20260811-扩大消费.html`",
+        "[新增] 新型能源体系建设\"十五五\"规划 (`t2-plan-nengyuan`) → `raw/t2-plan-nengyuan/20260811-新型能源体系.html`",
+        "[新增] 新型电力系统建设\"十五五\"规划 (`t2-plan-dianli`) → `raw/t2-plan-dianli/20260811-新型电力系统.html`",
+        "[新增] 煤炭工业发展\"十五五\"规划 (`t2-plan-meitan`) → `raw/t2-plan-meitan/20260811-煤炭工业.html`",
+        "[新增] 可再生能源发展\"十五五\"规划 (`t2-plan-zaishengny`) → `raw/t2-plan-zaishengny/20260811-可再生能源.html`",
+        "[新增] 城市更新\"十五五\"规划 (`t2-plan-chengshigx`) → `raw/t2-plan-chengshigx/20260811-城市更新.html`",
+        "[新增] 工业绿色低碳发展\"十五五\"规划 (`t2-plan-gongyelvse`) → `raw/t2-plan-gongyelvse/20260811-工业绿色低碳.html`",
+        "[新增] 综合运输服务发展\"十五五\"规划 (`t2-plan-yunshu`) → `raw/t2-plan-yunshu/20260811-综合运输服务.html`",
+        "[新增] 民用爆炸物品行业安全发展\"十五五\"规划 (`t2-plan-minbao`) → `raw/t2-plan-minbao/20260811-民爆行业安全.html`",
+        "[新增] 教育发展\"十五五\"规划 (`t2-plan-jiaoyu`) → `raw/t2-plan-jiaoyu/20260811-教育发展.html`",
+        "[新增] 实施就业优先战略\"十五五\"规划 (`t2-plan-jiuye`) → `raw/t2-plan-jiuye/20260811-就业优先战略.html`",
+        "[新增] 国民健康\"十五五\"规划 (`t2-plan-jiankang`) → `raw/t2-plan-jiankang/20260811-国民健康.html`",
+        "[新增] 疾病预防控制\"十五五\"规划 (`t2-plan-jikong`) → `raw/t2-plan-jikong/20260811-疾病预防控制.html`",
+        "[新增] 中医药振兴发展\"十五五\"规划 (`t2-plan-zhongyiyao`) → `raw/t2-plan-zhongyiyao/20260811-中医药振兴.html`",
+        "[新增] 旅游强国建设\"十五五\"规划 (`t2-plan-lvyou`) → `raw/t2-plan-lvyou/20260811-旅游强国.pdf`",
+        "[新增] 体育强国建设\"十五五\"规划 (`t2-plan-tiyu`) → `raw/t2-plan-tiyu/20260811-体育强国.pdf`",
+        "[新增] 残疾人保障和发展\"十五五\"规划 (`t2-plan-canjiren`) → `raw/t2-plan-canjiren/20260811-残疾人保障.html`",
+        "[新增] \"十五五\"碳达峰行动方案 (`t2-plan-tandaofeng`) → `raw/t2-plan-tandaofeng/20260811-碳达峰行动.html`",
+        "[新增] 美丽中国建设\"十五五\"规划 (`t2-plan-meilizg`) → `raw/t2-plan-meilizg/20260811-美丽中国建设.html`",
+        "[新增] 加快农业农村现代化\"十五五\"规划 (`t2-plan-nongye`) → `raw/t2-plan-nongye/20260811-农业农村现代化.html`",
+        "[新增] 现代化应急体系建设\"十五五\"规划 (`t2-plan-yingji`) → `raw/t2-plan-yingji/20260811-应急体系建设.html`",
+        "[新增] 生态环境监测\"十五五\"规划 (`t2-plan-hjiance`) → `raw/t2-plan-hjiance/20260811-生态环境监测.html`",
+        "[新增] 林业草原保护利用\"十五五\"规划 (`t2-plan-lincao`) → `raw/t2-plan-lincao/20260811-林业草原保护利用.html`",
+        "[新增] 生态保护\"十五五\"规划 (`t2-plan-shengtai`) → `raw/t2-plan-shengtai/20260811-生态保护.html`",
+        "[新增] 国家应对气候变化\"十五五\"规划 (`t2-plan-qihou`) → `raw/t2-plan-qihou/20260811-应对气候变化.html`",
+        "[新增] 知识产权保护和运用\"十五五\"规划 (`t2-plan-zhishicq`) → `raw/t2-plan-zhishicq/20260811-知识产权.html`",
+        "[新增] 国家文物事业发展\"十五五\"规划 (`t2-plan-wenwu`) → `raw/t2-plan-wenwu/20260811-文物事业.html`",
+        "[新增] 全国档案事业发展\"十五五\"规划 (`t2-plan-dangan`) → `raw/t2-plan-dangan/20260811-档案事业.html`",
+        "[更新] 湖北\"十五五\"规划纲要 (`t3-hubei`) → `raw/t3-hubei/20260811-hubei-gangyao.html`",
+        "[更新] 人民网-观点频道 (`t4-people-opinion`) → `raw/t4-people-opinion/20260811-people-opinion.html`",
+        "[更新] 求是网 (`t4-qiushi`) → `raw/t4-qiushi/20260811-qiushi.html`"
+      ]
+    }
+  ],
+  "stats": {
+    "groups": {
+      "core": 5,
+      "topics": 18,
+      "regions": 32,
+      "policies": 29,
+      "indicators": 1,
+      "insights": 5,
+      "cross": 7
+    },
+    "totalDocs": 97,
+    "images": 26
+  }
+}
