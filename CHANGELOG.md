@@ -7,7 +7,32 @@
 
 ---
 
-## [Unreleased]
+## [v0.7.27] - 2026-08-12
+
+### Added
+- **十五五规划知识库网页版**：新增 `src/knowledge.html`，包含洞察首页、文档树、阅读器、搜索与 PEST 四象限；`scripts/build-knowledge.cjs` 将外部 `fyp-kb` Markdown 渲染为 `public/kb/` 预构建产物；无源环境自动跳过构建，保证 CI 可用。
+- **全局 Cmd+K 命令面板**：新增 `src/lib/command-palette.js`，支持页面索引 + 6 类记录索引，iframe 内跳转与 `?record=` 深链；`src/meetings.html` 与需求池、经营分析会等页面接入记录级跳转。
+- **侧边栏收藏与最近访问快捷分组**：`src/lib/shell.js` 新增 favorites / recents 快速入口，支持本地持久化。
+- **驾驶舱首页真实数据改造**：`src/cockpit.html` 替换硬编码指标，接入 `dste_omp_tasks_v1`、`dste_omp_kpi_instances_v1` 与 `dste_meetings`；对无实时来源的指标展示「演示数据」徽章；OMP 数据层抽取为 `src/lib/omp-store.js` 供 BP 复用。
+- **战略解码独立页面**：新增 `src/bp.html` / `src/pages/bp/main.js`，包含 KPI 指标体系与年度经营计划视图。
+- **2026 年销售小组 HC 配置分析报告**：新增 `src/hc-analysis-2026.html`，KMS iframe 嵌入并适配 CAS 回调与高度自适应。
+- **骨架屏组件与加载占位**：设计系统补充 skeleton、状态徽章、dark 状态色等 token 与组件。
+- **PPT 生成辅助脚本**：新增 `scripts/redesign_base_pages.py`、`scripts/redesign_deck_slides.py`、`scripts/build_icon_pngs.mjs` 及图标资产。
+
+### Changed
+- **视觉质感打磨**：`assets/css/tokens.css`、`assets/css/components.css`、`assets/css/main.css` 补全 dark 状态色、语义排版类、状态徽章 token 化；`src/pages/reviewer/main.js` 将硬编码色值替换为 CSS token。
+- **业务专题议题数据改为按需加载**：`src/pages/business-topics/main.js` 移除 `init()` 阶段全量 `/api/issues` 拉取，改为弹窗/AI 匹配/详情时通过 `ensureRemoteIssuesLoaded()` 按需加载（Promise 去重、失败自动重试）。
+- **依赖升级**：新增 `gray-matter`、`marked`、`sanitize-html` 用于知识库构建管线。
+
+### Fixed
+- **业务专题年度筛选默认值为 2026**：`src/pages/business-topics/main.js` 修复年度筛选默认值。
+- **Reviewer 硬编码色值改为 CSS token**，并隐藏 embed 模式下的页内面包屑，避免驾驶舱工作区标题堆叠。
+- **PPT 生成脚本布局兼容**：`scripts/build_final_deck.py` 兼容中英文 "Blank" 布局名称。
+
+### Infrastructure
+- `vite.config.js` 注册 `bp`、`hc-analysis-2026`、`knowledge` 构建入口。
+- `src/lib/config.js` 注册知识库、BP、HC 分析报告等页面的侧边栏、外部页与元数据。
+- 同步 `package.json`、`package-lock.json`、`sonar-project.properties` 版本号至 `0.7.27`。
 
 ## [v0.7.26] - 2026-08-11
 
