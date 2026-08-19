@@ -37,7 +37,7 @@
     provinces.forEach((p) => PROVINCE_TO_REGION.set(p, region));
   });
 
-  const GROUP_ORDER = ['core', 'topics', 'regions', 'policies', 'indicators', 'insights', 'cross'];
+  const GROUP_ORDER = ['core', 'topics', 'regions', 'policies', 'indicators', 'insights', 'research', 'cross'];
 
   const state = {
     manifest: null,

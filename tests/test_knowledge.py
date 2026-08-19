@@ -88,24 +88,46 @@ def test_kb_artifacts_exist():
 
 
 def test_kb_manifest_docs_count():
-    """manifest 收录文档 ≥ 90 篇,HTML 产物数量一致"""
+    """manifest 收录文档 ≥ 100 篇,HTML 产物数量一致"""
     manifest = json.loads((KB / "manifest.json").read_text(encoding="utf-8"))
     groups = manifest["groups"]
     total = sum(len(g["docs"]) for g in groups.values())
-    assert total >= 90, f"manifest 文档数不足: {total}"
+    assert total >= 100, f"manifest 文档数不足: {total}"
     html_files = list((KB / "docs").rglob("*.html"))
-    assert len(html_files) >= 90, f"docs HTML 数不足: {len(html_files)}"
+    assert len(html_files) >= 100, f"docs HTML 数不足: {len(html_files)}"
     assert len(html_files) == total, "HTML 产物数量与 manifest 不一致"
 
 
 def test_kb_manifest_required_groups():
     """manifest 包含全部分组"""
     manifest = json.loads((KB / "manifest.json").read_text(encoding="utf-8"))
-    for key in ["core", "topics", "regions", "policies", "indicators", "insights", "cross"]:
+    for key in ["core", "topics", "regions", "policies", "indicators", "insights", "research", "cross"]:
         assert key in manifest["groups"], f"缺少分组: {key}"
     for dim in ["P-political", "E-economic", "S-social", "T-technological"]:
         ids = [d["id"] for d in manifest["groups"]["insights"]["docs"]]
         assert f"insights/{dim}" in ids, f"缺少 PEST 洞察文档: {dim}"
+
+
+def test_kb_research_group():
+    """research 专题研究分组:主报告 + 赛道小节 + CSV 表格页"""
+    manifest = json.loads((KB / "manifest.json").read_text(encoding="utf-8"))
+    group = manifest["groups"]["research"]
+    assert group["label"] == "专题研究"
+    ids = [d["id"] for d in group["docs"]]
+    topic = "research/2026-08-新兴产业与未来产业"
+    assert f"{topic}/README" in ids, "缺少专题主报告"
+    assert sum(1 for i in ids if "/tracks/" in i) >= 10, "赛道小节不足 10 篇"
+    # CSV 表格页
+    tables = [d for d in group["docs"] if d.get("type") == "table"]
+    assert len(tables) == 1, f"表格页数量不为 1: {len(tables)}"
+    assert tables[0]["title"] == "公司清单(companies.csv)"
+    table_html = KB / "docs" / topic / "companies.html"
+    assert table_html.exists(), "表格页 HTML 不存在"
+    content = table_html.read_text(encoding="utf-8")
+    assert 'class="kb-csv-header"' in content, "表头缺少样式 class"
+    assert content.count("<tr>") == 113, "表格数据行数不为 113"
+    # 原始 CSV 拷贝到 assets 供下载
+    assert (KB / "assets" / "research" / topic.split("/", 1)[1] / "companies.csv").exists()
 
 
 def test_kb_dashboard_structure():
@@ -117,7 +139,7 @@ def test_kb_dashboard_structure():
         assert dim in pest, f"PEST 缺少维度: {dim}"
         assert len(pest[dim]["judgments"]) == 4, f"PEST {dim} 判断条数不为 4"
     assert dashboard["changelog"], "changelog 为空"
-    assert dashboard["stats"]["totalDocs"] >= 90
+    assert dashboard["stats"]["totalDocs"] >= 100
     # 约束性指标必须存在(徽标依赖)
     attributes = {row["attribute"] for row in dashboard["indicators"]}
     assert "约束性" in attributes, "指标缺少约束性属性"

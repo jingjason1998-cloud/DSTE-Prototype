@@ -14,10 +14,11 @@ test.describe('Knowledge Hub - 洞察首页', () => {
   test('首页渲染统计卡 / 指标区 / PEST 四象限 / 变更流', async ({ page }) => {
     // 收录统计卡
     const stats = page.locator('#kb-stats .kb-stat-card');
-    await expect(stats).toHaveCount(8); // 总数 + 7 个分组
+    await expect(stats).toHaveCount(9); // 总数 + 8 个分组
     await expect(page.locator('#kb-stats')).toContainText('收录文献总数');
     await expect(page.locator('#kb-stats')).toContainText('顶层文献');
     await expect(page.locator('#kb-stats')).toContainText('省级纲要');
+    await expect(page.locator('#kb-stats')).toContainText('专题研究');
 
     // 核心指标区:可横向滚动表格 + 约束性徽标
     const table = page.locator('#kb-indicators .kb-indicator-table');

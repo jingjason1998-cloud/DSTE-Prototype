@@ -264,9 +264,10 @@
       "policies": 29,
       "indicators": 1,
       "insights": 5,
+      "research": 12,
       "cross": 7
     },
-    "totalDocs": 97,
+    "totalDocs": 109,
     "images": 26
   }
 }

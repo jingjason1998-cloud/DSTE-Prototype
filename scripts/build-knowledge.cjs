@@ -1,6 +1,7 @@
 /**
  * 知识库内容管线:扫描 fyp-kb(只读)→ public/kb/
- * 产物:docs/*.html(预渲染,保留子目录)+ manifest.json + dashboard.json + assets/(图片)
+ * 产物:docs/*.html(预渲染,保留子目录)+ manifest.json + dashboard.json + assets/(图片/CSV)
+ * 收录范围:knowledge/ + insights/ + research/(专题研究,含 *.md 与专题根目录 *.csv 表格页)
  * 用法: node scripts/build-knowledge.cjs
  */
 
@@ -15,6 +16,7 @@ let marked;
 const KB_ROOT = path.join(__dirname, '..', '..', 'fyp-kb');
 const KNOWLEDGE_DIR = path.join(KB_ROOT, 'knowledge');
 const INSIGHTS_DIR = path.join(KB_ROOT, 'insights');
+const RESEARCH_DIR = path.join(KB_ROOT, 'research');
 const IMAGES_DIR = path.join(KB_ROOT, 'raw', 't0-gangyao', 'images');
 const OUT_ROOT = path.join(__dirname, '..', 'public', 'kb');
 const OUT_DOCS = path.join(OUT_ROOT, 'docs');
@@ -34,6 +36,7 @@ const GROUP_LABELS = {
   policies: '专项规划',
   indicators: '指标体系',
   insights: 'PEST 洞察',
+  research: '专题研究',
   cross: '横向文件',
 };
 const GROUP_ORDER = Object.keys(GROUP_LABELS);
@@ -60,7 +63,75 @@ function walkMd(dir) {
   return out.sort();
 }
 
-/** 源文件绝对路径 → 文档 id(无扩展名,knowledge 下为相对路径,insights 下加 insights/ 前缀) */
+/** 递归收集 *.csv */
+function walkCsv(dir) {
+  const out = [];
+  if (!fs.existsSync(dir)) return out;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkCsv(full));
+    else if (entry.isFile() && entry.name.endsWith('.csv')) out.push(full);
+  }
+  return out.sort();
+}
+
+// ---------- CSV 解析与渲染(research 专题数据表) ----------
+// 手写解析器:支持引号包裹字段、"" 转义、字段内逗号/换行
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += ch;
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field); field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.length > 1 || row[0] !== '') rows.push(row);
+      row = [];
+    } else field += ch;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function escapeHtmlCell(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** CSV 文本 → HTML 表格;首行表头加 class,URL 单元格渲染为外链 */
+function renderCsvTable(rows) {
+  if (!rows.length) return '<p>(空数据表)</p>';
+  const header = rows[0];
+  const body = rows.slice(1);
+  const ths = header.map((h) => `<th>${escapeHtmlCell(h)}</th>`).join('');
+  const trs = body
+    .map((r) => {
+      const tds = r
+        .map((c) => {
+          const cell = escapeHtmlCell(c);
+          if (/^https?:\/\//.test(c)) {
+            return `<td><a href="${escapeAttr(c)}" target="_blank" rel="noopener">来源 ↗</a></td>`;
+          }
+          return `<td>${cell}</td>`;
+        })
+        .join('');
+      return `<tr>${tds}</tr>`;
+    })
+    .join('\n');
+  return `<table class="kb-csv-table">\n<thead>\n<tr class="kb-csv-header">${ths}</tr>\n</thead>\n<tbody>\n${trs}\n</tbody>\n</table>`;
+}
+
+/** 源文件绝对路径 → 文档 id(无扩展名,knowledge 下为相对路径,insights/research 下加同名前缀) */
 function fileToId(absPath) {
   if (absPath.startsWith(KNOWLEDGE_DIR + path.sep)) {
     return path.relative(KNOWLEDGE_DIR, absPath).replace(/\.md$/, '').split(path.sep).join('/');
@@ -68,11 +139,16 @@ function fileToId(absPath) {
   if (absPath.startsWith(INSIGHTS_DIR + path.sep)) {
     return 'insights/' + path.relative(INSIGHTS_DIR, absPath).replace(/\.md$/, '').split(path.sep).join('/');
   }
+  if (absPath.startsWith(RESEARCH_DIR + path.sep)) {
+    return 'research/' + path.relative(RESEARCH_DIR, absPath).replace(/\.(md|csv)$/, '').split(path.sep).join('/');
+  }
   return null;
 }
 
 function idToGroup(id) {
   const seg = id.split('/')[0];
+  // research/<专题>/README 是主报告本体,不降级到横向文件
+  if (seg === 'research') return 'research';
   if (['core', 'topics', 'regions', 'policies', 'indicators'].includes(seg)) {
     // 目录内的 README 索引页归入横向文件
     if (id.split('/').pop() === 'README') return 'cross';
@@ -279,7 +355,7 @@ function main() {
   }
 
   // 2. 扫描并渲染全部文档
-  const files = [...walkMd(KNOWLEDGE_DIR), ...walkMd(INSIGHTS_DIR)];
+  const files = [...walkMd(KNOWLEDGE_DIR), ...walkMd(INSIGHTS_DIR), ...walkMd(RESEARCH_DIR)];
   const groups = {};
   for (const g of GROUP_ORDER) groups[g] = { label: GROUP_LABELS[g], docs: [] };
 
@@ -333,6 +409,42 @@ function main() {
     }
   }
 
+  // 2b. research 专题 CSV:专题根目录的 *.csv 渲染为表格文档页(type: "table");
+  // 全部 CSV(含 tracks/ 下的)拷贝到 assets/research/ 供下载
+  let csvTableCount = 0;
+  let csvCopiedCount = 0;
+  for (const absCsv of walkCsv(RESEARCH_DIR)) {
+    const relCsv = path.relative(RESEARCH_DIR, absCsv); // 如 <专题>/companies.csv 或 <专题>/tracks/x.csv
+    const relParts = relCsv.split(path.sep);
+    const assetPath = path.join(OUT_ASSETS, 'research', relCsv);
+    fs.mkdirSync(path.dirname(assetPath), { recursive: true });
+    fs.copyFileSync(absCsv, assetPath);
+    csvCopiedCount++;
+
+    // 仅专题根目录的 CSV 渲染为表格页(tracks/ 下的赛道 CSV 仅提供下载)
+    if (relParts.length !== 2) continue;
+    const id = fileToId(absCsv);
+    const stem = path.basename(absCsv, '.csv');
+    const title = `${stem === 'companies' ? '公司清单' : stem}(${stem}.csv)`;
+    const rows = parseCsv(fs.readFileSync(absCsv, 'utf8'));
+    const colCount = rows.length ? rows[0].length : 0;
+    const html = renderCsvTable(rows);
+    const outPath = path.join(OUT_DOCS, `${id}.html`);
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, html);
+    csvTableCount++;
+
+    groups.research.docs.push({
+      id,
+      title,
+      path: `docs/${id}.html`,
+      group: 'research',
+      type: 'table',
+      meta: {},
+      excerpt: `数据表,共 ${rows.length - 1} 行 × ${colCount} 列;列:${rows.length ? rows[0].join('、') : ''}`.slice(0, 200),
+    });
+  }
+
   // 3. 指标表校验:20 项必须全部解析到
   const indicatorNumbers = new Set(
     (indicatorsRows || []).map((r) => {
@@ -375,6 +487,7 @@ function main() {
   }
   console.log(`  文档总数: ${totalDocs}(HTML ${totalDocs} 个)`);
   console.log(`  图片: ${imageCount} 张 → assets/`);
+  console.log(`  CSV: ${csvCopiedCount} 个拷贝至 assets/research/,其中 ${csvTableCount} 个渲染为表格页`);
   console.log(`  图片引用重写: ${stats.imageRefsRewritten} 处,失败: ${stats.imageRefsFailed} 处`);
   if (failedImages.length) console.log(`    ${failedImages.join('\n    ')}`);
   console.log(`  文档互链重写: ${stats.linksRewritten} 处,失败: ${stats.linksFailed} 处`);
