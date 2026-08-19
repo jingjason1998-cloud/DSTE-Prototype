@@ -44,3 +44,6 @@ playwright/.cache/
 .vite/
 vite-preview.log
 reports/
+
+# 本地 MCP 配置（含个人授权令牌，勿提交）
+.kimi-code/mcp.json

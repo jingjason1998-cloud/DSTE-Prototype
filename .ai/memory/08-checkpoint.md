@@ -2,6 +2,15 @@
 
 > 记录复杂任务的中间状态，方便中断后恢复。
 
+## cockpit.html 拆分计划 — BP 模块已完成（2026-08-11 Kimi 会话，随 v0.7.27 发布）
+
+- **进度**：第一步 BP 模块（bp/kpi + bp/annual-plan）已拆出并随 v0.7.27 发布。cockpit.html 10,631 → 7,976 行。`bp/bem` 占位页留在 cockpit
+- **产物**：`src/lib/omp-store.js`（973 行共享数据层：OMP_STORAGE/omp_load/omp_save/omp_initData/同步派生/KPI 关联 UI/getCurrentCycle 等）、`src/bp.html`（383 行，头部模式抄 business-topics.html）、`src/pages/bp/main.js`（1,984 行，内部 hash 路由 #bp/kpi 默认 / #bp/annual-plan）
+- **已验证的模式**（下次拆分直接复用）：① 先抽共享数据层为 lib 模块（import 同名 → 调用点零改动）② 新独立页用 external page 机制（config.js PAGE_META 加 isExternal/externalFile + vite input + check:scope），exe 侧 navigate 调用点零改动 ③ 测试：pytest 静态断言改读新文件、E2E 改 standalone URL、external-pages-embed.spec.js 补 embed 集成用例
+- **周期状态**：`dste_current_cycle_id` 已持久化 localStorage；bp 页 standalone 页头有 `#bp-cycle-select`，embed 模式监听 storage 事件联动 cockpit 顶栏
+- **下一步候选**（用户已认可顺序）：先 sp/strategy-topics（低风险）后 exe/OMP（最大块，与 omp-store.js 衔接顺）。exe 拆分后 cockpit 基本只剩壳
+- **注意**：并行会话活跃，提交时用精确 add 只带本任务文件
+
 ## UI/UX 设计系统升级 — Phase 0~2 HTML 页面完成
 
 - **当前步骤**：✅ 全部 `src/*.html` 页面 + JS 模块象形 emoji 均已替换为 Phosphor 图标（2026-07-14 完成 JS 模块收尾，commit `1ed5536`）。设计系统 emoji 迁移基本完成。注：`→`/`↔` 为行文流程箭头/注释/正则字符类/data-id，予以保留。

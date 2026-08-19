@@ -7,6 +7,19 @@
 
 ---
 
+## [v0.7.28] - 2026-08-19
+
+### Added
+- **十五五规划知识库新增「专题研究」分组**：收录《“十五五”新兴产业与未来产业》主报告、10 个赛道小节（低空装备、具身智能、商业航天、国产大飞机、新型电池、生物制造、绿色氢能、脑机接口、集成电路、高端医疗器械）及公司清单 CSV 表格页；文档总数由 97 扩展至 109。
+- **知识库构建管线支持 CSV 表格页**：`scripts/build-knowledge.cjs` 新增 CSV 解析与 HTML 表格渲染，专题根目录 `*.csv` 生成只读表格页，全部 CSV 拷贝至 `public/kb/assets/research/` 供下载。
+
+### Changed
+- `src/pages/knowledge.js` 分组展示顺序加入 `research`（专题研究），洞察首页统计卡同步增至 9 张。
+- 同步 `package.json`、`package-lock.json`、`sonar-project.properties` 版本号至 `0.7.28`。
+
+### Infrastructure
+- `tests/e2e/knowledge.spec.js` 与 `tests/test_knowledge.py` 更新断言，覆盖 research 分组、CSV 表格页渲染与原始 CSV 资产拷贝。
+
 ## [v0.7.27] - 2026-08-12
 
 ### Added

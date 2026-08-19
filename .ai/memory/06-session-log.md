@@ -2,6 +2,42 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-19（Claude，准备并发布 v0.7.28：知识库专题研究扩容）
+- **主题**：将工作区中知识库「专题研究」分组与构建管线改进打包发布为 v0.7.28
+- **内容**：
+  - 十五五规划知识库新增 `research/` 分组：主报告《“十五五”新兴产业与未来产业》+ 10 个赛道小节 + 公司清单 CSV 表格页；文档总数 97 → 109
+  - `scripts/build-knowledge.cjs` 支持 `research/` 扫描、CSV 解析与 HTML 表格页渲染、原始 CSV 拷贝到 `public/kb/assets/research/`
+  - `src/pages/knowledge.js` 分组顺序加入 `research`，洞察首页统计卡增至 9 张
+  - 同步 `package.json` / `package-lock.json` / `sonar-project.properties` 至 `0.7.28`；更新 `CHANGELOG.md`
+  - 补记 `.ai/memory/08-checkpoint.md` BP 拆分完成状态；`.gitignore` 增加 `.kimi-code/mcp.json`
+- **验证**：`npm run build` ✓ / `npm run lint` 0 error / `npm run check:scope` ✓ / `pytest tests/test_knowledge.py` 12 passed / `npx playwright test tests/e2e/knowledge.spec.js` 9/9 passed
+- **发布**：commit 版本 bump + 知识库变更，tag `v0.7.28`，push origin main
+- **状态**：complete
+
+## 2026-08-11（Kimi，顶栏紧凑化 v0.7.26 + /api/issues 根因排查 + 议题按需加载 + BP 模块拆分；08-19 补记）
+- **主题**：① 顶栏/页签栏紧凑美观化；② 业务专题年度筛选 bug（默认当年 + 下拉无年份）；③ 系统检测与 `/api/issues` 服务端排查；④ 方案 A 议题按需加载；⑤ cockpit.html 拆分第一步（BP 模块）
+- **v0.7.26 已发布**（commit `548d4c7`，tag `v0.7.26`）：顶栏 56→48px、页签栏 36→32px（tokens.css/shell.css/cockpit.html）；修复「AI 助手」按钮残留浏览器默认边框（`.top-nav-links a` → `.top-nav-item` 选择器）；业务专题年度筛选默认改为动态当年（`getFullYear()`）。生产验证通过
+- **年度筛选 bug 根因**：生产 `/api/issues` 挂起 → `init()` 永远阻塞在 `await loadRemoteIssues()`（try/catch 挡不住永不返回），renderTable/populateYearFilter 全部不执行。修复：本地数据先渲染首屏、云端同步后台进行 + `withSyncTimeout` 10s 兜底
+- **`/api/issues` 服务端根因（重要架构发现）**：议题全量 5.16MB（2291 条，gzip 1.6MB）；所有 API 流量走「浏览器 → 国内服务器 nginx → Cloudflare Worker」，持续传输被跨境 QoS 限速至 ~13KB/s（TTFB 仅 1.9s，大响应 35s 后被重置，永远传不完）。Worker 直连健康（TTFB 0.5s / 2.3s 拉完）。小 payload（topics 8KB）不受影响——issues 只是第一个撞线的，数据继续增长 meetings 等也会撞上
+- **方案 A 议题按需加载**：调查发现议题关联列计数取自 `topic.linkedIssues`（不需全量）、ST/AT 跟踪表是占位页——仅「关联议题」弹窗/AI 匹配/议题详情需要全量。`issue-import.js` 新增 `ensureRemoteIssuesLoaded()`（Promise 去重/成功缓存/失败重试），init 不再自动拉 `/api/issues`
+- **BP 模块拆分（三阶段，全部验收）**：阶段 1 抽 `src/lib/omp-store.js`（973 行共享数据层）；阶段 2 新建 `src/bp.html` + `src/pages/bp/main.js`（1,984 行），bp/kpi + bp/annual-plan 以 iframe 嵌入工作区，exe 侧 navigate 调用点零改动；阶段 3 测试适配（34 用例改 URL + 2 个 embed 集成用例）。**cockpit.html 10,631 → 7,976 行（-25%）**。顺带修复：周期状态持久化 `dste_current_cycle_id` + storage 事件联动重渲染；iframe 无 hash 时优先读 `?pageId=` 路由
+- **验证**：lint 0 error / check:scope ✓ / build ✓ / vitest 597 / pytest 210 / E2E 63 passed + 1 基线 flaky（omp-tasks:450，HEAD 4 跑 3 挂，后经 `32de728` 修复）
+- **后续（已发生）**：本次未提交的「议题按需加载 + BP 拆分」由 2026-08-12 Claude 会话打包进 v0.7.27 发布（见下方 08-12 条目）
+- **建议（已给用户）**：P0 恢复生产 CAS 认证（isLocalDev 白名单仍含 dste.fineres.com，生产无登录门槛）；Worker 加议题过滤/分页端点（生产关联议题弹窗拉 5MB 仍会失败）；API 链路架构决策（国内 CDN 回源 vs 数据迁回国内）；继续拆 cockpit（建议先 sp/strategy-topics 后 exe/OMP）
+- **状态**：complete
+
+## 2026-08-12（Kimi，DSTE汇报合集.pptx 重建 + 6 页帆软风重设计 + pptx-design skill）
+- **主题**：用户给两张截图（小红书风「6 个问题摸清战略管理骨架」、短视频「华为开会的规则」）要求改造为帆软风格加入汇报合集；用户反馈"AI 味浓"，遂沉淀 pptx-design skill 并全量重设计 6 页
+- **内容**：
+  - 合集文件曾丢失 → `scripts/build_final_deck.py` 重建（修复模板布局名「空白」变英文「Blank」导致的 StopIteration）；注意基底《经分会事不过三机制-帆软母版版.pptx》现只有 3 页（原记录为 4 页）
+  - 6 页版式各不相同（反"AI 味"）：P1 阶梯递进 / P2 35+30+35 比例评分条 / P3 竖向时间轴 + hairline 表格 / P4 编辑式三栏无卡片 / P5 脊柱图（呼应"骨架"隐喻）/ P6 非对称分屏 + 巨大 90% 锚点 + 跨页呼应（指向第 1 页事不过三机制）
+  - 图标管线 `scripts/build_icon_pngs.mjs`：从 `assets/js/phosphor-icons.js` 提取 SVG path → Playwright 截图光栅化彩色透明 PNG（`scripts/assets/icons/`）→ add_picture 插入；语义色绿 `#2BA471` / 橙 `#F2994A` / 红 `#E05252`
+  - `add_pill()` 修复文字与底框不协调（用户截图圈出 P3 pill 文字偏移）：文字写入形状 text_frame + margin 清零 + 垂直居中
+  - 新 skill `~/.kimi-code/skills/pptx-design/`（SKILL.md 反 AI 味清单/版式库/帆软 token + `render_slide.py` Pillow 目检渲染，支持图片/椭圆/箭头/chevron）
+- **修改文件**：`scripts/build_final_deck.py`、`scripts/redesign_base_pages.py`、`scripts/redesign_deck_slides.py`、`scripts/build_icon_pngs.mjs`、`scripts/assets/icons/`、`DSTE汇报合集.pptx`（gitignored 仅本地）；脚本已被 08-12 并行 Claude 会话提交（commit `936eba7`，随 v0.7.27）
+- **经验**：macOS `open` 不刷新 PowerPoint 已打开的旧文档，需 AppleScript `close saving no` 后重开；svglib/reportlab 出 PNG 依赖 rlPyCairo→pycairo→系统 cairo（本机没有），改用 Playwright 光栅化
+- **状态**：complete
+
 ## 2026-08-12（Claude，v0.7.27 发布：bundle 多个并行会话）
 - **主题**：将 2026-08-11 多个 Kimi 并行会话的 parked work 一起提交、跑门并发版
 - **内容**：

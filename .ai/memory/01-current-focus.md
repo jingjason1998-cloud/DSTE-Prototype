@@ -1,9 +1,15 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-12
+> 更新时间: 2026-08-19 15:01
 
 ## 状态
+**v0.7.28 准备发布**（2026-08-19 Claude 会话）：十五五规划知识库扩容，新增「专题研究」分组，收录《“十五五”新兴产业与未来产业》主报告、10 个赛道小节、公司清单 CSV 表格页；文档总数 97 → 109。`scripts/build-knowledge.cjs` 新增 CSV 解析/渲染与 `research/` 扫描，`src/pages/knowledge.js` 加入 research 分组展示。版本号 `0.7.27 → 0.7.28`，CHANGELOG 已更新。本地验证：lint 0 error / check:scope ✓ / pytest test_knowledge.py 12 passed / knowledge E2E 9/9 / build ✓。
+
 **v0.7.27 已发布并部署生产**（2026-08-12 Claude 会话，bundle 多个并行会话）：合并前端升级 A+B（视觉打磨 + Cmd+K + 侧边栏收藏/最近访问）、十五五规划知识库网页版、驾驶舱首页真实数据改造、战略解码 BP 页、2026 年销售小组 HC 配置分析报告、业务专题议题按需加载 + 年度筛选默认值修复、PPT/图标脚本辅助工具。版本号 `0.7.26 → 0.7.27`，CHANGELOG 与 roadmap-data 已更新。本地验证：lint 0 error / check:scope ✓ / pytest 198 passed / unit 609 / build ✓ / 全量 E2E 待跑。tag `v0.7.27` 已推送，GitHub Actions 部署完成后生产 smoke 通过。
+
+**v0.7.26 已发布并部署生产**（2026-08-11 Kimi 会话，commit `548d4c7`，tag `v0.7.26`）：顶栏/页签栏紧凑化（topbar 56→48px、tabbar 36→32px，修复 AI 助手按钮默认边框）；业务专题年度筛选修复——根因是生产 `/api/issues` 挂起致 `init()` 永远阻塞（列表空/统计 0/筛选只剩「全部年度」），改为本地数据先渲染 + 云端同步后台 + 10s 超时兜底；年度筛选默认值改动态当年。生产验证：下拉年份完整、默认 2026、顶栏 48px。详见 session-log 顶部 08-11 条目（含 `/api/issues` 跨境限速架构发现与 BP 拆分全记录）。
+
+**DSTE汇报合集 PPT 重建与 6 页重设计（2026-08-12 Kimi 会话，非产品变更）**：`DSTE汇报合集.pptx` 曾丢失，用 `scripts/build_final_deck.py` 重建（注意基底帆软母版版现仅 3 页，原 4 页）；6 页全部帆软风重设计，每页一种版式（阶梯/比例评分条/时间轴+表格/编辑式三栏/脊柱图/非对称分屏），Phosphor 图标管线 `scripts/build_icon_pngs.mjs` + 语义色 + `add_pill()` 对位修复；沉淀用户级 skill `~/.kimi-code/skills/pptx-design/`。脚本已随 v0.7.27 提交；pptx 文件 gitignored 仅本地。详见 session-log 顶部条目。
 
 **前端升级 A+B（视觉打磨+导航效率）已随 v0.7.27 发布**（2026-08-11 Kimi 会话，已随 v0.7.27 发布）：dark 状态色补全、.page-title 统一、语义排版类、骨架屏组件与 iframe/列表加载占位、reviewer 硬编码色 token 化、**Cmd+K 全局命令面板**（页面+6 类记录索引、postMessage 记录级跳转带重试、?record= 深链、iframe 按键桥）、**侧边栏收藏+最近访问**（快捷条目用 .sidebar-quick-entry 独立类）。验证：lint/check:scope/unit 609/pytest 210/新增 E2E 9/相关回归全绿；全量 E2E 401 passed（失败均为 indicator-system 既有端口问题 + 并行会话 OMP 重构 WIP）。**用户已决定等并行会话一起发版**；本会话文件清单与发版提醒见 session-log 顶部条目。
 **十五五规划知识库网页版已随 v0.7.27 发布**（2026-08-11 Kimi 会话）：独立页 `src/knowledge.html`（洞察首页+文档树+阅读+搜索）+ 内容管线 `scripts/build-knowledge.cjs`(fyp-kb → public/kb,97 篇预渲染）+ 架构注册四件套 + sp/insights 入口。验证：pytest 210 / knowledge E2E 9/9 / build ✓。内容刷新跑 `npm run build:kb`。
@@ -253,19 +259,23 @@
 - ✅ **会议评分算法 v2.0（三段式模型）已打通**：`src/meetings.html` 改为通过动态 `import()` 引入 `src/meetings/utils/scoring.js`，复用 `calculateAutoScore` / `getScoreColor` / `getScoreLabel`，移除内联重复实现与旧四维度代码；`getReviewScores()` 在调用点注入材料评分数据。
 
 ## 已知问题
+- **生产 `/api/issues` 服务端病态（2026-08-11 查明）**：议题全量 5.16MB，国内服务器 nginx ↔ Cloudflare Worker 跨境链路持续传输被限速至 ~13KB/s，大响应永远传不完。前端已兜底（v0.7.26 首屏不阻塞 + v0.7.27 按需加载），但「关联议题」弹窗/AI 匹配在生产首次加载云端议题仍会失败。**待办：Worker 加 `?sourceSystem=`/分页过滤端点；长期需 API 链路架构决策（国内 CDN 回源 vs 数据迁回国内）**
+- **临时 CAS 绕过仍未恢复（2026-07-29 起）**：`isLocalDev` 白名单仍含 `dste.fineres.com`，**生产环境无登录认证**，需单独排期热修并验证 CAS 回跳链路
 - `meeting-detail.spec.js` 部分测试偶发失败（元素不可见/点击超时）— 与预览服务器渲染时序有关，非代码回归
+- ~~omp-tasks.spec.js:450 per-record 同步用例基线 flaky~~ — 已由 `32de728` 修复（route matching + reload timing）
 - 空占位行动项污染：已修复保存时过滤无内容/无负责人的行动项，并在启动迁移时自动清理；E2E 测试已增加 afterEach 清理
 - `indicator-system` / `omp-*` / `kpi-tree*` 等测试因硬编码端口 `localhost:4173` 与当前 `vite preview` 端口不一致导致失败 — 已有问题，与本次修改无关
 - 全量 E2E 并行运行时偶发 `page.goto` 超时（`business-topics.spec.js`、`navigation.spec.js`、`reviewer-embed.spec.js`），单独重跑可 pass
 
 ## 下一步
-1. **提交并发布驾驶舱首页真实数据改造**（v0.7.25 patch 候选）——已验证全绿，只摘 3 个文件（见上方状态说明），用户尚未拍板发版
-2. ✅ **v0.7.2 已发布并部署生产**
-2. **发布 parked 的工作区标签去重修复（v0.7.13）** — 修复已完成并验证，因并行会话反复 reset 工作区、用户决定后续一起发布，已存为 `.ai/patches/workspace-tabs-dedup-v0.7.13.patch`；应用与发布步骤见 `.ai/patches/README-workspace-tabs-fix.md`
-3. ✅ **服务器更新 Flask KMS_API_TOKEN** — 已于 2026-07-30 完成：新 token 同步至生产 `/opt/meeting-reviewer/src/.env` 并重启 meeting-reviewer，服务器上 KMS API 拉取验证 200；建议下次使用时跑一次真实材料审核端到端确认
-4. **继续经分会-督办中心阶段 2** — 逾期催办、独立督办工作台页面、数据看板（详见 T050）
-5. **继续经分会-决议中心可选优化** — 真正以 ES Module 引入 `resolution-helpers.js`、确认生产数据迁移、版本号升级（详见 T030）
-6. **T080 审核端点 Worker 迁移** — 后续排期（详见 `.ai/tasks/active/T080-review-worker-migration.md`）
+1. **恢复生产 CAS 认证（P0 安全）** — 见「已知问题」；建议单独热修版
+2. **Worker 议题过滤/分页端点（方案 A 收尾）** — 让「关联议题」弹窗在生产可用；`/api/catalogs` 2.9s 偏慢也值得一查
+3. **继续拆 cockpit.html（BP 已完成，10,631 → 7,976 行）** — 建议先 sp/strategy-topics（低风险练手）后 exe/OMP（最大块，与 omp-store.js 衔接顺）；BP 拆分模式与验证清单见 session-log 08-11 条目
+4. **API 链路架构决策** — 国内 CDN 回源 Cloudflare vs 数据层迁回国内（与 T080 方向相关，需统一）
+5. **议题数据归档** — 2291 条中历史季度占大头，从源头控制 payload 增长
+6. **继续经分会-督办中心阶段 2** — 逾期催办、独立督办工作台页面、数据看板（详见 T050）
+7. **继续经分会-决议中心可选优化** — 真正以 ES Module 引入 `resolution-helpers.js`、确认生产数据迁移、版本号升级（详见 T030）
+8. **T080 审核端点 Worker 迁移** — 后续排期（详见 `.ai/tasks/active/T080-review-worker-migration.md`）
 
 ## 督办中心数据结构
 ```javascript
