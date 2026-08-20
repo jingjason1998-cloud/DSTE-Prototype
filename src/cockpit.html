@@ -5225,7 +5225,7 @@
 
         const chainHtml = siRenderTopicChain(topic);
 
-        const showDeepen = (topic.status === 'execution' || topic.status === 'closed') && !topic.nextTopicId;
+        const showDeepen = !topic.nextTopicId;
         const deepenText = `${(topic.year || currentYear) + 1} 年继续深化`;
 
         const overlay = document.createElement('div');

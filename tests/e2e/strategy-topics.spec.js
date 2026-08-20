@@ -123,27 +123,24 @@ test.describe('战略专题管理 - 搜索与筛选', () => {
   });
 
   test('下一年深化弹窗可使用 AI 生成研究目标', async ({ page }) => {
-    // 找到一个执行中或已闭环且无下一年深化的专题
+    // 找到任意状态且无下一年深化的专题（深化按钮不再限执行中/已闭环）
     const rows = page.locator('#strategy-topics-content tbody tr');
     const count = await rows.count();
     let opened = false;
     for (let i = 0; i < count; i++) {
       const row = rows.nth(i);
-      const statusText = await row.locator('td').nth(5).textContent().catch(() => '');
-      if (statusText.includes('执行阶段') || statusText.includes('已闭环')) {
-        const hasNext = await row.locator('td').first().textContent().then(t => t.includes('已深化')).catch(() => false);
-        if (!hasNext) {
-          await row.locator('.view-topic-btn').click();
+      const hasNext = await row.locator('td').first().textContent().then(t => t.includes('已深化')).catch(() => false);
+      if (!hasNext) {
+        await row.locator('.view-topic-btn').click();
+        await page.waitForTimeout(300);
+        const deepenBtn = page.locator('button:has-text("继续深化")');
+        if (await deepenBtn.count() > 0) {
+          await deepenBtn.click();
           await page.waitForTimeout(300);
-          const deepenBtn = page.locator('button:has-text("继续深化")');
-          if (await deepenBtn.count() > 0) {
-            await deepenBtn.click();
-            await page.waitForTimeout(300);
-            opened = true;
-            break;
-          } else {
-            await page.locator('#topic-detail-overlay button:has-text("关闭")').click();
-          }
+          opened = true;
+          break;
+        } else {
+          await page.locator('#topic-detail-overlay button:has-text("关闭")').click();
         }
       }
     }
