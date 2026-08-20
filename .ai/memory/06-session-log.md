@@ -2,6 +2,26 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-20（Kimi，发布 v0.7.30：会议模块四项生产 bug 修复）
+- **主题**：用户连续反馈 4 个会议模块生产问题（截图驱动）：议程删除按钮失灵、关联重点工作下拉重复、会议评估待办打不开、纪要定稿状态
+- **修复 1 议程删除**：按钮显示「?」根因是 `icon-mapping.js` 只有 `close: 'x'` 没有 `x` 键，`icon('x')` 兜底渲染 question 图标（全站 20+ 处受影响）；且只剩 1 条议程时按钮 disabled + `removeAgendaItem` 有「至少保留一个议程项」保护。修复：补 `x: 'x'` 别名；按用户确认移除保护（含保存时「未设置议程」占位回填），议程可删到 0 条
+- **修复 2 重点工作下拉重复**：`getOmpKeyWorks()` 未过滤——种子数据 3 个年度周期（2025/2026/2027）× 年度计划源头 + OMP 派生双副本，同名任务最多 6 重。修复：与 OMP 重点工作列表口径对齐（仅当前周期 `dste_current_cycle_id`、源头有派生副本时只保留副本、排除 `parentId` 子任务；无 cycleId 旧数据兼容保留）
+- **修复 3 评估待办打不开（隐蔽）**：人员目录 v4 迁移后 `host`/`recorder`/`agenda.owner` 变 PersonRef 对象，`calculateAutoScore`（scoring.js）`(meeting.host || '').trim()` 抛 `trim is not a function`，`openMeetingEvalModal` 中断。本地 demo 数据是字符串复现不了，须用 PersonRef + `meetingHeld: true` 形态。修复：`personNameOf()` 兼容层。**教训：涉及人员字段的代码都要考虑对象形态**
+- **修复 4 纪要定稿**：`minutesStatus === 'final'` 原本无任何运行时入口（UI「已定稿」永不显示）。按用户口径「有纪要内容即完成」：保存时置 `final` + 联动 `pipeline.minutesApproved = true`；存量数据由 `migrateMeetingsData()`（每次 init 都跑）自动修正；顺手清理 saveMeeting 两处 `hasMinutes`/`minutesStatus` 重复键被旧值覆盖。删除纪要内容不会自动取消定稿（单向）
+- **修改文件**：`assets/js/icon-mapping.js`、`src/meetings/renderers/meeting-editor.js`、`src/meetings/utils/agenda-recommender.js`、`src/meetings/utils/scoring.js`、`src/meetings/data-store.js` + 3 个单测文件
+- **验证**：unit 602 ✓ / pytest 211 ✓ / lint 0 error / check:scope ✓ / build ✓ / 会议相关 E2E 全绿；每个修复均写了临时 Playwright 用例实测（含生产形态数据复现 PersonRef 抛错），通过后删除。**Playwright 注意：webServer 是 `npm run preview` 跑 dist，改代码后必须重新 build 才生效**
+- **发布**：commit `e8029bb`（修复）+ `6383dcc`（版本 bump），tag `v0.7.30`，push main + tag，GitHub Actions Deploy #142 success；生产 bundle 五项内容断言与本地 dist 逐项一致（minify 后函数名会被改，断言要用字符串字面量/属性名）
+- **状态**：complete
+
+## 2026-08-20（Kimi，战略研讨会功能方案 RFC-009，文档会话无代码）
+- **主题**：基于 KMS《SP战略（2025~2027）制定工作安排（启动会）》（pageId=1295515249）设计「战略研讨会管理」功能，仅出文档方案不编码
+- **KMS 拉取**：本地 `.env` 的 KMS_API_TOKEN 曾失效（anonymous 404），后同一 token 复测恢复 200；生产 Flask 可拉 KMS 但 KIMI_API_KEY 401（/api/summary 不可用）；SSH 到生产 47.101.197.187 的 deploy_key 已失效
+- **方案要点**：新实体 `sp_campaigns`（内嵌 sessions 会议安排[增删改]/deliverables 输出件/topicCandidates 专题选题/evaluations 评价），独立页 `src/sp-workshop.html`（SP 分组 `sp/planning`，5 Tab：总览/会议安排/专题选题/输出件/评价）；复用会议模块（新 scenario `sp_workshop`）、strategy-topics（立项回填 topicId）、reviewer（输出件 AI 审核）、per-record-sync
+- **用户拍板**：① 首个正式 campaign = SP 2025~2027（T8 灌 KMS 真实数据：4 场会议 + 15 项候选课题）；② 投票机制本期不做，选题改「评论 + AT 手动立项」（数据模型已删 votes 字段）
+- **评审遗留待决**：用户身份来源（建议手动选人，CAS 恢复后切换）；sessions 与 meetings 数据双写漂移（建议 session 为计划态）；整篇 campaign 同步粒度 409 权衡；`sp_workshop` scenario 消费点排查；外部页创建 strategy-topic 需按字段全集构造
+- **产出文件**：`docs/02-RFC功能设计/009-strategy-workshop.md`（权威版）；副本存 Obsidian「我的笔记」库（iCloud）`DSTE-docs/02-RFC功能设计/009-strategy-workshop.md`，已登记该目录 README 的 RFC 表（注意：用户的笔记库是「我的笔记」，不是 `Documents/Obsidian Vault`）
+- **状态**：RFC draft 待用户评审，未编码、未提交
+
 ## 2026-08-20（Kimi，发布 v0.7.29：战略专题深化按钮修复）
 - **主题**：用户反馈战略专题「深化」按钮找不到（点名 2025 年「供应链」）
 - **排查**：按钮代码自 v0.6.6 未变；拉生产 `/api/strategy-topics` 核实——2026 年专题状态全为 `planning/insight`，2025「供应链」为 `insight`，而 `siViewTopicDetail` 的 `showDeepen` 要求 `execution/closed && !nextTopicId`，故按钮对所有目标专题不渲染

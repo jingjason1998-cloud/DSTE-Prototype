@@ -1,8 +1,10 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-20 15:55
+> 更新时间: 2026-08-20 17:30（v0.7.30 发布后）
 
 ## 状态
+**v0.7.30 已发布并部署生产**（2026-08-20 Kimi 会话，commit `e8029bb` + 版本 bump `6383dcc`，tag `v0.7.30`，Deploy #142 success）：会议模块四项生产 bug 修复——① `icon-mapping.js` 补 `x: 'x'` 别名，修复删除按钮等 20+ 处 `icon('x')` 渲染为问号；② 议程可删到 0 条（移除「至少保留一个议程项」保护与占位回填）；③ `getOmpKeyWorks()` 对齐 OMP 列表口径（当前周期 + 派生去重 + 排除子任务），修复关联重点工作下拉重复；④ `calculateAutoScore` 人员字段兼容 PersonRef 对象，修复会议评估待办点击抛 `trim is not a function` 打不开评估弹窗；⑤ 有纪要内容即 `minutesStatus='final'` 并联动 `pipeline.minutesApproved`，存量数据靠 `migrateMeetingsData()` 自动修正。验证：unit 602 / pytest 211 / lint 0 error / check:scope ✓ / build ✓ / 会议 E2E 全绿；生产 bundle 五项内容断言与本地一致。详见 session-log 顶部 08-20 条目（含 PersonRef 教训与 preview 需重新 build 提醒）。
+
 **v0.7.29 已发布并部署生产**（2026-08-20 Kimi 会话，commit `ed24c8e` + 版本 bump `dbb9728`，tag `v0.7.29`）：修复战略专题「下一年继续深化」按钮不可见——根因是 `src/cockpit.html` `siViewTopicDetail` 的 `showDeepen` 条件要求状态为 `execution/closed`，而生产 2026 年专题全为 `planning/insight`、2025 年「供应链」为 `insight`，导致按钮对所有目标专题不渲染。改为 `!topic.nextTopicId` 即显示；E2E 用例同步覆盖任意状态。验证：check:scope ✓ / pytest 211 passed / strategy-topics E2E 11/11 / lint 0 error / build ✓；生产 bundle 内容断言 + Playwright 实测生产 2025「供应链」详情显示「2026 年继续深化」。注意：v0.7.28 tag 在 08-19 已推送（知识库扩容），故本次修复发 v0.7.29。
 
 **v0.7.28 已发布**（2026-08-19 Claude 会话）：十五五规划知识库扩容，新增「专题研究」分组，收录《“十五五”新兴产业与未来产业》主报告、10 个赛道小节、公司清单 CSV 表格页；文档总数 97 → 109。`scripts/build-knowledge.cjs` 新增 CSV 解析/渲染与 `research/` 扫描，`src/pages/knowledge.js` 加入 research 分组展示。版本号 `0.7.27 → 0.7.28`，CHANGELOG 已更新。本地验证：lint 0 error / check:scope ✓ / pytest test_knowledge.py 12 passed / knowledge E2E 9/9 / build ✓。
@@ -117,6 +119,13 @@
 - 断点/恢复见 `08-checkpoint.md`，任务配方见 `.ai/tasks/active/T030-resolution-center.md`
 
 ## 刚完成
+
+### 战略研讨会功能方案 RFC-009（Kimi 会话，2026-08-20，文档会话无代码）
+- 基于 KMS《SP战略（2025~2027）制定工作安排（启动会）》（pageId=1295515249）完成「战略研讨会管理」方案设计，仅文档不编码
+- 方案：新实体 `sp_campaigns`（内嵌 sessions/deliverables/topicCandidates/evaluations）+ 独立页 `src/sp-workshop.html`（SP 分组，5 Tab）；复用会议模块（新 scenario `sp_workshop`）、strategy-topics 立项、reviewer 审核、per-record-sync
+- 用户拍板：首个 campaign = SP 2025~2027（T8 灌 KMS 真实数据）；投票本期不做（评论 + AT 手动立项）
+- 文件：`docs/02-RFC功能设计/009-strategy-workshop.md`（权威版）+ Obsidian「我的笔记」库副本 `DSTE-docs/02-RFC功能设计/009-strategy-workshop.md`
+- 待评审遗留：身份来源、session/meeting 双写漂移、同步粒度 409、scenario 消费点排查、topic 字段全集构造——详见 session-log 08-20 条目
 
 ### 干部管理下新增「2026年销售小组HC配置分析报告」（Kimi 会话，2026-08-11，未提交）
 - KMS `pageId=1417993864`（PQLX 空间）的 `iframe.html.wrapper` 控件代码（87KB 自包含看板，ECharts 走 CDN）接入 **战略评估 → 干部管理**：新建 `src/hc-analysis-2026.html`（embed/高度自适应/CAS 回调头脚本，内容零改动），`vite.config.js` 注册入口，`src/lib/config.js` 把「干部管理」拆为可折叠分组（总览 + 报告）
@@ -270,7 +279,8 @@
 - 全量 E2E 并行运行时偶发 `page.goto` 超时（`business-topics.spec.js`、`navigation.spec.js`、`reviewer-embed.spec.js`），单独重跑可 pass
 
 ## 下一步
-1. **恢复生产 CAS 认证（P0 安全）** — 见「已知问题」；建议单独热修版
+1. **RFC-009 战略规划制定（SP 研讨会）评审与实施** — 文档已出（`docs/02-RFC功能设计/009-strategy-workshop.md`），待用户评审遗留 5 项决策后按 T1~T8 拆分开发
+2. **恢复生产 CAS 认证（P0 安全）** — 见「已知问题」；建议单独热修版
 2. **Worker 议题过滤/分页端点（方案 A 收尾）** — 让「关联议题」弹窗在生产可用；`/api/catalogs` 2.9s 偏慢也值得一查
 3. **继续拆 cockpit.html（BP 已完成，10,631 → 7,976 行）** — 建议先 sp/strategy-topics（低风险练手）后 exe/OMP（最大块，与 omp-store.js 衔接顺）；BP 拆分模式与验证清单见 session-log 08-11 条目
 4. **API 链路架构决策** — 国内 CDN 回源 Cloudflare vs 数据层迁回国内（与 T080 方向相关，需统一）
