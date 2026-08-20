@@ -12,3 +12,8 @@ zone_id = "0ef3689c540f72658247ce306882d790"
 [[kv_namespaces]]
 binding = "DSTE_KV"
 id = "69ed6153435d4ba5b3b17c9077ce74c9"
+
+# AI 端点免鉴权开关：仅放行 localhost 与 AI_AUTH_BYPASS_ORIGINS 白名单域名，其余请求仍需 token
+# TODO: 恢复 CAS 认证时改回 "true" 并移除 worker.js 中的生产域名白名单
+[vars]
+AI_AUTH_REQUIRED = "false"

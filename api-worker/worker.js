@@ -174,10 +174,12 @@ async function requireAuth(request, env) {
 }
 
 // AI 端点认证开关（本地开发可关闭）
+// TODO: 临时放行生产域名，与前端 isLocalDev CAS 绕过对等；恢复 CAS 认证时一并移除 dste.fineres.com
+const AI_AUTH_BYPASS_ORIGINS = ['https://dste.fineres.com'];
 async function requireAiAuth(request, env) {
   if (env.AI_AUTH_REQUIRED === 'false') {
     const origin = request.headers.get('Origin') || '';
-    if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
+    if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:') || AI_AUTH_BYPASS_ORIGINS.includes(origin)) {
       return { valid: true, user: null };
     }
   }
