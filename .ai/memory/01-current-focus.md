@@ -1,9 +1,11 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-19 15:01
+> 更新时间: 2026-08-20 15:55
 
 ## 状态
-**v0.7.28 准备发布**（2026-08-19 Claude 会话）：十五五规划知识库扩容，新增「专题研究」分组，收录《“十五五”新兴产业与未来产业》主报告、10 个赛道小节、公司清单 CSV 表格页；文档总数 97 → 109。`scripts/build-knowledge.cjs` 新增 CSV 解析/渲染与 `research/` 扫描，`src/pages/knowledge.js` 加入 research 分组展示。版本号 `0.7.27 → 0.7.28`，CHANGELOG 已更新。本地验证：lint 0 error / check:scope ✓ / pytest test_knowledge.py 12 passed / knowledge E2E 9/9 / build ✓。
+**v0.7.29 已发布并部署生产**（2026-08-20 Kimi 会话，commit `ed24c8e` + 版本 bump `dbb9728`，tag `v0.7.29`）：修复战略专题「下一年继续深化」按钮不可见——根因是 `src/cockpit.html` `siViewTopicDetail` 的 `showDeepen` 条件要求状态为 `execution/closed`，而生产 2026 年专题全为 `planning/insight`、2025 年「供应链」为 `insight`，导致按钮对所有目标专题不渲染。改为 `!topic.nextTopicId` 即显示；E2E 用例同步覆盖任意状态。验证：check:scope ✓ / pytest 211 passed / strategy-topics E2E 11/11 / lint 0 error / build ✓；生产 bundle 内容断言 + Playwright 实测生产 2025「供应链」详情显示「2026 年继续深化」。注意：v0.7.28 tag 在 08-19 已推送（知识库扩容），故本次修复发 v0.7.29。
+
+**v0.7.28 已发布**（2026-08-19 Claude 会话）：十五五规划知识库扩容，新增「专题研究」分组，收录《“十五五”新兴产业与未来产业》主报告、10 个赛道小节、公司清单 CSV 表格页；文档总数 97 → 109。`scripts/build-knowledge.cjs` 新增 CSV 解析/渲染与 `research/` 扫描，`src/pages/knowledge.js` 加入 research 分组展示。版本号 `0.7.27 → 0.7.28`，CHANGELOG 已更新。本地验证：lint 0 error / check:scope ✓ / pytest test_knowledge.py 12 passed / knowledge E2E 9/9 / build ✓。
 
 **v0.7.27 已发布并部署生产**（2026-08-12 Claude 会话，bundle 多个并行会话）：合并前端升级 A+B（视觉打磨 + Cmd+K + 侧边栏收藏/最近访问）、十五五规划知识库网页版、驾驶舱首页真实数据改造、战略解码 BP 页、2026 年销售小组 HC 配置分析报告、业务专题议题按需加载 + 年度筛选默认值修复、PPT/图标脚本辅助工具。版本号 `0.7.26 → 0.7.27`，CHANGELOG 与 roadmap-data 已更新。本地验证：lint 0 error / check:scope ✓ / pytest 198 passed / unit 609 / build ✓ / 全量 E2E 待跑。tag `v0.7.27` 已推送，GitHub Actions 部署完成后生产 smoke 通过。
 

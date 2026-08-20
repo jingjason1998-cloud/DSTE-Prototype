@@ -2,6 +2,14 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-20（Kimi，发布 v0.7.29：战略专题深化按钮修复）
+- **主题**：用户反馈战略专题「深化」按钮找不到（点名 2025 年「供应链」）
+- **排查**：按钮代码自 v0.6.6 未变；拉生产 `/api/strategy-topics` 核实——2026 年专题状态全为 `planning/insight`，2025「供应链」为 `insight`，而 `siViewTopicDetail` 的 `showDeepen` 要求 `execution/closed && !nextTopicId`，故按钮对所有目标专题不渲染
+- **修改文件**：`src/cockpit.html`（`showDeepen = !topic.nextTopicId`）、`tests/e2e/strategy-topics.spec.js`（深化用例覆盖任意状态）、版本四件套 + CHANGELOG + roadmap-data → 0.7.29
+- **验证**：check:scope ✓ / pytest 211 passed / strategy-topics E2E 11/11 / lint 0 error / build ✓；生产 bundle 断言新逻辑 `!a.nextTopicId`；Playwright 实测生产 2025「供应链」（洞察阶段）详情显示「2026 年继续深化」
+- **发布**：commit `ed24c8e`（修复）+ `dbb9728`（版本 bump），tag `v0.7.29`，push main + tag，GitHub Actions 部署成功
+- **状态**：complete
+
 ## 2026-08-19（Claude，准备并发布 v0.7.28：知识库专题研究扩容）
 - **主题**：将工作区中知识库「专题研究」分组与构建管线改进打包发布为 v0.7.28
 - **内容**：
