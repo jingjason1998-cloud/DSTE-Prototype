@@ -1,9 +1,13 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-20 17:30（v0.7.30 发布后）
+> 更新时间: 2026-08-20（工作区页签 keep-alive 完成后，未提交）
 
 ## 状态
+**工作区页签切换状态保持（RFC-010）已完成，未提交未发布**（2026-08-20 Kimi 会话）：方案 D = A+C——外部页 iframe keep-alive（`#workspace-panes` 容器与 `#page-content` 平级，每外部页页签一个 `.workspace-iframe-wrap[data-page-id]` 常驻 DOM 只切显隐，首次激活才建 iframe，LRU 上限 5）+ 内部页轻量快照（switchTab 前记 scrollTop/表单值，切回恢复，内存 Map）。`dste-embed-resize` 按 event.source 路由、`_postPendingRecordToIframe` 按活动页签定位、暴露 `window.openTab`。验证：check:scope ✓ / lint 0 error / pytest 211 / unit 602 / build ✓ / workspace-tabs E2E 11/11 / 相关回归 58 ✓。RFC：`docs/02-RFC功能设计/010-workspace-tab-keepalive.md`。详见 session-log 顶部 08-20 条目。
+
 **v0.7.30 已发布并部署生产**（2026-08-20 Kimi 会话，commit `e8029bb` + 版本 bump `6383dcc`，tag `v0.7.30`，Deploy #142 success）：会议模块四项生产 bug 修复——① `icon-mapping.js` 补 `x: 'x'` 别名，修复删除按钮等 20+ 处 `icon('x')` 渲染为问号；② 议程可删到 0 条（移除「至少保留一个议程项」保护与占位回填）；③ `getOmpKeyWorks()` 对齐 OMP 列表口径（当前周期 + 派生去重 + 排除子任务），修复关联重点工作下拉重复；④ `calculateAutoScore` 人员字段兼容 PersonRef 对象，修复会议评估待办点击抛 `trim is not a function` 打不开评估弹窗；⑤ 有纪要内容即 `minutesStatus='final'` 并联动 `pipeline.minutesApproved`，存量数据靠 `migrateMeetingsData()` 自动修正。验证：unit 602 / pytest 211 / lint 0 error / check:scope ✓ / build ✓ / 会议 E2E 全绿；生产 bundle 五项内容断言与本地一致。详见 session-log 顶部 08-20 条目（含 PersonRef 教训与 preview 需重新 build 提醒）。
+
+**AI 端点 401 热修（2026-08-20 Kimi 会话，commit `102c08f`，Worker 已部署无版本号）**：会议 AI 助手报「AI 请求失败：Unauthorized」。根因：CAS 绕过 → 前端无 `dste-token`，而 Worker `/api/ai/*` 强制 Bearer 鉴权。修复：`requireAiAuth` 增加 `AI_AUTH_BYPASS_ORIGINS = ['https://dste.fineres.com']`，`wrangler.toml [vars] AI_AUTH_REQUIRED = "false"`。wrangler 部署后 curl 验证：生产 Origin 200（KIMI_API_KEY 有效），无 Origin/恶意 Origin 均 401。**注意 wrangler 部署有 ~30s 传播延迟，立即 curl 会拿到旧版本**。恢复 CAS 时需回改此提交 + 前端 isLocalDev 白名单。
 
 **v0.7.29 已发布并部署生产**（2026-08-20 Kimi 会话，commit `ed24c8e` + 版本 bump `dbb9728`，tag `v0.7.29`）：修复战略专题「下一年继续深化」按钮不可见——根因是 `src/cockpit.html` `siViewTopicDetail` 的 `showDeepen` 条件要求状态为 `execution/closed`，而生产 2026 年专题全为 `planning/insight`、2025 年「供应链」为 `insight`，导致按钮对所有目标专题不渲染。改为 `!topic.nextTopicId` 即显示；E2E 用例同步覆盖任意状态。验证：check:scope ✓ / pytest 211 passed / strategy-topics E2E 11/11 / lint 0 error / build ✓；生产 bundle 内容断言 + Playwright 实测生产 2025「供应链」详情显示「2026 年继续深化」。注意：v0.7.28 tag 在 08-19 已推送（知识库扩容），故本次修复发 v0.7.29。
 
@@ -271,7 +275,7 @@
 
 ## 已知问题
 - **生产 `/api/issues` 服务端病态（2026-08-11 查明）**：议题全量 5.16MB，国内服务器 nginx ↔ Cloudflare Worker 跨境链路持续传输被限速至 ~13KB/s，大响应永远传不完。前端已兜底（v0.7.26 首屏不阻塞 + v0.7.27 按需加载），但「关联议题」弹窗/AI 匹配在生产首次加载云端议题仍会失败。**待办：Worker 加 `?sourceSystem=`/分页过滤端点；长期需 API 链路架构决策（国内 CDN 回源 vs 数据迁回国内）**
-- **临时 CAS 绕过仍未恢复（2026-07-29 起）**：`isLocalDev` 白名单仍含 `dste.fineres.com`，**生产环境无登录认证**，需单独排期热修并验证 CAS 回跳链路
+- **临时 CAS 绕过仍未恢复（2026-07-29 起）**：`isLocalDev` 白名单仍含 `dste.fineres.com`，**生产环境无登录认证**，需单独排期热修并验证 CAS 回跳链路。**2026-08-20 起 Worker 侧也有对等绕过**：`AI_AUTH_REQUIRED=false` + `worker.js` `AI_AUTH_BYPASS_ORIGINS` 含 `https://dste.fineres.com`（AI 端点免 token），恢复 CAS 时三处一并回改（commit `102c08f`）
 - `meeting-detail.spec.js` 部分测试偶发失败（元素不可见/点击超时）— 与预览服务器渲染时序有关，非代码回归
 - ~~omp-tasks.spec.js:450 per-record 同步用例基线 flaky~~ — 已由 `32de728` 修复（route matching + reload timing）
 - 空占位行动项污染：已修复保存时过滤无内容/无负责人的行动项，并在启动迁移时自动清理；E2E 测试已增加 afterEach 清理

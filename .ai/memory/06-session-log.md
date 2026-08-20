@@ -2,6 +2,24 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-20（Kimi，AI 端点 401 热修：Worker 临时放行生产域名）
+- **主题**：用户反馈会议 AI 助手报「AI 请求失败：Unauthorized」（截图）
+- **诊断**：CAS 绕过（isLocalDev 白名单）→ 前端无 `dste-token`；Worker `/api/ai/chat` 等 4 个端点走 `requireAiAuth → requireAuth` 强制 Bearer 鉴权 → 401。数据接口 GET 免鉴权所以数据能读，AI 全挂。前端把任意 401 显示为「登录已过期」
+- **修复**（用户选定临时放行方案）：`worker.js` `requireAiAuth` 新增 `AI_AUTH_BYPASS_ORIGINS = ['https://dste.fineres.com']`；`wrangler.toml` 新增 `[vars] AI_AUTH_REQUIRED = "false"`。无 Origin / 非白名单 Origin 仍 401
+- **部署验证**：`npx wrangler deploy`（Version `888475dc`）；curl 经生产 nginx 验证：生产 Origin 200 返回真实 Kimi 回复（顺带证明 Worker 的 `KIMI_API_KEY` 有效），无 Origin / `evil.example.com` 均 401
+- **坑**：① wrangler 部署有 ~30s 传播延迟，deploy 后立即 curl 拿到旧版本，差点误判 nginx 剥 Origin 头；② 生产 SSH deploy_key 已失效，nginx 配置只能从仓库脚本推断
+- **恢复 CAS 时联动回改**：本提交（Worker 白名单 + vars）+ 前端 isLocalDev 白名单（index/cockpit/business-topics/meetings/requirement-pool/rule-engine.html）
+- **状态**：complete（commit `102c08f` 已推送；Worker 改动不走版本号）
+
+## 2026-08-20（Kimi，工作区页签切换状态保持 RFC-010，未提交）
+- **主题**：用户痛点——页签栏切换标签（经营分析会→干部管理→切回）页面整页刷新，滚动/筛选/输入全丢。实施方案 D = A（外部页 iframe keep-alive）+ C（内部页轻量状态快照）
+- **A 外部页 keep-alive**：`#page-content` 同级新增 `#workspace-panes` 容器（`src/styles/shell.css` 布局：flex:1 + max-width 与 page-content 对齐）；每个外部页页签一个 `.workspace-iframe-wrap[data-page-id]` 常驻 DOM，切页签只切 display；iframe 首次激活才创建（骨架屏仅首次），切回零重载；LRU 上限 `WORKSPACE_IFRAME_KEEPALIVE_MAX = 5`（`data-last-active` 时间戳，淘汰最久未激活）；closeTab/页签内换页（updateActiveTab）移除对应 wrap
+- **C 内部页快照**：`switchTab` 离开前快照 `#page-content` scrollTop + window.scrollY + 有 id 的 input/select/textarea 值（checkbox/radio 记 checked），存内存 Map（tabId→snap，不写 localStorage）；切回重渲染后恢复（不派发 change 事件）；closeTab 清除。不恢复组件态（OMP 有 window._ompState）
+- **单数查询改造**：`dste-embed-resize` 按 `event.source` 匹配 iframe contentWindow；`_postPendingRecordToIframe` 改 `_getActiveIframe()`（按 currentPage 定位 wrap）；`_showIframeWrap` 已存在路径直接投递 pending record（iframe 已加载无 load 事件）；暴露 `window.openTab`（E2E 构造多外部页标签用，侧边栏导航会复用标签无法造多外部页标签）
+- **修改文件**：`src/cockpit.html`、`src/styles/shell.css`、`tests/e2e/workspace-tabs.spec.js`（5 新用例 + 旧用例选择器改 wrap 作用域防严格模式冲突）、`docs/02-RFC功能设计/010-workspace-tab-keepalive.md`
+- **验证**：check:scope ✓ / lint 0 error（1554 warnings 为既有基线）/ pytest 211 ✓ / unit 602 ✓ / build ✓ / workspace-tabs E2E 11/11 ✓ / 相关回归（navigation+command-palette+external-pages-embed+test-sp-nav-verify+sidebar-recents+report-center-nav）58 ✓
+- **状态**：complete，未提交未发布，随下个版本上线
+
 ## 2026-08-20（Kimi，发布 v0.7.30：会议模块四项生产 bug 修复）
 - **主题**：用户连续反馈 4 个会议模块生产问题（截图驱动）：议程删除按钮失灵、关联重点工作下拉重复、会议评估待办打不开、纪要定稿状态
 - **修复 1 议程删除**：按钮显示「?」根因是 `icon-mapping.js` 只有 `close: 'x'` 没有 `x` 键，`icon('x')` 兜底渲染 question 图标（全站 20+ 处受影响）；且只剩 1 条议程时按钮 disabled + `removeAgendaItem` 有「至少保留一个议程项」保护。修复：补 `x: 'x'` 别名；按用户确认移除保护（含保存时「未设置议程」占位回填），议程可删到 0 条
