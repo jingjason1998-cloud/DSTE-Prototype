@@ -257,6 +257,23 @@ describe('calculateAutoScore (v2.0 three-stage model)', () => {
 
     expect(result.subScores.postponementDeduction).toBe(0);
   });
+
+  it('tolerates PersonRef object fields (host/recorder/owner)', () => {
+    const meeting = makeMeeting({
+      pipeline: { meetingHeld: true },
+      host: { id: 'e1', name: '主持人', displayName: '主持人' },
+      recorder: { id: 'e2', name: '记录人', displayName: '记录人' },
+      agenda_items: [
+        { type: 'goal_management', title: '目标回顾', duration: 30, owner: { id: 'e3', name: 'A', displayName: 'A' }, material_link: 'https://kms/1' },
+      ],
+    });
+
+    const result = calculateAutoScore(meeting, sameDayEval, {});
+
+    // 不应抛错；人员计分与字符串形态一致（owner 齐全 +3，3 名参会人 6 + 3*1.5）
+    expect(result.subScores.effectiveDiscussion).toBeCloseTo(9, 1);
+    expect(result.subScores.participation).toBeCloseTo(10.5, 1);
+  });
 });
 
 describe('getScoreColor', () => {

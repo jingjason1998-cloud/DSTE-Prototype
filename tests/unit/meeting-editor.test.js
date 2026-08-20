@@ -239,11 +239,10 @@ describe('removeAgendaItem', () => {
     expect(window._meetingEditData.agenda_items[0].title).toBe('议题二');
   });
 
-  it('shows toast when only one item left', () => {
+  it('removes the last remaining item (agenda can be emptied)', () => {
     window._meetingEditData.agenda_items = [{ id: 'ag_1', title: '唯一议题' }];
     editor.removeAgendaItem(0);
-    expect(window.showToast).toHaveBeenCalledWith('至少保留一个议程项', 'warning');
-    expect(window._meetingEditData.agenda_items.length).toBe(1);
+    expect(window._meetingEditData.agenda_items.length).toBe(0);
   });
 
   it('cleans cross-references in decisions and actions', () => {

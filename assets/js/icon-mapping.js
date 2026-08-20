@@ -59,6 +59,7 @@ export const ICONS = {
   settings: 'gear',
   logout: 'sign-out',
   close: 'x',
+  x: 'x',
   add: 'plus',
   edit: 'pencil-simple',
   delete: 'trash',

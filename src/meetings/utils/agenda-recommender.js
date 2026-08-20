@@ -50,13 +50,26 @@ export function getOpenResolutions() {
 
 /**
  * 从 localStorage 读取 OMP 重点工作（仅标题/截止日/状态/风险）
+ *
+ * 口径与 OMP 重点工作列表一致，避免下拉重复：
+ * - 仅当前考核周期（无 cycleId 的旧数据不过滤，保持兼容）
+ * - 年度计划源头任务若已派生 OMP 执行副本，只保留执行副本
+ * - 排除子任务（parentId 非空）
+ *
  * @returns {Array}
  */
 export function getOmpKeyWorks() {
   try {
     const raw = Storage.get('dste_omp_tasks_v1', []);
     const tasks = Array.isArray(raw) ? raw : [];
+    const cycleId = Storage.getString('dste_current_cycle_id')
+      || (typeof window !== 'undefined' ? window._dsteState?.currentCycleId : null)
+      || `cycle_${new Date().getFullYear()}_marketing`;
+    const derivedSourceIds = new Set(tasks.map(t => t.annualPlanTaskId).filter(Boolean));
     return tasks
+      .filter(t => !t.cycleId || t.cycleId === cycleId)
+      .filter(t => !(t.source === 'annual_plan' && derivedSourceIds.has(t.id)))
+      .filter(t => !t.parentId)
       .filter(t => t.status !== 'completed' && t.status !== 'cancelled')
       .map(t => ({
         id: t.id || '',

@@ -21,6 +21,17 @@ function round1(value) {
 }
 
 /**
+ * 兼容 PersonRef 对象与旧字符串，取人员显示名
+ * @param {*} value - 字符串或 { displayName, name } 对象
+ * @returns {string}
+ */
+function personNameOf(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return value.displayName || value.name || '';
+}
+
+/**
  * 根据会议数据计算 AI 推荐评分
  * @param {Object} meeting - 会议对象
  * @param {string} [evalAtISO] - 评估时间 ISO 字符串，用于计算评分及时性
@@ -77,15 +88,18 @@ export function calculateAutoScore(meeting, evalAtISO, reviewScores = {}) {
     effectiveDiscussion += 6;
     if (hasMinutes) effectiveDiscussion += 3;
     const allAgendasHaveOwner =
-      agendaItems.length > 0 && agendaItems.every((a) => (a.owner || '').trim());
+      agendaItems.length > 0 && agendaItems.every((a) => personNameOf(a.owner).trim());
     if (allAgendasHaveOwner) effectiveDiscussion += 3;
 
     participation += 6;
     const uniqueParticipants = new Set();
-    if ((meeting.host || '').trim()) uniqueParticipants.add(meeting.host.trim());
-    if ((meeting.recorder || '').trim()) uniqueParticipants.add(meeting.recorder.trim());
+    const hostName = personNameOf(meeting.host).trim();
+    const recorderName = personNameOf(meeting.recorder).trim();
+    if (hostName) uniqueParticipants.add(hostName);
+    if (recorderName) uniqueParticipants.add(recorderName);
     agendaItems.forEach((a) => {
-      if ((a.owner || '').trim()) uniqueParticipants.add(a.owner.trim());
+      const ownerName = personNameOf(a.owner).trim();
+      if (ownerName) uniqueParticipants.add(ownerName);
     });
     const participantAdd = Math.min(6, uniqueParticipants.size * 1.5);
     participation += participantAdd;

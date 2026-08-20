@@ -379,7 +379,7 @@ function renderAgendaList() {
           ${item.status !== 'postponed' ? `<button type="button" onclick="event.stopPropagation(); openPostponeTargetSelector(window._meetingEditData.id, ${idx})" style="padding: 4px 8px; font-size: 11px; border: 1px solid var(--warning); border-radius: 4px; background: rgba(245,158,11,0.08); color: var(--warning); cursor: pointer; white-space: nowrap; flex-shrink: 0;">${icon('caretRight', {size: 12})} 顺延</button>` : ''}
           <button type="button" onclick="moveAgendaItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">${icon('caretUp', {size: 12})}</button>
           <button type="button" onclick="moveAgendaItem(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-page); cursor: pointer; color: var(--text-secondary);">${icon('caretDown', {size: 12})}</button>
-          <button type="button" onclick="removeAgendaItem(${idx})" ${list.length <= 1 ? 'disabled' : ''} style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">${icon('x', {size: 12})}</button>
+          <button type="button" onclick="removeAgendaItem(${idx})" style="padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); border-radius: 4px; background: rgba(245,34,45,0.08); cursor: pointer; color: var(--danger);">${icon('x', {size: 12})}</button>
         </div>
       </div>
     </div>
@@ -441,7 +441,6 @@ function addAgendaItem() {
 }
 function removeAgendaItem(idx) {
   if (!window._meetingEditData?.agenda_items) return;
-  if (window._meetingEditData.agenda_items.length <= 1) { window.showToast('至少保留一个议程项', 'warning'); return; }
   const removed = window._meetingEditData.agenda_items[idx];
   const removedId = removed && removed.id;
   window._meetingEditData.agenda_items.splice(idx, 1);
@@ -996,7 +995,7 @@ function saveMeeting() {
         minutes_report_id: d.minutes_report_id || '',
         minutes_content: document.getElementById('edit-minutes-content')?.value.trim() || '',
         hasMinutes: !!document.getElementById('edit-minutes-content')?.value.trim(),
-        minutesStatus: document.getElementById('edit-minutes-content')?.value.trim() ? 'draft' : null,
+        minutesStatus: document.getElementById('edit-minutes-content')?.value.trim() ? 'final' : null,
         scenario: scenarioVal,
         level: document.getElementById('edit-level').value,
         status: statusVal,
@@ -1006,11 +1005,13 @@ function saveMeeting() {
         pipeline: d.pipeline || {},
         upstreamMeeting: d.upstreamMeeting || null,
         downstreamMeeting: d.downstreamMeeting || null,
-        hasMinutes: d.hasMinutes || false,
-        minutesStatus: d.minutesStatus || null,
         metrics: d.metrics || { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 },
         effectiveness: d.effectiveness || null
       };
+      // 有纪要内容即视为「纪要定稿」完成
+      if (newMeeting.hasMinutes) {
+        newMeeting.pipeline = { ...newMeeting.pipeline, minutesApproved: true };
+      }
       if (newMeeting.agenda_items.length === 0) {
         const fallbackAgendaId = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
         newMeeting.agenda_items = [{ id: fallbackAgendaId, type: 'goal_management', title: '未设置议程', duration: 15, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: fallbackAgendaId, postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [] }];
@@ -1032,22 +1033,20 @@ function saveMeeting() {
       meetings[idx].minutes_report_id = d.minutes_report_id || '';
       meetings[idx].minutes_content = document.getElementById('edit-minutes-content')?.value.trim() || '';
       meetings[idx].hasMinutes = !!document.getElementById('edit-minutes-content')?.value.trim();
-      meetings[idx].minutesStatus = document.getElementById('edit-minutes-content')?.value.trim() ? 'draft' : null;
+      meetings[idx].minutesStatus = document.getElementById('edit-minutes-content')?.value.trim() ? 'final' : null;
       meetings[idx].scenario = scenarioVal;
       meetings[idx].level = document.getElementById('edit-level').value;
       meetings[idx].status = statusVal;
       meetings[idx].agenda_items = (d.agenda_items || []).filter(a => a.title.trim());
-      if (meetings[idx].agenda_items.length === 0) {
-        const fallbackAgendaId = 'ag_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-        meetings[idx].agenda_items = [{ id: fallbackAgendaId, type: 'goal_management', title: '未设置议程', duration: 15, owner: '', material_link: '', data_views: [], pre_report_section: '', status: 'planned', originalAgendaId: fallbackAgendaId, postponedCount: 0, carriedFromAgendaId: null, carriedFromMeetingId: null, postponedHistory: [] }];
-      }
       meetings[idx].actions = (d.actions || []).filter(a => a.content?.trim() || (typeof a.owner === 'string' ? a.owner.trim() : (a.owner?.name || a.owner?.id)));
       meetings[idx].decisions = d.decisions || [];
       meetings[idx].pipeline = d.pipeline || {};
       meetings[idx].upstreamMeeting = d.upstreamMeeting || null;
       meetings[idx].downstreamMeeting = d.downstreamMeeting || null;
-      meetings[idx].hasMinutes = d.hasMinutes || false;
-      meetings[idx].minutesStatus = d.minutesStatus || null;
+      // 有纪要内容即视为「纪要定稿」完成
+      if (meetings[idx].hasMinutes) {
+        meetings[idx].pipeline = { ...meetings[idx].pipeline, minutesApproved: true };
+      }
       meetings[idx].metrics = d.metrics || { materialTimeliness: 0, resolutionTimeliness: 0, actionClosure: 0, satisfaction: 0 };
       meetings[idx].effectiveness = d.effectiveness || null;
       const editorOverlay = document.getElementById('meeting-editor-overlay');

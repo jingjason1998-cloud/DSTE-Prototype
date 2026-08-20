@@ -131,6 +131,49 @@ describe('agenda-recommender', () => {
       expect(result[0].title).toBe('Key work 1');
       expect(result[0].riskLevel).toBe('high');
     });
+
+    it('hides annual_plan source task when a derived omp copy exists', () => {
+      storageMap.set('dste_current_cycle_id', 'cycle_2026_marketing');
+      storageMap.set('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'task_1', cycleId: 'cycle_2026_marketing', source: 'annual_plan', name: '大客户经营能力提升', status: 'active' },
+        { id: 'omp_task_1', cycleId: 'cycle_2026_marketing', source: 'omp', annualPlanTaskId: 'task_1', name: '大客户经营能力提升', status: 'planning' },
+      ]));
+      const result = getOmpKeyWorks();
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('omp_task_1');
+    });
+
+    it('keeps annual_plan source task when no derived copy exists', () => {
+      storageMap.set('dste_current_cycle_id', 'cycle_2026_marketing');
+      storageMap.set('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'task_1', cycleId: 'cycle_2026_marketing', source: 'annual_plan', name: '大客户经营能力提升', status: 'active' },
+      ]));
+      const result = getOmpKeyWorks();
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('task_1');
+    });
+
+    it('filters out tasks from other cycles but keeps legacy tasks without cycleId', () => {
+      storageMap.set('dste_current_cycle_id', 'cycle_2026_marketing');
+      storageMap.set('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'T1', cycleId: 'cycle_2026_marketing', source: 'omp', name: '今年任务', status: 'active' },
+        { id: 'T2', cycleId: 'cycle_2025_marketing', source: 'omp', name: '去年任务', status: 'active' },
+        { id: 'T3', name: '无周期旧任务', status: 'active' },
+      ]));
+      const result = getOmpKeyWorks();
+      expect(result.map(t => t.id)).toEqual(['T1', 'T3']);
+    });
+
+    it('excludes subtasks with parentId', () => {
+      storageMap.set('dste_current_cycle_id', 'cycle_2026_marketing');
+      storageMap.set('dste_omp_tasks_v1', JSON.stringify([
+        { id: 'T1', cycleId: 'cycle_2026_marketing', source: 'omp', name: '父任务', status: 'active' },
+        { id: 'T2', cycleId: 'cycle_2026_marketing', source: 'omp', parentId: 'T1', name: '子任务', status: 'active' },
+      ]));
+      const result = getOmpKeyWorks();
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('T1');
+    });
   });
 
   describe('buildRecommendationContext', () => {

@@ -624,10 +624,12 @@ export function migrateMeetingsData() {
     if (typeof m.pre_report_id !== 'string') m.pre_report_id = '';
     if (typeof m.minutes_content !== 'string') m.minutes_content = '';
     // 同步 hasMinutes / minutesStatus 与 minutes_content，修复旧数据标志位不一致
+    // 约定：有纪要内容即视为已定稿，并联动一报一会流程「纪要定稿」步骤
     const hasMinutesContent = m.minutes_content.trim().length > 0;
     if (hasMinutesContent) {
       if (!m.hasMinutes) { m.hasMinutes = true; cleanedAny = true; }
-      if (!m.minutesStatus) { m.minutesStatus = 'draft'; cleanedAny = true; }
+      if (m.minutesStatus !== 'final') { m.minutesStatus = 'final'; cleanedAny = true; }
+      if (m.pipeline && !m.pipeline.minutesApproved) { m.pipeline.minutesApproved = true; cleanedAny = true; }
     } else {
       if (m.hasMinutes) { m.hasMinutes = false; cleanedAny = true; }
       if (m.minutesStatus) { m.minutesStatus = null; cleanedAny = true; }
