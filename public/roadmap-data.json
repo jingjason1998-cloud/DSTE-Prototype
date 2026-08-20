@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "v0.7.29",
+      "date": "2026-08-20",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**战略专题「下一年继续深化」按钮对所有状态可见**：原 `showDeepen` 条件要求专题状态为执行中/已闭环才显示深化入口，导致洞察/规划阶段的专题（如 2025 年「供应链」）无法发起年度深化；改为只要尚无下一年专题（`nextTopicId`）即显示，已深化的专题仍显示「查看下一年深化专题」。同步更新 `tests/e2e/strategy-topics.spec.js` 深化用例覆盖任意状态。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.28",
       "date": "2026-08-19",
       "status": "released",
