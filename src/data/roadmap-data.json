@@ -1,6 +1,29 @@
 {
   "versions": [
     {
+      "version": "v0.7.30",
+      "date": "2026-08-20",
+      "status": "released",
+      "changes": [
+        {
+          "type": "Fixed",
+          "desc": "**会议评估待办打不开评估弹窗**：人员目录 v4 迁移后 `host`/`recorder`/`agenda.owner` 变为 PersonRef 对象，而 `calculateAutoScore` 仍按字符串调用 `.trim()`，已完成会议点击「会议评估」待办即抛 `trim is not a function`，弹窗无法打开；新增 `personNameOf()` 兼容层，单测补 PersonRef 形态用例。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**议程删除按钮显示问号、最后一条不可删**：`icon-mapping.js` 缺 `x` 键导致全站 20+ 处 `icon('x')` 兜底渲染为问号图标，补 `x: 'x'` 别名；按用户确认移除「至少保留一个议程项」保护（按钮 disabled + 函数 guard + 保存时「未设置议程」占位回填），议程可删到 0 条。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**关联重点工作下拉重复**：`getOmpKeyWorks()` 未过滤周期与来源，种子数据 3 个年度周期 × 年度计划源头/OMP 派生双副本导致同名任务重复出现；与 OMP 重点工作列表口径对齐（仅当前周期、源头有派生副本时只保留副本、排除子任务）。"
+        },
+        {
+          "type": "Fixed",
+          "desc": "**纪要定稿状态不可达**：原 `minutesStatus === 'final'` 无任何运行时入口（仅种子数据），UI「已定稿」永不显示；改为有纪要内容即视为已定稿——保存时 `minutesStatus` 置 `final` 并联动 `pipeline.minutesApproved`，存量数据由 `migrateMeetingsData()` 每次初始化自动修正；同时清理保存路径中 `hasMinutes`/`minutesStatus` 重复键被旧值覆盖的问题。"
+        }
+      ]
+    },
+    {
       "version": "v0.7.29",
       "date": "2026-08-20",
       "status": "released",
