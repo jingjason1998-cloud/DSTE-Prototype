@@ -2,6 +2,25 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-21（Kimi，发布 v0.7.33：同步队列 toast 刷屏修复）
+- **主题**：用户截图反馈经营分析会页面被「同步队列已满，部分变更可能无法同步到服务端」红色 toast 刷屏（叠十几条），顶部横幅提示「登录已过期：有 100 条变更暂未同步」
+- **根因**：生产 CAS 临时绕过 → 无 `dste-token` → 每次同步 401（authExpired，保持 pending 不消耗重试）→ 队列积压到 100 上限后，每次变更 `enqueue` 都 `showToast('同步队列已满...')`，无任何去重 → 刷屏。「队列积压较多」（50 阈值）与「同步失败：xx（已达最大重试次数）」同样无去重
+- **修复**（`src/lib/sync-queue.js`）：新增 `_notifyThrottled(key, message, type)` 节流（同一 key 60 秒冷却，`toastCooldownMs` 加入 DEFAULT_OPTIONS 可配）；队列满 / 积压预警 / 同步失败（key 按端点）三条提示接入；「登录已过期」提示原有 `_authToastShown` 一次性保护维持不变
+- **验证**：单测 14/14（新增 3 用例：队列满节流 / 积压预警节流 / 同步失败跨 retryFailed 周期节流）；unit 609 / pytest 211 / lint 0 error / check:scope ✓ / build ✓
+- **发布**：commit `29158d6`（修复）+ `3da407d`（bump），tag `v0.7.33`，push main + tag，GitHub Actions Deploy to Production success；生产 `per-record-sync-hykRl4Sm.js` 与本地 dist 字节一致（cmp IDENTICAL）、含 `toastCooldownMs`
+- **坑**：生产静态资源 URL 前缀是 `/assets/`（HTML 中相对引用 `../assets/`，从 `/src/cockpit.html` 解析），拼成 `/src/assets/xxx.js` 会拿到 404 页面、grep 一律 0 匹配，差点误判部署未生效
+- **遗留**：toast 不刷只是症状消除，底层同步仍断——100 条积压变更需恢复 CAS 认证重新登录后才补传（P0 待办不变）
+- **状态**：complete
+
+## 2026-08-21（Kimi，发布 v0.7.32：经分会 AI 助手 502 热修——会话截断污染）
+- **主题**：用户截图反馈经分会 AI 助手问「8月24号的议程是什么」报「AI 请求失败：HTTP 502」，且重试永远失败
+- **诊断**：无工具 curl 200、带工具 curl 200 → 链路本身健康；`wrangler tail` 抓到真实错误：`Kimi API error: 400 "Invalid request: tool_call_id  is not found"`。根因是 `AISession._truncate()`（`src/lib/ai-client.js`）按消息数切片（保留最近 10 轮 × 2 = 20 条非 system 消息），会把工具调用组拦腰切断——assistant.tool_calls 被裁掉、孤儿 tool 消息留下；Kimi 校验 tool_call_id 配对不过直接 400（4xx 不重试），Worker `handleAiChat` 把上游错误一律映射为 502。污染历史持久化在 localStorage `dste_ai_sessions_v2`，之后每条消息都带坏历史重发 → 会话永久 502，与"还是无法使用"吻合
+- **修复**：新增 `sanitizeToolCallPairing()`（丢孤儿 tool 消息、剔除无响应 tool_calls、清内容也为空的 assistant 空壳），`_truncate` 截断后与 `toKimiFormat` 发送前各跑一次（存量污染会话自愈）；Worker `sanitizeMessages` 加同款第二遍配对清洗兜底（wrangler 热部署后旧前端缓存也立即恢复，Version `d59bf69b`）
+- **验证**：单测 27/27（新增 4 用例：孤儿 tool 清洗 / 无响应 tool_calls 剥离 / 完整工具组保留 / 截断配对不变量——构造切片恰好落在 tool 组中间的场景）；unit 606 / pytest 211 / lint 0 error / check:scope ✓ / build ✓；生产 curl 污染 payload（孤儿 tool + dangling tool_calls）实测 200（部署后等 ~30s 传播）
+- **发布**：commit `e4677c0`（修复）+ `3b5b1a2`（bump），tag `v0.7.32`，push main + tags，GitHub Actions 部署前端。RFC-010 未提交改动（cockpit.html / shell.css / workspace-tabs.spec.js）未带入本次提交
+- **经验**：AI 会话类 bug 先看 `wrangler tail` 抓 `Kimi API error:` 日志行，比猜快得多；前端"HTTP 502"一律是 Worker 对上游 Kimi 错误的映射（worker.js:638）
+- **状态**：complete
+
 ## 2026-08-21（Kimi，发布 v0.7.31：会议 AI 助手查询工具返回空修复）
 - **主题**：用户问「查询24号议程这样简单的事情为什么出错」——会议 AI 助手调 queryMeetingAgenda 猜了 5 个假 ID 全部返回空
 - **根因（两个叠加）**：① `streamAiResponse` 调 `callWithTools` 从未传 `toolContext`，而 Worker 侧 queryMeetingAgenda/Actions/Resolutions 只读 `context.meeting` → 工具永远返回空数组；② 系统提示词只有会议名称没有会议 ID，模型只能幻觉 ID（Worker 其实忽略 meetingId 参数）

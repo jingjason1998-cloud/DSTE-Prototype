@@ -1,8 +1,12 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-21 10:08
+> 更新时间: 2026-08-21 11:10
 
 ## 状态
+**v0.7.33 已发布并部署生产**（2026-08-21 Kimi 会话，commit `29158d6` + bump `3da407d`，tag `v0.7.33`，Deploy success）：修复登录过期期间同步失败 toast 刷屏——CAS 绕过无 `dste-token` 致同步持续 401、队列积到 100 上限后每次入队都弹「同步队列已满」，无任何去重叠十几条红色 toast。修复：`SyncQueue` 新增 `_notifyThrottled()`（同类提示 60 秒冷却，`toastCooldownMs` 可配），「队列已满/积压较多/同步失败（按端点）」三条提示接入；「登录已过期」原有一次性保护不动。验证：unit 609（新增 3 节流用例）/ pytest 211 / lint 0 error / check:scope ✓ / build ✓；生产 bundle `per-record-sync-hykRl4Sm.js` 与本地字节一致、含 `toastCooldownMs`。**注意：提示不刷了，但积压数据仍需恢复 CAS 重新登录后才补传。生产静态资源真实路径前缀是 `/assets/`（HTML 里相对引用 `../assets/`），验证 bundle 时别拼成 `/src/assets/`（会 404）。**
+
+**v0.7.32 已发布**（2026-08-21 Kimi 会话，commit `e4677c0` + bump `3b5b1a2`，tag `v0.7.32`）：修复经分会 AI 助手「HTTP 502」且会话永久不可用——`AISession._truncate()` 按消息数切片把工具调用组拦腰切断（孤儿 tool 消息），Kimi 400 "tool_call_id is not found"（Worker 映射 502），污染历史存 localStorage 致反复失败。修复：新增 `sanitizeToolCallPairing`（`_truncate` 后 + `toKimiFormat` 发送前各跑一次，存量会话自愈）+ Worker `sanitizeMessages` 配对兜底（wrangler 热部署 Version `d59bf69b`，生产污染 payload curl 实测 200）。验证：unit 606（新增 4 用例）/ pytest 211 / lint 0 error / check:scope ✓ / build ✓。详见 session-log 顶部 08-21 条目。**诊断经验：AI 502/400 类问题先 `wrangler tail` 抓 `Kimi API error:` 日志行。**
+
 **v0.7.31 已发布并部署生产**（2026-08-21 Kimi 会话，commit `8fdca89` + bump `ddddda6`，tag `v0.7.31`，Deploy success）：修复会议 AI 助手查询类工具（queryMeetingAgenda/Actions/Resolutions）始终返回空——`callWithTools` 从未传 `toolContext`（Worker 只读 `context.meeting`）且提示词无会议 ID 致模型幻觉 ID；现传当前会议原始对象 + 提示词给真实 ID 并禁止猜测。生产 bundle 断言通过。CHANGELOG 补记 08-20 Worker AI 401 热修（`102c08f`）。
 
 **工作区页签切换状态保持（RFC-010）已完成，未提交未发布**（2026-08-20 Kimi 会话）：方案 D = A+C——外部页 iframe keep-alive（`#workspace-panes` 容器与 `#page-content` 平级，每外部页页签一个 `.workspace-iframe-wrap[data-page-id]` 常驻 DOM 只切显隐，首次激活才建 iframe，LRU 上限 5）+ 内部页轻量快照（switchTab 前记 scrollTop/表单值，切回恢复，内存 Map）。`dste-embed-resize` 按 event.source 路由、`_postPendingRecordToIframe` 按活动页签定位、暴露 `window.openTab`。验证：check:scope ✓ / lint 0 error / pytest 211 / unit 602 / build ✓ / workspace-tabs E2E 11/11 / 相关回归 58 ✓。RFC：`docs/02-RFC功能设计/010-workspace-tab-keepalive.md`。详见 session-log 顶部 08-20 条目。
