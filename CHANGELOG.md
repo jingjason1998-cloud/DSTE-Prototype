@@ -7,6 +7,11 @@
 
 ---
 
+## [v0.7.32] - 2026-08-21
+
+### Fixed
+- **经分会 AI 助手报「HTTP 502」且会话永久不可用**：`AISession._truncate()` 按消息数切片会把工具调用组拦腰切断（assistant.tool_calls 被裁掉、tool 消息留下），Kimi 校验每个 tool 消息的 tool_call_id 必须有对应 assistant tool_call，直接返回 400 "tool_call_id is not found"（Worker 映射为 502）；污染历史存于 localStorage，之后每条消息都带着坏历史重发，用户反复 502。修复：新增 `sanitizeToolCallPairing` 配对清洗（丢弃孤儿 tool 消息、剔除无响应的 tool_calls、清理空壳 assistant 消息），在 `_truncate` 截断后与 `toKimiFormat` 发送前各执行一次（存量污染会话自动自愈）；Worker `sanitizeMessages` 同步加配对兜底，已 wrangler 热部署，旧前端缓存也能恢复。单测补 4 个用例（孤儿 tool 清洗 / 无响应 tool_calls 剥离 / 完整工具组保留 / 截断不变量）。
+
 ## [v0.7.31] - 2026-08-21
 
 ### Fixed
