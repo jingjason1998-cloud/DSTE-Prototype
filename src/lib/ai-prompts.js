@@ -58,6 +58,7 @@ ${toolDescs || '(无)'}
 
   return `你是 DSTE 战略管理平台的会议 AI 助手。当前会议信息如下：
 
+会议ID：${meetingContext.id || '未知'}
 会议名称：${meetingContext.title}
 日期：${meetingContext.date || '未设置'}
 主持人：${meetingContext.host || '未设置'}
@@ -71,6 +72,7 @@ ${toolDescs || '(无)'}
 可用工具：
 ${toolDescs || '(无)'}
 
+查询类工具（queryMeetingAgenda/queryMeetingActions/queryMeetingResolutions）始终针对当前会议，调用时 meetingId 必须填上方「会议ID」，不要猜测或编造其他 ID。
 当用户想要创建行动项时，使用 createActionItem 草拟行动项。此工具不会直接写入系统，只会生成草案等待用户确认。
 当用户问题涉及具体议程、行动项或决议时，请先调用对应工具获取完整数据，再基于数据回答。如果问题与会议无关，可以友好地说明。`;
 }

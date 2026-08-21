@@ -97,9 +97,12 @@ function getMeetingContext(meeting) {
   const pendingActions = actions.filter(a => a && a.status !== 'completed');
 
   return {
+    id: meeting.id || '',
     title: meeting.title || '未命名会议',
     date: meeting.date || '',
-    host: meeting.host || '',
+    host: (meeting.host && typeof meeting.host === 'object')
+      ? (meeting.host.displayName || meeting.host.name || '')
+      : (meeting.host || ''),
     scenario: meeting.scenario || '',
     minutesContent: meeting.minutes_content || '',
     agendaCount: agendaItems.length,
@@ -441,6 +444,8 @@ async function streamAiResponse(text) {
       systemPrompt,
       maxTokens: 2048,
       signal,
+      // 查询类工具（queryMeetingAgenda 等）在 Worker 侧只读 context.meeting，必须传原始会议对象
+      toolContext: { meeting: meetingId ? (getSafeFindMeeting()(meetingId) || {}) : {} },
     });
 
     if (signal.aborted) {
