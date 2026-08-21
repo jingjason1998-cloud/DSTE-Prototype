@@ -2,6 +2,14 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-21（Kimi，发布 v0.7.31：会议 AI 助手查询工具返回空修复）
+- **主题**：用户问「查询24号议程这样简单的事情为什么出错」——会议 AI 助手调 queryMeetingAgenda 猜了 5 个假 ID 全部返回空
+- **根因（两个叠加）**：① `streamAiResponse` 调 `callWithTools` 从未传 `toolContext`，而 Worker 侧 queryMeetingAgenda/Actions/Resolutions 只读 `context.meeting` → 工具永远返回空数组；② 系统提示词只有会议名称没有会议 ID，模型只能幻觉 ID（Worker 其实忽略 meetingId 参数）
+- **修复**：`MeetingAiAssistant.js` 传 `toolContext: { meeting: 当前会议原始对象 }`（实时 `findMeetingById`）；`getMeetingContext` 补 `id` + `host` 兼容 PersonRef；`ai-prompts.js` 提示词加「会议ID」并禁止猜测编造 meetingId
+- **验证**：unit 602 / pytest 211 / lint 0 error / check:scope ✓ / build ✓；临时 E2E mock `/api/ai/chat` 返回工具调用，断言 `/api/ai/tools/execute` 请求体带完整 `agenda_items` ✓（通过后删除）
+- **发布**：commit `8fdca89`（修复）+ `ddddda6`（bump），tag `v0.7.31`，Deploy success；生产 bundle 断言 toolContext / findMeetingById / 会议ID（在 AiFeedbackBar 共享 chunk）均在。CHANGELOG 顺带补记前一日 Worker 401 热修（`102c08f`）
+- **状态**：complete
+
 ## 2026-08-20（Kimi，AI 端点 401 热修：Worker 临时放行生产域名）
 - **主题**：用户反馈会议 AI 助手报「AI 请求失败：Unauthorized」（截图）
 - **诊断**：CAS 绕过（isLocalDev 白名单）→ 前端无 `dste-token`；Worker `/api/ai/chat` 等 4 个端点走 `requireAiAuth → requireAuth` 强制 Bearer 鉴权 → 401。数据接口 GET 免鉴权所以数据能读，AI 全挂。前端把任意 401 显示为「登录已过期」

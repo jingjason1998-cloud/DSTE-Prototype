@@ -1,8 +1,10 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-20（工作区页签 keep-alive 完成后，未提交）
+> 更新时间: 2026-08-21（v0.7.31 发布后）
 
 ## 状态
+**v0.7.31 已发布并部署生产**（2026-08-21 Kimi 会话，commit `8fdca89` + bump `ddddda6`，tag `v0.7.31`，Deploy success）：修复会议 AI 助手查询类工具（queryMeetingAgenda/Actions/Resolutions）始终返回空——`callWithTools` 从未传 `toolContext`（Worker 只读 `context.meeting`）且提示词无会议 ID 致模型幻觉 ID；现传当前会议原始对象 + 提示词给真实 ID 并禁止猜测。生产 bundle 断言通过。CHANGELOG 补记 08-20 Worker AI 401 热修（`102c08f`）。
+
 **工作区页签切换状态保持（RFC-010）已完成，未提交未发布**（2026-08-20 Kimi 会话）：方案 D = A+C——外部页 iframe keep-alive（`#workspace-panes` 容器与 `#page-content` 平级，每外部页页签一个 `.workspace-iframe-wrap[data-page-id]` 常驻 DOM 只切显隐，首次激活才建 iframe，LRU 上限 5）+ 内部页轻量快照（switchTab 前记 scrollTop/表单值，切回恢复，内存 Map）。`dste-embed-resize` 按 event.source 路由、`_postPendingRecordToIframe` 按活动页签定位、暴露 `window.openTab`。验证：check:scope ✓ / lint 0 error / pytest 211 / unit 602 / build ✓ / workspace-tabs E2E 11/11 / 相关回归 58 ✓。RFC：`docs/02-RFC功能设计/010-workspace-tab-keepalive.md`。详见 session-log 顶部 08-20 条目。
 
 **v0.7.30 已发布并部署生产**（2026-08-20 Kimi 会话，commit `e8029bb` + 版本 bump `6383dcc`，tag `v0.7.30`，Deploy #142 success）：会议模块四项生产 bug 修复——① `icon-mapping.js` 补 `x: 'x'` 别名，修复删除按钮等 20+ 处 `icon('x')` 渲染为问号；② 议程可删到 0 条（移除「至少保留一个议程项」保护与占位回填）；③ `getOmpKeyWorks()` 对齐 OMP 列表口径（当前周期 + 派生去重 + 排除子任务），修复关联重点工作下拉重复；④ `calculateAutoScore` 人员字段兼容 PersonRef 对象，修复会议评估待办点击抛 `trim is not a function` 打不开评估弹窗；⑤ 有纪要内容即 `minutesStatus='final'` 并联动 `pipeline.minutesApproved`，存量数据靠 `migrateMeetingsData()` 自动修正。验证：unit 602 / pytest 211 / lint 0 error / check:scope ✓ / build ✓ / 会议 E2E 全绿；生产 bundle 五项内容断言与本地一致。详见 session-log 顶部 08-20 条目（含 PersonRef 教训与 preview 需重新 build 提醒）。
