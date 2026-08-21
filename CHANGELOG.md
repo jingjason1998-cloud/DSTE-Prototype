@@ -7,6 +7,16 @@
 
 ---
 
+## [v0.7.35] - 2026-08-21
+
+### Added
+- **AI 观测页（RFC-011 P1-3）**：新增 Worker `GET /api/ai/stats` 聚合端点（成功率、P95/平均延迟、errorType 分布、端点分布、14 天每日趋势、👍👎 反馈计数），telemetry KV 日志从「只进不出」变为可观测；cockpit 新增内部页 `#admin/ai-stats` 可视化展示（侧边栏入口待 config.js 并行改动落地后补登，当前可经 hash 直达）。
+- **AI smoke eval 脚本（RFC-011 P1-4）**：`scripts/ai-smoke-eval.mjs` 把历史事故固化为 10 个真实调用 Kimi 的回归用例（v0.7.0 空 content、v0.7.19 tool_calls 协议、v0.7.32 孤儿 tool 消息、v0.7.34 temperature 兜底、agenda schema、工具回退、错误契约、stats 端点），发版前 `node scripts/ai-smoke-eval.mjs` 手动跑，生产实测 10/10。
+
+### Changed
+- **多轮工具调用 loop（RFC-011 P1-1）**：`callWithTools` 从「单轮工具调用后强制收尾」升级为最多 4 轮 agentic loop（模型可连环调用工具，最后一轮强制给最终回答）；新增 `AIClient.runToolLoop` 统一实现，GlobalAiDrawer 的手写流式工具轮切换为共用该实现（删除两份 mock 检测死代码）；chat 支持 `userMessageHidden` 让工具轮跟进消息不污染 UI。
+- **查询类工具服务端取数（RFC-011 P1-2）**：`queryMeetingAgenda/Actions/Resolutions` 优先读 Worker KV `dste_meetings_v1` 权威数据，前端 `context.meeting` 缓存降级为回退；返回新增 `source` 字段（kv/context）标识数据来源，AI 回答不再依赖前端缓存新旧。
+
 ## [v0.7.34] - 2026-08-21
 
 ### Added
