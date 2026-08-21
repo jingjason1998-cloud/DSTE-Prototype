@@ -12,6 +12,7 @@ const DEFAULT_OPTIONS = {
   retryDelays: [1000, 5000, 15000, 60000, 300000], // ms
   maxSize: 100,
   warnThreshold: 50,
+  toastCooldownMs: 60000, // 同类提示 60 秒内只显示一次，防止刷屏
 };
 
 function generateId() {
@@ -33,6 +34,19 @@ export class SyncQueue {
     this._processing = false;
     this._listenersBound = false;
     this._authToastShown = false;
+    this._toastShownAt = {};
+  }
+
+  /**
+   * 节流提示：同一 key 的 toast 在 cooldownMs 内只显示一次，避免刷屏。
+   * （例如登录过期后同步持续失败，队列满时每次 enqueue 都会触发提示）
+   */
+  _notifyThrottled(key, message, type) {
+    const cooldownMs = this.options.toastCooldownMs || 60000;
+    const now = Date.now();
+    if (now - (this._toastShownAt[key] || 0) < cooldownMs) return;
+    this._toastShownAt[key] = now;
+    showToast(message, type);
   }
 
   loadQueue() {
@@ -55,11 +69,11 @@ export class SyncQueue {
     const { autoProcess = true } = options;
     const queue = this.loadQueue();
     if (queue.length >= this.options.maxSize) {
-      showToast('同步队列已满，部分变更可能无法同步到服务端', 'error');
+      this._notifyThrottled('queueFull', '同步队列已满，部分变更可能无法同步到服务端', 'error');
       return { success: false, error: 'Queue is full' };
     }
     if (queue.length >= this.options.warnThreshold) {
-      showToast('同步队列积压较多，请检查网络连接', 'warning');
+      this._notifyThrottled('queueWarn', '同步队列积压较多，请检查网络连接', 'warning');
     }
 
     const item = {
@@ -142,7 +156,8 @@ export class SyncQueue {
         if (op.retryCount >= this.options.maxRetries) {
           op.status = 'failed';
           failed++;
-          showToast(`同步失败：${op.endpoint}（已达最大重试次数）`, 'error');
+          // 按端点节流，避免批量失败时刷屏
+          this._notifyThrottled(`syncFailed:${op.endpoint}`, `同步失败：${op.endpoint}（已达最大重试次数）`, 'error');
         } else {
           op.nextRetry = now + this.options.retryDelays[op.retryCount - 1];
         }

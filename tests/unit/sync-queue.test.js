@@ -24,10 +24,12 @@ const mockStorage = {
 vi.mock('../../src/lib/utils.js', () => ({ Storage: mockStorage, showToast: vi.fn() }));
 
 const { SyncQueue, getDefaultSyncQueue } = await import('../../src/lib/sync-queue.js');
+const { showToast } = await import('../../src/lib/utils.js');
 
 describe('SyncQueue', () => {
   beforeEach(() => {
     storageMap.clear();
+    showToast.mockClear();
   });
 
   it('enqueues an operation and processes it', async () => {
@@ -118,6 +120,36 @@ describe('SyncQueue', () => {
     queue.enqueue({ endpoint: '/api/b', payload: [] });
     const result = queue.enqueue({ endpoint: '/api/c', payload: [] });
     expect(result.success).toBe(false);
+  });
+
+  it('throttles queue-full toast to once per cooldown', () => {
+    const queue = new SyncQueue({ maxSize: 1 });
+    queue.enqueue({ endpoint: '/api/a', payload: [] });
+    expect(queue.enqueue({ endpoint: '/api/b', payload: [] }).success).toBe(false);
+    expect(queue.enqueue({ endpoint: '/api/c', payload: [] }).success).toBe(false);
+    expect(showToast).toHaveBeenCalledTimes(1);
+  });
+
+  it('throttles queue warn toast to once per cooldown', () => {
+    const queue = new SyncQueue({ warnThreshold: 1, maxSize: 10 });
+    queue.enqueue({ endpoint: '/api/a', payload: [] }); // 入队前长度为 0，不触发预警
+    queue.enqueue({ endpoint: '/api/b', payload: [] }); // 触发预警（第 1 次提示）
+    queue.enqueue({ endpoint: '/api/c', payload: [] }); // 冷却期内不再提示
+    expect(showToast).toHaveBeenCalledTimes(1);
+  });
+
+  it('throttles sync-failed toast across retry cycles', async () => {
+    const queue = new SyncQueue({ retryDelays: [1], maxRetries: 1 });
+    const executor = vi.fn().mockRejectedValue(new Error('network'));
+
+    queue.enqueue({ endpoint: '/api/meetings/m1', method: 'PATCH', payload: {} });
+    await queue.processQueue(executor);
+    expect(showToast).toHaveBeenCalledTimes(1); // 达最大重试次数，提示一次
+
+    // 重置失败项再跑一轮：同一端点在冷却期内不再提示
+    queue.retryFailed(executor);
+    await new Promise(r => setTimeout(r, 10)); // retryFailed 内部异步触发 processQueue
+    expect(showToast).toHaveBeenCalledTimes(1);
   });
 
   it('removes pending operations for a resource', () => {
