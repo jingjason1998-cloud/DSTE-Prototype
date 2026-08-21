@@ -428,3 +428,96 @@ describe('ai-client', () => {
     });
   });
 });
+describe('RFC-011 稳定性：errorType 透传与超时重试', () => {
+  beforeEach(() => {
+    storageMap.clear();
+    fetch.mockReset();
+  });
+
+  function abortOnSignal() {
+    return (url, opts) => new Promise((_, reject) => {
+      opts.signal.addEventListener('abort', () => {
+        const e = new Error('Aborted');
+        e.name = 'AbortError';
+        reject(e);
+      });
+    });
+  }
+
+  it('attaches Worker errorType/upstreamStatus to AIError', async () => {
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: async () => JSON.stringify({ error: 'AI service error: 429 ...', errorType: 'ratelimit', upstreamStatus: 429 }),
+    });
+    const client = new AIClient({ baseUrl: 'http://localhost:8766' });
+    await expect(client.chat('hi')).rejects.toMatchObject({
+      name: 'AIError',
+      errorType: 'ratelimit',
+      upstreamStatus: 429,
+    });
+  });
+
+  it('retries once on internal timeout and succeeds', async () => {
+    fetch
+      .mockImplementationOnce(abortOnSignal())
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { role: 'assistant', content: 'ok' } }] }),
+      });
+    const client = new AIClient({ baseUrl: 'http://localhost:8766', timeout: 20 });
+    const result = await client.chat('hi');
+    expect(result.content).toBe('ok');
+    expect(fetch.mock.calls.length).toBe(2);
+  });
+
+  it('throws AIError timeout with errorType after retries exhausted', async () => {
+    fetch.mockImplementation(abortOnSignal());
+    const client = new AIClient({ baseUrl: 'http://localhost:8766', timeout: 20 });
+    await expect(client.chat('hi')).rejects.toMatchObject({
+      name: 'AIError',
+      code: 'TIMEOUT',
+      errorType: 'timeout',
+    });
+    expect(fetch.mock.calls.length).toBe(2);
+  });
+
+  it('user cancel aborts immediately without retry', async () => {
+    fetch.mockImplementation(abortOnSignal());
+    const client = new AIClient({ baseUrl: 'http://localhost:8766', timeout: 60000 });
+    const ext = new AbortController();
+    setTimeout(() => ext.abort(), 10);
+    await expect(client.chat('hi', { signal: ext.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetch.mock.calls.length).toBe(1);
+  });
+
+  it('invalid_request resets polluted session and retries once', async () => {
+    // 注意：502 是 fetchWithRetry 的可重试状态码，耗尽 3 次尝试后才解析 body 的 errorType
+    const err502 = () => ({
+      ok: false,
+      status: 502,
+      text: async () => JSON.stringify({ error: 'AI service error: 400 tool_call_id not found', errorType: 'invalid_request', upstreamStatus: 400 }),
+    });
+    fetch
+      .mockResolvedValueOnce(err502())
+      .mockResolvedValueOnce(err502())
+      .mockResolvedValueOnce(err502())
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { role: 'assistant', content: '已恢复' } }] }),
+      });
+    const client = new AIClient({ baseUrl: 'http://localhost:8766' });
+    const session = client.getCurrentSession();
+    session.addMessage('user', '历史问题');
+    session.addMessage('assistant', '历史回答');
+    client.saveSession(session);
+
+    const result = await client.chat('新问题');
+    expect(result.content).toBe('已恢复');
+    expect(fetch.mock.calls.length).toBe(4);
+    // 会话已被重置：历史消息清空，只剩本轮 user + assistant（从存储重新读取）
+    const persisted = client.getCurrentSession();
+    expect(persisted.messages.map((m) => m.role)).toEqual(['user', 'assistant']);
+    expect(persisted.messages[0].content).toBe('新问题');
+  });
+});

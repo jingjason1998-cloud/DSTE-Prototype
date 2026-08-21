@@ -22,6 +22,7 @@ import { renderMarkdownLite } from '../../lib/markdown-lite.js';
 import { AiRequestState } from '../../lib/ai-state.js';
 import { buildMeetingAssistantPrompt } from '../../lib/ai-prompts.js';
 import { renderAiFeedbackBar } from '../../components/AiFeedbackBar.js';
+import { getAiErrorUserMessage } from '../../lib/ai-error.js';
 
 let _aiMessages = [];
 let _currentMeetingForAi = null;
@@ -209,9 +210,15 @@ function renderChatMessages() {
   container.innerHTML = html;
   container.scrollTop = container.scrollHeight;
 
-  // 为助手消息添加反馈条
-  container.querySelectorAll('.ai-message.assistant').forEach((el) => {
-    renderAiFeedbackBar(el, { sessionId: getAiSession()?.id });
+  // 为助手消息添加反馈条（按顺序与 _aiMessages 中的 assistant 消息一一对应）
+  const assistantMsgs = _aiMessages.filter((m) => m.role === 'assistant');
+  container.querySelectorAll('.ai-message.assistant').forEach((el, i) => {
+    const msgIndex = assistantMsgs[i] ? _aiMessages.indexOf(assistantMsgs[i]) : -1;
+    let prompt = '';
+    for (let j = msgIndex - 1; j >= 0; j--) {
+      if (_aiMessages[j].role === 'user') { prompt = _aiMessages[j].content || ''; break; }
+    }
+    renderAiFeedbackBar(el, { sessionId: getAiSession()?.id, prompt });
   });
 }
 
@@ -376,38 +383,6 @@ function buildResponse(text) {
   return `${icon('lightbulb', {size: 14})} 收到你的问题：「${e(text)}」。\n\n你可以尝试问我：\n• 总结本次会议议程\n• 生成会议纪要要点\n• 列出未闭环行动项\n• 本次会议有哪些决议？`;
 }
 
-function buildMeetingSystemPrompt() {
-  if (!_currentMeetingForAi) {
-    const ctxText = _globalMeetingsContext ? formatContextForAI(_globalMeetingsContext) : '暂无业务数据。';
-    return `你是 DSTE 战略管理平台的会议 AI 助手。当前为经营分析会全局视图，未选中具体会议。
-
-请基于以下经营分析会全局上下文，用中文简洁、专业地回答用户问题。
-
-${ctxText}
-
-注意事项：
-- 如果用户问题涉及某场具体会议的议程、行动项或决议，请建议用户打开该会议详情，或询问用户想查询哪场会议。
-- 当用户想要创建行动项时，提示用户先进入目标会议详情页或编辑器。
-- 当用户想要创建新会议时，使用 createMeeting(title, date?, scenario?, level?, host?, location?) 草拟会议，不会直接写入系统，只会生成草案等待用户确认。
-- 所有结论尽量给出数据来源。
-- 涉及写入操作时只生成草案并提示用户确认。`;
-  }
-
-  const ctx = _currentMeetingForAi;
-  return `你是 DSTE 战略管理平台的会议 AI 助手。当前会议信息如下：
-
-会议名称：${ctx.title}
-日期：${ctx.date || '未设置'}
-主持人：${ctx.host || '未设置'}
-场景：${ctx.scenario || '未设置'}
-议程项数：${ctx.agendaCount}，总时长 ${ctx.agendaTotalMinutes} 分钟
-决议数：${ctx.decisionCount}
-行动项总数：${ctx.actionCount}，待闭环 ${ctx.pendingActionCount}，已完成 ${ctx.completedActionCount}
-
-请基于以上信息，用中文简洁、专业地回答用户关于本次会议的问题。\n\n你可以使用以下工具获取更详细的会议数据：\n- queryMeetingAgenda(meetingId): 查询会议议程项\n- queryMeetingActions(meetingId): 查询会议行动项\n- queryMeetingResolutions(meetingId): 查询会议决议\n
-当用户想要创建行动项时，使用 createActionItem(meetingId, content, owner?, deadline?) 草拟行动项。此工具不会直接写入系统，只会生成草案等待用户确认。\n当用户问题涉及具体议程、行动项或决议时，请先调用对应工具获取完整数据，再基于数据回答。如果问题与会议无关，可以友好地说明。`;
-}
-
 async function streamAiResponse(text) {
   const client = getAiClient();
   const session = getAiSession();
@@ -485,7 +460,7 @@ async function streamAiResponse(text) {
     console.error('AI chat error:', err);
     const lastMsg = _aiMessages[_aiMessages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
-      lastMsg.content = `${icon('x', {size: 14})} AI 请求失败：${escapeHtmlLocal(err.message || '网络错误')}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
+      lastMsg.content = `${icon('x', {size: 14})} ${escapeHtmlLocal(getAiErrorUserMessage(err))}\n\n已切换为本地回复：\n\n${buildResponse(text)}`;
     }
   } finally {
     aiState.finish(requestError);

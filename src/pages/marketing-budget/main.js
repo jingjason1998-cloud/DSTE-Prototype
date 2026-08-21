@@ -1260,7 +1260,10 @@ async function runAiAnalysis(scope, rowId) {
       ]
     }, { signal });
     if (signal.aborted) return;
-    const text = res?.content || res?.text || res?.message || 'AI 未返回有效内容';
+    // RFC-011 P0-5：Worker 非流式返回 { success, ...Kimi原始响应 }，
+    // 正文在 choices[0].message.content；此前读 res.content/text/message 恒为空串提示语并污染缓存
+    const text = (res?.choices?.[0]?.message?.content || '').trim();
+    if (!text) throw new Error('AI 未返回有效内容');
     setAiCacheEntry(cacheKey, text);
     resultEl.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
   } catch (err) {

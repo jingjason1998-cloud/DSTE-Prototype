@@ -236,20 +236,26 @@ function generateId(prefix = 'id') {
 }
 
 /**
+ * 解析错误响应体：提取人类可读 message 与 Worker 透传的 errorType/upstreamStatus（RFC-011）。
+ */
+function parseErrorBody(status, errText) {
+  try {
+    const errJson = JSON.parse(errText);
+    return {
+      message: errJson.error || `AI request failed: ${status} ${errText}`,
+      errorType: errJson.errorType || null,
+      upstreamStatus: errJson.upstreamStatus || null,
+    };
+  } catch (e) {
+    return { message: `AI request failed: ${status} ${errText}`, errorType: null, upstreamStatus: null };
+  }
+}
+
+/**
  * 根据 HTTP 状态构造 AIError。
  * 401 会触发全局登录过期事件。
  */
-function parseErrorMessage(status, errText) {
-  try {
-    const errJson = JSON.parse(errText);
-    if (errJson.error) return errJson.error;
-  } catch (e) {
-    // not JSON
-  }
-  return `AI request failed: ${status} ${errText}`;
-}
-
-function createAIError(status, message) {
+function createAIError(status, message, extras = {}) {
   let err;
   if (status === 401) {
     err = AIError.authExpired(message || '登录已过期，请重新登录');
@@ -268,6 +274,8 @@ function createAIError(status, message) {
   } else {
     err = new AIError(message || `AI request failed: ${status}`, { status });
   }
+  if (extras.errorType) err.errorType = extras.errorType;
+  if (extras.upstreamStatus) err.upstreamStatus = extras.upstreamStatus;
   return err;
 }
 
@@ -434,15 +442,17 @@ export class AIClient {
    */
   async chat(message, options = {}) {
     const session = options.session || this.getCurrentSession();
-    const messages = this._buildMessages(message, session, options);
-    const response = await this._post('/api/ai/chat', {
-      messages,
-      tools: options.tools,
-      stream: false,
-      model: this.model,
-      temperature: options.temperature ?? 0.7,
-      max_tokens: options.maxTokens ?? 4096,
-    }, { signal: options.signal });
+    let response;
+    try {
+      response = await this._chatRequest(message, session, options);
+    } catch (err) {
+      if (err?.errorType !== 'invalid_request') throw err;
+      // 会话历史被 Kimi 协议校验拒绝（RFC-011）：重置会话历史后重试一次，
+      // 避免坏历史持久化在 localStorage 导致会话永久不可用（v0.7.32 教训）
+      session.clear();
+      this.saveSession(session);
+      response = await this._chatRequest(message, session, options);
+    }
 
     const assistantContent = response.choices?.[0]?.message?.content || '';
     const rawToolCalls = response.choices?.[0]?.message?.tool_calls;
@@ -463,6 +473,85 @@ export class AIClient {
   }
 
   /**
+   * chat 的底层请求：构造 messages 并 POST /api/ai/chat。
+   */
+  async _chatRequest(message, session, options = {}) {
+    const messages = this._buildMessages(message, session, options);
+    return this._post('/api/ai/chat', {
+      messages,
+      tools: options.tools,
+      stream: false,
+      model: this.model,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 4096,
+    }, { signal: options.signal });
+  }
+
+  /**
+   * 带超时的 fetch（RFC-011）：
+   * - 每次 attempt 独立 AbortController，内部超时 abort 带 reason 'timeout'
+   * - 内部超时自动重试 1 次；用户主动取消（externalSignal）立即抛出，不重试
+   */
+  async _fetchWithTimeout(url, fetchOptions, timeout, externalSignal) {
+    let lastErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (externalSignal?.aborted) {
+        const aborted = new Error('Aborted');
+        aborted.name = 'AbortError';
+        throw aborted;
+      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort('timeout'), timeout);
+      const signal = composeSignal(controller, externalSignal);
+      try {
+        return await fetchWithRetry(url, { ...fetchOptions, signal });
+      } catch (err) {
+        if (externalSignal?.aborted) throw err; // 用户取消，不重试
+        if (controller.signal.aborted) {
+          lastErr = AIError.timeout('AI 请求超时');
+          lastErr.errorType = 'timeout';
+          continue;
+        }
+        // fetchWithRetry 对可重试状态码（429/5xx）重试耗尽后抛出 Error 并附带 response；
+        // 交还响应给调用方，由调用方解析响应体（errorType/upstreamStatus 在里面）
+        if (err?.response) return err.response;
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+    throw lastErr;
+  }
+
+  /**
+   * 流式请求：POST /api/ai/chat（stream: true），返回原始 Response。
+   */
+  async _streamRequest(messages, options = {}) {
+    const resp = await this._fetchWithTimeout(`${this.baseUrl}/api/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      },
+      body: JSON.stringify({
+        messages,
+        tools: options.tools,
+        stream: true,
+        model: this.model,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.maxTokens ?? 4096,
+      }),
+    }, options.timeout ?? this.timeout, options.signal);
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      const parsed = parseErrorBody(resp.status, errText);
+      throw createAIError(resp.status, parsed.message, parsed);
+    }
+    return resp;
+  }
+
+  /**
    * 流式聊天
    * @param {Object} options
    * @param {boolean} options.skipUserAppend 为 true 时不自动追加 user 消息（调用方已自行追加）
@@ -471,38 +560,21 @@ export class AIClient {
    */
   async *streamChat(message, options = {}) {
     const session = options.session || this.getCurrentSession();
-    const messages = this._buildMessages(message, session, options);
     const skipUserAppend = options.skipUserAppend;
-
-    const url = `${this.baseUrl}/api/ai/chat`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort('timeout'), this.timeout);
-    const signal = composeSignal(controller, options.signal);
-    let reader = null;
     const start = performance.now();
     let tokenCount = 0;
+    let reader = null;
 
     try {
-      const resp = await fetchWithRetry(url, {
-        method: 'POST',
-        signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-        },
-        body: JSON.stringify({
-          messages,
-          tools: options.tools,
-          stream: true,
-          model: this.model,
-          temperature: options.temperature ?? 0.7,
-          max_tokens: options.maxTokens ?? 4096,
-        }),
-      });
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        throw createAIError(resp.status, parseErrorMessage(resp.status, errText));
+      let resp;
+      try {
+        resp = await this._streamRequest(this._buildMessages(message, session, options), options);
+      } catch (err) {
+        if (err?.errorType !== 'invalid_request') throw err;
+        // 会话历史被 Kimi 协议校验拒绝（RFC-011）：重置会话后重试一次
+        session.clear();
+        this.saveSession(session);
+        resp = await this._streamRequest(this._buildMessages(message, session, options), options);
       }
 
       if (!resp.body) {
@@ -577,10 +649,10 @@ export class AIClient {
         model: this.model,
         latencyMs: Math.round(performance.now() - start),
         errorCode: err.code || err.name || 'UNKNOWN',
+        errorType: err.errorType || null,
       });
       throw err;
     } finally {
-      clearTimeout(timeoutId);
       if (reader) {
         try { reader.releaseLock(); } catch (_) { /* ignore */ }
       }
@@ -758,26 +830,23 @@ export class AIClient {
     const timeout = typeof options === 'number' ? options : (options.timeout ?? this.timeout);
     const externalSignal = typeof options === 'number' ? null : options.signal;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort('timeout'), timeout);
-    const signal = composeSignal(controller, externalSignal);
     const start = performance.now();
     const eventType = endpoint.includes('agenda') ? 'agenda' : endpoint.includes('tools') ? 'tool' : 'chat';
 
     try {
-      const resp = await fetchWithRetry(url, {
+      const resp = await this._fetchWithTimeout(url, {
         method: 'POST',
-        signal,
         headers: {
           'Content-Type': 'application/json',
           ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: JSON.stringify(body),
-      });
+      }, timeout, externalSignal);
 
       if (!resp.ok) {
         const errText = await resp.text();
-        throw createAIError(resp.status, parseErrorMessage(resp.status, errText));
+        const parsed = parseErrorBody(resp.status, errText);
+        throw createAIError(resp.status, parsed.message, parsed);
       }
 
       const result = await resp.json();
@@ -795,10 +864,9 @@ export class AIClient {
         model: this.model,
         latencyMs: Math.round(performance.now() - start),
         errorCode: err.code || err.name || 'UNKNOWN',
+        errorType: err.errorType || null,
       });
       throw err;
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 

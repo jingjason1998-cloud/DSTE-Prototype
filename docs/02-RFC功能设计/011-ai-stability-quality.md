@@ -129,12 +129,12 @@ Worker `handleChat` / `handleAiAgendaRecommend` / `handleToolsExecute` 错误响
 
 ## 任务拆分
 
-- [ ] T1 P0-1 Worker 错误分类 + 前端 AIError/errorType + UI 分类提示 + invalid_request 自动新会话
-- [ ] T2 P0-2 超时对齐（Worker 25s×2）+ 前端超时/取消区分 + 超时可重试
-- [ ] T3 P0-3 temperature 透传 + 提示词收敛（删死代码、TopicAiChat 接共享库）
-- [ ] T4 P0-4 反馈上报 + promptHash 修复
-- [ ] T5 P0-5 marketing-budget 响应解析修复（先复现确认）
-- [x] T6 单元测试补齐 + pytest/lint/check:scope/build 全套验证
+- [x] T1 P0-1 Worker 错误分类 + 前端 AIError/errorType + UI 分类提示 + invalid_request 自动新会话
+- [x] T2 P0-2 超时对齐（Worker 25s×2）+ 前端超时/取消区分 + 超时可重试
+- [x] T3 P0-3 temperature 透传 + 提示词收敛（删死代码、TopicAiChat 接共享库）
+- [x] T4 P0-4 反馈上报 + promptHash 修复
+- [x] T5 P0-5 marketing-budget 响应解析修复（已确认为真 bug：Worker 返回 choices 嵌套结构，原代码恒读不到正文且污染缓存）
+- [x] T6 单元测试补齐 + pytest/lint/check:scope/build 全套验证（unit 622 / pytest 221 / lint 0 error / AI 相关 E2E 18/18）
 - [ ] T7 发版（Worker wrangler 部署 + 前端 patch）
 - [ ] T8 P1 四项后续排期
 

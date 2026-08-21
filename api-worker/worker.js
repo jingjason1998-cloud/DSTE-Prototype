@@ -41,8 +41,20 @@ function jsonResponse(data, status = 200, request) {
   });
 }
 
-function errorResponse(message, status = 500, request) {
-  return jsonResponse({ error: message }, status, request);
+function errorResponse(message, status = 500, request, extra = {}) {
+  return jsonResponse({ error: message, ...extra }, status, request);
+}
+
+/**
+ * 把 Kimi 上游错误分类透传给前端（RFC-011）。
+ * 历史教训：上游所有错误一律映射 502，导致同类事故（鉴权/限流/协议 400）反复重新诊断。
+ */
+function classifyUpstreamStatus(status) {
+  if (status === 401 || status === 403) return 'auth';
+  if (status === 429) return 'ratelimit';
+  if (status === 400 || status === 422) return 'invalid_request';
+  if (status >= 500) return 'upstream';
+  return 'internal';
 }
 
 /**
@@ -590,12 +602,14 @@ async function handleAiAgendaRecommend(request, env) {
           { role: 'user', content: userContent },
         ]),
       }),
-    }, 29000, 3);
+    }, 25000, 2);
 
     if (!resp.ok) {
       const errorText = await resp.text();
       console.error('Kimi API error:', resp.status, errorText);
-      throw new Error(`AI service error: ${resp.status} ${errorText}`);
+      const err = new Error(`AI service error: ${resp.status} ${errorText}`);
+      err.upstreamStatus = resp.status;
+      throw err;
     }
 
     const aiData = await resp.json();
@@ -616,16 +630,19 @@ async function handleAiAgendaRecommend(request, env) {
 
     if (!validation.valid) {
       console.error('AI agenda validation failed after retry:', validation.error);
-      return errorResponse(`AI response format invalid: ${validation.error}`, 502, request);
+      return errorResponse(`AI response format invalid: ${validation.error}`, 502, request, { errorType: 'upstream' });
     }
 
     return jsonResponse({ success: true, candidates: validation.candidates }, 200, request);
   } catch (err) {
     if (err.name === 'AbortError') {
-      return errorResponse('AI request timeout', 504, request);
+      return errorResponse('AI request timeout', 504, request, { errorType: 'timeout' });
     }
     console.error('AI agenda recommend error:', err);
-    return errorResponse(err.message || 'AI request failed', 502, request);
+    return errorResponse(err.message || 'AI request failed', 502, request, {
+      errorType: err.upstreamStatus ? classifyUpstreamStatus(err.upstreamStatus) : 'internal',
+      ...(err.upstreamStatus ? { upstreamStatus: err.upstreamStatus } : {}),
+    });
   }
 }
 
@@ -656,27 +673,59 @@ async function handleChat(request, env) {
   const tools = body.tools;
   const max_tokens = body.max_tokens || 4096;
   const model = AI_MODEL_ALLOWLIST.has(body.model) ? body.model : DEFAULT_AI_MODEL;
+  // 透传 temperature（RFC-011 P0-3：此前前端传的 temperature 被静默丢弃）
+  const temperature = (typeof body.temperature === 'number' && body.temperature >= 0 && body.temperature <= 1.5)
+    ? body.temperature
+    : undefined;
 
   try {
-    const resp = await fetchWithRetry('https://api.moonshot.cn/v1/chat/completions', {
+    const kimiPayload = {
+      model,
+      messages,
+      stream,
+      tools: tools && tools.length > 0 ? tools : undefined,
+      max_tokens,
+      temperature,
+    };
+    let resp = await fetchWithRetry('https://api.moonshot.cn/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        stream,
-        tools: tools && tools.length > 0 ? tools : undefined,
-        max_tokens,
-      }),
-    }, 29000, 3);
+      body: JSON.stringify(kimiPayload),
+    }, 25000, 2);
+
+    // 部分模型（如 kimi-k2.7-code-highspeed）只允许 temperature=1；
+    // 遇到 invalid temperature 时摘掉该字段重试一次，避免透传特性变成全量 400
+    if (!resp.ok && temperature !== undefined && resp.status === 400) {
+      const errText = await resp.text();
+      if (errText.includes('invalid temperature')) {
+        console.warn(`[chat] model ${model} rejected temperature=${temperature}, retrying without it`);
+        delete kimiPayload.temperature;
+        resp = await fetchWithRetry('https://api.moonshot.cn/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(kimiPayload),
+        }, 25000, 2);
+      } else {
+        return errorResponse(`AI service error: ${resp.status} ${errText}`, 502, request, {
+          errorType: classifyUpstreamStatus(resp.status),
+          upstreamStatus: resp.status,
+        });
+      }
+    }
 
     if (!resp.ok) {
       const errorText = await resp.text();
       console.error('Kimi API error:', resp.status, errorText);
-      return errorResponse(`AI service error: ${resp.status} ${errorText}`, 502, request);
+      return errorResponse(`AI service error: ${resp.status} ${errorText}`, 502, request, {
+        errorType: classifyUpstreamStatus(resp.status),
+        upstreamStatus: resp.status,
+      });
     }
 
     if (stream) {
@@ -693,10 +742,10 @@ async function handleChat(request, env) {
     return jsonResponse({ success: true, ...data }, 200, request);
   } catch (err) {
     if (err.name === 'AbortError') {
-      return errorResponse('AI request timeout', 504, request);
+      return errorResponse('AI request timeout', 504, request, { errorType: 'timeout' });
     }
     console.error('AI chat error:', err);
-    return errorResponse(err.message || 'AI request failed', 502, request);
+    return errorResponse(err.message || 'AI request failed', 502, request, { errorType: 'internal' });
   }
 }
 
@@ -1037,7 +1086,7 @@ async function handleToolsExecute(request, env) {
     return jsonResponse({ success: true, result }, 200, request);
   } catch (err) {
     console.error('Tool execution error:', err);
-    return errorResponse(err.message || 'Tool execution failed', 502, request);
+    return errorResponse(err.message || 'Tool execution failed', 502, request, { errorType: 'internal' });
   }
 }
 

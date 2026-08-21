@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AIError } from '../../src/lib/ai-error.js';
+import { AIError, getAiErrorUserMessage } from '../../src/lib/ai-error.js';
 
 describe('AIError', () => {
   it('creates generic error with code', () => {
@@ -23,5 +23,25 @@ describe('AIError', () => {
     expect(AIError.rateLimit().code).toBe('RATE_LIMIT');
     expect(AIError.server().code).toBe('SERVER');
     expect(AIError.validation().code).toBe('VALIDATION');
+  });
+});
+
+describe('getAiErrorUserMessage (RFC-011)', () => {
+  it('maps Worker errorType to actionable messages', () => {
+    expect(getAiErrorUserMessage(new AIError('x', { errorType: 'auth' }))).toContain('鉴权失效');
+    expect(getAiErrorUserMessage(new AIError('x', { errorType: 'ratelimit' }))).toContain('限流');
+    expect(getAiErrorUserMessage(new AIError('x', { errorType: 'invalid_request' }))).toContain('新会话');
+    expect(getAiErrorUserMessage(new AIError('x', { errorType: 'upstream' }))).toContain('响应异常');
+    expect(getAiErrorUserMessage(new AIError('x', { errorType: 'timeout' }))).toContain('超时');
+  });
+
+  it('falls back to code when errorType missing', () => {
+    expect(getAiErrorUserMessage(AIError.timeout())).toContain('超时');
+    expect(getAiErrorUserMessage(AIError.rateLimit())).toContain('限流');
+    expect(getAiErrorUserMessage(AIError.network())).toContain('网络');
+  });
+
+  it('falls back to generic message for unknown errors', () => {
+    expect(getAiErrorUserMessage(new Error('boom'))).toContain('boom');
   });
 });

@@ -5,6 +5,7 @@
  */
 
 import { Storage } from '../lib/utils.js';
+import { logAiEvent } from '../lib/ai-telemetry.js';
 
 const FEEDBACK_KEY = 'dste_ai_feedback_v1';
 
@@ -17,6 +18,21 @@ function generatePromptHash(prompt) {
     hash |= 0;
   }
   return `h_${Math.abs(hash).toString(36)}`;
+}
+
+/**
+ * 找到某条助手消息对应的用户提问（用于 promptHash，RFC-011 P0-4）。
+ * @param {Array} messages 会话消息数组
+ * @param {string} targetId 助手消息 id
+ */
+export function resolvePromptForMessage(messages, targetId) {
+  if (!Array.isArray(messages)) return '';
+  const idx = messages.findIndex((m) => m.id === targetId);
+  if (idx < 0) return '';
+  for (let i = idx - 1; i >= 0; i--) {
+    if (messages[i].role === 'user' && !messages[i].hidden) return messages[i].content || '';
+  }
+  return '';
 }
 
 function saveFeedback(entry) {
@@ -59,13 +75,16 @@ export function renderAiFeedbackBar(messageEl, { sessionId = '', messageId = '',
   const promptHash = generatePromptHash(prompt);
 
   function record(rating) {
-    saveFeedback({
+    const entry = {
       messageId,
       sessionId,
       promptHash,
       rating,
       timestamp: Date.now(),
-    });
+    };
+    saveFeedback(entry);
+    // RFC-011 P0-4：反馈真实上报（此前只写 localStorage，数据只进不出）
+    logAiEvent({ type: 'feedback', ...entry });
     bar.innerHTML = `<span style="font-size:11px;color:var(--text-tertiary);">已反馈</span>`;
   }
 

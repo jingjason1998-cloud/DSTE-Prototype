@@ -11,15 +11,12 @@ import { icon, hydrateIcons } from '../../../assets/js/icons.js';
 import { AIClient, AISession } from '../../lib/ai-client.js';
 import { AiRequestState } from '../../lib/ai-state.js';
 import { renderMarkdownLite } from '../../lib/markdown-lite.js';
+import { buildTopicAiPrompt } from '../../lib/ai-prompts.js';
 
 const OVERLAY_ID = 'topic-ai-chat-overlay';
 
-const SYSTEM_PROMPT = `你是 DSTE 战略管理平台的 AI 助手，正在回答用户关于某一战略专题的问题。
-你必须严格基于以下「专题元数据」和「KMS 页面正文」回答，不确定时明确说明，不要编造。
-回答要求：
-- 使用中文，简洁专业
-- 关键结论后用括号标注数据来源（如「来源：KMS 页面《标题》」、「来源：专题元数据」）
-- 如果用户问题超出下面提供的上下文，提示用户查看 KMS 原文`;
+// RFC-011 P0-3：提示词收敛到 ai-prompts.js 单一来源
+const SYSTEM_PROMPT = buildTopicAiPrompt();
 
 const QUICK_PROMPTS = [
   { label: '核心结论', prompt: '这个专题的核心结论是什么？' },

@@ -15,7 +15,8 @@ import { updateAiDrawerToggleActive } from '../lib/shell.js';
 import { AiRequestState } from '../lib/ai-state.js';
 import { buildGlobalSystemPrompt } from '../lib/ai-prompts.js';
 import { selectContextForQuestion } from '../lib/ai-context-selector.js';
-import { renderAiFeedbackBar } from './AiFeedbackBar.js';
+import { renderAiFeedbackBar, resolvePromptForMessage } from './AiFeedbackBar.js';
+import { getAiErrorUserMessage } from '../lib/ai-error.js';
 
 const DRAWER_WIDTH = 420;
 const DRAWER_BODY_ID = 'global-ai-drawer';
@@ -359,7 +360,11 @@ function renderMessages() {
 
   // 为历史助手消息添加反馈条
   container.querySelectorAll('.global-ai-message.assistant[data-message-id]').forEach((el) => {
-    renderAiFeedbackBar(el, { sessionId: session?.id, messageId: el.dataset.messageId });
+    renderAiFeedbackBar(el, {
+      sessionId: session?.id,
+      messageId: el.dataset.messageId,
+      prompt: resolvePromptForMessage(session?.messages || [], el.dataset.messageId),
+    });
   });
 
   renderSessionSelect();
@@ -476,7 +481,7 @@ export async function sendMessage(text) {
       // 用户主动取消，不显示错误
       return;
     }
-    session.addMessage('assistant', `抱歉，AI 服务暂时不可用：${err.message}。请检查网络连接或稍后重试。`);
+    session.addMessage('assistant', `抱歉，${getAiErrorUserMessage(err)}`);
     client.saveSession(session);
     console.error('[GlobalAI] send message error:', err);
   } finally {

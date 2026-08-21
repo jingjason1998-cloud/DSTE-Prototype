@@ -99,41 +99,11 @@ export function buildTopicAiPrompt({ topic = {}, kmsPage = {} } = {}) {
 
 /**
  * 议程推荐系统提示词
+ *
+ * 注意：前端无任何调用方（议程推荐由 Worker `AI_AGENDA_PROMPT` 执行），
+ * 为避免双份提示词漂移（RFC-011 P0-3 教训），前端版本已移除。
+ * 如需调整议程推荐提示词，请改 api-worker/worker.js 的 AI_AGENDA_PROMPT。
  */
-export function buildAgendaRecommendPrompt({ meeting = {}, context = {} } = {}) {
-  const theme = meeting.theme || '';
-  return `You are an agenda advisor for a monthly business review meeting in a DSTE (Strategy Execution) system.
-Given the meeting context and related historical/action/resolution data, recommend candidate agenda items.
-
-Rules:
-- Each candidate must have a clear business topic title (<= 40 chars in Chinese).
-- Suggest duration between 10 and 45 minutes.
-- Pick owner from known participants/departments when possible.
-- Prioritize: overdue actions > postponed agendas > open resolutions > key work milestones > recurring monthly topics.
-${theme ? `- The user provided a theme "${theme}", bias recommendations toward that theme.` : ''}
-- Do not include items already covered by the existing agenda titles.
-- Return ONLY valid JSON in this shape, no markdown, no explanation:
-{
-  "candidates": [
-    {
-      "title": "string",
-      "type": "goal_management|key_task_management|budget_finance|human_resources|business_special|other",
-      "duration": number,
-      "owner": "string|empty",
-      "reason": "string (1 sentence in Chinese)",
-      "sourceType": "postponed_agenda|open_action|open_resolution|key_work|historical|theme",
-      "sourceId": "string|empty",
-      "confidence": 0.0-1.0
-    }
-  ]
-}
-
-Self-check before output:
-1. Is every candidate a valid JSON object with all required fields?
-2. Are duration and confidence numeric and within range?
-3. Are type and sourceType from the allowed enums?
-4. If yes, output the JSON only.`;
-}
 
 /**
  * 营销预算 AI 分析系统提示词（全局）
@@ -146,6 +116,5 @@ export default {
   buildGlobalSystemPrompt,
   buildMeetingAssistantPrompt,
   buildTopicAiPrompt,
-  buildAgendaRecommendPrompt,
   buildBudgetGlobalSystemPrompt,
 };
