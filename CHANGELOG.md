@@ -7,6 +7,14 @@
 
 ---
 
+## [v0.7.31] - 2026-08-21
+
+### Fixed
+- **会议 AI 助手查询类工具始终返回空**：`streamAiResponse` 调 `callWithTools` 时从未传 `toolContext`，而 Worker 侧 `queryMeetingAgenda`/`queryMeetingActions`/`queryMeetingResolutions` 只读 `context.meeting`，导致工具永远返回空数组、模型被迫瞎猜会议 ID（如 `20260824`、`hq_routine_20260824`）；现传入当前会议原始对象（实时取自 `findMeetingById`），`getMeetingContext` 补 `id` 字段并兼容 PersonRef 形态的 `host`，系统提示词加入真实会议 ID 并明确禁止猜测编造 `meetingId`。
+
+### Infrastructure
+- **AI 端点 401 热修（commit `102c08f`，Worker 侧不计版本号）**：CAS 临时绕过导致前端无 `dste-token`，Worker `/api/ai/*` 强制鉴权全部 401；`requireAiAuth` 新增 `AI_AUTH_BYPASS_ORIGINS`（`https://dste.fineres.com`）+ `wrangler.toml [vars] AI_AUTH_REQUIRED=false`，已 wrangler 部署并 curl 端到端验证（白名单外仍 401）。恢复 CAS 时需回改。
+
 ## [v0.7.30] - 2026-08-20
 
 ### Fixed
