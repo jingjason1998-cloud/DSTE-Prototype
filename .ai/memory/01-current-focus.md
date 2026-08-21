@@ -1,6 +1,6 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-21（v0.7.31 发布后）
+> 更新时间: 2026-08-21 10:08
 
 ## 状态
 **v0.7.31 已发布并部署生产**（2026-08-21 Kimi 会话，commit `8fdca89` + bump `ddddda6`，tag `v0.7.31`，Deploy success）：修复会议 AI 助手查询类工具（queryMeetingAgenda/Actions/Resolutions）始终返回空——`callWithTools` 从未传 `toolContext`（Worker 只读 `context.meeting`）且提示词无会议 ID 致模型幻觉 ID；现传当前会议原始对象 + 提示词给真实 ID 并禁止猜测。生产 bundle 断言通过。CHANGELOG 补记 08-20 Worker AI 401 热修（`102c08f`）。

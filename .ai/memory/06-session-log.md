@@ -47,6 +47,7 @@
 - **评审遗留待决**：用户身份来源（建议手动选人，CAS 恢复后切换）；sessions 与 meetings 数据双写漂移（建议 session 为计划态）；整篇 campaign 同步粒度 409 权衡；`sp_workshop` scenario 消费点排查；外部页创建 strategy-topic 需按字段全集构造
 - **产出文件**：`docs/02-RFC功能设计/009-strategy-workshop.md`（权威版）；副本存 Obsidian「我的笔记」库（iCloud）`DSTE-docs/02-RFC功能设计/009-strategy-workshop.md`，已登记该目录 README 的 RFC 表（注意：用户的笔记库是「我的笔记」，不是 `Documents/Obsidian Vault`）
 - **状态**：RFC draft 待用户评审，未编码、未提交
+- **后续分叉（08-21 发现）**：并行 Claude 会话基于本稿重构出加强版 `009-sp-planning-workshop.md`（旧文件名，BLM/DSTE 方法论骨架 + 对标分析，附 `009-sp-planning-workshop-benchmark-styles.html`），与本会话最终版 `009-strategy-workshop.md`（含用户拍板：改名战略研讨会/通用周期/无投票）并存冲突，待用户裁定合并方向
 
 ## 2026-08-20（Kimi，发布 v0.7.29：战略专题深化按钮修复）
 - **主题**：用户反馈战略专题「深化」按钮找不到（点名 2025 年「供应链」）
