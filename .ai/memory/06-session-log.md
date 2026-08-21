@@ -2,6 +2,16 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-21（Kimi，发布 v0.7.35：RFC-011 P1 四项全落地）
+- **主题**：继续执行 RFC-011 P1（多轮工具 loop / 工具服务端取数 / 日志聚合看板 / eval 回归集）
+- **P1-1 多轮工具调用**：新增 `AIClient.runToolLoop(session, firstToolCalls, tools, options)`——执行工具→写回会话→再请求，模型继续调工具则循环，maxToolRounds=4，末轮 tools=[] 强制收尾；`callWithTools` 改为「首轮 chat + runToolLoop」；GlobalAiDrawer 删掉手写工具轮（含两份 mock 检测死代码），流式首轮后接 runToolLoop。chat 新增 `userMessageHidden`（工具轮跟进消息不进 UI）
+- **P1-2 工具服务端取数**：Worker `resolveMeetingForTool()` 读 KV `dste_meetings_v1` 按 meetingId 查，找不到/出错回退 context.meeting，返回加 `source: 'kv'|'context'`。会议权威存储就是这把大数组 key（单条 PUT /api/meetings/:id 也走它，handleEntityItem lookupMode array）
+- **P1-3 观测**：Worker `GET /api/ai/stats?days=14`（list `ai_logs_v1:` 前缀最近 500 批次聚合：成功率/P95/errorType 分布/端点分布/每日趋势/反馈计数，走 requireAiAuth）；cockpit 新增 `#admin/ai-stats` 内部页（卡片+分布条+趋势表，data-action 事件委托刷新）。**侧边栏入口未加**——src/lib/config.js 被并行会话 WIP 占用，待其落地后补登
+- **P1-4 smoke eval**：`scripts/ai-smoke-eval.mjs` 10 用例真实打 Kimi（C1~C4 事故回归、C5 工具链路、C6 agenda schema、C7 KV 回退、C8 错误契约、C9 stats 端点），`node scripts/ai-smoke-eval.mjs [baseUrl]`，生产实测 10/10
+- **验证**：unit 624（+2 多轮 loop 用例）/ pytest 221 / lint 0 error / check:scope ✓ / build ✓ / AI+导航 E2E 40/40；Worker Version `bb2765e9`
+- **发布**：commit `b0110e6` + bump `d8dc60a`，tag `v0.7.35`；工作区仍有并行会话 WIP（config.js/vite.config.js/meetings.html/sp-planning 等），提交严格按文件清单 stage
+- **状态**：complete（RFC-011 全部完成；P2 方向：模型路由、会话服务端 KV 化、ai-stats 侧边栏入口）
+
 ## 2026-08-21（Kimi，发布 v0.7.34：RFC-011 AI 稳定性 P0 + RFC-010 随版上线）
 - **主题**：用户要求「对标业界，让 AI 助手更稳定更聪明」→ 先摸底（2 个 explore 代理：AI 模块现状 7 维度 + 12 起事故根因分布），写成 RFC-011（`docs/02-RFC功能设计/011-ai-stability-quality.md`）后执行 P0 五项
 - **事故分析结论**：工具调用协议类 5 起为最大重灾区；「同一症状复发 4 次」因 Worker 把 Kimi 所有错误压成 502；「一次错误变永久故障」因 localStorage 坏历史反复重发；协议类 bug 全靠用户发现（测试全 mock）
