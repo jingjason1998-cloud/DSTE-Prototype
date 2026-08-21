@@ -2,6 +2,19 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-21（Kimi，发布 v0.7.34：RFC-011 AI 稳定性 P0 + RFC-010 随版上线）
+- **主题**：用户要求「对标业界，让 AI 助手更稳定更聪明」→ 先摸底（2 个 explore 代理：AI 模块现状 7 维度 + 12 起事故根因分布），写成 RFC-011（`docs/02-RFC功能设计/011-ai-stability-quality.md`）后执行 P0 五项
+- **事故分析结论**：工具调用协议类 5 起为最大重灾区；「同一症状复发 4 次」因 Worker 把 Kimi 所有错误压成 502；「一次错误变永久故障」因 localStorage 坏历史反复重发；协议类 bug 全靠用户发现（测试全 mock）
+- **P0-1 错误分类透传**：Worker `errorResponse` 加 extra 字段 + `classifyUpstreamStatus`（401/403→auth、429→ratelimit、400/422→invalid_request、5xx→upstream）；前端 `AIError` 加 errorType/upstreamStatus，`parseErrorBody` 解析；`getAiErrorUserMessage()`（ai-error.js）按分类给可操作提示，GlobalAiDrawer/MeetingAiAssistant 接入
+- **P0-2 超时对齐**：Worker 调 Kimi 29000×3（~116s，远超前端 60s）→ 25000×2；前端 `_fetchWithTimeout` 每次 attempt 独立 AbortController（reason 'timeout'），内部超时重试 1 次，用户取消（externalSignal）立即抛。**踩坑：fetchWithRetry 对可重试状态码耗尽后抛自包装 Error（response 挂 .response），_fetchWithTimeout 必须回退 `return err.response` 交给上层解析，否则 errorType 永远拿不到**——单测抓出来的真实 bug
+- **P0-3 temperature/提示词**：Worker 透传 temperature（0~1.5 校验）。**生产 curl 实测发现 `kimi-k2.7-code-highspeed` 只允许 temperature=1**（前端默认 0.7 会全量 400），Worker 加 invalid temperature 摘字段兜底重试。删 `MeetingAiAssistant.buildMeetingSystemPrompt` 死代码 + 前端 `buildAgendaRecommendPrompt`（无人调用，Worker 权威），TopicAiChat 硬编码 SYSTEM_PROMPT → 共享 `buildTopicAiPrompt`
+- **P0-4 反馈闭环**：AiFeedbackBar.record 加 `logAiEvent({type:'feedback'})` 真实上报；新增 `resolvePromptForMessage()`，两个调用方传入用户提问，promptHash 不再恒 h_0
+- **P0-5 营销预算 AI 分析**：确认是真 bug——Worker 非流式返回 `{success, choices[...]}`，前端读 `res.content||res.text||res.message` 恒空且写缓存污染 1h/24h；改读 `choices[0].message.content`，空结果抛错不写缓存
+- **验证**：unit 622（新增 9 用例）/ pytest 221 / lint 0 error / check:scope ✓ / build ✓ / AI 相关 E2E 18/18；Worker wrangler 部署 Version `17f34a48`，生产 curl 验证 errorType 透传（400→invalid_request）与 temperature 0.7 兜底均 200
+- **多会话协作注意**：发版途中发现并行会话已发布 v0.7.33（同步 toast 节流）且工作区有其 WIP（vite.config.js/config.js/meetings.html/sp-planning 等），提交时严格按文件清单只 stage 自己的改动；`git pull --rebase` 会因对方未暂存改动失败，远程无新提交时直接 push 即可。我的版本号从 v0.7.33 顺延为 v0.7.34
+- **遗留（RFC-011 P1 待排期）**：多轮工具调用 loop、queryMeeting* 工具服务端取数、/api/ai/stats 日志聚合看板、12 起事故固化为真实 Kimi smoke eval
+- **状态**：complete
+
 ## 2026-08-21（Kimi，docs 文档全面治理 + 垂直客群审核模型统一）
 - **主题**：用户指出开发文档长期未整理、可能重复、与实际系统不对应，要求全面检查并治理
 - **检查**：8 个并行审查代理对 docs/ 90 篇逐篇阅读并与代码交叉验证，裁决：✅13 / ⚠️55 / 🔁8 / 🗑7；最普遍病灶是「功能发布后文档状态从不回写」
