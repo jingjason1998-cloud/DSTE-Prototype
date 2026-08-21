@@ -85,6 +85,87 @@ describe('ai-client', () => {
         { role: 'assistant', content: 'hi' },
       ]);
     });
+
+    it('toKimiFormat drops orphan tool messages (heals polluted sessions)', () => {
+      const session = new AISession();
+      session.addMessage('user', '第一轮');
+      session.addMessage('assistant', '', {
+        tool_calls: [{ id: 'tc_1', type: 'function', function: { name: 'queryMeetingActions', arguments: '{}' } }],
+      });
+      session.addMessage('tool', '{"success":true}', { tool_call_id: 'tc_1' });
+      session.addMessage('assistant', '有一个行动项');
+      // 模拟截断/历史污染：assistant.tool_calls 丢失，tool 消息成为孤儿
+      session.messages = session.messages.filter((m) => !(m.role === 'assistant' && m.tool_calls));
+
+      const formatted = session.toKimiFormat(false);
+      expect(formatted.some((m) => m.role === 'tool')).toBe(false);
+      expect(formatted).toEqual([
+        { role: 'user', content: '第一轮' },
+        { role: 'assistant', content: '有一个行动项' },
+      ]);
+    });
+
+    it('toKimiFormat strips tool_calls without tool responses', () => {
+      const session = new AISession();
+      session.addMessage('user', '查一下行动项');
+      session.addMessage('assistant', '', {
+        tool_calls: [{ id: 'tc_9', type: 'function', function: { name: 'queryMeetingActions', arguments: '{}' } }],
+      });
+      // 没有对应 tool 响应（工具结果消息被截断）
+      const formatted = session.toKimiFormat(false);
+      // assistant 内容为空且 tool_calls 无响应 → 整条“空壳”被丢弃
+      expect(formatted).toEqual([{ role: 'user', content: '查一下行动项' }]);
+    });
+
+    it('toKimiFormat keeps intact tool-call groups', () => {
+      const session = new AISession();
+      session.addMessage('user', '有哪些行动项');
+      session.addMessage('assistant', '', {
+        tool_calls: [{ id: 'tc_1', type: 'function', function: { name: 'queryMeetingActions', arguments: '{}' } }],
+      });
+      session.addMessage('tool', '{"success":true}', { tool_call_id: 'tc_1' });
+      session.addMessage('assistant', '有一个行动项');
+
+      const formatted = session.toKimiFormat(false);
+      expect(formatted.length).toBe(4);
+      expect(formatted[1].tool_calls[0].id).toBe('tc_1');
+      expect(formatted[2]).toEqual({ role: 'tool', content: '{"success":true}', tool_call_id: 'tc_1' });
+    });
+
+    it('truncation never leaves orphan tool messages', () => {
+      const session = new AISession();
+      // 第 1 轮是工具调用轮：u, a(tool_calls), tool, 之后 9 轮普通对话
+      // 再加 1 轮触发截断（>10 轮），切片恰好落在 tool 组中间
+      session.addMessage('user', 'round 0');
+      session.addMessage('assistant', '', {
+        tool_calls: [{ id: 'tc_0', type: 'function', function: { name: 'queryMeetingAgenda', arguments: '{}' } }],
+      });
+      session.addMessage('tool', '{"agenda":[]}', { tool_call_id: 'tc_0' });
+      for (let i = 1; i <= 10; i++) {
+        session.addMessage('user', `round ${i}`);
+        session.addMessage('assistant', `reply ${i}`);
+      }
+      expect(session.messages.filter((m) => m.role === 'user').length).toBeLessThanOrEqual(10);
+      // 确认截断确实发生且切片落在了工具组中间（否则测试没意义）：
+      // 截断前 23 条消息保留 20 条，assistant(tool_calls) 被裁掉、tool(tc_0) 成为孤儿
+      expect(session.messages.some((m) => m.role === 'tool' && m.tool_call_id === 'tc_0')).toBe(false);
+
+      // 不变量：每个 tool 消息的 tool_call_id 都能在某个 assistant.tool_calls 中找到，
+      // 且每个保留的 tool_call 都有对应 tool 响应
+      const declaredIds = new Set();
+      session.messages.forEach((m) => {
+        if (m.role === 'assistant' && Array.isArray(m.tool_calls)) {
+          m.tool_calls.forEach((tc) => declaredIds.add(tc.id));
+        }
+      });
+      const respondedIds = new Set(
+        session.messages.filter((m) => m.role === 'tool').map((m) => m.tool_call_id),
+      );
+      session.messages.forEach((m) => {
+        if (m.role === 'tool') expect(declaredIds.has(m.tool_call_id)).toBe(true);
+      });
+      declaredIds.forEach((id) => expect(respondedIds.has(id)).toBe(true));
+    });
   });
 
   describe('AIClient session management', () => {

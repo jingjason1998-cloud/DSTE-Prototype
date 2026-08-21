@@ -16,6 +16,52 @@ const CURRENT_SESSION_KEY = 'dste_ai_current_session_v2';
 const MAX_HISTORY_ROUNDS = 10;
 
 /**
+ * 清洗 tool_calls 与 tool 消息的配对关系。
+ * Kimi 要求每个 tool 消息的 tool_call_id 必须能在某个 assistant.tool_calls 中找到，
+ * 且 assistant 保留下来的每个 tool_call 都必须有对应 tool 响应，
+ * 否则返回 400 "tool_call_id is not found"（Worker 映射为 502）。
+ * 会话截断（_truncate 按消息数切片）可能把工具调用组拦腰切断，
+ * 历史已污染的会话也需要在发送前（toKimiFormat）自愈。
+ */
+function sanitizeToolCallPairing(messages) {
+  const respondedIds = new Set();
+  messages.forEach((m) => {
+    if (m.role === 'tool' && m.tool_call_id) respondedIds.add(m.tool_call_id);
+  });
+
+  // assistant：只保留有 tool 响应的 tool_calls；一个都不剩的摘掉 tool_calls，
+  // 内容也为空的整条丢弃（截断残留的“空壳”）
+  const withoutDanglingCalls = [];
+  messages.forEach((m) => {
+    if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+      const keptCalls = m.tool_calls.filter((tc) => tc && tc.id && respondedIds.has(tc.id));
+      if (keptCalls.length === 0) {
+        const rest = { ...m };
+        delete rest.tool_calls;
+        if (String(rest.content || '').trim() !== '') withoutDanglingCalls.push(rest);
+        return;
+      }
+      withoutDanglingCalls.push(
+        keptCalls.length === m.tool_calls.length ? m : { ...m, tool_calls: keptCalls },
+      );
+      return;
+    }
+    withoutDanglingCalls.push(m);
+  });
+
+  // tool：丢弃找不到对应 assistant tool_call 的孤儿消息
+  const declaredIds = new Set();
+  withoutDanglingCalls.forEach((m) => {
+    if (m.role === 'assistant' && Array.isArray(m.tool_calls)) {
+      m.tool_calls.forEach((tc) => {
+        if (tc && tc.id) declaredIds.add(tc.id);
+      });
+    }
+  });
+  return withoutDanglingCalls.filter((m) => m.role !== 'tool' || declaredIds.has(m.tool_call_id));
+}
+
+/**
  * 获取 AI 网关地址
  * 优先级：localStorage.meetingReviewerProxyUrl > localStorage.dste_api_base > 默认 Worker
  */
@@ -283,7 +329,8 @@ export class AISession {
   }
 
   toKimiFormat(includeSystem = true) {
-    return this.getMessages(includeSystem).map((m) => ({
+    const paired = sanitizeToolCallPairing(this.getMessages(includeSystem));
+    return paired.map((m) => ({
       role: m.role,
       content: m.content,
       ...(m.name ? { name: m.name } : {}),
@@ -307,7 +354,9 @@ export class AISession {
     const others = this.messages.filter((m) => m.role !== 'system');
     const keepCount = MAX_HISTORY_ROUNDS * 2;
     const kept = others.slice(-keepCount);
-    this.messages = [...systemMessages, ...kept];
+    // 切片可能把工具调用组拦腰切断（assistant.tool_calls 被裁掉、tool 消息留下），
+    // 必须重新配对，否则 Kimi 报 400 tool_call_id is not found
+    this.messages = sanitizeToolCallPairing([...systemMessages, ...kept]);
   }
 }
 

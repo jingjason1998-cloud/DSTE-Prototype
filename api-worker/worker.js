@@ -52,7 +52,7 @@ function errorResponse(message, status = 500, request) {
  */
 function sanitizeMessages(messages) {
   if (!Array.isArray(messages)) return [];
-  return messages
+  const cleaned = messages
     .map((m) => {
       if (!m || typeof m !== 'object') return null;
       const role = String(m.role || '').trim();
@@ -91,6 +91,43 @@ function sanitizeMessages(messages) {
       return sanitized;
     })
     .filter(Boolean);
+
+  // 第二遍：保证 tool_calls 与 tool 消息配对。
+  // 前端会话截断可能留下孤儿 tool 消息或没有响应的 tool_calls，
+  // Kimi 会返回 400 "tool_call_id is not found"（对调用方表现为 502）。
+  const respondedIds = new Set();
+  cleaned.forEach((m) => {
+    if (m.role === 'tool' && m.tool_call_id) respondedIds.add(m.tool_call_id);
+  });
+  const withoutDanglingCalls = [];
+  cleaned.forEach((m) => {
+    if (m.role === 'assistant' && Array.isArray(m.tool_calls)) {
+      const keptCalls = m.tool_calls.filter((tc) => tc && tc.id && respondedIds.has(tc.id));
+      if (keptCalls.length === 0) {
+        // 摘掉 tool_calls 后内容为空（之前补的空格）的“空壳”消息整条丢弃
+        if (m.content.trim() !== '') {
+          const rest = { role: m.role, content: m.content };
+          if (m.name) rest.name = m.name;
+          withoutDanglingCalls.push(rest);
+        }
+        return;
+      }
+      withoutDanglingCalls.push(
+        keptCalls.length === m.tool_calls.length ? m : { ...m, tool_calls: keptCalls },
+      );
+      return;
+    }
+    withoutDanglingCalls.push(m);
+  });
+  const declaredIds = new Set();
+  withoutDanglingCalls.forEach((m) => {
+    if (m.role === 'assistant' && Array.isArray(m.tool_calls)) {
+      m.tool_calls.forEach((tc) => {
+        if (tc && tc.id) declaredIds.add(tc.id);
+      });
+    }
+  });
+  return withoutDanglingCalls.filter((m) => m.role !== 'tool' || declaredIds.has(m.tool_call_id));
 }
 
 // KV key 常量
@@ -120,6 +157,8 @@ const KEYS = {
   versionAudit: 'dste_version_audit_v1',
   // 目录管理
   catalogs: 'dste_catalogs_v1',
+  // SP 战略规划制定
+  spCampaigns: 'dste_sp_campaigns_v1',
 };
 
 // CAS 配置
@@ -406,6 +445,7 @@ const DEFAULTS = {
   cycles: '[]',
   strategyMaps: '[]',
   catalogs: '[]',
+  spCampaigns: '[]',
 };
 
 // --- AI 议程推荐 ---
@@ -1084,11 +1124,11 @@ export default {
       }
 
       // --- 单条 CRUD 端点（新增）---
-      const itemMatch = path.match(/^\/api\/(topics|strategy-topics|insights|issues|meetings|employees|org-units|requirements|catalogs)\/([^\/]+)$/);
+      const itemMatch = path.match(/^\/api\/(topics|strategy-topics|insights|issues|meetings|employees|org-units|requirements|catalogs|sp-campaigns)\/([^\/]+)$/);
       if (itemMatch) {
         const entity = itemMatch[1];
         const id = decodeURIComponent(itemMatch[2]);
-        const key = KEYS[entity === 'org-units' ? 'orgUnits' : entity === 'strategy-topics' ? 'strategyTopics' : entity];
+        const key = KEYS[entity === 'org-units' ? 'orgUnits' : entity === 'strategy-topics' ? 'strategyTopics' : entity === 'sp-campaigns' ? 'spCampaigns' : entity];
         const auth = await requireAuth(request, env);
         // GET 保持开放与全量接口一致；写操作需认证
         const user = auth.valid ? auth.user : null;
@@ -1210,6 +1250,24 @@ export default {
           const normalized = normalizeArrayItems(body, auth.user);
           await env.DSTE_KV.put(KEYS.strategyTopics, JSON.stringify(normalized));
           return jsonResponse({ success: true, message: 'strategy topics saved' }, 200, request);
+        }
+      }
+
+      // --- SP 战略规划制定 API ---
+      if (path === '/api/sp-campaigns') {
+        if (method === 'GET') {
+          const data = await env.DSTE_KV.get(KEYS.spCampaigns) || DEFAULTS.spCampaigns;
+          return jsonResponse({ success: true, data: JSON.parse(data) }, 200, request);
+        }
+        if (method === 'POST') {
+          const auth = await requireAuth(request, env);
+          if (!auth.valid) {
+            return errorResponse(auth.error, auth.status, request);
+          }
+          const body = await request.json();
+          const normalized = normalizeArrayItems(body, auth.user);
+          await env.DSTE_KV.put(KEYS.spCampaigns, JSON.stringify(normalized));
+          return jsonResponse({ success: true, message: 'sp campaigns saved' }, 200, request);
         }
       }
 
