@@ -437,43 +437,17 @@ export async function sendMessage(text) {
       client.saveSession(session);
       updateLastMessage('正在调用工具…');
 
-      for (const call of toolCalls) {
-        const result = await client._executeTool(call, toolContext, { signal });
-        session.addMessage('tool', JSON.stringify(result), { tool_call_id: call.id });
-      }
-
-      // 隐藏的 user 消息，让 Kimi 消息顺序合法，但不在 UI 中展示
-      session.addMessage('user', '请基于工具返回结果继续回答。', { hidden: true });
-      client.saveSession(session);
-      renderMessages();
-
-      const finalSystemPrompt = buildGlobalSystemPrompt({ pageName: pageCtx.pageName, pageId: pageCtx.pageId });
-      const finalMessages = [{ role: 'system', content: finalSystemPrompt }];
-      if (selectedContext) {
-        finalMessages.push({ role: 'system', content: '### 当前业务上下文\n' + selectedContext });
-      }
-      finalMessages.push(...session.toKimiFormat(false));
-
-      const finalResp = await client.request('/api/ai/chat', {
-        messages: finalMessages,
-        tools: [],
-        stream: false,
-        temperature: 0.7,
-        max_tokens: 2048,
-      }, { signal });
-      const finalContent = finalResp.choices?.[0]?.message?.content || 'AI 未返回有效回复';
+      // RFC-011 P1-1：与 callWithTools 共用多轮工具调用 loop
+      const { content: loopContent } = await client.runToolLoop(session, toolCalls, [AITools.navigateTo, AITools.searchKms], {
+        toolContext,
+        signal,
+        systemPrompt: buildGlobalSystemPrompt({ pageName: pageCtx.pageName, pageId: pageCtx.pageId }),
+        context: selectedContext,
+        maxTokens: 2048,
+      });
+      const finalContent = loopContent || 'AI 未返回有效回复';
       session.addMessage('assistant', finalContent);
       client.saveSession(session);
-
-      if (finalContent.includes('【mock 模式】') || finalContent.includes('当前为 mock')) {
-        if (typeof window !== 'undefined' && window.showToast) {
-          window.showToast('当前为 AI mock 模式，未调用真实模型', 'info', 3000);
-        }
-      }
-    } else if (streamedContent.includes('【mock 模式】') || streamedContent.includes('当前为 mock')) {
-      if (typeof window !== 'undefined' && window.showToast) {
-        window.showToast('当前为 AI mock 模式，未调用真实模型', 'info', 3000);
-      }
     }
   } catch (err) {
     requestError = err;

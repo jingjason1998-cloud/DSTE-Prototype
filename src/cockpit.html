@@ -1152,6 +1152,7 @@
         'rev/gap-analysis': () => renderPlaceholder(icon('rev/gap-analysis', { size: 48 }), '差距分析', '战略目标与实际执行的差距分析，根因定位与改进建议。'),
         'admin/rule-engine': () => { window.location.href = 'rule-engine.html'; return ''; },
         'admin/alert-hub': () => renderPlaceholder(icon('admin/alert-hub', { size: 48 }), '预警中心', '统一接收规则引擎与业务模块的预警事件，进行分级、通知、工单跟踪与闭环管理。'),
+        'admin/ai-stats': renderAiStats,
         'admin/requirement-pool': () => renderPlaceholder(icon('admin/requirement-pool', { size: 48 }), '需求管理中心', '统一收集、评审、跟踪来自市场、客户、高管与部门的需求，为战略制定与年度经营计划提供输入。'),
         'admin/catalog-management': renderCatalogManagement
       };
@@ -6582,8 +6583,110 @@
       }
 
       // ===== 占位页面 =====
-      function renderPlaceholder(iconHtml, title, desc) {
+      // ===== AI 观测页（RFC-011 P1-3）=====
+      // 数据源：Worker /api/ai/stats（聚合 KV telemetry 日志）
+      function renderAiStats() {
+        setTimeout(() => loadAiStatsData(), 0);
         return `
+          ${renderBreadcrumb('AI 观测')}
+          <div class="page-header">
+            <h1 class="page-title">AI 观测</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary" data-action="ai-stats-refresh">刷新</button>
+            </div>
+          </div>
+          <div id="ai-stats-body"><div class="text-xs-tertiary" style="padding:24px 0;">加载中…</div></div>
+        `;
+      }
+
+      function renderAiStatsCards(totals, latency) {
+        const card = (label, value, sub, color) => `
+          <div style="flex:1;min-width:160px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:16px;">
+            <div class="text-xs-tertiary">${label}</div>
+            <div style="font-size:26px;font-weight:600;color:${color};margin:6px 0 2px;">${value}</div>
+            <div class="text-xs-tertiary">${sub}</div>
+          </div>`;
+        const successColor = totals.successRate === null ? 'var(--text-secondary)' : (totals.successRate >= 95 ? 'var(--success)' : totals.successRate >= 85 ? 'var(--warning)' : 'var(--danger)');
+        return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          ${card('AI 请求数', totals.requests, '近 14 天（chat/agenda/tool）', 'var(--primary)')}
+          ${card('成功率', totals.successRate === null ? '—' : totals.successRate + '%', `失败 ${totals.errors} 次`, successColor)}
+          ${card('P95 延迟', latency.p95Ms === null ? '—' : (latency.p95Ms / 1000).toFixed(1) + 's', `平均 ${latency.avgMs === null ? '—' : (latency.avgMs / 1000).toFixed(1) + 's'} · ${latency.samples} 样本`, 'var(--info)')}
+          ${card('用户反馈', `👍 ${totals.feedbackUp} / 👎 ${totals.feedbackDown}`, '近 14 天', 'var(--text-secondary)')}
+        </div>`;
+      }
+
+      function renderAiStatsDist(title, dist, colorFn) {
+        const entries = Object.entries(dist || {}).sort((a, b) => b[1] - a[1]);
+        if (entries.length === 0) return '';
+        const max = entries[0][1];
+        const rows = entries.map(([k, v]) => `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <div style="width:160px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(k)}">${escapeHtml(k)}</div>
+            <div style="flex:1;height:8px;background:var(--bg-secondary, rgba(0,0,0,0.06));border-radius:4px;overflow:hidden;">
+              <div style="width:${Math.max(2, Math.round(v / max * 100))}%;height:100%;background:${colorFn ? colorFn(k) : 'var(--primary)'};"></div>
+            </div>
+            <div style="width:36px;text-align:right;font-size:12px;">${v}</div>
+          </div>`).join('');
+        return `<div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="font-weight:600;margin-bottom:12px;">${title}</div>${rows}
+        </div>`;
+      }
+
+      function renderAiStatsDaily(daily) {
+        const days = Object.keys(daily || {}).sort();
+        if (days.length === 0) return '';
+        const rows = days.map((d) => {
+          const it = daily[d];
+          const rate = it.requests + it.errors > 0 ? Math.round(it.requests / (it.requests + it.errors) * 100) : null;
+          return `<tr>
+            <td style="padding:6px 12px;font-size:12px;">${d}</td>
+            <td style="padding:6px 12px;font-size:12px;text-align:right;">${it.requests}</td>
+            <td style="padding:6px 12px;font-size:12px;text-align:right;color:${it.errors > 0 ? 'var(--danger)' : 'inherit'};">${it.errors}</td>
+            <td style="padding:6px 12px;font-size:12px;text-align:right;">${rate === null ? '—' : rate + '%'}</td>
+          </tr>`;
+        }).join('');
+        return `<div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="font-weight:600;margin-bottom:12px;">每日趋势</div>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid var(--border-color);">
+              <th style="padding:6px 12px;font-size:12px;text-align:left;">日期</th>
+              <th style="padding:6px 12px;font-size:12px;text-align:right;">请求</th>
+              <th style="padding:6px 12px;font-size:12px;text-align:right;">失败</th>
+              <th style="padding:6px 12px;font-size:12px;text-align:right;">成功率</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      }
+
+      async function loadAiStatsData() {
+        const el = document.getElementById('ai-stats-body');
+        if (!el) return;
+        el.innerHTML = '<div class="text-xs-tertiary" style="padding:24px 0;">加载中…</div>';
+        try {
+          const resp = await fetch('/api/ai/stats?days=14');
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const stats = await resp.json();
+          if (!stats.success) throw new Error(stats.error || '加载失败');
+          const errColor = (k) => k === 'ratelimit' ? 'var(--warning)' : 'var(--danger)';
+          el.innerHTML =
+            renderAiStatsCards(stats.totals, stats.latency) +
+            renderAiStatsDist('错误分类（errorType）', stats.errorTypeDist, errColor) +
+            renderAiStatsDist('端点调用分布', stats.endpointDist) +
+            renderAiStatsDaily(stats.daily);
+        } catch (err) {
+          el.innerHTML = `<div style="color:var(--danger);padding:24px 0;">AI 观测数据加载失败：${escapeHtml(err.message || '未知错误')}</div>`;
+        }
+      }
+      window.loadAiStatsData = loadAiStatsData;
+
+      // data-action 事件委托（cockpit IIFE 内局部函数无法被 onclick 访问）
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action="ai-stats-refresh"]');
+        if (btn) loadAiStatsData();
+      });
+
+      function renderPlaceholder(iconHtml, title, desc) {        return `
           ${renderBreadcrumb(title)}
           <div class="page-header">
             <h1 class="page-title">${title}</h1>

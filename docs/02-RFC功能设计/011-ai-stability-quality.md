@@ -113,6 +113,7 @@ Worker `handleChat` / `handleAiAgendaRecommend` / `handleToolsExecute` 错误响
 
 - 模型路由：简单问答走快模型、复杂分析走 k2.7；RFC-008 Phase 2 多 Agent 编排。
 - 会话存服务端 KV（跨设备连续，杜绝 localStorage 污染类问题）。
+- `#admin/ai-stats` 侧边栏入口（P1-3 页面已可经 hash 直达，入口待 `src/lib/config.js` 无并行改动后补登）。
 
 ## 替代方案
 
@@ -135,8 +136,11 @@ Worker `handleChat` / `handleAiAgendaRecommend` / `handleToolsExecute` 错误响
 - [x] T4 P0-4 反馈上报 + promptHash 修复
 - [x] T5 P0-5 marketing-budget 响应解析修复（已确认为真 bug：Worker 返回 choices 嵌套结构，原代码恒读不到正文且污染缓存）
 - [x] T6 单元测试补齐 + pytest/lint/check:scope/build 全套验证（unit 622 / pytest 221 / lint 0 error / AI 相关 E2E 18/18）
-- [ ] T7 发版（Worker wrangler 部署 + 前端 patch）
-- [ ] T8 P1 四项后续排期
+- [x] T7 发版（P0 已随 v0.7.34 发布；P1 随 v0.7.35）
+- [x] T8 P1-1 多轮工具调用 loop（`AIClient.runToolLoop`，callWithTools 与 GlobalAiDrawer 共用；maxToolRounds=4，最后一轮强制收尾）
+- [x] T8 P1-2 工具服务端取数（queryMeeting* 优先读 KV `dste_meetings_v1`，context.meeting 回退，返回 `source` 字段标识来源）
+- [x] T8 P1-3 `/api/ai/stats` 聚合端点（成功率/P95/errorType 分布/端点分布/14 天趋势/反馈计数）+ cockpit 内部页 `#admin/ai-stats`（侧边栏入口待 config.js 无并行改动后补）
+- [x] T8 P1-4 smoke eval：`scripts/ai-smoke-eval.mjs` 10 用例真实调 Kimi（覆盖 v0.7.0/0.7.19/0.7.32/0.7.34 事故回归 + 契约用例），用法 `node scripts/ai-smoke-eval.mjs [baseUrl]`，发版前手动跑
 
 ## 参考
 

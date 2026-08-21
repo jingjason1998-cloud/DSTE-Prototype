@@ -781,8 +781,95 @@ async function handleAiLog(request, env, auth) {
   }
 }
 
-// ========== AI 工具执行层 ==========
+/**
+ * AI 观测统计（RFC-011 P1-3）：聚合 KV 中的 telemetry 日志。
+ * 此前日志只进不出（无读取/聚合端点），出问题只能靠 wrangler tail 现抓。
+ * GET /api/ai/stats?days=14
+ */
+async function handleAiStats(request, env) {
+  if (request.method !== 'GET') {
+    return errorResponse('Method not allowed', 405, request);
+  }
 
+  const url = new URL(request.url);
+  const days = Math.min(Math.max(parseInt(url.searchParams.get('days') || '14', 10) || 14, 1), 90);
+  const since = Date.now() - days * 24 * 3600 * 1000;
+
+  try {
+    const list = await env.DSTE_KV.list({ prefix: 'ai_logs_v1:' });
+    // 防爆量：最多取最近 500 个批次（list 按 key 字典序，ts 结尾近似时间序）
+    const keys = list.keys.slice(-500);
+    const events = [];
+    for (const k of keys) {
+      try {
+        const raw = await env.DSTE_KV.get(k.name);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const batch = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.events) ? parsed.events : []);
+        events.push(...batch);
+      } catch (e) {
+        // 跳过损坏的批次
+      }
+    }
+
+    const recent = events.filter((e) => (e?.timestamp || 0) >= since);
+    const requests = recent.filter((e) => e.type === 'chat' || e.type === 'agenda' || e.type === 'tool');
+    const errors = recent.filter((e) => e.type === 'error');
+    const feedback = recent.filter((e) => e.type === 'feedback');
+
+    const latencies = requests.map((e) => e.latencyMs).filter((n) => typeof n === 'number').sort((a, b) => a - b);
+    const p95 = latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))] : null;
+    const avg = latencies.length ? Math.round(latencies.reduce((s, n) => s + n, 0) / latencies.length) : null;
+
+    const errorTypeDist = {};
+    const errorCodeDist = {};
+    errors.forEach((e) => {
+      const t = e.errorType || 'unknown';
+      errorTypeDist[t] = (errorTypeDist[t] || 0) + 1;
+      const c = e.errorCode || 'UNKNOWN';
+      errorCodeDist[c] = (errorCodeDist[c] || 0) + 1;
+    });
+
+    const endpointDist = {};
+    requests.forEach((e) => {
+      const ep = e.endpoint || 'unknown';
+      endpointDist[ep] = (endpointDist[ep] || 0) + 1;
+    });
+
+    // 按天趋势
+    const daily = {};
+    recent.forEach((e) => {
+      const day = new Date(e.timestamp).toISOString().slice(0, 10);
+      if (!daily[day]) daily[day] = { requests: 0, errors: 0 };
+      if (e.type === 'error') daily[day].errors++;
+      else if (e.type === 'chat' || e.type === 'agenda' || e.type === 'tool') daily[day].requests++;
+    });
+
+    return jsonResponse({
+      success: true,
+      window: { days, since: new Date(since).toISOString() },
+      totals: {
+        requests: requests.length,
+        errors: errors.length,
+        successRate: requests.length + errors.length > 0
+          ? +(requests.length / (requests.length + errors.length) * 100).toFixed(1)
+          : null,
+        feedbackUp: feedback.filter((e) => e.rating === 'up').length,
+        feedbackDown: feedback.filter((e) => e.rating === 'down').length,
+      },
+      latency: { avgMs: avg, p95Ms: p95, samples: latencies.length },
+      errorTypeDist,
+      errorCodeDist,
+      endpointDist,
+      daily,
+    }, 200, request);
+  } catch (err) {
+    console.error('AI stats error:', err);
+    return errorResponse(err.message || 'AI stats failed', 500, request, { errorType: 'internal' });
+  }
+}
+
+// ========== AI 工具执行层 ==========
 async function searchKms(query, limit = 3, env) {
   const token = env.KMS_PAT_TOKEN;
   if (!token) {
@@ -940,21 +1027,43 @@ function rankKmsChunks(query, chunks, topK = 5) {
   return scored.slice(0, topK);
 }
 
+/**
+ * 从 KV 权威数据源查会议（RFC-011 P1-2）。
+ * 找到返回 { meeting, source: 'kv' }；未找到/出错回退前端缓存 context.meeting（source: 'context'）。
+ */
+async function resolveMeetingForTool(env, context, meetingId) {
+  if (meetingId) {
+    try {
+      const raw = await env.DSTE_KV.get(KEYS.meetings);
+      if (raw) {
+        const meetings = JSON.parse(raw);
+        if (Array.isArray(meetings)) {
+          const found = meetings.find((m) => m && m.id === meetingId);
+          if (found) return { meeting: found, source: 'kv' };
+        }
+      }
+    } catch (err) {
+      console.error('resolveMeetingForTool KV error:', err.message);
+    }
+  }
+  return { meeting: context?.meeting || {}, source: 'context' };
+}
+
 async function executeTool(name, args, context, env) {
-  // 查询类工具：依赖前端传入的 context.meeting
+  // 查询类工具：优先读 Worker KV 权威数据，前端 context.meeting 仅作回退（RFC-011 P1-2）
   if (name === 'queryMeetingAgenda') {
-    const meeting = context?.meeting || {};
-    return { success: true, agendaItems: meeting.agenda_items || [] };
+    const { meeting, source } = await resolveMeetingForTool(env, context, args.meetingId);
+    return { success: true, agendaItems: meeting.agenda_items || [], source };
   }
 
   if (name === 'queryMeetingActions') {
-    const meeting = context?.meeting || {};
-    return { success: true, actions: meeting.actions || [] };
+    const { meeting, source } = await resolveMeetingForTool(env, context, args.meetingId);
+    return { success: true, actions: meeting.actions || [], source };
   }
 
   if (name === 'queryMeetingResolutions') {
-    const meeting = context?.meeting || {};
-    return { success: true, resolutions: meeting.decisions || meeting.resolutions || [] };
+    const { meeting, source } = await resolveMeetingForTool(env, context, args.meetingId);
+    return { success: true, resolutions: meeting.decisions || meeting.resolutions || [], source };
   }
 
   // 写入类工具：只生成草案，不直接持久化
@@ -1716,6 +1825,15 @@ export default {
           return errorResponse(auth.error, auth.status, request);
         }
         return handleAiLog(request, env, auth);
+      }
+
+      // --- AI 观测统计（RFC-011 P1-3）---
+      if (path === '/api/ai/stats') {
+        const auth = await requireAiAuth(request, env);
+        if (!auth.valid) {
+          return errorResponse(auth.error, auth.status, request);
+        }
+        return handleAiStats(request, env);
       }
 
       // --- 健康检查 ---

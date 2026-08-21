@@ -461,7 +461,7 @@ export class AIClient {
       ? rawToolCalls.map((tc) => ({ ...tc, id: `${toolCallPrefix}_${tc.id}` }))
       : rawToolCalls;
 
-    session.addMessage('user', message);
+    session.addMessage('user', message, options.userMessageHidden ? { hidden: true } : {});
     session.addMessage('assistant', assistantContent, { tool_calls: toolCalls });
     this.saveSession(session);
 
@@ -669,24 +669,54 @@ export class AIClient {
       return { content: first.content || '', toolResults: [] };
     }
 
-    // 执行已知工具（除 navigateTo 外均在 Worker 执行）
+    const session = options.session || this.getCurrentSession();
+    return this.runToolLoop(session, first.toolCalls, tools, options);
+  }
+
+  /**
+   * 多轮工具调用 loop（RFC-011 P1-1）。
+   * 执行首轮 toolCalls → 结果写回会话 → 再请求模型；模型继续调用工具则循环，
+   * 直到给出最终回答或达到 maxToolRounds（最后一轮不再提供 tools，强制收尾）。
+   * GlobalAiDrawer（流式首轮）与 callWithTools（非流式）共用此实现。
+   *
+   * @param {AISession} session
+   * @param {Array} firstToolCalls 首轮返回的 tool_calls
+   * @param {Array} tools 可用工具定义
+   * @param {Object} options { toolContext, signal, maxToolRounds=4, systemPrompt, context, ... }
+   * @returns {Promise<{ content: string, toolResults: Array }>}
+   */
+  async runToolLoop(session, firstToolCalls, tools, options = {}) {
+    const maxRounds = options.maxToolRounds ?? 4;
     const toolContext = options.toolContext || {};
     const toolResults = [];
-    for (const call of first.toolCalls) {
-      const result = await this._executeTool(call, toolContext, { signal: options.signal });
-      toolResults.push({
-        call,
-        result,
+    let toolCalls = firstToolCalls;
+    let content = '';
+
+    for (let round = 1; round <= maxRounds && toolCalls && toolCalls.length > 0; round++) {
+      if (options.signal?.aborted) break;
+
+      for (const call of toolCalls) {
+        const result = await this._executeTool(call, toolContext, { signal: options.signal });
+        toolResults.push({ call, result });
+        session.addMessage('tool', JSON.stringify(result), { tool_call_id: call.id });
+      }
+      this.saveSession(session);
+
+      const isLastRound = round >= maxRounds;
+      const followup = isLastRound
+        ? '工具调用次数已达上限，请基于已有信息给出最终回答。'
+        : '请基于工具返回结果继续回答；如还需数据可继续调用工具，否则给出最终回答。';
+      const next = await this.chat(followup, {
+        ...options,
+        session,
+        tools: isLastRound ? [] : tools,
+        userMessageHidden: true,
       });
+      content = next.content || content;
+      toolCalls = next.toolCalls;
     }
 
-    // 把工具结果追加到会话再请求一次
-    const session = options.session || this.getCurrentSession();
-    toolResults.forEach((tr) => session.addMessage('tool', JSON.stringify(tr.result), { tool_call_id: tr.call.id }));
-    this.saveSession(session);
-
-    const second = await this.chat('请基于工具返回结果继续回答。', { ...options, session, tools: [] });
-    return { content: second.content || '', toolResults };
+    return { content, toolResults };
   }
 
   // ========== 工具执行 ==========

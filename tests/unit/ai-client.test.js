@@ -521,3 +521,75 @@ describe('RFC-011 稳定性：errorType 透传与超时重试', () => {
     expect(persisted.messages[0].content).toBe('新问题');
   });
 });
+
+describe('RFC-011 P1-1：runToolLoop 多轮工具调用', () => {
+  beforeEach(() => {
+    storageMap.clear();
+    fetch.mockReset();
+  });
+
+  const okChat = (msg) => ({
+    ok: true,
+    json: async () => ({ choices: [{ message: msg }] }),
+  });
+  const okTool = { ok: true, json: async () => ({ success: true, result: { success: true, items: [] } }) };
+
+  it('模型连续两轮调用工具时 loop 不断裂，直到最终回答', async () => {
+    fetch
+      // 第 1 轮 chat：返回 tool_calls c1
+      .mockResolvedValueOnce(okChat({
+        role: 'assistant', content: '',
+        tool_calls: [{ id: 'c1', type: 'function', function: { name: 'queryMeetingActions', arguments: '{"meetingId":"m1"}' } }],
+      }))
+      // 工具执行 c1
+      .mockResolvedValueOnce(okTool)
+      // 第 2 轮 chat：继续返回 tool_calls c2（多轮场景）
+      .mockResolvedValueOnce(okChat({
+        role: 'assistant', content: '',
+        tool_calls: [{ id: 'c2', type: 'function', function: { name: 'queryMeetingAgenda', arguments: '{"meetingId":"m1"}' } }],
+      }))
+      // 工具执行 c2
+      .mockResolvedValueOnce(okTool)
+      // 第 3 轮 chat：最终回答
+      .mockResolvedValueOnce(okChat({ role: 'assistant', content: '最终回答' }));
+
+    const client = new AIClient({ baseUrl: 'http://localhost:8766' });
+    const result = await client.callWithTools('议程和行动项汇总', [AITools.queryMeetingActions, AITools.queryMeetingAgenda], {
+      toolContext: { meeting: { id: 'm1', actions: [], agenda_items: [] } },
+    });
+
+    expect(result.content).toBe('最终回答');
+    expect(result.toolResults.length).toBe(2);
+    expect(fetch.mock.calls.length).toBe(5);
+    // 后续轮次的 tools 仍然带上（第 2 轮请求 body 含 tools）
+    const secondChatBody = JSON.parse(fetch.mock.calls[2][1].body);
+    expect(Array.isArray(secondChatBody.tools) && secondChatBody.tools.length > 0).toBe(true);
+  });
+
+  it('达到 maxToolRounds 后强制收尾（最后一轮 tools 为空）', async () => {
+    const tc = (id) => okChat({
+      role: 'assistant', content: '',
+      tool_calls: [{ id, type: 'function', function: { name: 'queryMeetingActions', arguments: '{}' } }],
+    });
+    fetch
+      .mockResolvedValueOnce(tc('c1')).mockResolvedValueOnce(okTool)
+      .mockResolvedValueOnce(tc('c2')).mockResolvedValueOnce(okTool)
+      .mockResolvedValueOnce(tc('c3')).mockResolvedValueOnce(okTool)
+      .mockResolvedValueOnce(tc('c4')).mockResolvedValueOnce(okTool)
+      .mockResolvedValueOnce(okChat({ role: 'assistant', content: '收尾回答' }));
+
+    const client = new AIClient({ baseUrl: 'http://localhost:8766' });
+    const result = await client.callWithTools('连环查询', [AITools.queryMeetingActions], {
+      toolContext: { meeting: {} },
+      maxToolRounds: 3,
+    });
+
+    // 1 首轮 + 3 轮 loop（每轮 chat+tool），最后一轮 chat 不再带 tools
+    const chatBodies = fetch.mock.calls
+      .map((c) => JSON.parse(c[1].body))
+      .filter((b) => Array.isArray(b.messages));
+    const lastChatBody = chatBodies[chatBodies.length - 1];
+    expect(lastChatBody.tools).toEqual([]);
+    expect(result.toolResults.length).toBe(3);
+  });
+});
