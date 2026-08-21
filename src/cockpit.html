@@ -564,6 +564,8 @@
       <main class="content-area content-area--tabs" id="content-area">
         <div class="page-tabs" id="page-tabs"></div>
         <div class="page-content" id="page-content"></div>
+        <!-- 外部页 iframe keep-alive 容器层：渲染内部页时整体隐藏但保留，切回外部页零重载 -->
+        <div class="workspace-panes" id="workspace-panes"></div>
       </main>
     </div>
   </div>
@@ -1161,6 +1163,134 @@
       // ===== 持久化多标签工作区 =====
       let workspace = loadWorkspaceTabs();
 
+      // ===== 外部页 iframe keep-alive =====
+      // keep-alive iframe 上限：超出后按 LRU 销毁最久未激活的外部页容器（下次激活时重建重载）
+      const WORKSPACE_IFRAME_KEEPALIVE_MAX = 5;
+
+      function _getWorkspacePanes() {
+        return document.getElementById('workspace-panes');
+      }
+
+      function _findIframeWrap(pageId) {
+        const panes = _getWorkspacePanes();
+        return panes ? panes.querySelector(`.workspace-iframe-wrap[data-page-id="${pageId}"]`) : null;
+      }
+
+      // 当前活动页签对应的 keep-alive iframe（不存在或未激活外部页时返回 null）
+      function _getActiveIframe() {
+        const wrap = _findIframeWrap(currentPage);
+        return wrap ? wrap.querySelector('.workspace-iframe') : null;
+      }
+
+      function _removeIframeWrap(pageId) {
+        const wrap = _findIframeWrap(pageId);
+        if (wrap) wrap.remove();
+      }
+
+      // LRU：新建前若已达上限，销毁最久未激活的 keep-alive 容器
+      function _evictIframeWrapsIfNeeded() {
+        const panes = _getWorkspacePanes();
+        if (!panes) return;
+        const wraps = [...panes.querySelectorAll('.workspace-iframe-wrap')];
+        if (wraps.length < WORKSPACE_IFRAME_KEEPALIVE_MAX) return;
+        wraps.sort((a, b) => (Number(a.dataset.lastActive) || 0) - (Number(b.dataset.lastActive) || 0));
+        const victim = wraps.find(w => w.dataset.pageId !== currentPage);
+        if (victim) victim.remove();
+      }
+
+      // 显示指定外部页的 keep-alive 容器；首次激活时才创建 iframe 并设置 src
+      function _showIframeWrap(pageId, meta) {
+        const panes = _getWorkspacePanes();
+        const contentEl = document.getElementById('page-content');
+        contentEl.style.display = 'none';
+        panes.style.display = 'block';
+        panes.querySelectorAll('.workspace-iframe-wrap').forEach(w => { w.style.display = 'none'; });
+
+        const existing = _findIframeWrap(pageId);
+        if (existing) {
+          // 已加载过：直接显示，零重载
+          existing.dataset.lastActive = String(Date.now());
+          existing.style.display = 'block';
+          // 命令面板记录级跳转：iframe 已就绪，直接投递待打开记录
+          _postPendingRecordToIframe();
+          return;
+        }
+
+        _evictIframeWrapsIfNeeded();
+
+        // 首次激活：创建容器 + iframe（骨架屏占位，load 后淡出移除）
+        const wrap = document.createElement('div');
+        wrap.className = 'workspace-iframe-wrap';
+        wrap.dataset.pageId = pageId;
+        wrap.dataset.lastActive = String(Date.now());
+        wrap.innerHTML = `
+          <div class="workspace-iframe-skeleton skeleton-list">
+            <div class="skeleton skeleton-text" style="width:32%;"></div>
+            <div class="skeleton skeleton-rect"></div>
+            <div class="skeleton skeleton-rect"></div>
+          </div>
+          <iframe
+            class="workspace-iframe"
+            src="${meta.externalFile}?embed=1&pageId=${encodeURIComponent(pageId)}"
+            data-page-id="${pageId}"
+            title="${escapeHtml(meta.title)}"
+            frameborder="0"
+            style="width:100%;min-height:100%;"
+          ></iframe>
+        `;
+        const iframeEl = wrap.querySelector('.workspace-iframe');
+        iframeEl.addEventListener('load', () => {
+          const sk = wrap.querySelector('.workspace-iframe-skeleton');
+          if (sk) sk.remove();
+          // 命令面板记录级跳转：iframe 就绪后投递待打开记录
+          _postPendingRecordToIframe();
+        });
+        panes.appendChild(wrap);
+      }
+
+      // ===== 内部页轻量状态快照（切页签时保持滚动位置与表单值，仅存内存） =====
+      const _tabSnapshots = new Map();
+
+      function _snapshotTabState(tabId) {
+        const tab = workspace.tabs.find(t => t.id === tabId);
+        if (!tab) return;
+        const meta = getPageMeta(tab.pageId);
+        // 外部页走 iframe keep-alive，无需快照；只有当前正在显示该内部页时快照才有意义
+        if (meta.isExternal || !PAGES[tab.pageId] || currentPage !== tab.pageId) {
+          _tabSnapshots.delete(tabId);
+          return;
+        }
+        const contentEl = document.getElementById('page-content');
+        if (!contentEl) return;
+        const fields = {};
+        contentEl.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+          if (el.type === 'checkbox' || el.type === 'radio') fields[el.id] = { checked: el.checked };
+          else fields[el.id] = { value: el.value };
+        });
+        _tabSnapshots.set(tabId, {
+          pageId: tab.pageId,
+          scrollTop: contentEl.scrollTop,
+          windowScrollY: window.scrollY,
+          fields
+        });
+      }
+
+      function _restoreTabSnapshot(tabId) {
+        const snap = _tabSnapshots.get(tabId);
+        if (!snap || snap.pageId !== currentPage) return;
+        const contentEl = document.getElementById('page-content');
+        if (!contentEl) return;
+        // 只还原值，不派发 change 事件，避免触发筛选/重渲染等副作用
+        Object.entries(snap.fields).forEach(([id, val]) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (val && typeof val === 'object' && 'checked' in val) el.checked = val.checked;
+          else el.value = val.value;
+        });
+        contentEl.scrollTop = snap.scrollTop;
+        window.scrollTo(0, snap.windowScrollY);
+      }
+
       function getPageTitle(pageId) {
         return getPageMeta(pageId).title;
       }
@@ -1185,15 +1315,23 @@
       function switchTab(tabId) {
         const tab = workspace.tabs.find(t => t.id === tabId);
         if (!tab) return;
+        // 离开当前内部页前做轻量快照（滚动位置 + 表单值）
+        if (workspace.activeTabId !== tabId) _snapshotTabState(workspace.activeTabId);
         workspace = switchWorkspaceTab(workspace, tabId);
         renderTabs();
         _renderPage(tab.pageId, true);
+        _restoreTabSnapshot(tabId);
       }
 
       function closeTab(tabId) {
+        const closingTab = workspace.tabs.find(t => t.id === tabId);
         const wasActive = workspace.activeTabId === tabId;
         const result = closeWorkspaceTab(workspace, tabId);
+        if (result.state === workspace) return; // pinned 或不存在，未实际关闭
         workspace = result.state;
+        // 清理该页签的 keep-alive iframe 容器与内部页快照
+        if (closingTab) _removeIframeWrap(closingTab.pageId);
+        _tabSnapshots.delete(tabId);
         renderTabs();
         if (wasActive && workspace.tabs.length > 0) {
           switchTab(workspace.activeTabId);
@@ -1209,8 +1347,11 @@
       }
 
       function updateActiveTab(pageId) {
+        const prevTab = workspace.tabs.find(t => t.id === workspace.activeTabId);
         const meta = resolvePageMeta(pageId, getPageMeta);
         workspace = updateActiveTabPage(workspace, meta);
+        // 页签内换页：旧外部页的 keep-alive 容器随页面离开而销毁
+        if (prevTab && prevTab.pageId !== pageId) _removeIframeWrap(prevTab.pageId);
         renderTabs();
       }
 
@@ -1340,9 +1481,13 @@
           if (!e.data || typeof e.data !== 'object') return;
 
           if (e.data.type === 'dste-embed-resize' && typeof e.data.height === 'number') {
-            const iframe = document.querySelector('.workspace-iframe');
-            if (iframe) {
-              iframe.style.height = Math.min(e.data.height, window.innerHeight - 120) + 'px';
+            // 多个 keep-alive iframe 并存：按 event.source 匹配具体 iframe，不能用单数查询
+            const iframes = document.querySelectorAll('.workspace-iframe');
+            for (const iframe of iframes) {
+              if (iframe.contentWindow === e.source) {
+                iframe.style.height = Math.min(e.data.height, window.innerHeight - 120) + 'px';
+                break;
+              }
             }
             // 注意：报表中心 iframe 不走此逻辑 —— 内嵌页是 100vh 应用壳，scrollHeight 恒等于
             // iframe 当前高度，按内容自适应会形成反馈环。报表中心改用视口高度填充（_fitReportCenterContainer）。
@@ -1485,35 +1630,8 @@
           // 更新左侧栏
           renderSidebar(phase);
 
-          // 渲染 iframe（骨架屏占位，load 后淡出移除）
-          const contentEl = document.getElementById('page-content');
-          contentEl.style.animation = 'none';
-          contentEl.offsetHeight;
-          contentEl.innerHTML = `
-            <div class="workspace-iframe-wrap">
-              <div class="workspace-iframe-skeleton skeleton-list">
-                <div class="skeleton skeleton-text" style="width:32%;"></div>
-                <div class="skeleton skeleton-rect"></div>
-                <div class="skeleton skeleton-rect"></div>
-              </div>
-              <iframe
-                class="workspace-iframe"
-                src="${meta.externalFile}?embed=1&pageId=${encodeURIComponent(pageId)}"
-                data-page-id="${pageId}"
-                title="${escapeHtml(meta.title)}"
-                frameborder="0"
-                style="width:100%;min-height:100%;"
-              ></iframe>
-            </div>
-          `;
-          const iframeEl = contentEl.querySelector('.workspace-iframe');
-          iframeEl.addEventListener('load', () => {
-            const sk = contentEl.querySelector('.workspace-iframe-skeleton');
-            if (sk) sk.remove();
-            // 命令面板记录级跳转：iframe 就绪后投递待打开记录
-            _postPendingRecordToIframe();
-          });
-          contentEl.style.animation = '';
+          // 渲染 iframe：keep-alive 容器常驻 #workspace-panes，切页签只切显隐，首次激活才创建
+          _showIframeWrap(pageId, meta);
 
           // 更新左侧 active
           document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -1549,6 +1667,11 @@
 
         // 更新内容
         const contentEl = document.getElementById('page-content');
+
+        // 隐藏外部页 keep-alive 层（容器与 iframe 全部保留），恢复内部页容器显示
+        const panesEl = _getWorkspacePanes();
+        if (panesEl) panesEl.style.display = 'none';
+        contentEl.style.display = '';
 
         // 保存当前焦点，避免 innerHTML 重建 DOM 后输入框失焦
         const activeEl = document.activeElement;
@@ -7903,6 +8026,8 @@
 
       // 暴露全局 navigate
       window.navigate = navigate;
+      // 暴露 openTab：命令面板/嵌入页 postMessage 之外的程序化开标签入口（E2E 也用它构造多外部页标签）
+      window.openTab = openTab;
       window.renderBreadcrumb = renderBreadcrumb;
 
       // ===== 全局命令面板（Cmd+K） =====
@@ -7910,7 +8035,8 @@
       let _pendingRecord = null;
       function _postPendingRecordToIframe() {
         if (!_pendingRecord) return;
-        const iframe = document.querySelector('.workspace-iframe');
+        // 按当前活动页签定位对应 keep-alive iframe（多 iframe 并存，不能用单数查询）
+        const iframe = _getActiveIframe();
         if (!iframe || !iframe.contentWindow) return;
         iframe.contentWindow.postMessage({ type: 'dste-open-record', ..._pendingRecord }, window.location.origin);
         _pendingRecord = null;
@@ -7928,7 +8054,7 @@
             return;
           }
           _pendingRecord = { recordType, id, section };
-          const iframe = document.querySelector('.workspace-iframe');
+          const iframe = _getActiveIframe();
           if (currentPage === pageId && iframe && iframe.dataset.pageId === pageId) {
             _postPendingRecordToIframe();
           } else {

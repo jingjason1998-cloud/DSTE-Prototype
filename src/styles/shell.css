@@ -248,6 +248,18 @@
   display: block;
 }
 
+/* 外部页 iframe keep-alive 容器层：与 #page-content 平级，切页签只切显隐不销毁 */
+.workspace-panes {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  width: 100%;
+  overflow-y: auto;
+  display: none;
+  max-width: var(--shell-content-max-width);
+  margin: 0 auto;
+}
+
 /* iframe 骨架屏占位（iframe load 后移除） */
 .workspace-iframe-wrap {
   position: relative;
