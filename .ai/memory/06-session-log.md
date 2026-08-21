@@ -2,6 +2,18 @@
 
 > 记录最近几次 AI 会话的摘要，方便快速恢复上下文。
 
+## 2026-08-21（Kimi，docs 文档全面治理 + 垂直客群审核模型统一）
+- **主题**：用户指出开发文档长期未整理、可能重复、与实际系统不对应，要求全面检查并治理
+- **检查**：8 个并行审查代理对 docs/ 90 篇逐篇阅读并与代码交叉验证，裁决：✅13 / ⚠️55 / 🔁8 / 🗑7；最普遍病灶是「功能发布后文档状态从不回写」
+- **治理（全部纯文档变更）**：
+  - 归档 16 篇至 `docs/.archive/`（文首加归档横幅，只移不删）：UPGRADE-v0.4.11、SP-Module-Redesign-v0.5、kpi-tree v3/v4、知识中心-完整设计方案（未按此实现）、经营分析会-诊断报告、开发路线图、年度业务规划-升级方案、重点工作管理 3 份子 PRD（已并入主 PRD）、技术架构方案（Java 微服务愿景）、规则引擎/预警中心-技术架构方案（未采用）、07-visual-regression（体系从未落地）、组织绩效管理-前端架构方案（错放 ADR）
+  - 目录治理：`02-RFC/`（仅 1 篇）并入 `02-RFC功能设计/` 后删除；重编号消撞号：原 02-RFC/004→012、docs 根目录 rfc-agenda-material-review→013、001-strategy-insights-topics→011、knowledge-hub→014；009-strategy-workshop 标 superseded（权威版 009-sp-planning-workshop）；全库 13 文件 20 处旧路径引用修复
+  - 重写 `docs/00-index.md`（原目录树大量虚构文件）与 `docs/00-功能全景图.md`（以 src/lib/config.js 实际导航为骨架，区分现状/规划）；新建 `docs/03-ADR架构决策/004-hybrid-architecture.md`（SPA 壳+独立页+iframe keep-alive），ADR-003 标 superseded
+  - 批量回写约 50 篇：测试数量（pytest 211 / vitest 600+ / E2E 450+）、设计系统尺寸 60/240/24→48/220/20、删除不存在的 .modal-lg/.data-table-compact、RFC 状态（005/007/014→implemented、006→部分实施、README 补全到 014）、PRD 口径以代码为准（级联删除、专题 seq 字段、insights 关联保留）；AGENTS.md 结构图与测试数同步
+- **垂直客群审核维度模型统一（用户拍板以模型 A 为准）**：`经营分析会审核标准/垂直客群-业绩落后述职/SKILL.md + 审核原则.md` 改写为模型 A（完整性35/差距与根因20[单项底线≥12]/业绩预测概率10/下一步计划20/SP10/态度5，通过线 ≥80），frontmatter name 修正为 `vertical-segment-review`；`meeting-material-reviewer/src/skills/vertical-segment-review.md` 用改好的 SKILL.md 覆盖（两仓逐字节一致，与其他 3 场景惯例相同）。**注意：Flask 改动仅在本地仓库，需部署到生产 /opt/meeting-reviewer 并重启才生效；部署前生产审核 prompt 仍是模型 B，前后端分裂依旧存在于线上**
+- **发现（未处理，供后续）**：`src/sp-planning.html` + `src/pages/sp-planning/` 存在但未在 vite.config.js/config.js 注册（疑似并行会话 RFC-009 半成品）；侧边栏快捷工具 `exe/meeting-review` 的 pageId 不在 PAGES/EXTERNAL_PAGES 中，驾驶舱内点击回退 dashboard；审核标准 SKILL 双仓复制无同步机制，漂移会复发（建议互加母本注释或构建期拷贝）
+- **状态**：complete
+
 ## 2026-08-21（Kimi，发布 v0.7.33：同步队列 toast 刷屏修复）
 - **主题**：用户截图反馈经营分析会页面被「同步队列已满，部分变更可能无法同步到服务端」红色 toast 刷屏（叠十几条），顶部横幅提示「登录已过期：有 100 条变更暂未同步」
 - **根因**：生产 CAS 临时绕过 → 无 `dste-token` → 每次同步 401（authExpired，保持 pending 不消耗重试）→ 队列积压到 100 上限后，每次变更 `enqueue` 都 `showToast('同步队列已满...')`，无任何去重 → 刷屏。「队列积压较多」（50 阈值）与「同步失败：xx（已达最大重试次数）」同样无去重

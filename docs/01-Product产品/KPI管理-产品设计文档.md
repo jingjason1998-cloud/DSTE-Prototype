@@ -11,9 +11,10 @@
 > - 取消目标变更申请功能，OMP 只接收 ABP 发布的目标基线
 > - 收敛 v0.5.x MVP 范围，明确与 ABP、重点工作、经营分析会、预警中心的边界
 > - 补充 `renderKpiManagement()` 页面的结构、状态流转与交互细节
+> **回写说明（2026-08-21）**: §9.3 速查表「删除功能 ❌ 缺失」更正为已实现（`data-action="omp-delete-kpi"` + `omp_deleteKpi()`，E2E 见 `tests/e2e/omp-delete.spec.cjs`）；代码位置引用改为「文件名 + 函数名」，不再写死行号（行号已漂移）
 > **产品名称**: 帆软 DSTE 战略管理平台
 > **定位**: 战略执行阶段的 KPI 量化追踪引擎，承接 ABP 目标基线，驱动偏差闭环
-> **关联文档**: [[组织绩效管理-产品设计文档]] | [[组织绩效管理-前端架构方案]] | [[年度经营计划-产品设计文档]]
+> **关联文档**: [[组织绩效管理-产品设计文档]] | [[年度经营计划-产品设计文档]]（原《组织绩效管理-前端架构方案》2026-08-21 已归档，以产品设计文档为准）
 > **页面入口**: `cockpit.html#exe/kpi`（`cockpit.html` 内独立 PAGES 路由）
 
 ---
@@ -331,7 +332,7 @@ ABP 发布后同步到 OMP 的执行期 KPI 目标基线，或在 OMP 内手工�
 - **渲染函数**: `renderKpiManagement()`（位于 `cockpit.html` IIFE 内）
 - **导航入口**: 侧边栏「执行 → 组织绩效管理 → KPI管理」
 - **页面形态**: `cockpit.html` 内部独立 PAGES 路由，与 `exe/tasks`、`exe/meetings` 同级，不是任何页面的 Tab
-- **当前代码位置**: `src/cockpit.html` 约第 3438 行 `function renderKpiManagement()`
+- **当前代码位置**: `src/cockpit.html` 的 `renderKpiManagement()` 函数（不写行号，行号会漂移）
 
 **与 `exe/tasks` 的关系**:
 - `exe/kpi`: 只关注 KPI 管理（指标库、KPI 目标基线、actual 录入、达成分析）
@@ -657,7 +658,7 @@ window._ompState = {
 - **KPI 实例**: 可删除，但需二次确认；删除后关联数据记录 cascade 清理
 - **数据记录**: 单条可删除，删除后 KPI 实例 `actualValue` 和状态需重新计算
 
-> 当前实现缺失删除功能，需按上述规则补齐。
+> ✅ 删除功能已实现（2026-08-21 回写）：按钮 `data-action="omp-delete-kpi"`，处理函数 `omp_deleteKpi()`，E2E 见 `tests/e2e/omp-delete.spec.cjs`。
 
 ---
 
@@ -824,7 +825,7 @@ window._ompState = {
 | 指标卡超链接入口 | ❌ 缺失 | 需支持下级数据看板/详情弹窗跳转 |
 | 达成率自动计算 | ✅ 已实现 | 正向指标 |
 | KPI 总览看板 | ✅ 保留在 `exe/tasks` | `omp_renderDashboard()` 维护，本次不迁移 |
-| 删除功能 | ❌ 缺失 | 需按本文档规则补齐 |
+| 删除功能 | ✅ 已实现（2026-08-21 回写） | `data-action="omp-delete-kpi"` + `omp_deleteKpi()`；E2E 见 `tests/e2e/omp-delete.spec.cjs` |
 | 指标库管理 | ⚠️ 简化版 | 仅基础 CRUD，无禁用/启用，页面入口不明显 |
 | Excel 导入/导出 | ⚠️ 待完善 | 需支持批量 actual |
 | CSS 变量合规 | ⚠️ 待检查 | 需修复硬编码颜色 |
@@ -832,7 +833,6 @@ window._ompState = {
 ### 9.4 关联文档
 
 - [[组织绩效管理-产品设计文档]]
-- [[组织绩效管理-前端架构方案]]
 - [[年度经营计划-产品设计文档]]
 - [[DSTE预警中心-产品设计文档]]
 - [[DSTE经营分析会-产品设计文档]]

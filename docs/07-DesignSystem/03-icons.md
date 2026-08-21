@@ -32,10 +32,19 @@ icon('add');
 icon('delete', { size: 16, ariaLabel: '删除', className: 'icon icon-danger' });
 ```
 
-输出示例：
+输出示例（`icon('search')`，默认 `size` 为 `'1em'`，宽高通过 `style` 内联）：
 
 ```html
-<svg class="icon" width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" role="presentation">...</svg>
+<svg class="icon" style="width:1em;height:1em;" viewBox="0 0 256 256" fill="currentColor" focusable="false" aria-hidden="true" role="presentation">...</svg>
+```
+
+### 静态模板水合 `hydrateIcons()`
+
+不便直接调用 `icon()` 的静态 HTML 模板，可写 `<span class="icon" data-icon="key" data-icon-size="18">`，再由 `hydrateIcons(root)`（见 `assets/js/icons.js` 的 `hydrateIcons`）批量替换为 SVG：
+
+```javascript
+import { hydrateIcons } from '../assets/js/icons.js';
+hydrateIcons(container); // 默认 root 为 document
 ```
 
 ### 在 HTML 字符串中使用
@@ -67,6 +76,8 @@ const html = `
 ```
 
 ## 映射表
+
+> 下表只列常用 key；完整映射约 150 个 key，以 `assets/js/icon-mapping.js` 的 `ICONS` 对象为准。
 
 ### 顶部导航（DSTE 阶段）
 

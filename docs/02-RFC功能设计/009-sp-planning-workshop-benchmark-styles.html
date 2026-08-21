@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- 仅样式参考附件，非实现范本；注意内含硬编码色值，勿照抄 -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>战略研讨会对标方案 - 表格样式参考</title>
+  <style>
+    :root {
+      --blue-50: #E6F4FF; --blue-100: #BAE0FF; --blue-200: #91CAFF; --blue-300: #69B1FF;
+      --blue-400: #4096FF; --blue-500: #1677FF; --blue-600: #0958D9; --blue-700: #074BAF;
+      --gray-0: #FFFFFF; --gray-50: #F7F8FA; --gray-100: #F0F2F5; --gray-200: #E4E6EB;
+      --gray-300: #D1D5DB; --gray-400: #9CA3AF; --gray-500: #6B7280; --gray-600: #4B5563;
+      --gray-700: #374151; --gray-800: #1F2937; --gray-900: #111827;
+      --success: #52C41A; --warning: #FAAD14; --danger: #F5222D;
+      --font: 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: var(--font);
+      background: var(--gray-100);
+      color: var(--gray-900);
+      margin: 0;
+      padding: 40px 24px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: var(--gray-900);
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      font-size: 14px;
+      margin-bottom: 40px;
+    }
+
+    .section {
+      background: var(--gray-0);
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: var(--gray-900);
+    }
+
+    .section-desc {
+      font-size: 13px;
+      color: var(--gray-500);
+      margin-bottom: 24px;
+    }
+
+    /* ===== Style 1: PPT / 汇报卡片式 ===== */
+    .style-ppt .product-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .style-ppt .product-card {
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      overflow: hidden;
+      background: var(--gray-0);
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .style-ppt .product-card:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
+
+    .style-ppt .card-header {
+      padding: 20px;
+      color: var(--gray-0);
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .style-ppt .card-header.cascade { background: linear-gradient(135deg, #1677FF 0%, #0958D9 100%); }
+    .style-ppt .card-header.workboard { background: linear-gradient(135deg, #722ED1 0%, #531DAC 100%); }
+    .style-ppt .card-header.aha { background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); }
+    .style-ppt .card-header.miro { background: linear-gradient(135deg, #F5222D 0%, #CF1322 100%); }
+
+    .style-ppt .card-body {
+      padding: 20px;
+    }
+
+    .style-ppt .card-tag {
+      display: inline-block;
+      font-size: 12px;
+      color: var(--gray-500);
+      background: var(--gray-50);
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+
+    .style-ppt .feature-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .style-ppt .feature-list li {
+      position: relative;
+      padding-left: 18px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: var(--gray-700);
+      line-height: 1.5;
+    }
+
+    .style-ppt .feature-list li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 7px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--blue-500);
+    }
+
+    /* ===== Style 2: 产品内页对比表 ===== */
+    .style-table table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 14px;
+    }
+
+    .style-table th,
+    .style-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .style-table th {
+      background: var(--gray-50);
+      font-weight: 600;
+      color: var(--gray-700);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      position: sticky;
+      top: 0;
+    }
+
+    .style-table tr:hover td {
+      background: var(--gray-50);
+    }
+
+    .style-table td:first-child {
+      font-weight: 500;
+      color: var(--gray-900);
+    }
+
+    .style-table .product-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .style-table .product-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .style-table .dot-cascade { background: #1677FF; }
+    .style-table .dot-workboard { background: #722ED1; }
+    .style-table .dot-aha { background: #F59E0B; }
+    .style-table .dot-miro { background: #F5222D; }
+
+    .style-table .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      margin: 2px 4px 2px 0;
+      background: var(--blue-50);
+      color: var(--blue-700);
+      border: 1px solid var(--blue-100);
+    }
+
+    .style-table .tag.highlight {
+      background: var(--gray-900);
+      color: var(--gray-0);
+      border-color: var(--gray-900);
+    }
+
+    /* ===== Style 3: 能力矩阵可视化 ===== */
+    .style-matrix .matrix-wrap {
+      overflow-x: auto;
+    }
+
+    .style-matrix .matrix {
+      display: grid;
+      grid-template-columns: 180px repeat(4, 1fr);
+      gap: 1px;
+      background: var(--gray-200);
+      border-radius: 12px;
+      overflow: hidden;
+      min-width: 720px;
+    }
+
+    .style-matrix .matrix > div {
+      background: var(--gray-0);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+    }
+
+    .style-matrix .matrix-header {
+      background: var(--gray-50);
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--gray-700);
+    }
+
+    .style-matrix .matrix-row-title {
+      font-weight: 500;
+      color: var(--gray-900);
+      font-size: 13px;
+    }
+
+    .style-matrix .matrix-cell {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 8px;
+    }
+
+    .style-matrix .score-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-0);
+    }
+
+    .style-matrix .score-badge.strong { background: var(--success); }
+    .style-matrix .score-badge.medium { background: var(--warning); color: var(--gray-900); }
+    .style-matrix .score-badge.weak { background: var(--gray-300); color: var(--gray-700); }
+
+    .style-matrix .cell-note {
+      font-size: 12px;
+      color: var(--gray-500);
+      line-height: 1.4;
+    }
+
+    .style-matrix .legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+
+    .style-matrix .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 960px) {
+      .style-ppt .product-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .style-ppt .product-grid { grid-template-columns: 1fr; }
+      body { padding: 24px 16px; }
+      .section { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>战略研讨会对标方案 · 表格样式参考</h1>
+    <p class="subtitle">为 RFC-009 中「主流战略执行平台对标」提供 3 种可复用的呈现样式</p>
+
+    <!-- Style 1: PPT 汇报卡片式 -->
+    <div class="section style-ppt">
+      <div class="section-title">样式一：PPT / 汇报卡片式</div>
+      <div class="section-desc">适合在管理层汇报、PPT 幻灯片中使用。产品用品牌色块区分，重点能力以 bullet 列出，视觉层级强。</div>
+
+      <div class="product-grid">
+        <div class="product-card">
+          <div class="card-header cascade">Cascade</div>
+          <div class="card-body">
+            <span class="card-tag">战略执行平台</span>
+            <ul class="feature-list">
+              <li>Alignment Map（战略对齐图）</li>
+              <li>多框架兼容（OKR / BSC / Hoshin）</li>
+              <li>Strategy Cadences</li>
+              <li>Tapestry AI</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="product-card">
+          <div class="card-header workboard">WorkBoard</div>
+          <div class="card-body">
+            <span class="card-tag">OKR + 战略执行</span>
+            <ul class="feature-list">
+              <li>Strategy Canvas / OKR Canvas</li>
+              <li>Smart Agendas</li>
+              <li>AI Chief of Staff</li>
+              <li>决议 → 执行流</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="product-card">
+          <div class="card-header aha">Aha! Roadmaps</div>
+          <div class="card-body">
+            <span class="card-tag">产品/战略路线图</span>
+            <ul class="feature-list">
+              <li>Strategy Roadmap</li>
+              <li>Goals / Initiatives</li>
+              <li>Whiteboards + Ideas</li>
+              <li>评分卡优先级</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="product-card">
+          <div class="card-header miro">Miro</div>
+          <div class="card-body">
+            <span class="card-tag">在线白板</span>
+            <ul class="feature-list">
+              <li>无限画布</li>
+              <li>模板库</li>
+              <li>投票 / 计时器</li>
+              <li>AI 聚类</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Style 2: 产品内页对比表 -->
+    <div class="section style-table">
+      <div class="section-title">样式二：产品内页对比表</div>
+      <div class="section-desc">适合放在 DSTE 系统内部、RFC 文档或帮助中心。用表格 + tag 的形式呈现，信息密度高，便于快速扫描。</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 140px">产品</th>
+            <th style="width: 160px">定位</th>
+            <th>最值得 DSTE 借鉴</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="product-cell">
+                <span class="product-dot dot-cascade"></span>
+                <span>Cascade</span>
+              </div>
+            </td>
+            <td>战略执行平台</td>
+            <td>
+              <span class="tag highlight">Alignment Map</span>
+              <span class="tag">多框架兼容</span>
+              <span class="tag">Strategy Cadences</span>
+              <span class="tag">Tapestry AI</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="product-cell">
+                <span class="product-dot dot-workboard"></span>
+                <span>WorkBoard</span>
+              </div>
+            </td>
+            <td>OKR + 战略执行</td>
+            <td>
+              <span class="tag highlight">Strategy Canvas</span>
+              <span class="tag">OKR Canvas</span>
+              <span class="tag">Smart Agendas</span>
+              <span class="tag">AI Chief of Staff</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="product-cell">
+                <span class="product-dot dot-aha"></span>
+                <span>Aha! Roadmaps</span>
+              </div>
+            </td>
+            <td>产品/战略路线图</td>
+            <td>
+              <span class="tag highlight">Strategy Roadmap</span>
+              <span class="tag">Goals / Initiatives</span>
+              <span class="tag">Whiteboards</span>
+              <span class="tag">评分卡</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="product-cell">
+                <span class="product-dot dot-miro"></span>
+                <span>Miro</span>
+              </div>
+            </td>
+            <td>在线白板</td>
+            <td>
+              <span class="tag highlight">无限画布</span>
+              <span class="tag">模板库</span>
+              <span class="tag">投票 / 计时器</span>
+              <span class="tag">AI 聚类</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Style 3: 能力矩阵可视化 -->
+    <div class="section style-matrix">
+      <div class="section-title">样式三：能力矩阵可视化</div>
+      <div class="section-desc">适合在方案评审或 PPT 中突出「哪些产品在哪些维度强」。用评分圆点 + 简短说明，一眼看出竞争格局。</div>
+
+      <div class="matrix-wrap">
+        <div class="matrix">
+          <div class="matrix-header">能力维度</div>
+          <div class="matrix-header" style="color:#1677FF">Cascade</div>
+          <div class="matrix-header" style="color:#722ED1">WorkBoard</div>
+          <div class="matrix-header" style="color:#D97706">Aha!</div>
+          <div class="matrix-header" style="color:#F5222D">Miro</div>
+
+          <div class="matrix-row-title">多阶段规划</div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Strategy Planner 支持多框架规划</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Strategy Canvas 结构化规划</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Strategy Roadmap 视图成熟</span></div>
+          <div class="matrix-cell"><span class="score-badge medium">中</span><span class="cell-note">依赖模板，灵活性高但框架弱</span></div>
+
+          <div class="matrix-row-title">画布共创</div>
+          <div class="matrix-cell"><span class="score-badge medium">中</span><span class="cell-note">内置框架但画布能力有限</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Collaboration Canvases</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Aha! Whiteboards</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">无限画布 + 模板 + 投票</span></div>
+
+          <div class="matrix-row-title">会议驱动</div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Strategy Cadences</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Smart Agendas</span></div>
+          <div class="matrix-cell"><span class="score-badge weak">弱</span><span class="cell-note">会议能力较弱</span></div>
+          <div class="matrix-cell"><span class="score-badge weak">弱</span><span class="cell-note">无会议管理</span></div>
+
+          <div class="matrix-row-title">输出件验收</div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Dashboards + Reports</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Business Reviews</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Reports + 分享</span></div>
+          <div class="matrix-cell"><span class="score-badge weak">弱</span><span class="cell-note">非系统记录</span></div>
+
+          <div class="matrix-row-title">执行衔接</div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Initiatives 到执行</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Workstreams</span></div>
+          <div class="matrix-cell"><span class="score-badge strong">强</span><span class="cell-note">Develop 连接</span></div>
+          <div class="matrix-cell"><span class="score-badge weak">弱</span><span class="cell-note">需导出到其它系统</span></div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><span class="score-badge strong">强</span> 核心优势</div>
+        <div class="legend-item"><span class="score-badge medium">中</span> 部分支持</div>
+        <div class="legend-item"><span class="score-badge weak">弱</span> 能力缺失</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

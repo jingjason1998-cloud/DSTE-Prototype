@@ -301,7 +301,7 @@ Each score must explain: "Not full marks because... not zero because... so we ta
 
 ## Reference
 
-- **Frontend dimension cards**: `src/pages/reviewer/main.js` → `sceneDimensionData['annual-leader-review']` (currently empty, uses focus dimensions)
-- **Checklist**: `src/pages/reviewer/main.js` → checklists['annual-leader-review']
+- **Frontend dimension cards**: `src/pages/reviewer/main.js` → `sceneDimensionData['annual-leader-review']`
+- **Checklist**: `src/pages/reviewer/main.js` → `getLocalSceneHints('annual-leader-review')`（本地审核要点，代理不可用时使用）
 - **Unified PRD**: `docs/01-Product产品/会议材料智能审核助手-统一产品设计.md` §4.3
 - **Huawei DSTE methodology**: 华为干部述职八大内容、PBC体系、BEM战略解码

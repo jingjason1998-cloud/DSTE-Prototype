@@ -23,10 +23,10 @@
 开发 DSTE [模块名] 模块，项目路径 /Users/jasonjing/DSTE-Prototype。
 
 遵循以下规范：
-1. 代码写在 src/cockpit.html 的 [render函数名]() 函数内
+1. 大功能优先做成独立 HTML 页面（参考 docs/04-Guide开发指南/new-page.md 方式二）；小页面代码写在 src/cockpit.html 的 [render函数名]() 函数内
 2. 返回 HTML 字符串（参考现有 renderDashboard() 写法）
 3. 样式用现成的 CSS 变量，不要重新定义颜色
-4. 写完后运行 npx playwright test && python3 -m pytest tests/ 验证
+4. 写完后运行 npx playwright test && python3 -m pytest tests/ 验证，提交前运行 npm run check:scope
 5. 不要改 vite.config.js、playwright.config.js、package.json、src/lib/config.js
 ```
 
@@ -41,6 +41,7 @@
 - 添加新的 `<style>` 标签（页面级样式）
 - 写 E2E 测试 `tests/e2e/xxx.spec.js`
 - 写 pytest 测试
+- 提交前必须运行 `npm run check:scope`（AGENTS.md 强制项）
 
 ### ❌ 功能 AI 不能做的
 

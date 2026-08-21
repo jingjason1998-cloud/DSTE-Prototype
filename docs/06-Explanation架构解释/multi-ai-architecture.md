@@ -85,7 +85,7 @@ sequenceDiagram
     U->>Func: 发 ai-prompt.md + PRD链接
     Func->>Func: 读 docs/01-Product产品/prd.md
     Func->>Func: 读 docs/04-Guide开发指南/new-page.md
-    Func->>Func: 开发 renderMeetings()
+    Func->>Func: 开发 meetings.html + src/meetings/ 模块
     Func->>Func: 写 E2E 测试
     Func->>U: "开发完成，请检查"
 
@@ -111,7 +111,7 @@ sequenceDiagram
 |            | 🏗️ 架构 AI                                        | ⚙️ 功能 AI                       |
 | ---------- | ------------------------------------------------ | ------------------------------ |
 | **代码范围**   | 配置文件、路由、部署脚本、代码审查                                | `cockpit.html` 内渲染函数           |
-| **文档维护**   | `docs/02-RFC/`, `docs/03-ADR/`, `docs/04-Guide/` | `docs/02-RFC/001-xxx.md`（开发前写） |
+| **文档维护**   | `docs/02-RFC功能设计/`, `docs/03-ADR架构决策/`, `docs/04-Guide开发指南/` | `docs/02-RFC功能设计/001-xxx.md`（开发前写） |
 | **测试**     | 确保全部测试通过                                         | 写自己模块的 E2E 测试                  |
 | **Git 操作** | merge, tag, release                              | 不操作 Git                        |
 | **部署**     | 一键发布                                             | 不参与                            |
@@ -120,7 +120,7 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    A["功能AI A<br/>改 cockpit.html<br/>renderMeetings()"] -->|"不碰"| B["功能AI B<br/>改 cockpit.html<br/>renderStrategyMap()"]
+    A["功能AI A<br/>改 meetings.html<br/>src/meetings/ 模块"] -->|"不碰"| B["功能AI B<br/>改 cockpit.html<br/>renderStrategyMap()"]
     A -->|"不碰"| C["架构AI<br/>改 vite.config.js"]
     B -->|"不碰"| C
 ```
@@ -137,3 +137,5 @@ cockpit.html 内的规则：
 ├─ renderTasks()          ← AI D 负责
 └─ PAGES{} / 路由逻辑      ← 架构 AI 负责（注册新页面）
 ```
+
+> 注（2026-08-21）：会议模块已拆分为独立页面 `src/meetings.html` + `src/meetings/` 模块群；大功能优先独立 HTML 页（见 `docs/03-ADR架构决策/004-hybrid-architecture.md`）。上述 cockpit.html 内部分工规则仅适用于仍在 SPA 内的页面。

@@ -49,3 +49,18 @@
 |------|------|------|----------|
 | 001 | 导航架构 V2 | `implemented` | v0.1.0 |
 | 002 | 经营分析会模块深化 | `implemented` | v0.4.0 |
+| 003 | 经营分析会模块优化方案 v2.0（调整版） | `implemented`（⚠️ 文件残缺，仅存附录 C-E） | v0.4.0 |
+| 004 | 通用议题材料审核场景重构 | `implemented` | — |
+| 005 | 版本审计看板 | `implemented`（后端实际落在 api-worker） | — |
+| 006 | 平台每日体检与持续改进 | 部分实施（仅脚本落地，日推大概率已停跑） | — |
+| 007 | 需求管理中心 Phase 1 MVP | `implemented` | v0.6.0 |
+| 008 | AI 战略合作伙伴全局设计 | 进行中（Phase 0/1 部分落地，Phase 2 未启动） | — |
+| 009 | 战略研讨会（SP 战略规划制定） | `draft` | — |
+| 009 | 战略研讨会管理（Kimi 初稿） | `superseded`（被 009-sp-planning-workshop 取代） | — |
+| 010 | 工作区页签切换状态保持（keep-alive） | `implemented` | — |
+| 011 | 战略洞察与专题（混合架构） | 已批准（已升级为正式 PRD） | — |
+| 012 | 议程材料链接与审核评分展示 | `implemented` | — |
+| 013 | 会议议程材料一键送审与批量送审 | `implemented` | — |
+| 014 | 知识库网页版（knowledge.html） | `implemented` | v0.7.27 / v0.7.28 |
+
+> **编号沿革（2026-08-21 治理）**：原 `001-strategy-insights-topics` 重编号为 011；原 `docs/02-RFC/004-agenda-material-link-and-review-score` 重编号为 012（消除与 004-topic-review-refactor 撞号）；docs 根目录 `rfc-agenda-material-review.md` 归入本目录并编号 013；原无编号的 `knowledge-hub.md` 补编号 014。009 存在两份同主题草案，`009-strategy-workshop.md` 已被 `009-sp-planning-workshop.md` 取代。

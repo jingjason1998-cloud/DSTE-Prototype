@@ -1,3 +1,5 @@
+> **🗄 已归档（2026-08-21）**：KPI 树 v3 设计稿；实现已演进为 Canvas 自由画布（src/cockpit.html omp_renderKpiTree），本文描述的 DOM/交互不存在。本文仅作历史参考。
+
 # KPI 指标树 — 卡片式层级视图 PRD（v3 最终版）
 
 > 目标：耳目一新 · 既震撼又适用

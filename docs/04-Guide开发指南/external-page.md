@@ -2,6 +2,8 @@
 
 > 在 DSTE 平台内嵌入外部系统，保留其全部数据与交互效果。
 
+> **⚠️ 2026-08-21 警示**：本文流程已失效，待重写。`src/pages/_template/external-page.js` 模板**不存在**；当前嵌入页的真实机制是 `src/lib/config.js` 的 `PAGE_META`（`isExternal` / `externalFile`）+ cockpit 的 iframe keep-alive（`#workspace-panes`）+ 独立页用 `?embed=1` 隐藏自身 shell；postMessage 契约实际是 `dste-navigate` / `dste-open-palette` / `dste-open-record`（见 `src/lib/shell-injector.js` 与 `src/cockpit.html`），而非本文的 `dste-theme` / `dste-user` / `external-ready` / `external-navigate`。参考前请先读 [ADR-004 混合架构](../03-ADR架构决策/004-hybrid-architecture.md)。
+
 ---
 
 ## 方案：iframe + postMessage

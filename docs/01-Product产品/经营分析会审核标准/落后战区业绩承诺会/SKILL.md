@@ -319,6 +319,6 @@ Be direct about the R-level: "This material is R4-level: it has a framework but 
 ## Reference
 
 - **Frontend dimension cards**: `src/pages/reviewer/main.js` → `sceneDimensionData['lagging-region-review']`
-- **Checklist (21 items)**: `src/pages/reviewer/main.js` → checklists['lagging-region-review']
+- **Checklist (21 items)**: `src/pages/reviewer/main.js` → `getLocalSceneHints('lagging-region-review')`（本地审核要点，代理不可用时使用）
 - **Unified PRD**: `docs/01-Product产品/会议材料智能审核助手-统一产品设计.md` §4.2
 - **Huawei "一报一会" methodology**: 月度经营分析报告 + 经营分析会，差距→根因→改善→下一场怎么打

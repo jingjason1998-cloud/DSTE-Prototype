@@ -27,11 +27,16 @@
                     │  SSL 443  │
                     │ /api/代理  │
                     └─────┬─────┘
-                    ┌─────┴─────┐
-                    │ 服务器    │
-                    │ /opt/...  │
-                    └───────────┘
+          ┌───────────────┼───────────────┐
+    ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐
+    │ 服务器    │   │Cloudflare │   │CAS 认证   │
+    │ 静态资源  │   │  Worker   │   │passport.  │
+    │ + Flask   │   │AI 网关+KV │   │fanruan.com│
+    │ 审核:8766 │   │api.dste.* │   │           │
+    └───────────┘   └───────────┘   └───────────┘
 ```
+
+> **注**：会议材料审核 Flask 服务（端口 8766）属独立仓库 `meeting-material-reviewer`，生产环境 nginx 将 `/api/` 按路径分流：审核端点回 Flask，其余走 Cloudflare Worker。
 
 ## SPA Shell 模式
 
@@ -40,7 +45,7 @@
 - **顶部导航栏**：固定，6 个 DSTE 阶段
 - **左侧边栏**：根据当前阶段动态渲染
 - **内容区**：根据 hash 路由渲染不同页面内容
-- **外部页面**：reviewer.html、business-topics.html 通过跳转离开 SPA
+- **外部页面**：多数功能模块已拆为独立页面（`vite.config.js` 共 18 个构建入口，如 bp、meetings、strategy-map、knowledge、rule-engine、marketing-budget 等），通过跳转离开 SPA
 
 ### 路由机制
 
@@ -90,4 +95,4 @@ window.DSTEPage = {
 };
 ```
 
-当前阶段：接口已定义，尚未完全解耦（渲染函数仍在 cockpit.html 内）。
+当前阶段：接口已定义，解耦进行中——BP 模块已拆出为独立页面 `src/bp.html` + `src/pages/bp/`（`ap_saveKeyTask`、`omp_buildYearSeed` 等函数已移至 `src/pages/bp/main.js` 与 `src/lib/omp-store.js`），其余模块的渲染函数仍在 cockpit.html 内。

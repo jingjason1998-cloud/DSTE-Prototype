@@ -10,6 +10,8 @@
 
 当前 DSTE 已经落地了若干单点 AI 能力：
 
+> **⏱ 快照更新（2026-08-21）**：下表为 2026-06-29 时点的状态，其中「UI 占位」表述已过时——v0.6.0 起统一 AI 底座落地（`src/lib/ai-client.js`、`src/lib/ai-context.js`；`src/lib/kms-vectorizer.js` 同版落地、v0.6.1 精简移除），驾驶舱 `cockpit.html#ai` 已重写为全局 AI 助手；v0.7.25 起又落地 `src/lib/ai-error.js`、`ai-telemetry.js`、`ai-state.js`、`src/components/GlobalAiDrawer.js`、`AiFeedbackBar.js` 等一整套（全局 AI 抽屉 + 可观测性）。Phase 1 的工具查询能力已部分落地（Worker 侧 `queryMeetingAgenda`/`queryMeetingActions`/`queryMeetingResolutions` 等工具），但未按本文命名实现 `ToolExecutor` 与 `/api/ai/agent`——Phase 2（多 Agent 编排）确认未启动。
+
 | 能力 | 实现状态 | 后端 |
 |------|----------|------|
 | 会议材料智能审核 | 完整 | Kimi 代理 |

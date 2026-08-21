@@ -8,7 +8,7 @@
 
 - **名称**：DSTE 战略管理平台
 - **技术栈**：HTML + CSS + JS（Vanilla），Vite 构建
-- **测试**：pytest 30 + Playwright E2E 8
+- **测试**：pytest 200+ + vitest 600+ + Playwright E2E 60+ spec
 - **部署**：nginx + SSL，生产环境 `Dste.fineres.com`
 
 ---
@@ -20,12 +20,15 @@
 ```
 docs/
 ├── 00-index.md          ← 从这儿开始看
+├── 00-功能全景图.md       # 功能全景与实现状态（以 src/lib/config.js 为准）
+├── .archive/            # 已归档的历史文档（仅作参考，不代表现状）
 ├── 01-Product产品/          # PRD、路线图、变更日志
-├── 02-RFC功能设计/              # 功能设计文档（开发前写）
-├── 03-ADR架构决策/              # 架构决策记录
+├── 02-RFC功能设计/              # 功能设计文档（开发前写，编号 001~014）
+├── 03-ADR架构决策/              # 架构决策记录（当前架构见 004-hybrid-architecture）
 ├── 04-Guide开发指南/            # 开发指南（How-to）
 ├── 05-Reference参考手册/        # 组件、API、规范参考
-└── 06-Explanation架构解释/      # 架构、技术栈说明
+├── 06-Explanation架构解释/      # 架构、技术栈说明
+└── 07-DesignSystem/        # 设计系统（token/组件/图标/Shell，样式规范唯一事实源）
 ```
 
 **新功能开发前**，先看 `docs/02-RFC功能设计/000-template.md` 写设计文档。

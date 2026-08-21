@@ -1,9 +1,11 @@
 # 经营分析会 AI 辅助能力梳理与开发计划
 
 > **版本**：v1.0  
-> **状态**：规划中  
+> **状态**：Phase 1 部分已完成（2026-08-21 回写，基准 v0.7.31）  
 > **更新日期**：2026-06-29  
 > **关联文档**：[[../02-RFC功能设计/008-ai-strategic-partner-global-design.md]]  
+
+> **状态回写（2026-08-21）**：「工具执行迁到 Worker」（P0）已完成——`api-worker/worker.js` 的 `executeTool()` + `/api/ai/tools/execute` 端点已上线（v0.6.1，2026-06-30）；`searchKms` 已在 Worker 实现；「会前准备度检查」的 UI 版早在 v0.4.11（2026-06-15）已发布（`computeMeetingReadiness`），但 AI 工具 `checkMeetingReadiness` 仍未实现。
 
 ---
 
@@ -44,9 +46,9 @@
 
 | 能力 | 优先级 | 说明 |
 |---|---|---|
-| 工具执行迁到 Worker | P0 | 当前工具在前端执行，写入类工具存在安全/权限风险 |
+| ~~工具执行迁到 Worker~~ ✅ 已完成（v0.6.1） | P0 | 已落地：`api-worker/worker.js` 的 `executeTool()` + `/api/ai/tools/execute`，除 `navigateTo` 外均在 Worker 执行 |
 | 会议纪要生成 | P1 | 从会议纪要的文本中提取要点、决议、行动项 |
-| 会前准备度检查 | P1 | 自动检查材料是否齐全、议程是否完整、决议是否闭环 |
+| 会前准备度检查 | P1 | UI 版已发布（v0.4.11，`computeMeetingReadiness`，会议卡片/详情页展示准备度）；AI 工具 `checkMeetingReadiness` 未实现 |
 | 决议草案生成 | P1 | 基于讨论内容生成决议草案 |
 | 督办催办文案 | P2 | 对逾期行动项自动生成催办通知 |
 | 主动洞察卡片 | P2 | 在会议列表/驾驶舱展示「建议纳入会议讨论」的风险议题 |
@@ -222,7 +224,7 @@ AI 周期性扫描：
 
 ### 4.3 工具层当前状态
 
-**已实现（前端）**：
+**已实现**（2026-08-21 注：自 v0.6.1 起除 `navigateTo` 外均在 Worker 端执行，不再是「前端」）：
 
 | 工具 | 类型 | 状态 |
 |---|---|---|
@@ -231,7 +233,7 @@ AI 周期性扫描：
 | `queryMeetingResolutions` | 查询 | ✅ |
 | `createActionItem` | 写入（草案） | ✅ |
 | `navigateTo` | 交互 | ✅ |
-| `searchKms` | 知识 | ✅（定义待 Worker 实现） |
+| `searchKms` | 知识 | ✅（Worker 已实现，`searchKms()` 经 `executeTool()` 分发） |
 
 **待实现**：
 
@@ -255,7 +257,7 @@ AI 周期性扫描：
 
 | 任务 | 说明 | 关键文件 |
 |---|---|---|
-| 工具执行迁到 Worker | `api-worker/worker.js` 新增 `ToolExecutor`，权限/审计/安全统一在后端处理 | `api-worker/worker.js` |
+| 工具执行迁到 Worker ✅ 已完成（v0.6.1） | `api-worker/worker.js` 已新增 `executeTool()` + `/api/ai/tools/execute`，权限/审计/安全统一在后端处理 | `api-worker/worker.js` |
 | 新增 `createResolution` 工具 | 生成决议草案，用户确认后写入 | `src/lib/ai-client.js` |
 | 新增 `queryKpiStatus` 工具 | 让 AI 能回答 KPI 相关问题 | `src/lib/ai-client.js`、`api-worker/worker.js` |
 | 新增 `checkMeetingReadiness` 工具 | 会前准备度检查 | `src/lib/ai-client.js` |

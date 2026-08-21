@@ -42,6 +42,7 @@ ADR 是**历史记录**，不是活文档。如果决策变了：
 
 | 编号 | 标题 | 状态 |
 |------|------|------|
-| 001 | 单页应用 vs 多页应用 | `accepted` |
+| 001 | 单页应用 vs 多页应用 | `accepted`（架构已演进，见 004） |
 | 002 | Vite + Playwright + GitHub Actions | `accepted` |
-| 003 | 微前端架构 | `accepted` |
+| 003 | 微前端架构 | `superseded by ADR-004` |
+| 004 | 混合架构（SPA 壳 + 独立 HTML 页 + iframe keep-alive） | `accepted` |

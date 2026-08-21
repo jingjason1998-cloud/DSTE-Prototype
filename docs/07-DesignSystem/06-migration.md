@@ -4,18 +4,18 @@
 
 ## 迁移顺序
 
-1. **Phase 0** — 设计系统基线
+1. **Phase 0** — 设计系统基线 ✅ 已完成（随 v0.6.6 发布）
    - 输出设计文档
    - 创建 tokens.css / components.css
    - 生成 Phosphor 图标数据
    - main.css 改为兼容层
 
-2. **Phase 1** — 统一 Shell
+2. **Phase 1** — 统一 Shell ✅ 已完成（随 v0.6.6 发布）
    - shell.css 使用新 token 和统一尺寸
    - config.js emoji → icon key
    - shell.js 渲染 SVG 图标
 
-3. **Phase 2** — 独立页面
+3. **Phase 2** — 独立页面 ✅ 已完成（随 v0.7.2 发布）
    - strategy-map / meetings / business-topics / requirement-pool / reviewer / employee-directory / issue-tracking
    - 删除页面级 :root token 重新定义
    - 内联样式迁移为 class
@@ -59,9 +59,9 @@
 | `--spacing-md` | `--space-4` | |
 | `--spacing-lg` | `--space-6` | |
 | `--spacing-xl` | `--space-7` | |
-| `--topbar-height` | `--shell-topbar-height` | 值从 64px/56px 统一为 60px |
-| `--sidebar-width` | `--shell-sidebar-width` | 值统一为 240px |
-| `--sidebar-collapsed` | `--shell-sidebar-collapsed` | 64px |
+| `--topbar-height` | `--shell-topbar-height` | 值从 64px/56px 统一为 48px |
+| `--sidebar-width` | `--shell-sidebar-width` | 值统一为 220px |
+| `--sidebar-collapsed` | `--shell-sidebar-collapsed` | 64px（token 仍定义，Shell 实际收起为完全隐藏 width:0） |
 | `--font-family` | `--font-sans` | |
 | `--font-mono` | `--font-mono` | |
 | `--radius-sm` | `--radius-sm` | 同名 |

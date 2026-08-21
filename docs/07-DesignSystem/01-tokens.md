@@ -1,5 +1,7 @@
 # DSTE 设计 Token 规范
 
+> **数值以 `assets/css/tokens.css` 为唯一事实源，本文数值为 2026-08 快照。** token 值变更后请以源文件为准，发现不一致请顺手更新本文。
+
 Token 是 DSTE 设计系统的原子值。所有颜色、间距、字体、圆角、阴影、动效都必须通过 token 引用，禁止在组件中写死数值。
 
 ## 文件位置
@@ -54,11 +56,11 @@ Primitive（原始色板）
 
 | Token | Light | Dark |
 |-------|-------|------|
-| `--color-primary` | `#1677FF` | `#3C9AFF` |
+| `--color-primary` | `#1677FF` | `#4096FF` |
 | `--color-primary-hover` | `#0958D9` | `#69B1FF` |
 | `--color-primary-active` | `#074BAF` | `#91CAFF` |
-| `--color-primary-subtle` | `#E6F4FF` | `rgba(22,119,255,0.15)` |
-| `--color-primary-emphasis` | `#074BAF` | `#BAE0FF` |
+| `--color-primary-subtle` | `#E6F4FF` | `rgba(22,119,255,0.16)` |
+| `--color-primary-emphasis` | `#074BAF` | `#69B1FF` |
 
 ### Semantic — 状态色
 
@@ -79,6 +81,17 @@ Primitive（原始色板）
 | `--color-info` | `#1677FF` | 信息提示 |
 | `--color-info-hover` | `#0958D9` | — |
 | `--color-info-subtle` | `#E6F4FF` | 信息背景 |
+
+**Dark 模式状态色覆盖**：dark 主题下状态色整体提亮、`subtle` 背景改为 0.16 半透明叠加（见 `tokens.css` 的 `[data-theme="dark"]` 块）：
+
+| Token | Dark 色值 |
+|-------|-----------|
+| `--color-success` | `#73D13D`（hover `#95DE64` / active `#B7EB8F` / subtle `rgba(82,196,26,0.16)`） |
+| `--color-warning` | `#FFC53D`（hover `#FFD666` / active `#FFE58F` / subtle `rgba(250,173,20,0.16)`） |
+| `--color-danger` | `#FF4D4F`（hover `#FF7875` / active `#FFA39E` / subtle `rgba(245,34,45,0.16)`） |
+| `--color-info` | `var(--color-blue-400)`（hover `var(--color-blue-300)` / subtle `rgba(22,119,255,0.16)`） |
+
+dark 下 `--color-text-on-success` 反转为深色文字（`var(--color-gray-1000)`），其余 `on-*` 不变。
 
 ### Semantic — 背景/文字/边框
 
@@ -109,7 +122,10 @@ Primitive（原始色板）
 --color-border-subtle: var(--color-gray-100);
 --color-border-strong: var(--color-gray-300);
 --color-border-focus: var(--color-blue-500);
+--color-border-divider: var(--color-gray-200);
 ```
+
+> `--color-border-divider` 用于分隔线，目前仅在 light 块定义，dark 主题未单独覆盖。
 
 #### Dark
 
@@ -177,6 +193,8 @@ Primitive（原始色板）
 | `--text-lg` | 20px | 28px | 页面小标题 |
 | `--text-xl` | 28px | 36px | 页面大标题、KPI 数值 |
 
+行高独立定义为 `--leading-*` token（与上表行高列一一对应）：`--leading-xs: 18px`、`--leading-sm: 20px`、`--leading-base: 22px`、`--leading-md: 24px`、`--leading-lg: 28px`、`--leading-xl: 36px`。
+
 | Token | 值 |
 |-------|-----|
 | `--font-normal` | 400 |
@@ -224,11 +242,12 @@ Dark 模式下阴影透明度提高，避免阴影在暗色背景上消失。
 ## Shell 尺寸
 
 ```css
---shell-topbar-height: 60px;
---shell-sidebar-width: 240px;
+--shell-topbar-height: 48px;
+--shell-sidebar-width: 220px;
 --shell-sidebar-collapsed: 64px;
+--shell-tabbar-height: 32px;
 --shell-content-max-width: 1440px;
---shell-content-padding: var(--space-6); /* 24px */
+--shell-content-padding: var(--space-5); /* 20px */
 ```
 
 ## Z-Index

@@ -31,7 +31,7 @@ DSTE 设计系统定义了帆软 DSTE 战略管理平台的视觉语言与交互
 | `04-shell.md` | 顶部导航、侧边栏、面包屑、页面框架统一规范 |
 | `05-a11y.md` | 对比度、焦点、ARIA、减少动画、键盘导航 |
 | `06-migration.md` | 迁移顺序、旧变量兼容映射、废弃 emoji 清单 |
-| `07-visual-regression.md` | 视觉回归测试范围、截图基线、验收标准 |
+| ~~`07-visual-regression.md`~~ | 视觉回归测试范围、截图基线、验收标准（⚠️ 从未落地，2026-08-21 已归档至 `docs/.archive/07-visual-regression.md`） |
 
 ## 核心文件
 

@@ -1,10 +1,12 @@
+> **状态：已实现（v0.7.27 发布，v0.7.28 扩容专题研究分组，文档 97 → 109 篇）**。实现：src/knowledge.html + src/pages/knowledge.js + scripts/build-knowledge.cjs。2026-08-21 补编号 014。
+
 # RFC: fyp-kb 知识库网页版(knowledge.html)
 
 > 状态:已批准(用户选定方案 A:独立页面) · 2026-08-11
 
 ## 背景
 
-fyp-kb(`/Users/jasonjing/fyp-kb`)是"十五五"规划知识库:97+ 篇 Markdown
+fyp-kb(`/Users/jasonjing/fyp-kb`)是"十五五"规划知识库:109 篇 Markdown
 (顶层文献/纲要 18 篇主题/29 份专项规划/31 省纲要/PEST 洞察)+ 专栏图片。
 需做成网页版,继承在 DSTE 洞察模块。
 

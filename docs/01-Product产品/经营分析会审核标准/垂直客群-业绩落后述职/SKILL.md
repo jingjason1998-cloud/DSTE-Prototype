@@ -1,7 +1,9 @@
 ---
-name: vertical-customer-audit
+name: vertical-segment-review
 description: Audit and evaluate performance lag review materials for vertical customer segment business lines. Use when the user needs to (1) audit a述职材料 for业绩落后 personnel, (2) generate an audit report with scored dimensions, (3) identify fatal/warning/suggestion issues, (4) produce actionable improvement suggestions, or (5) check alignment between the review material and strategic planning (SP). Triggered by uploads of KMS links to review documents, requests to evaluate述职 materials, or any mention of业绩落后/述职/审核 in the vertical customer context.
 ---
+
+> 2026-08-21：维度模型统一为模型 A（与前端 getDimensionConfig / 统一产品设计 PRD §4.1 一致），取代旧模型 B。
 
 # Vertical Customer Segment - Performance Lag Review Audit
 
@@ -17,7 +19,7 @@ Execute this workflow sequentially when auditing a performance lag review materi
 
 ---
 
-### Step 2: Completeness Check (30 points)
+### Step 2: Completeness Check (35 points)
 
 Verify the material contains all **6 required modules**. Deduct 15 points for each missing module (capped at 25 points):
 
@@ -29,6 +31,8 @@ Verify the material contains all **6 required modules**. Deduct 15 points for ea
 | 4 | **下一步计划/改进措施** | SMART-compliant with milestones; both reactive and forward-looking | Only lists remedial measures, lacks systematic deployment |
 | 5 | **资源需求** | Specific needs: headcount, budget, policy, training | Not written or unreasonable (10 people for 1 person's work) |
 | 6 | **时间节点** | Clear milestones and acceptance criteria | "As soon as possible", "strive to improve" - vague expressions |
+
+**Red line (per PRD §4.1)**: missing 市场现状/业绩回顾 → severe deduction.
 
 **Supplementary Material: SP Strategic Planning Comparison Table**
 
@@ -54,7 +58,9 @@ The reviewer must additionally submit a **SP Strategic Planning Comparison Table
 
 ---
 
-### Step 3: Data Authenticity Check (15 points)
+### Step 3: Data Consistency Red-Line Check (no standalone score)
+
+Model A has no separate "data authenticity" dimension. Data problems are handled as red lines or deducted from the affected dimension (usually completeness or gap & root cause analysis).
 
 #### 3.1 Data Consistency
 
@@ -74,9 +80,18 @@ The reviewer must additionally submit a **SP Strategic Planning Comparison Table
 
 ---
 
-### Step 4: Root Cause Analysis Depth Check (20 points, floor ≥12)
+### Step 4: Gap & Root Cause Analysis Check (20 points, floor ≥12)
 
-#### 4.1 Analysis Framework Check (must use at least one)
+**Core question (per PRD §4.1)**: Is the gap quantified? Does the root cause analysis penetrate to the essence?
+
+⚠️ **Hard rule**: this dimension < 12 points → verdict is 待修改 regardless of total score.
+
+#### 4.1 Gap Quantification
+
+- Total gap must be decomposed by customer/product/region/time dimensions — a single lump-sum gap number is insufficient
+- Each decomposed gap must have concrete numbers (amount, customer count, achievement rate), not vague statements like "market is bad"
+
+#### 4.2 Analysis Framework Check (must use at least one)
 
 | Tool | Applicable When | Check Points |
 |------|-----------------|-------------|
@@ -85,7 +100,7 @@ The reviewer must additionally submit a **SP Strategic Planning Comparison Table
 | **Comparative Analysis** | Gap with excellent colleagues | Controlled variables (same region/customer/time period) |
 | **Funnel Analysis** | Conversion环节problems | Decomposes acquisition→touch→conversion→repurchase |
 
-#### 4.2 Root Cause Quality Assessment
+#### 4.3 Root Cause Quality Assessment
 
 | Quality Level | Example | Audit Verdict |
 |--------------|---------|---------------|
@@ -97,12 +112,35 @@ The reviewer must additionally submit a **SP Strategic Planning Comparison Table
 - Subjective/self-causes must account for **≥40%** of root causes, otherwise deduct 10 points
 - Each root cause must have data or factual evidence support; pure subjective感受 deducts 5 points/item
 - Zero root cause analysis = **fatal**, this dimension = 0 points
+- This dimension < 12 points = **single-dimension floor breached**, verdict 待修改 regardless of total score
 
 ---
 
-### Step 5: Next-Phase Plan Check (20 points)
+### Step 5: Performance Forecast Probability Analysis (10 points)
 
-#### 5.1 SMART Criteria (each plan item must comply)
+**Core question (per PRD §4.1)**: Does the forward-looking forecast have logic and probability support?
+
+#### 5.1 Forecast Check Framework
+
+| Check Item | Audit Points | Bad Example | Good Example |
+|-----------|-------------|-------------|--------------|
+| **Data support** | Forecast based on pipeline/orders/historical conversion? | "Next quarter should recover" (no basis) | "In-hand pipeline ¥X, at 30% historical conversion ≈ ¥Y" |
+| **Probability assessment** | Explicit probability/confidence for attainment? | Only a single target number | "Q3 attainment probability ~70%; downside scenario 50%" |
+| **Multi-horizon** | Separate forecasts for next month / next quarter / full year? | Only a full-year number | Per-horizon forecasts with basis |
+| **Plan linkage** | Forecast consistent with next-phase plan and responsive to root causes? | Forecast contradicts plan capacity | Forecast derived from planned actions |
+
+**Audit Rules:**
+- No probability assessment at all → **打回完善** (PRD §4.1 red line)
+- Forecast not linked to next-phase plan or root causes: deduct 3 points
+- Missing per-horizon (month/quarter/year) forecast: deduct 2 points
+
+---
+
+### Step 6: Next-Phase Plan Check (20 points)
+
+**Core question (per PRD §4.1)**: Are the measures closed-loop and SMART? Measures disconnected from root causes / no responsible person / no time nodes → 打回.
+
+#### 6.1 SMART Criteria (each plan item must comply)
 
 | Criterion | Check | Bad Example | Good Example |
 |-----------|-------|-------------|--------------|
@@ -112,7 +150,7 @@ The reviewer must additionally submit a **SP Strategic Planning Comparison Table
 | **R**elevant | Responds to root cause AND forward-looking? | Root cause is "acquisition不足", plan is "提高客单价" | Root cause is "acquisition不足", plan is "开拓2 new channels + 50 new leads/week" |
 | **T**ime-bound | Clear deadline? | "As soon as possible" | "Complete customer segmentation by June 30" |
 
-#### 5.2 Root Cause-to-Plan Mapping Matrix
+#### 6.2 Root Cause-to-Plan Mapping Matrix
 
 Required format (can be table):
 
@@ -133,9 +171,11 @@ Required format (can be table):
 
 ---
 
-### Step 6: SP Strategic Alignment Check (10 points)
+### Step 7: SP Strategic Alignment Check (10 points)
 
-#### 6.1 Alignment Framework
+**Core question (per PRD §4.1)**: Does the material carry forward the company SP strategic direction? No mention of strategy → 打回补充.
+
+#### 7.1 Alignment Framework
 
 | Check Level | Audit Points | Bad Example | Good Example |
 |-------------|-------------|-------------|--------------|
@@ -145,7 +185,7 @@ Required format (can be table):
 | **Capability Building** | Personal gaps addressed via training, not just overtime? | "Work overtime to 10pm daily next month" (unsustainable) | "Apply for solution sales training to补capability gap" |
 | **SP Opportunities** | Material mentions/responds to SP-listed opportunities? | SP says "下沉market is new growth", but zero mention | "Q3 launch下沉market pilot, covering 3 new cities" |
 
-#### 6.2 Alignment Levels
+#### 7.2 Alignment Levels
 
 | Level | Criteria | Score |
 |-------|----------|-------|
@@ -153,7 +193,7 @@ Required format (can be table):
 | **Medium** | Direction doesn't conflict with SP, mentions SP, but opportunities not fully responded | 4-7 |
 | **Weak** | Plan conflicts with SP, or completely ignores SP | 0-3 |
 
-#### 6.3 Audit Rules (with backend auto-comparison)
+#### 7.3 Audit Rules (with backend auto-comparison)
 
 **Auto-comparison Logic:**
 1. System grabs SP document from submitted KMS link
@@ -169,7 +209,9 @@ Required format (can be table):
 
 ---
 
-### Step 7: Attitude & Reflection Check (5 points)
+### Step 8: Attitude & Reflection Check (5 points)
+
+**Core question (per PRD §4.1)**: Is the author honestly reflecting, not shirking? 推诿/回避 → 扣分.
 
 | Positive Signals (+) | Negative Signals (-) |
 |---------------------|---------------------|
@@ -181,11 +223,11 @@ Required format (can be table):
 **Audit Rules:**
 - ≥3 blame-shifting expressions: this dimension = **0 points**
 - Specific self-reflection case (not empty表态): **+3 points**
-| Benchmark against excellent colleagues with specific analysis: **+3 points**
+- Benchmark against excellent colleagues with specific analysis: **+3 points**
 
 ---
 
-### Step 8: Generate Audit Report
+### Step 9: Generate Audit Report
 
 **Report Structure:**
 
@@ -194,7 +236,7 @@ Required format (can be table):
 述职人：XXX  业务线：垂直客群客户  考核周期：XXX
 
 总分：XX/100  判定：[通过/待修改/不通过]
-根因分析深度单项：XX/20 （底线：≥12分）
+差距与根因分析单项：XX/20 （底线：≥12分）
 
 一、评分总览
 | 维度 | 权重 | 得分 | 判定 |
@@ -207,9 +249,9 @@ Required format (can be table):
 五、修改清单（按P0/P1/P2优先级）
 ```
 
-**Pass/Fail Verdict:**
-- ✅ **通过**: ≥75 total AND root cause depth ≥12
-- ⚠️ **待修改**: <75 total OR root cause depth <12, but not fatal
+**Pass/Fail Verdict (Model A, per PRD §4.1):**
+- ✅ **通过**: ≥80 total AND gap & root cause analysis ≥12
+- ⚠️ **待修改**: <80 total OR gap & root cause analysis <12, but not fatal
 - ❌ **不通过**: Any fatal issue (data造假, zero root cause, zero plan)
 
 ---
@@ -231,20 +273,22 @@ Required format (can be table):
 |---|-------------------|------------------------|
 | 5 | **目标值/实际值口径不一致** | Verify against annual contract/OKR. Note any口径adjustments with reasons. |
 | 6 | **根因分析缺少数据支撑** | Add specific data/facts per root cause. E.g.: not "customer流失严重", but "Q2 lost 12 customers, 8 due to delivery delays >7 days". |
-| 7 | **下一步计划缺少时间节点** | Set clear deadlines and acceptance criteria. E.g.: "Complete by June 30" not "ASAP". |
-| 8 | **数据呈现只有文字没有表格/图表** | Present core data in tables/charts. |
-| 9 | **计划未考虑SP对齐，局部优化风险** | Review SP战略规划. Ensure plan direction aligns. |
+| 7 | **差距未量化拆解** | Decompose total gap by customer/product/region/time dimensions with concrete numbers. |
+| 8 | **业绩预测无概率评估** | Add per-horizon (month/quarter/year) forecasts with explicit attainment probability and data basis. |
+| 9 | **下一步计划缺少时间节点** | Set clear deadlines and acceptance criteria. E.g.: "Complete by June 30" not "ASAP". |
+| 10 | **数据呈现只有文字没有表格/图表** | Present core data in tables/charts. |
+| 11 | **计划未考虑SP对齐，局部优化风险** | Review SP战略规划. Ensure plan direction aligns. |
 
 ### 🟢 Suggestion Issues (Optimize)
 
 | # | Problem Diagnosis | Improvement Suggestion |
 |---|-------------------|------------------------|
-| 10 | **可以增加过程指标佐证** | Add process metrics (monthly visits, conversion rate, avg deal size). |
-| 11 | **建议增加与优秀同事的对标分析** | Benchmark 1-2 excellent colleagues on customer structure, methods, resource usage. |
-| 12 | **资源需求可以更具体** | Specific: not "need more support", but "apply for Q3 solution sales training (budget ¥5,000)". |
-| 13 | **风险预判模块可以补充** | Add "Risk Anticipation" section with potential risks and countermeasures. |
-| 14 | **计划不应只写补救措施** | Add forward-looking deployment: new channels, customer structure adjustment, new tools. |
-| 15 | **建议主动引用SP** | Cite SP key directions or department key battles, explain how your work supports them. |
+| 12 | **可以增加过程指标佐证** | Add process metrics (monthly visits, conversion rate, avg deal size). |
+| 13 | **建议增加与优秀同事的对标分析** | Benchmark 1-2 excellent colleagues on customer structure, methods, resource usage. |
+| 14 | **资源需求可以更具体** | Specific: not "need more support", but "apply for Q3 solution sales training (budget ¥5,000)". |
+| 15 | **风险预判模块可以补充** | Add "Risk Anticipation" section with potential risks and countermeasures. |
+| 16 | **计划不应只写补救措施** | Add forward-looking deployment: new channels, customer structure adjustment, new tools. |
+| 17 | **建议主动引用SP** | Cite SP key directions or department key battles, explain how your work supports them. |
 
 ---
 
@@ -267,4 +311,4 @@ Be direct: "This is not root cause analysis, this is making excuses."
 4. 上会 risk assessment (high/medium/low)
 5. 2-3 questions the参谋部will most likely ask
 
-> **Example**: "Total 67分, root cause analysis 10分 (below 12分floor). Verdict: ❌ 待修改. Material has data and opportunities, not敷衍-type. But structural gaps (missing gap decomposition, resource needs, milestones, hard gap solution). Root cause is biggest硬伤: zero tools, zero subjective attribution, hit floor. 上会 risk: high. If this goes to meeting,参谋部will追问: ①'Break down the 4661万gap by dimension?' ②'What did YOU do wrong?' ③'Where does the 1199万hard gap come from?'"
+> **Example**: "Total 67分, gap & root cause analysis 10分 (below 12分floor). Verdict: ❌ 待修改. Material has data and opportunities, not敷衍-type. But structural gaps (missing gap decomposition, resource needs, milestones, hard gap solution). Root cause is biggest硬伤: zero tools, zero subjective attribution, hit floor. 上会 risk: high. If this goes to meeting,参谋部will追问: ①'Break down the 4661万gap by dimension?' ②'What did YOU do wrong?' ③'Where does the 1199万hard gap come from?'"

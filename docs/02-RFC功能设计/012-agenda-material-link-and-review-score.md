@@ -1,3 +1,5 @@
+> **状态：已实现（implemented）**。实现在 src/meetings/renderers/meeting-editor.js / meeting-detail.js（material_link 字段）与 src/meetings/utils/reviewer.js；本文原编号 RFC-004，2026-08-21 重编号为 012 以消除与 004-topic-review-refactor 的撞号。
+
 # RFC-004: 议程材料链接与审核评分展示
 
 ## 背景

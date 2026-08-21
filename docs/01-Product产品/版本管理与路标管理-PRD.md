@@ -12,7 +12,7 @@
 
 ### 1.1 为什么需要版本管理与路标管理
 
-DSTE 平台目前处于快速迭代期，已从 v0.1.0 演进至 v0.4.10。随着模块增多、协作 AI 变多、环境变复杂，团队需要：
+DSTE 平台目前处于快速迭代期，已从 v0.1.0 演进至 v0.4.10（撰写时点口径；2026-08-21 回写时当前版本为 **v0.7.31**）。随着模块增多、协作 AI 变多、环境变复杂，团队需要：
 
 - **对内**：清晰看到产品演进节奏，明确每个模块的开发状态与负责人
 - **对外**：向领导/客户展示开发进度，建立信任感
@@ -398,6 +398,8 @@ interface Plan {
 
 #### 自动更新（版本历史）
 
+> **注（2026-08-21 回写）**：本节及全文提到的 `scripts/generate-roadmap-data.js` 为 legacy 脚本（仍存在）；实际构建（`npm run build`）用的是 `scripts/generate-roadmap.cjs`。后者从 git tag + CHANGELOG 生成 versions，但 **modules / plans 为脚本内硬编码、不读取 `docs/01-Product产品/开发计划.yml`**，且硬编码数据已失真（如战略地图 progress 0/todo、KPI 看板 5/todo，实际两者早已发布）——这是已知的数据治理问题，见 §11。
+
 每次打 tag 发布时，触发 `scripts/generate-roadmap-data.js`：
 
 ```bash
@@ -685,8 +687,8 @@ def version_audit():
 | **中** | **无"只看我的"筛选** | PRD 设计，未实现 | v0.5.0 |
 | **中** | **看板拖拽未实现** | 计划卡片无法在 Kanban 列间拖拽流转 | v0.6.0 |
 | **低** | **无导出功能** | PRD 建议"暂不实现" | 后续 |
-| **低** | **数据生成脚本未集成 CI** | `scripts/generate-roadmap-data.js` 存在，但无 `.github/workflows/update-roadmap.yml` | 后续 |
-| **低** | **开发计划 YAML 不存在** | `docs/01-Product产品/开发计划.yml` 被 PRD 引用，但文件不存在 | 后续 |
+| **低** | **数据生成脚本未集成 CI** | `scripts/generate-roadmap-data.js` 存在（legacy），实际构建用 `scripts/generate-roadmap.cjs`；均无 `.github/workflows/update-roadmap.yml` | 后续 |
+| **低** | ~~开发计划 YAML 不存在~~ → **开发计划数据失真（已知数据治理问题）** | `docs/01-Product产品/开发计划.yml` 文件存在（2026-05-23 起），但 `scripts/generate-roadmap.cjs` 的 modules/plans 为硬编码、不读该 yml；且硬编码数据已失真（战略地图 progress 0/todo、KPI 看板 5/todo，实际两者早已发布）；`开发计划.yml` 内容本身也停留在 v0.4/v0.5 时代 | 待治理 |
 
 ---
 

@@ -1,8 +1,10 @@
 # 当前开发焦点
 
-> 更新时间: 2026-08-21 11:10
+> 更新时间: 2026-08-21 11:40
 
 ## 状态
+**docs/ 文档全面治理已提交**（2026-08-21 Kimi 会话，纯文档变更）：8 代理全面体检 90 篇（✅13/⚠️55/🔁8/🗑7）后治理——16 篇归档至 `docs/.archive/`（文首横幅）；`02-RFC/` 并入 `02-RFC功能设计/`、重编号消撞号（004→012、根目录 rfc→013、001-insights→011、knowledge-hub→014）；009-strategy-workshop 标 superseded（权威版 009-sp-planning-workshop）；重写 `docs/00-index.md` 与 `docs/00-功能全景图.md`（以 config.js 实际导航为准）；新建 ADR-004 混合架构（ADR-003 superseded）；批量回写约 50 篇（测试数 pytest 211/vitest 600+/E2E 450+、设计系统 48/220/20px、PRD/RFC 状态、口径以代码为准）；AGENTS.md 结构图同步。**垂直客群审核模型按用户拍板统一为模型 A**（35/20/10/20/10/5，≥80 且差距根因≥12）：docs 侧 SKILL/审核原则已改，`meeting-material-reviewer/src/skills/vertical-segment-review.md` 已同步（两仓字节一致）——**Flask 改动仅本地，需部署 /opt/meeting-reviewer 才生效，部署前生产 prompt 仍是模型 B**。发现未处理：`src/sp-planning.html`+`src/pages/sp-planning/` 未注册 vite/config（疑似 RFC-009 半成品）；侧边栏 `exe/meeting-review` pageId 不存在回退 dashboard。详见 session-log 顶部 08-21 条目。
+
 **v0.7.33 已发布并部署生产**（2026-08-21 Kimi 会话，commit `29158d6` + bump `3da407d`，tag `v0.7.33`，Deploy success）：修复登录过期期间同步失败 toast 刷屏——CAS 绕过无 `dste-token` 致同步持续 401、队列积到 100 上限后每次入队都弹「同步队列已满」，无任何去重叠十几条红色 toast。修复：`SyncQueue` 新增 `_notifyThrottled()`（同类提示 60 秒冷却，`toastCooldownMs` 可配），「队列已满/积压较多/同步失败（按端点）」三条提示接入；「登录已过期」原有一次性保护不动。验证：unit 609（新增 3 节流用例）/ pytest 211 / lint 0 error / check:scope ✓ / build ✓；生产 bundle `per-record-sync-hykRl4Sm.js` 与本地字节一致、含 `toastCooldownMs`。**注意：提示不刷了，但积压数据仍需恢复 CAS 重新登录后才补传。生产静态资源真实路径前缀是 `/assets/`（HTML 里相对引用 `../assets/`），验证 bundle 时别拼成 `/src/assets/`（会 404）。**
 
 **v0.7.32 已发布**（2026-08-21 Kimi 会话，commit `e4677c0` + bump `3b5b1a2`，tag `v0.7.32`）：修复经分会 AI 助手「HTTP 502」且会话永久不可用——`AISession._truncate()` 按消息数切片把工具调用组拦腰切断（孤儿 tool 消息），Kimi 400 "tool_call_id is not found"（Worker 映射 502），污染历史存 localStorage 致反复失败。修复：新增 `sanitizeToolCallPairing`（`_truncate` 后 + `toKimiFormat` 发送前各跑一次，存量会话自愈）+ Worker `sanitizeMessages` 配对兜底（wrangler 热部署 Version `d59bf69b`，生产污染 payload curl 实测 200）。验证：unit 606（新增 4 用例）/ pytest 211 / lint 0 error / check:scope ✓ / build ✓。详见 session-log 顶部 08-21 条目。**诊断经验：AI 502/400 类问题先 `wrangler tail` 抓 `Kimi API error:` 日志行。**

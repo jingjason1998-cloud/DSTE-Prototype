@@ -117,6 +117,8 @@
 
 ## 代码变更范围
 
+> **实现迁移注记（2026-08-21）**：reviewer 已重构为模块化结构，下列 `src/reviewer.html` 内的函数（`LOCAL_SCENES`/`getLocalFocusDimensions` 等）现位于 `src/pages/reviewer/main.js`（`general-topic-review` 场景与四维模型完整存在）。下文文件路径为重构前的历史快照。
+
 ### 修改文件
 
 - `src/reviewer.html`
@@ -184,6 +186,6 @@
 - [x] reviewer.html 场景配置更新（special-topic→general-topic-review）
 - [x] reviewer.html 焦点维度映射更新
 - [x] reviewer.html 审核要点更新
-- [ ] pytest 回归测试通过
-- [ ] Playwright E2E 测试通过
-- [ ] Vite 构建验证通过
+- [x] pytest 回归测试通过
+- [x] Playwright E2E 测试通过
+- [x] Vite 构建验证通过

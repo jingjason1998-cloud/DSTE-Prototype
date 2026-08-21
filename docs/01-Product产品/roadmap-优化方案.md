@@ -2,7 +2,7 @@
 
 > 文档版本：v1.0
 > 创建日期：2026-06-15
-> 状态：待确认
+> 状态：部分已实施（2026-08-21 回写）— P0 项（执行摘要 KPI + 新布局）已上线，见 `public/pages/dashboard/roadmap.js`；P1/P2（纵向时间线、看板拖拽、搜索、视图切换记忆等）未见实现
 > 关联页面：`src/cockpit.html#dashboard/roadmap`
 
 ---
@@ -312,9 +312,9 @@
 ## 九、建议优先级
 
 ### P0（核心改进，推荐先做）
-- 执行摘要 KPI
-- 新双栏布局
-- 版本详情折叠
+- 执行摘要 KPI — ✅ 已实施（`public/pages/dashboard/roadmap.js`，`executiveSummary` + `#roadmap-kpi-summary`）
+- 新双栏布局 — ✅ 已实施（同上）
+- 版本详情折叠 — ✅ 已实施（同上）
 
 ### P1（体验增强）
 - 纵向时间线

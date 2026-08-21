@@ -2,6 +2,8 @@
 
 > 状态：`accepted` | 日期：2026-05-20
 
+> **2026-08-21 注记**：架构已演进为「SPA 壳 + 独立 HTML 页 + iframe keep-alive」混合架构，见 [ADR-004](004-hybrid-architecture.md)；本文保留作历史决策记录。
+
 ---
 
 ## 上下文

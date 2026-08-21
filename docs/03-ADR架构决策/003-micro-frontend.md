@@ -1,6 +1,8 @@
 # ADR-003: 微前端架构（预留）
 
-> 状态：`accepted` | 日期：2026-05-21
+> 状态：`superseded by ADR-004` | 日期：2026-05-21
+
+> **2026-08-21 注记**：`window.DSTEPage` 接口从未实现；实际演进方向是独立 HTML 页 + iframe keep-alive 的混合架构，见 [ADR-004](004-hybrid-architecture.md)。本文保留作历史决策记录。
 
 ---
 

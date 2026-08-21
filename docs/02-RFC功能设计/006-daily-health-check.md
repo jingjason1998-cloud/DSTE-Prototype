@@ -1,6 +1,8 @@
 # RFC-006: 平台每日体检与持续改进
 
-> 状态：`implemented` | 作者：AI-2 | 日期：2026-05-28
+> 状态：`部分实施` | 作者：AI-2 | 日期：2026-05-28
+>
+> **实施现状（2026-08-21 注记）**：`scripts/health-check.cjs` 与 `scripts/daily-health-report.cjs` 已落地，但体检报告归档目录 `reports/` 当前不存在、文中所述「会话级 cron（7 天后需重新设置）」已过期，企业微信日推大概率已停跑；系统健康页面（`sys/health`）与自动修复流水线未实现（`src/lib/config.js` 无对应入口）。另背景数据已过时：`cockpit.html` 已从 4179 行膨胀至 8000+ 行。
 
 ---
 

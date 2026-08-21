@@ -12,7 +12,11 @@
 ------------
 ```
 
-当前覆盖：pytest 30 + E2E 8 = 38 个测试
+当前覆盖（约数，统计于 2026-08，以 `tests/` 目录实际为准）：
+
+- Vitest 单元测试：约 40 个文件、600+ 个测试（`tests/unit/`）
+- pytest 结构测试：14 个文件、211 个测试（`tests/test_*.py`）
+- Playwright E2E：60+ 个 spec、450+ 个测试（`tests/e2e/`）
 
 ---
 
@@ -43,6 +47,35 @@ def test_new_page_has_navigation():
 
 ```bash
 python3 -m pytest tests/ -v
+```
+
+---
+
+## Vitest 单元测试
+
+### 写什么？
+
+- 工具函数、纯函数（解析、计算、数据处理）
+- store / engine 类模块逻辑（如规则引擎、OMP store）
+- 不依赖浏览器的业务逻辑分支
+
+### 示例
+
+```javascript
+import { describe, it, expect } from 'vitest';
+import { escapeHtml } from '../../src/lib/markdown-lite.js';
+
+describe('escapeHtml', () => {
+  it('转义 HTML 特殊字符', () => {
+    expect(escapeHtml('<b>')).toBe('&lt;b&gt;');
+  });
+});
+```
+
+### 运行
+
+```bash
+npm run test:unit    # 全部单元测试（vitest run）
 ```
 
 ---
@@ -92,5 +125,6 @@ npx playwright test --headed    # 有头模式（看浏览器）
 - [ ] E2E：主题切换（Light/Dark）样式正常
 - [ ] E2E：从侧边栏能正常跳转
 - [ ] `npm run build` 构建成功
+- [ ] `npm run test:unit` 全部通过
 - [ ] `npx playwright test` 全部通过
 - [ ] `python3 -m pytest tests/` 全部通过

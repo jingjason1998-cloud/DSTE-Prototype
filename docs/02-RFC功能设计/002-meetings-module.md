@@ -173,6 +173,8 @@ v0.2.0 已交付经营分析会基础页面（会议列表 + 决议跟踪 + 简�
 
 ## 影响范围
 
+> **实现迁移注记（2026-08-21）**：会议模块已从 `cockpit.html` 拆出为独立页面 `src/meetings.html` + `src/meetings/` 模块群（renderers/components/utils），`cockpit.html` 中已无 `renderMeetings()` 实现。下文代码位置为 v0.4.0 时的历史快照。
+
 - **修改文件**：`src/cockpit.html` 的 `renderMeetings()` 函数
 - **数据更新**：`renderDevTimeline()` 中经营分析会模块进度（开发完成后更新）
 - **无导航变更**：侧边栏已有 "经营分析会 ⭐" 入口

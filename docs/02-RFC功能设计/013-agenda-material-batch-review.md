@@ -1,3 +1,5 @@
+> **状态：已实现（implemented）**。一键送审/批量送审见 src/meetings/renderers/meeting-editor.js 与 src/meetings/utils/reviewer.js（reviewMaterial/createBatchReview）。本文原在 docs/ 根目录，2026-08-21 归入 RFC 目录并编号 013；与 012-agenda-material-link-and-review-score.md 是同一功能线的上下篇。
+
 # RFC：会议议程材料一键送审与批量送审
 
 > 状态：设计评审中  

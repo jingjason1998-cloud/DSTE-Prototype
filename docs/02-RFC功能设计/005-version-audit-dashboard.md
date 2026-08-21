@@ -1,5 +1,7 @@
 # RFC-005: 版本审计看板（Version Audit Dashboard）
 
+> **状态：已实现（2026-08-21 注记）**。实际实现与本文设计路径不同：后端落在 `api-worker/worker.js` 的 `/api/version-audit` 端点（非文中设计的 `proxy_server.py`），配套 `scripts/generate-version-audit.cjs`；前端页面为 `public/pages/dashboard/version-audit.js`，侧边栏入口见 `src/lib/config.js`（`dashboard/version-audit`），E2E 测试 `tests/e2e/version-audit.spec.js`。文中 `proxy_server.py`（Flask）与生产环境 `47.101.197.187:/opt/meeting-reviewer/` 均为旧部署形态（现为 Dste.fineres.com + Cloudflare Worker），保留下文仅作设计记录。
+
 ## 背景与问题
 
 当前项目存在"三个环境版本不一致"的管理风险：

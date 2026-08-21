@@ -1,6 +1,6 @@
 # RFC-007: 需求管理中心 Phase 1 MVP（DSTE 产品迭代版）
 
-> 状态：`approved` | 作者：Claude Code | 日期：2026-06-24
+> 状态：`implemented`（v0.6.0 已发布） | 作者：Claude Code | 日期：2026-06-24
 
 ---
 
@@ -212,16 +212,16 @@ Phase 1 使用 localStorage + Repository 本地存储，API 接口为后续后�
 
 - [x] 更新 PRD `docs/01-Product产品/需求管理中心-产品设计文档.md`
 - [x] 编写 RFC-007 `docs/02-RFC功能设计/007-requirement-pool-phase1.md`
-- [ ] 创建 `src/requirement-pool.html` 页面骨架
-- [ ] 创建 `src/pages/requirement-pool/requirement-store.js` 数据层
-- [ ] 创建 `src/pages/requirement-pool/requirement-renderer.js` 渲染层
-- [ ] 创建 `src/pages/requirement-pool/main.js` 交互层
-- [ ] 创建 `src/pages/requirement-pool/style.css` 样式
-- [ ] 更新 `src/lib/config.js` 导航映射
-- [ ] 更新 `vite.config.js` 构建入口
-- [ ] 编写 E2E 测试 `tests/e2e/requirement-pool.spec.js`
-- [ ] 更新 `tests/test_integration.py`
-- [ ] 运行回归测试：`npm run build`、`npm run check:scope`、pytest、Playwright
+- [x] 创建 `src/requirement-pool.html` 页面骨架
+- [x] 创建 `src/pages/requirement-pool/requirement-store.js` 数据层
+- [x] 创建 `src/pages/requirement-pool/requirement-renderer.js` 渲染层
+- [x] 创建 `src/pages/requirement-pool/main.js` 交互层
+- [x] 创建 `src/pages/requirement-pool/style.css` 样式
+- [x] 更新 `src/lib/config.js` 导航映射
+- [x] 更新 `vite.config.js` 构建入口
+- [x] 编写 E2E 测试 `tests/e2e/requirement-pool.spec.js`
+- [x] 更新 `tests/test_integration.py`
+- [x] 运行回归测试：`npm run build`、`npm run check:scope`、pytest、Playwright
 
 ---
 

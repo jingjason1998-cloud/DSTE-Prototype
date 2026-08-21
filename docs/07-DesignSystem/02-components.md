@@ -1,5 +1,7 @@
 # DSTE 组件规范
 
+> **本文只列举常用组件；`components.css` 还包含 `.cmdk-*` 命令面板等未逐一列举的组件，完整实现以 `assets/css/components.css` 为准。**
+
 本文件定义 DSTE 核心组件的样式与行为。所有组件样式基于 `assets/css/components.css`，并通过 `assets/css/tokens.css` 中的 token 控制。
 
 ## 按钮 Button
@@ -85,7 +87,7 @@
 ### 密度
 
 - 默认：行高 48px
-- 紧凑 `.data-table-compact`：行高 40px
+- 紧凑场景通过在页面级样式中调整单元格内边距实现（暂无统一的紧凑变体类）
 
 ## 状态标签 Status Badge
 
@@ -139,7 +141,7 @@
 
 ### 规范
 
-- 最大宽度 560px（可扩展 `.modal-lg` 720px）
+- 最大宽度 560px
 - 圆角 12px，阴影 `--shadow-4`
 - 点击 backdrop 关闭（可选）
 - ESC 关闭，focus trap
