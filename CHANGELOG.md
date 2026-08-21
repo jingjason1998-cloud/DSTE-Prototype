@@ -7,6 +7,23 @@
 
 ---
 
+## [v0.7.34] - 2026-08-21
+
+### Added
+- **工作区页签切换状态保持（RFC-010）**：外部页 iframe keep-alive（`#workspace-panes` 与 `#page-content` 平级，每页签一个 `.workspace-iframe-wrap` 常驻 DOM 只切显隐、首次激活才创建、LRU 上限 5）+ 内部页轻量快照（切页签前记 scrollTop/表单值，切回恢复）；`dste-embed-resize` 按 event.source 路由、暴露 `window.openTab`。切页签不再整页刷新丢失滚动/筛选/输入。
+
+### Fixed
+- **AI 助手稳定性五项（RFC-011 P0）**：
+  - **错误分类透传**：Worker 不再把 Kimi 所有错误一律压成 502——错误响应带 `errorType`（auth/ratelimit/invalid_request/upstream/timeout/internal）与 `upstreamStatus`；前端 `AIError` 携带分类，UI 按类给出可操作建议（限流/超时请重试、鉴权失效找管理员、会话异常自动重置）。
+  - **invalid_request 自动自愈**：会话历史被 Kimi 协议校验拒绝时，前端自动清空会话并重试一次，不再出现「坏历史反复重发、会话永久 502」。
+  - **超时可见且可重试**：修复内部超时（60s）被 UI 当「用户取消」静默吞掉的问题——每次尝试独立 AbortController，内部超时自动重试一次，仍失败则明确提示「AI 服务响应超时」；Worker 调 Kimi 单次 29s×4（~116s，前端早已放弃）对齐为 25s×2。
+  - **temperature 透传修复**：此前前端传的 temperature 被 Worker 静默丢弃；现透传并校验范围。实测发现 `kimi-k2.7-code-highspeed` 只允许 temperature=1，Worker 对「invalid temperature」错误自动摘字段重试兜底。
+  - **营销预算 AI 分析恒失败**：前端读 `res.content` 但 Worker 非流式返回 `choices[0].message.content` 嵌套结构，导致恒显示「AI 未返回有效内容」且空结果写入 1h/24h 缓存污染；已修复解析路径，空结果不再写缓存。
+- **AI 反馈闭环修复**：👍/👎 反馈此前只写 localStorage 从不上报且 `promptHash` 恒为 `h_0`；现经 `/api/ai/log` 真实上报，两个调用方传入用户提问原文计算 hash，bad case 数据集开始积累。
+
+### Refactor
+- **提示词收敛（RFC-011 P0-3）**：删除 `MeetingAiAssistant.js` 死代码 `buildMeetingSystemPrompt`、删除无人调用的前端版 `buildAgendaRecommendPrompt`（以 Worker `AI_AGENDA_PROMPT` 为权威）、`TopicAiChat` 硬编码 SYSTEM_PROMPT 切换为共享库 `buildTopicAiPrompt`。
+
 ## [v0.7.33] - 2026-08-21
 
 ### Fixed
