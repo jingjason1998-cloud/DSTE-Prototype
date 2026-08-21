@@ -1,7 +1,7 @@
 {
   "name": "dste-platform",
   "private": true,
-  "version": "0.7.32",
+  "version": "0.7.33",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "build:kb": "node scripts/build-knowledge.cjs",
     "build:icons": "node scripts/build-icon-sprite.js",
     "preview": "vite preview",
-    "check:scope": "node scripts/check-onclick-scope.js src/cockpit.html && node scripts/check-onclick-scope.js src/business-topics.html && node scripts/check-onclick-scope.js src/meetings.html && node scripts/check-onclick-scope.js src/bp.html",
+    "check:scope": "node scripts/check-onclick-scope.js src/cockpit.html && node scripts/check-onclick-scope.js src/business-topics.html && node scripts/check-onclick-scope.js src/meetings.html && node scripts/check-onclick-scope.js src/bp.html && node scripts/check-onclick-scope.js src/sp-planning.html",
     "health:check": "node scripts/health-check.cjs",
     "lint": "eslint .",
     "lint:security": "eslint . --format json --output-file eslint-report.json",
